@@ -24,13 +24,13 @@
 		"@radix-ui/react-tooltip": "^1.2.8",
 		"@streamdown/code": "^1.1.1",
 		"@tailwindcss/postcss": "^4.2.2",
-		"@tailwindcss/vite": "^4.2.2",
+		"@tailwindcss/vite": "^4.1.0",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"electrobun": "1.16.0",
 		"lucide-react": "^1.7.0",
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0",
 		"shadcn": "^4.1.1",
 		"streamdown": "^2.5.0",
 		"tailwind-merge": "^3.5.0",
@@ -40,14 +40,14 @@
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"@types/react": "^18.3.12",
-		"@types/react-dom": "^18.3.1",
-		"@vitejs/plugin-react": "^4.3.4",
+		"@types/react": "^19.1.0",
+		"@types/react-dom": "^19.1.0",
+		"@vitejs/plugin-react": "^4.5.0",
 		"concurrently": "^9.1.0",
 		"postcss": "^8.4.49",
 		"prettier": "^3.8.1",
 		"tailwindcss": "^4.2.2",
 		"typescript": "^5.7.2",
-		"vite": "^6.0.3"
+		"vite": "^8.0.0"
 	}
 }
