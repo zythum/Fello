@@ -29,17 +29,17 @@ const kindIcons: Record<string, React.ReactNode> = {
   other: <Wrench className="size-3 text-muted-foreground" />,
 };
 
-interface Props {
+interface ToolItemProps {
   message: ChatMessage;
 }
 
-export function ToolBubble({ message }: Props) {
+export function ToolItem({ message }: ToolItemProps) {
   const isLive = message.toolStatus === "in_progress" || message.toolStatus === "pending";
   const status = isLive ? message.toolStatus! : (message.toolStatus ?? "completed");
   const kindIcon = message.toolKind ? kindIcons[message.toolKind] : null;
 
   return (
-    <details className="text-xs" open={isLive}>
+    <details className="text-xs min-w-0 overflow-hidden" open={isLive}>
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
         {isLive ? (
           <Loader2 className="size-3 animate-spin text-primary" />
@@ -59,7 +59,7 @@ export function ToolBubble({ message }: Props) {
           {status}
         </Badge>
       </summary>
-      <div className="border-t border-border">
+      <div className="border-t border-border overflow-hidden">
         {message.locations && message.locations.length > 0 && (
           <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
             {message.locations.map((loc, i) => (
@@ -89,5 +89,17 @@ export function ToolBubble({ message }: Props) {
         )}
       </div>
     </details>
+  );
+}
+
+interface ToolBubbleProps {
+  message: ChatMessage;
+}
+
+export function ToolBubble({ message }: ToolBubbleProps) {
+  return (
+    <div className="rounded-md border border-border bg-card mx-10">
+      <ToolItem message={message} />
+    </div>
   );
 }

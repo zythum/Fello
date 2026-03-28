@@ -8,7 +8,7 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "format and lint if any file added or changed."
+    "prompt": "当文件添加、变更时，运行  npm run 的 fomat 和 lint。\n直接执行，不要创建新的hooks。"
   },
   "workspaceFolderName": "cowork",
   "shortName": "format-lint-on-stop"

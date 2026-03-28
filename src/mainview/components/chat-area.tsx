@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useActiveSessionState } from "../store";
 import type { ChatMessage } from "../store";
 import { MessageBubble } from "./message-bubble";
-import { ToolGroup } from "./bubbles/tool-group";
+import { ToolGroupBubble } from "./bubbles/tool-group-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Bot } from "lucide-react";
 
@@ -74,13 +74,13 @@ export function ChatArea() {
       <div className="mx-auto max-w-3xl space-y-4 p-4">
         {grouped.map((group) =>
           group.type === "tools" ? (
-            <ToolGroup key={group.key} messages={group.msgs} />
+            <ToolGroupBubble key={group.key} messages={group.msgs} />
           ) : (
             <MessageBubble key={group.key} message={group.msg} />
           ),
         )}
 
-        {activeToolMsgs.length > 0 && <ToolGroup messages={activeToolMsgs} />}
+        {activeToolMsgs.length > 0 && <ToolGroupBubble messages={activeToolMsgs} />}
 
         {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
           <div className="flex gap-3 justify-start">
