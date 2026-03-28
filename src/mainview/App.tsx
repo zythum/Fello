@@ -10,7 +10,6 @@ import type { SessionInfo } from "./store";
 
 function App() {
   const { addPermissionRequest, setSessions } = useAppStore();
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
   const { permissionRequests } = useActiveSessionState();
 
   useEffect(() => {

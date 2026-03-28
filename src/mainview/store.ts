@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export interface ChatMessage {
   id?: number;
-  role: "user" | "assistant" | "tool" | "system";
+  role: "user" | "assistant" | "tool" | "system" | "thinking";
   content: string;
   messageId?: string | null;
   toolCallId?: string | null;
@@ -12,6 +12,8 @@ export interface ChatMessage {
   rawInput?: unknown;
   locations?: Array<{ path: string; line?: number | null }> | null;
   createdAt?: number;
+  /** True while this message is still being streamed */
+  streaming?: boolean;
 }
 
 export interface SessionInfo {
@@ -57,8 +59,6 @@ export interface SessionState {
   messages: ChatMessage[];
   usage: SessionUsage | null;
   isStreaming: boolean;
-  streamingContent: string;
-  thinkingContent: string;
   permissionRequests: PermissionRequest[];
   activeToolCalls: Map<string, ActiveToolCall>;
 }
@@ -67,8 +67,6 @@ const emptySessionState = (): SessionState => ({
   messages: [],
   usage: null,
   isStreaming: false,
-  streamingContent: "",
-  thinkingContent: "",
   permissionRequests: [],
   activeToolCalls: new Map(),
 });
@@ -96,10 +94,8 @@ interface AppState {
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setUsage: (sessionId: string, usage: SessionUsage | null) => void;
   setIsStreaming: (sessionId: string, v: boolean) => void;
-  setStreamingContent: (sessionId: string, content: string) => void;
-  appendStreamingContent: (sessionId: string, chunk: string) => void;
-  setThinkingContent: (sessionId: string, content: string) => void;
-  appendThinkingContent: (sessionId: string, chunk: string) => void;
+  appendToLastMessage: (sessionId: string, role: "assistant" | "thinking", chunk: string) => void;
+  finalizeStreamingMessages: (sessionId: string) => void;
   setPermissionRequest: (sessionId: string, req: PermissionRequest | null) => void;
   addPermissionRequest: (sessionId: string, req: PermissionRequest) => void;
   removePermissionRequest: (sessionId: string, toolCallId: string) => void;
@@ -147,17 +143,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),
   setUsage: (sessionId, usage) => get().updateSessionState(sessionId, () => ({ usage })),
   setIsStreaming: (sessionId, v) => get().updateSessionState(sessionId, () => ({ isStreaming: v })),
-  setStreamingContent: (sessionId, content) =>
-    get().updateSessionState(sessionId, () => ({ streamingContent: content })),
-  appendStreamingContent: (sessionId, chunk) =>
+  appendToLastMessage: (sessionId, role, chunk) =>
+    get().updateSessionState(sessionId, (s) => {
+      const msgs = [...s.messages];
+      const last = msgs[msgs.length - 1];
+      if (last && last.role === role && last.streaming) {
+        msgs[msgs.length - 1] = { ...last, content: last.content + chunk };
+      } else {
+        // Finalize any prior streaming messages when starting a new one
+        for (let i = 0; i < msgs.length; i++) {
+          if (msgs[i].streaming) {
+            msgs[i] = { ...msgs[i], streaming: false };
+          }
+        }
+        msgs.push({ role, content: chunk, streaming: true });
+      }
+      return { messages: msgs };
+    }),
+  finalizeStreamingMessages: (sessionId) =>
     get().updateSessionState(sessionId, (s) => ({
-      streamingContent: s.streamingContent + chunk,
-    })),
-  setThinkingContent: (sessionId, content) =>
-    get().updateSessionState(sessionId, () => ({ thinkingContent: content })),
-  appendThinkingContent: (sessionId, chunk) =>
-    get().updateSessionState(sessionId, (s) => ({
-      thinkingContent: s.thinkingContent + chunk,
+      messages: s.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
     })),
   setPermissionRequest: (sessionId, req) =>
     get().updateSessionState(sessionId, () => ({

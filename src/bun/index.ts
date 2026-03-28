@@ -100,7 +100,7 @@ const handlers = {
   async newChat(cwd: string) {
     try {
       const b = await ensureBridge(cwd);
-      const { sessionId, models } = await b.createSession(cwd);
+      const { sessionId, models: _models } = await b.createSession(cwd);
       activeSessionId = sessionId;
       dbOps.createSession(sessionId, cwd, "kiro-cli acp");
       return { sessionId, agentInfo: b.agentInfo };

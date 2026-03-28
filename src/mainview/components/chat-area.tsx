@@ -1,70 +1,88 @@
-import { useEffect, useRef } from "react";
-import { Streamdown } from "streamdown";
-import { createCodePlugin } from "@streamdown/code";
-
-const code = createCodePlugin({
-  themes: ["github-light", "tokyo-night"],
-});
+import { useEffect, useMemo, useRef } from "react";
 import { useActiveSessionState } from "../store";
+import type { ChatMessage } from "../store";
 import { MessageBubble } from "./message-bubble";
-import { ToolCallIndicator } from "./tool-call-indicator";
+import { ToolGroup } from "./bubbles/tool-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Lightbulb, Bot } from "lucide-react";
+import { Loader2, Bot } from "lucide-react";
+
+type MessageGroup =
+  | { type: "message"; key: string; msg: ChatMessage }
+  | { type: "tools"; key: string; msgs: ChatMessage[] };
 
 export function ChatArea() {
-  const { messages, isStreaming, streamingContent, thinkingContent, activeToolCalls } =
-    useActiveSessionState();
+  const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const grouped = useMemo(() => {
+    const result: MessageGroup[] = [];
+    let toolBatch: ChatMessage[] = [];
+
+    const flushTools = () => {
+      if (toolBatch.length > 0) {
+        result.push({
+          type: "tools",
+          key: `tools-${toolBatch[0].toolCallId ?? result.length}`,
+          msgs: toolBatch,
+        });
+        toolBatch = [];
+      }
+    };
+
+    for (const msg of messages) {
+      if (msg.role === "tool") {
+        toolBatch.push(msg);
+      } else {
+        flushTools();
+        result.push({
+          type: "message",
+          key: `msg-${msg.id ?? result.length}`,
+          msg,
+        });
+      }
+    }
+    flushTools();
+    return result;
+  }, [messages]);
+
+  const activeToolMsgs = useMemo(() => {
+    const result: ChatMessage[] = [];
+    for (const [id, tc] of activeToolCalls) {
+      result.push({
+        role: "tool",
+        content: tc.content,
+        toolCallId: id,
+        toolTitle: tc.title,
+        toolStatus: tc.status,
+        toolKind: tc.kind,
+        rawInput: tc.rawInput,
+        locations: tc.locations,
+      });
+    }
+    return result;
+  }, [activeToolCalls]);
+
+  const lastMsg = messages[messages.length - 1];
+  const hasStreamingContent = lastMsg?.streaming && lastMsg.role === "assistant";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent, thinkingContent, activeToolCalls.size]);
+  }, [messages, activeToolCalls.size]);
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <ScrollArea className="min-h-0 flex-1">
       <div className="mx-auto max-w-3xl space-y-4 p-4">
-        {messages.map((msg, i) => (
-          <MessageBubble key={msg.id ?? `msg-${i}`} message={msg} />
-        ))}
-
-        {/* Thinking */}
-        {isStreaming && thinkingContent && (
-          <details className="w-full" open>
-            <summary className="flex cursor-pointer select-none items-center gap-2 rounded-t-lg bg-muted/50 px-4 py-2 text-xs text-muted-foreground hover:text-foreground">
-              <Lightbulb className="size-3.5 animate-pulse" />
-              <span>Thinking...</span>
-            </summary>
-            <div className="rounded-b-lg border-t border-border bg-muted/30 px-4 py-3 text-sm italic text-muted-foreground">
-              <div className="prose prose-invert prose-sm max-w-none opacity-70">
-                <Streamdown plugins={{ code }} isAnimating={true}>
-                  {thinkingContent}
-                </Streamdown>
-              </div>
-            </div>
-          </details>
+        {grouped.map((group) =>
+          group.type === "tools" ? (
+            <ToolGroup key={group.key} messages={group.msgs} />
+          ) : (
+            <MessageBubble key={group.key} message={group.msg} />
+          ),
         )}
 
-        {/* Tool calls */}
-        <ToolCallIndicator toolCalls={activeToolCalls} />
+        {activeToolMsgs.length > 0 && <ToolGroup messages={activeToolMsgs} />}
 
-        {/* Streaming response */}
-        {isStreaming && streamingContent && (
-          <div className="flex gap-3 justify-start">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Bot className="size-4 text-primary" />
-            </div>
-            <div className="w-full rounded-2xl rounded-bl-md bg-card px-4 py-3 text-sm leading-relaxed text-card-foreground">
-              <div className="prose prose-invert prose-sm max-w-none [&_pre]:rounded-lg [&_pre]:bg-muted [&_code]:text-primary">
-                <Streamdown plugins={{ code }} isAnimating={true}>
-                  {streamingContent}
-                </Streamdown>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading dots */}
-        {isStreaming && !streamingContent && activeToolCalls.size === 0 && (
+        {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
           <div className="flex gap-3 justify-start">
             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Bot className="size-4 text-primary" />
@@ -78,6 +96,6 @@ export function ChatArea() {
 
         <div ref={bottomRef} />
       </div>
-    </div>
+    </ScrollArea>
   );
 }

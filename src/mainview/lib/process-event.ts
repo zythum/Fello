@@ -16,13 +16,13 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
 
     case "agent_message_chunk":
       if (event.content?.type === "text") {
-        store.appendStreamingContent(sessionId, event.content.text);
+        store.appendToLastMessage(sessionId, "assistant", event.content.text);
       }
       break;
 
     case "agent_thought_chunk":
       if (event.content?.type === "text") {
-        store.appendThinkingContent(sessionId, event.content.text);
+        store.appendToLastMessage(sessionId, "thinking", event.content.text);
       }
       break;
 
@@ -68,9 +68,8 @@ export function flushStreaming(sessionId: string) {
   const store = useAppStore.getState();
   const ss = store.getSessionState(sessionId);
 
-  // Flush tool calls into messages
-  const toolCalls = ss.activeToolCalls;
-  for (const [id, tc] of toolCalls) {
+  // Flush active tool calls into messages
+  for (const [id, tc] of ss.activeToolCalls) {
     store.addMessage(sessionId, {
       role: "tool",
       content: "",
@@ -84,13 +83,8 @@ export function flushStreaming(sessionId: string) {
   }
   store.clearToolCalls(sessionId);
 
-  // Flush streaming content into assistant message
-  const content = ss.streamingContent;
-  if (content) {
-    store.addMessage(sessionId, { role: "assistant", content });
-  }
-  store.setStreamingContent(sessionId, "");
-  store.setThinkingContent(sessionId, "");
+  // Mark any streaming messages as finalized
+  store.finalizeStreamingMessages(sessionId);
 }
 
 // Replay a list of events from JSONL into the store.
@@ -98,8 +92,6 @@ export function flushStreaming(sessionId: string) {
 export function replayEvents(sessionId: string, events: unknown[]) {
   const store = useAppStore.getState();
   store.setMessages(sessionId, []);
-  store.setStreamingContent(sessionId, "");
-  store.setThinkingContent(sessionId, "");
   store.clearToolCalls(sessionId);
   store.setUsage(sessionId, null);
 

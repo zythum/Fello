@@ -34,8 +34,6 @@ export function ChatInput() {
     setInput("");
     addMessage(activeSessionId, { role: "user", content: text });
     setIsStreaming(activeSessionId, true);
-    useAppStore.getState().setStreamingContent(activeSessionId, "");
-    useAppStore.getState().setThinkingContent(activeSessionId, "");
     clearToolCalls(activeSessionId);
 
     if (textareaRef.current) {
@@ -43,7 +41,7 @@ export function ChatInput() {
     }
 
     try {
-      const result = await rpc.sendMessage(text);
+      await rpc.sendMessage(text);
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;

@@ -1,4 +1,4 @@
-import { useAppStore, useActiveSessionState } from "../store";
+import { useAppStore } from "../store";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { FileTree } from "./file-tree";

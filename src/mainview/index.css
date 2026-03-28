@@ -86,32 +86,3 @@ body,
   padding: 0;
   overflow: hidden;
 }
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgb(63 63 70);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgb(82 82 91);
-}
-
-/* Streamdown prose overrides */
-.prose pre {
-  margin: 0.5em 0;
-  line-height: 1.7;
-  padding: 1em;
-}
-.prose code {
-  font-size: 0.85em;
-  line-height: 1.7;
-}
-.prose p {
-  margin: 0.4em 0;
-}

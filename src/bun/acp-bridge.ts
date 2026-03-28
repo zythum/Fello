@@ -89,15 +89,16 @@ export class ACPBridge {
     });
     const stream = { readable: logReadable, writable: logWritable };
 
-    const bridge = this;
+    const onPermission = this.onPermissionRequest;
+    const onUpdate = this.onSessionUpdate;
     const client: acp.Client = {
       async requestPermission(
         params: RequestPermissionRequest,
       ): Promise<RequestPermissionResponse> {
-        return bridge.onPermissionRequest(params);
+        return onPermission(params);
       },
       async sessionUpdate(params: SessionNotification): Promise<void> {
-        bridge.onSessionUpdate(params);
+        onUpdate(params);
       },
       async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
         const { writeFile } = await import("fs/promises");

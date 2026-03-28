@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Format & Lint on Stop",
+  "description": "When the agent finishes a task, run bun format and lint to ensure code quality.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "format and lint if any file added or changed."
+  },
+  "workspaceFolderName": "cowork",
+  "shortName": "format-lint-on-stop"
+}
