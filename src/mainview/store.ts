@@ -52,93 +52,151 @@ interface ActiveToolCall {
   locations?: Array<{ path: string; line?: number | null }> | null;
 }
 
-interface AppState {
-  sessions: SessionInfo[];
-  activeSessionId: string | null;
+// Per-session state bucket
+export interface SessionState {
   messages: ChatMessage[];
   usage: SessionUsage | null;
-
-  isConnecting: boolean;
   isStreaming: boolean;
   streamingContent: string;
   thinkingContent: string;
-  sidebarOpen: boolean;
   permissionRequests: PermissionRequest[];
-  availableModels: ModelOption[];
-  currentModelId: string | null;
   activeToolCalls: Map<string, ActiveToolCall>;
-
-  setSessions: (sessions: SessionInfo[]) => void;
-  setActiveSessionId: (id: string | null) => void;
-  setMessages: (messages: ChatMessage[]) => void;
-  addMessage: (message: ChatMessage) => void;
-  setUsage: (usage: SessionUsage | null) => void;
-  setIsConnecting: (v: boolean) => void;
-  setIsStreaming: (v: boolean) => void;
-  setStreamingContent: (content: string) => void;
-  appendStreamingContent: (chunk: string) => void;
-  setThinkingContent: (content: string) => void;
-  appendThinkingContent: (chunk: string) => void;
-  setSidebarOpen: (v: boolean) => void;
-  setPermissionRequest: (req: PermissionRequest | null) => void;
-  addPermissionRequest: (req: PermissionRequest) => void;
-  removePermissionRequest: (toolCallId: string) => void;
-  setAvailableModels: (models: ModelOption[]) => void;
-  setCurrentModelId: (id: string | null) => void;
-  updateToolCall: (id: string, data: Partial<ActiveToolCall>) => void;
-  clearToolCalls: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  sessions: [],
-  activeSessionId: null,
+const emptySessionState = (): SessionState => ({
   messages: [],
   usage: null,
-  isConnecting: false,
   isStreaming: false,
   streamingContent: "",
   thinkingContent: "",
-  sidebarOpen: true,
   permissionRequests: [],
+  activeToolCalls: new Map(),
+});
+
+interface AppState {
+  sessions: SessionInfo[];
+  activeSessionId: string | null;
+  sessionStates: Map<string, SessionState>;
+
+  // Global (not per-session)
+  isConnecting: boolean;
+  sidebarOpen: boolean;
+  availableModels: ModelOption[];
+  currentModelId: string | null;
+
+  // Helpers to get/update the active session's state
+  getSessionState: (id?: string | null) => SessionState;
+  updateSessionState: (id: string, updater: (s: SessionState) => Partial<SessionState>) => void;
+
+  setSessions: (sessions: SessionInfo[]) => void;
+  setActiveSessionId: (id: string | null) => void;
+
+  // Per-session mutators (sessionId required)
+  setMessages: (sessionId: string, messages: ChatMessage[]) => void;
+  addMessage: (sessionId: string, message: ChatMessage) => void;
+  setUsage: (sessionId: string, usage: SessionUsage | null) => void;
+  setIsStreaming: (sessionId: string, v: boolean) => void;
+  setStreamingContent: (sessionId: string, content: string) => void;
+  appendStreamingContent: (sessionId: string, chunk: string) => void;
+  setThinkingContent: (sessionId: string, content: string) => void;
+  appendThinkingContent: (sessionId: string, chunk: string) => void;
+  setPermissionRequest: (sessionId: string, req: PermissionRequest | null) => void;
+  addPermissionRequest: (sessionId: string, req: PermissionRequest) => void;
+  removePermissionRequest: (sessionId: string, toolCallId: string) => void;
+  updateToolCall: (sessionId: string, id: string, data: Partial<ActiveToolCall>) => void;
+  clearToolCalls: (sessionId: string) => void;
+
+  // Global mutators
+  setIsConnecting: (v: boolean) => void;
+  setSidebarOpen: (v: boolean) => void;
+  setAvailableModels: (models: ModelOption[]) => void;
+  setCurrentModelId: (id: string | null) => void;
+}
+
+export const useAppStore = create<AppState>((set, get) => ({
+  sessions: [],
+  activeSessionId: null,
+  sessionStates: new Map(),
+
+  isConnecting: false,
+  sidebarOpen: true,
   availableModels: [],
   currentModelId: null,
-  activeToolCalls: new Map(),
+
+  getSessionState: (id) => {
+    const sid = id ?? get().activeSessionId;
+    if (!sid) return emptySessionState();
+    return get().sessionStates.get(sid) ?? emptySessionState();
+  },
+
+  updateSessionState: (id, updater) => {
+    set((state) => {
+      const map = new Map(state.sessionStates);
+      const current = map.get(id) ?? emptySessionState();
+      map.set(id, { ...current, ...updater(current) });
+      return { sessionStates: map };
+    });
+  },
 
   setSessions: (sessions) => set({ sessions }),
   setActiveSessionId: (id) => set({ activeSessionId: id }),
-  setMessages: (messages) => set({ messages }),
-  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
-  setUsage: (usage) => set({ usage }),
-  setIsConnecting: (v) => set({ isConnecting: v }),
-  setIsStreaming: (v) => set({ isStreaming: v }),
-  setStreamingContent: (content) => set({ streamingContent: content }),
-  appendStreamingContent: (chunk) =>
-    set((state) => ({ streamingContent: state.streamingContent + chunk })),
-  setThinkingContent: (content) => set({ thinkingContent: content }),
-  appendThinkingContent: (chunk) =>
-    set((state) => ({ thinkingContent: state.thinkingContent + chunk })),
-  setSidebarOpen: (v) => set({ sidebarOpen: v }),
-  setPermissionRequest: (req) => set({ permissionRequests: req ? [req] : [] }),
-  addPermissionRequest: (req) =>
-    set((state) => ({ permissionRequests: [...state.permissionRequests, req] })),
-  removePermissionRequest: (toolCallId) =>
-    set((state) => ({
-      permissionRequests: state.permissionRequests.filter(
-        (r) => r.toolCall.toolCallId !== toolCallId,
-      ),
+
+  // Per-session mutators
+  setMessages: (sessionId, messages) => get().updateSessionState(sessionId, () => ({ messages })),
+  addMessage: (sessionId, message) =>
+    get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),
+  setUsage: (sessionId, usage) => get().updateSessionState(sessionId, () => ({ usage })),
+  setIsStreaming: (sessionId, v) => get().updateSessionState(sessionId, () => ({ isStreaming: v })),
+  setStreamingContent: (sessionId, content) =>
+    get().updateSessionState(sessionId, () => ({ streamingContent: content })),
+  appendStreamingContent: (sessionId, chunk) =>
+    get().updateSessionState(sessionId, (s) => ({
+      streamingContent: s.streamingContent + chunk,
     })),
-  setAvailableModels: (models) => set({ availableModels: models }),
-  setCurrentModelId: (id) => set({ currentModelId: id }),
-  updateToolCall: (id, data) =>
-    set((state) => {
-      const newMap = new Map(state.activeToolCalls);
+  setThinkingContent: (sessionId, content) =>
+    get().updateSessionState(sessionId, () => ({ thinkingContent: content })),
+  appendThinkingContent: (sessionId, chunk) =>
+    get().updateSessionState(sessionId, (s) => ({
+      thinkingContent: s.thinkingContent + chunk,
+    })),
+  setPermissionRequest: (sessionId, req) =>
+    get().updateSessionState(sessionId, () => ({
+      permissionRequests: req ? [req] : [],
+    })),
+  addPermissionRequest: (sessionId, req) =>
+    get().updateSessionState(sessionId, (s) => ({
+      permissionRequests: [...s.permissionRequests, req],
+    })),
+  removePermissionRequest: (sessionId, toolCallId) =>
+    get().updateSessionState(sessionId, (s) => ({
+      permissionRequests: s.permissionRequests.filter((r) => r.toolCall.toolCallId !== toolCallId),
+    })),
+  updateToolCall: (sessionId, id, data) =>
+    get().updateSessionState(sessionId, (s) => {
+      const newMap = new Map(s.activeToolCalls);
       const existing = newMap.get(id);
-      // Only merge non-null/undefined values
       const filtered = Object.fromEntries(
         Object.entries(data).filter(([, v]) => v != null && v !== ""),
       );
       newMap.set(id, { title: "", status: "pending", content: "", ...existing, ...filtered });
       return { activeToolCalls: newMap };
     }),
-  clearToolCalls: () => set({ activeToolCalls: new Map() }),
+  clearToolCalls: (sessionId) =>
+    get().updateSessionState(sessionId, () => ({ activeToolCalls: new Map() })),
+
+  // Global mutators
+  setIsConnecting: (v) => set({ isConnecting: v }),
+  setSidebarOpen: (v) => set({ sidebarOpen: v }),
+  setAvailableModels: (models) => set({ availableModels: models }),
+  setCurrentModelId: (id) => set({ currentModelId: id }),
 }));
+
+// Selector: derive current session's state for use in components
+export function useActiveSessionState() {
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const sessionStates = useAppStore((s) => s.sessionStates);
+  if (!activeSessionId) {
+    return emptySessionState();
+  }
+  return sessionStates.get(activeSessionId) ?? emptySessionState();
+}

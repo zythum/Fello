@@ -1,0 +1,4 @@
+{
+  "rules": {},
+  "ignorePatterns": ["src/mainview/components/ui"]
+}

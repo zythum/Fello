@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Format on Save",
+  "description": "Runs oxfmt on ts/tsx files after they are edited to ensure consistent formatting.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.ts",
+      "*.tsx"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx oxfmt --write ${file}",
+    "timeout": 15
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAppStore } from "./store";
+import { useAppStore, useActiveSessionState } from "./store";
 import { rpc } from "./rpc";
 import { processEvent } from "./lib/process-event";
 import { Sidebar } from "./components/sidebar";
@@ -9,8 +9,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type { SessionInfo } from "./store";
 
 function App() {
-  const { permissionRequests, addPermissionRequest, setSessions, activeSessionId } =
-    useAppStore();
+  const { addPermissionRequest, setSessions } = useAppStore();
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const { permissionRequests } = useActiveSessionState();
 
   useEffect(() => {
     rpc.listSessions().then((s: unknown) => {
@@ -22,13 +23,17 @@ function App() {
     const handleSessionUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       const update = detail.update;
-      processEvent(update);
-      if (activeSessionId) rpc.saveEvent(activeSessionId, update);
+      const sid = useAppStore.getState().activeSessionId;
+      if (!sid) return;
+      processEvent(sid, update);
+      rpc.saveEvent(sid, update);
     };
 
     const handlePermissionRequest = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      addPermissionRequest({
+      const sid = useAppStore.getState().activeSessionId;
+      if (!sid) return;
+      addPermissionRequest(sid, {
         toolCall: detail.toolCall,
         options: detail.options,
       });
@@ -40,7 +45,7 @@ function App() {
       window.removeEventListener("acp:session-update", handleSessionUpdate);
       window.removeEventListener("acp:permission-request", handlePermissionRequest);
     };
-  }, [addPermissionRequest, activeSessionId]);
+  }, [addPermissionRequest]);
 
   return (
     <TooltipProvider>

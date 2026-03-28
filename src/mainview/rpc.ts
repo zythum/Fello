@@ -46,8 +46,7 @@ export const rpc = {
   pickWorkDir: () => rpcInstance.request.pickWorkDir(),
   getModels: () => rpcInstance.request.getModels(),
   setModel: (modelId: string) => rpcInstance.request.setModel(modelId),
-  readDir: (path: string, depth?: number) =>
-    rpcInstance.request.readDir({ path, depth }),
+  readDir: (path: string, depth?: number) => rpcInstance.request.readDir({ path, depth }),
   createFile: (path: string, isFolder: boolean) =>
     rpcInstance.request.createFile({ path, isFolder }),
   deleteFile: (path: string) => rpcInstance.request.deleteFile(path),

@@ -5,20 +5,15 @@ import { createCodePlugin } from "@streamdown/code";
 const code = createCodePlugin({
   themes: ["github-light", "tokyo-night"],
 });
-import { useAppStore } from "../store";
+import { useActiveSessionState } from "../store";
 import { MessageBubble } from "./message-bubble";
 import { ToolCallIndicator } from "./tool-call-indicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Lightbulb, Bot } from "lucide-react";
 
 export function ChatArea() {
-  const {
-    messages,
-    isStreaming,
-    streamingContent,
-    thinkingContent,
-    activeToolCalls,
-  } = useAppStore();
+  const { messages, isStreaming, streamingContent, thinkingContent, activeToolCalls } =
+    useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

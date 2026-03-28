@@ -23,10 +23,6 @@ export function Sidebar() {
       const cwd = (await rpc.pickWorkDir()) as string | null;
       if (!cwd) return;
       setIsConnecting(true);
-      useAppStore.getState().setStreamingContent("");
-      useAppStore.getState().setThinkingContent("");
-      useAppStore.getState().clearToolCalls();
-      useAppStore.getState().setMessages([]);
       const result = (await rpc.newChat(cwd)) as { sessionId: string } | null;
       if (!result) return;
       setActiveSessionId(result.sessionId);
@@ -49,7 +45,7 @@ export function Sidebar() {
     setIsConnecting(true);
     try {
       const events = (await rpc.getEvents(session.id)) as unknown[];
-      replayEvents(events);
+      replayEvents(session.id, events);
       const result = (await rpc.resumeChat(session.id, session.cwd)) as {
         ok: boolean;
         models: { availableModels: any[]; currentModelId: string } | null;
@@ -68,17 +64,19 @@ export function Sidebar() {
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     await rpc.deleteSession(id);
+    // Remove per-session state
+    const map = new Map(useAppStore.getState().sessionStates);
+    map.delete(id);
+    useAppStore.setState({ sessionStates: map });
+
     const updated = ((await rpc.listSessions()) as SessionInfo[]) ?? [];
     setSessions(updated);
     if (activeSessionId === id) {
-      // Select the most recent remaining session, or null
       const next = updated.length > 0 ? updated[0].id : null;
       setActiveSessionId(next);
-      useAppStore.getState().setMessages([]);
-      useAppStore.getState().clearToolCalls();
       if (next) {
         const events = (await rpc.getEvents(next)) as unknown[];
-        replayEvents(events);
+        replayEvents(next, events);
       }
     }
   };
@@ -115,9 +113,7 @@ export function Sidebar() {
             </div>
           ))}
           {sessions.length === 0 && (
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              No conversations yet
-            </p>
+            <p className="mt-4 text-center text-xs text-muted-foreground">No conversations yet</p>
           )}
         </div>
       </ScrollArea>

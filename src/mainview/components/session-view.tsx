@@ -1,4 +1,4 @@
-import { useAppStore } from "../store";
+import { useAppStore, useActiveSessionState } from "../store";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { FileTree } from "./file-tree";
@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
 
 export function SessionView() {
-  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } =
-    useAppStore();
+  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
@@ -56,8 +55,8 @@ export function SessionView() {
             <div className="text-center">
               <h1 className="text-2xl font-semibold tracking-tight">Cowork</h1>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                An ACP client for Kiro. Start a new chat from the sidebar to
-                connect with the agent and begin collaborating.
+                An ACP client for Kiro. Start a new chat from the sidebar to connect with the agent
+                and begin collaborating.
               </p>
             </div>
             <span className="text-xs text-muted-foreground/60">

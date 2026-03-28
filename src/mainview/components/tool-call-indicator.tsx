@@ -1,7 +1,18 @@
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2, Check, X,
-  FileText, Pencil, Trash2, Move, Search, Terminal, Brain, Globe, ArrowRightLeft, Wrench,
+  Loader2,
+  Check,
+  X,
+  FileText,
+  Pencil,
+  Trash2,
+  Move,
+  Search,
+  Terminal,
+  Brain,
+  Globe,
+  ArrowRightLeft,
+  Wrench,
 } from "lucide-react";
 
 const kindIcons: Record<string, React.ReactNode> = {
@@ -54,16 +65,26 @@ export function ToolCallIndicator({ toolCalls }: Props) {
               )}
               {kindIcon}
               <span className="font-medium text-foreground">{tc.title}</span>
-              {tc.kind && <Badge variant="outline" className="text-[10px]">{tc.kind}</Badge>}
-              <Badge variant="secondary" className="ml-auto text-[10px]">{tc.status}</Badge>
+              {tc.kind && (
+                <Badge variant="outline" className="text-[10px]">
+                  {tc.kind}
+                </Badge>
+              )}
+              <Badge variant="secondary" className="ml-auto text-[10px]">
+                {tc.status}
+              </Badge>
             </summary>
             <div className="border-t border-border">
               {tc.locations && tc.locations.length > 0 && (
                 <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
                   {tc.locations.map((loc, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
                       <FileText className="size-2.5" />
-                      {loc.path.split("/").pop()}{loc.line != null && `:${loc.line}`}
+                      {loc.path.split("/").pop()}
+                      {loc.line != null && `:${loc.line}`}
                     </span>
                   ))}
                 </div>

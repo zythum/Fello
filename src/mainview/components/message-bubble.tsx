@@ -7,8 +7,20 @@ const code = createCodePlugin({
 import type { ChatMessage } from "../store";
 import { Badge } from "@/components/ui/badge";
 import {
-  Check, X, User, Bot,
-  FileText, Pencil, Trash2, Move, Search, Terminal, Brain, Globe, ArrowRightLeft, Wrench,
+  Check,
+  X,
+  User,
+  Bot,
+  FileText,
+  Pencil,
+  Trash2,
+  Move,
+  Search,
+  Terminal,
+  Brain,
+  Globe,
+  ArrowRightLeft,
+  Wrench,
 } from "lucide-react";
 
 const kindIcons: Record<string, React.ReactNode> = {
@@ -47,18 +59,26 @@ export function MessageBubble({ message }: Props) {
           {kindIcon}
           <span className="font-medium text-foreground">{message.toolTitle || "Tool"}</span>
           {message.toolKind && (
-            <Badge variant="outline" className="text-[10px]">{message.toolKind}</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {message.toolKind}
+            </Badge>
           )}
-          <Badge variant="secondary" className="ml-auto text-[10px]">{status}</Badge>
+          <Badge variant="secondary" className="ml-auto text-[10px]">
+            {status}
+          </Badge>
         </summary>
         <div className="border-t border-border">
           {/* Locations */}
           {message.locations && message.locations.length > 0 && (
             <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
               {message.locations.map((loc, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                >
                   <FileText className="size-2.5" />
-                  {loc.path.split("/").pop()}{loc.line != null && `:${loc.line}`}
+                  {loc.path.split("/").pop()}
+                  {loc.line != null && `:${loc.line}`}
                 </span>
               ))}
             </div>

@@ -46,8 +46,17 @@ interface Actions {
 }
 
 function TreeItem({
-  node, depth, selectedId, openFolders, editingId, editingValue,
-  dropTargetId, onEditChange, onEditSubmit, onEditCancel, actions,
+  node,
+  depth,
+  selectedId,
+  openFolders,
+  editingId,
+  editingValue,
+  dropTargetId,
+  onEditChange,
+  onEditSubmit,
+  onEditCancel,
+  actions,
 }: {
   node: TreeNode;
   depth: number;
@@ -85,7 +94,9 @@ function TreeItem({
       onDragEnd={actions.dragEnd}
       className={cn(
         "flex h-[28px] cursor-default select-none items-center gap-1.5 px-1.5 text-[13px] leading-none",
-        isSelected ? "bg-accent text-accent-foreground" : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
+        isSelected
+          ? "bg-accent text-accent-foreground"
+          : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
         isDragOver && "ring-1 ring-primary bg-primary/5",
       )}
       style={{ paddingLeft: `${depth * 16 + 6}px` }}
@@ -96,7 +107,12 @@ function TreeItem({
       }}
     >
       {node.isFolder ? (
-        <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            isOpen && "rotate-90",
+          )}
+        />
       ) : (
         <span className="w-3.5 shrink-0" />
       )}
@@ -125,8 +141,15 @@ function TreeItem({
   );
 
   const childProps = {
-    selectedId, openFolders, editingId, editingValue,
-    dropTargetId, onEditChange, onEditSubmit, onEditCancel, actions,
+    selectedId,
+    openFolders,
+    editingId,
+    editingValue,
+    dropTargetId,
+    onEditChange,
+    onEditSubmit,
+    onEditCancel,
+    actions,
   };
 
   return (
@@ -157,9 +180,11 @@ function TreeItem({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {node.isFolder && isOpen && node.children?.map((child) => (
-        <TreeItem key={child.id} node={child} depth={depth + 1} {...childProps} />
-      ))}
+      {node.isFolder &&
+        isOpen &&
+        node.children?.map((child) => (
+          <TreeItem key={child.id} node={child} depth={depth + 1} {...childProps} />
+        ))}
     </>
   );
 }
@@ -191,8 +216,12 @@ export function FileTree() {
     }
   }, []);
 
-  const refresh = useCallback(() => { if (cwd) loadTree(cwd); }, [cwd, loadTree]);
-  useEffect(() => { refresh(); }, [refresh]);
+  const refresh = useCallback(() => {
+    if (cwd) loadTree(cwd);
+  }, [cwd, loadTree]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const toggle = useCallback((id: string) => {
     setOpenFolders((prev) => {
@@ -212,20 +241,29 @@ export function FileTree() {
     if (!editingId) return;
     const name = editingValue.trim();
     setEditingId(null);
-    if (!name) { refresh(); return; }
+    if (!name) {
+      refresh();
+      return;
+    }
 
     if (editingId.startsWith("__new_")) {
       const parentPath = editingId.split("__parent__")[1] ?? cwd ?? "";
       const isFolder = editingId.includes("__folder__");
-      try { await rpc.createFile(`${parentPath}/${name}`, isFolder); }
-      catch (err) { console.error("Create failed:", err); }
+      try {
+        await rpc.createFile(`${parentPath}/${name}`, isFolder);
+      } catch (err) {
+        console.error("Create failed:", err);
+      }
     } else {
       const parts = editingId.split("/");
       parts[parts.length - 1] = name;
       const newPath = parts.join("/");
       if (editingId !== newPath) {
-        try { await rpc.renameFile(editingId, newPath); }
-        catch (err) { console.error("Rename failed:", err); }
+        try {
+          await rpc.renameFile(editingId, newPath);
+        } catch (err) {
+          console.error("Rename failed:", err);
+        }
       }
     }
     refresh();
@@ -234,7 +272,12 @@ export function FileTree() {
   const createIn = (parentId: string | null, isFolder: boolean) => {
     const parentPath = parentId || cwd || "";
     const tempId = `__new_${isFolder ? "__folder__" : "__file__"}__parent__${parentPath}`;
-    const tempNode: TreeNode = { id: tempId, name: "", isFolder, children: isFolder ? [] : undefined };
+    const tempNode: TreeNode = {
+      id: tempId,
+      name: "",
+      isFolder,
+      children: isFolder ? [] : undefined,
+    };
     if (parentId) {
       setOpenFolders((prev) => new Set(prev).add(parentId));
       setData((prev) => insertTemp(prev, parentId, tempNode));
@@ -247,15 +290,22 @@ export function FileTree() {
   };
 
   const deleteNode = async (id: string) => {
-    try { await rpc.deleteFile(id); } catch (err) { console.error("Delete failed:", err); }
+    try {
+      await rpc.deleteFile(id);
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
     refresh();
   };
 
   const moveTo = async (id: string) => {
     const dest = (await rpc.pickWorkDir()) as string | null;
     if (!dest) return;
-    try { await rpc.moveFile(id, `${dest}/${id.split("/").pop()!}`); }
-    catch (err) { console.error("Move failed:", err); }
+    try {
+      await rpc.moveFile(id, `${dest}/${id.split("/").pop()!}`);
+    } catch (err) {
+      console.error("Move failed:", err);
+    }
     refresh();
   };
 
@@ -267,21 +317,27 @@ export function FileTree() {
     setDropTargetId(id);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropTargetId(null);
-    if (!dragId || dragId === targetId) return;
-    // Don't drop into self or child
-    if (targetId.startsWith(dragId + "/")) return;
-    const srcName = dragId.split("/").pop()!;
-    const newPath = `${targetId}/${srcName}`;
-    if (dragId === newPath) return;
-    try { await rpc.moveFile(dragId, newPath); }
-    catch (err) { console.error("Move failed:", err); }
-    setDragId(null);
-    refresh();
-  }, [dragId, refresh]);
+  const handleDrop = useCallback(
+    async (e: React.DragEvent, targetId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropTargetId(null);
+      if (!dragId || dragId === targetId) return;
+      // Don't drop into self or child
+      if (targetId.startsWith(dragId + "/")) return;
+      const srcName = dragId.split("/").pop()!;
+      const newPath = `${targetId}/${srcName}`;
+      if (dragId === newPath) return;
+      try {
+        await rpc.moveFile(dragId, newPath);
+      } catch (err) {
+        console.error("Move failed:", err);
+      }
+      setDragId(null);
+      refresh();
+    },
+    [dragId, refresh],
+  );
 
   const actions: Actions = {
     select: setSelectedId,
@@ -294,7 +350,10 @@ export function FileTree() {
     dragOver: handleDragOver,
     dragLeave: () => setDropTargetId(null),
     drop: handleDrop,
-    dragEnd: () => { setDragId(null); setDropTargetId(null); },
+    dragEnd: () => {
+      setDragId(null);
+      setDropTargetId(null);
+    },
   };
 
   // --- Toolbar: smart create (into selected folder or root) ---
@@ -324,21 +383,45 @@ export function FileTree() {
   }
 
   const sharedProps = {
-    selectedId, openFolders, editingId, editingValue, dropTargetId,
-    onEditChange: setEditingValue, onEditSubmit: submitEdit,
-    onEditCancel: () => setEditingId(null), actions,
+    selectedId,
+    openFolders,
+    editingId,
+    editingValue,
+    dropTargetId,
+    onEditChange: setEditingValue,
+    onEditSubmit: submitEdit,
+    onEditCancel: () => setEditingId(null),
+    actions,
   };
 
   return (
     <div className="flex h-full flex-col text-[13px]">
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
-        <Button variant="ghost" size="icon" className="size-6" onClick={() => createIn(getSelectedFolder(), false)} title="New File">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          onClick={() => createIn(getSelectedFolder(), false)}
+          title="New File"
+        >
           <FilePlus className="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="size-6" onClick={() => createIn(getSelectedFolder(), true)} title="New Folder">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          onClick={() => createIn(getSelectedFolder(), true)}
+          title="New Folder"
+        >
           <FolderPlus className="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="ml-auto size-6" onClick={refresh} title="Refresh">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto size-6"
+          onClick={refresh}
+          title="Refresh"
+        >
           <RefreshCw className="size-3.5" />
         </Button>
       </div>
@@ -358,8 +441,11 @@ export function FileTree() {
             const srcName = dragId.split("/").pop()!;
             const newPath = `${cwd}/${srcName}`;
             if (dragId === newPath) return;
-            try { await rpc.moveFile(dragId, newPath); }
-            catch (err) { console.error("Move failed:", err); }
+            try {
+              await rpc.moveFile(dragId, newPath);
+            } catch (err) {
+              console.error("Move failed:", err);
+            }
             setDragId(null);
             refresh();
           }}

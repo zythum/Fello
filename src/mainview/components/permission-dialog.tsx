@@ -17,10 +17,13 @@ interface Props {
 
 export function PermissionDialog({ request }: Props) {
   const removePermissionRequest = useAppStore((s) => s.removePermissionRequest);
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
 
   const handleSelect = async (optionId: string) => {
     await rpc.respondPermission(request.toolCall.toolCallId, optionId);
-    removePermissionRequest(request.toolCall.toolCallId);
+    if (activeSessionId) {
+      removePermissionRequest(activeSessionId, request.toolCall.toolCallId);
+    }
   };
 
   return (

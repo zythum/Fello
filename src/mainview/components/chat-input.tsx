@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
 import { rpc } from "../rpc";
 import { flushStreaming } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ export function ChatInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     activeSessionId,
-    isStreaming,
     isConnecting,
     addMessage,
     setIsStreaming,
@@ -25,19 +24,19 @@ export function ChatInput() {
     availableModels,
     currentModelId,
     setCurrentModelId,
-    usage,
   } = useAppStore();
+  const { isStreaming, usage } = useActiveSessionState();
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
     if (!text || !activeSessionId || isStreaming) return;
 
     setInput("");
-    addMessage({ role: "user", content: text });
-    setIsStreaming(true);
-    useAppStore.getState().setStreamingContent("");
-    useAppStore.getState().setThinkingContent("");
-    clearToolCalls();
+    addMessage(activeSessionId, { role: "user", content: text });
+    setIsStreaming(activeSessionId, true);
+    useAppStore.getState().setStreamingContent(activeSessionId, "");
+    useAppStore.getState().setThinkingContent(activeSessionId, "");
+    clearToolCalls(activeSessionId);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -45,10 +44,10 @@ export function ChatInput() {
 
     try {
       const result = await rpc.sendMessage(text);
-      flushStreaming();
+      flushStreaming(activeSessionId);
 
-      const messages = useAppStore.getState().messages;
-      if (messages.filter((m) => m.role === "user").length === 1) {
+      const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
+      if (messages.filter((m: ChatMessage) => m.role === "user").length === 1) {
         const title = text.length > 40 ? text.slice(0, 40) + "..." : text;
         await rpc.updateSessionTitle(activeSessionId, title);
         const sessions = await rpc.listSessions();
@@ -56,17 +55,14 @@ export function ChatInput() {
       }
     } catch (err) {
       console.error("Prompt error:", err);
-      addMessage({
+      addMessage(activeSessionId, {
         role: "system",
         content: `Error: ${err instanceof Error ? err.message : String(err)}`,
       });
     } finally {
-      setIsStreaming(false);
+      setIsStreaming(activeSessionId, false);
     }
-  }, [
-    input, activeSessionId, isStreaming, addMessage,
-    setIsStreaming, clearToolCalls,
-  ]);
+  }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearToolCalls]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -95,9 +91,7 @@ export function ChatInput() {
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={
-              disabled
-                ? "Start a new chat to begin..."
-                : "Ask anything... (Enter to send)"
+              disabled ? "Start a new chat to begin..." : "Ask anything... (Enter to send)"
             }
             disabled={disabled}
             rows={1}
@@ -107,7 +101,10 @@ export function ChatInput() {
           {/* Bottom bar: model selector + send button */}
           <div className="flex items-center justify-end gap-2 px-2 pb-2">
             {usage && (
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground" title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}>
+              <span
+                className="flex items-center gap-1 text-[10px] text-muted-foreground"
+                title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}
+              >
                 <Zap className="size-3" />
                 {(usage.totalTokens / 1000).toFixed(1)}k tokens
               </span>
@@ -124,7 +121,10 @@ export function ChatInput() {
                   }
                 }}
               >
-                <SelectTrigger size="sm" className="h-6 w-auto border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:text-foreground">
+                <SelectTrigger
+                  size="sm"
+                  className="h-6 w-auto border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:text-foreground"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

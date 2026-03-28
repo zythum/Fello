@@ -126,7 +126,9 @@ export class ACPBridge {
     return initResult;
   }
 
-  async createSession(cwd: string): Promise<{ sessionId: string; models: acp.SessionModelState | null }> {
+  async createSession(
+    cwd: string,
+  ): Promise<{ sessionId: string; models: acp.SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.newSession({
       cwd,

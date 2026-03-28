@@ -67,9 +67,17 @@ async function cleanupAll() {
   }
 }
 
-process.on("exit", () => { cleanupAll(); });
-process.on("SIGINT", async () => { await cleanupAll(); process.exit(0); });
-process.on("SIGTERM", async () => { await cleanupAll(); process.exit(0); });
+process.on("exit", () => {
+  cleanupAll();
+});
+process.on("SIGINT", async () => {
+  await cleanupAll();
+  process.exit(0);
+});
+process.on("SIGTERM", async () => {
+  await cleanupAll();
+  process.exit(0);
+});
 
 function formatModels(models: any) {
   if (!models) return null;
@@ -194,8 +202,15 @@ const handlers = {
 
   async readDir({ path: dirPath, depth = 1 }: { path: string; depth?: number }) {
     const IGNORE = new Set([
-      "node_modules", ".git", ".DS_Store", "dist", "build",
-      ".next", ".cache", "__pycache__", ".vscode",
+      "node_modules",
+      ".git",
+      ".DS_Store",
+      "dist",
+      "build",
+      ".next",
+      ".cache",
+      "__pycache__",
+      ".vscode",
     ]);
 
     async function walk(p: string, d: number): Promise<unknown[]> {
