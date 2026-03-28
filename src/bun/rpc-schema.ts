@@ -1,0 +1,52 @@
+import type { ElectrobunRPCSchema } from "electrobun/bun";
+
+// Shared RPC schema between bun (main process) and webview (frontend)
+export type CoworkRPCSchema = ElectrobunRPCSchema & {
+  bun: {
+    requests: {
+      // Webview → Bun calls
+      listSessions: { params: void; response: unknown[] };
+      newChat: { params: string; response: { sessionId: string; agentInfo: unknown } };
+      resumeChat: {
+        params: { sessionId: string; cwd: string };
+        response: { ok: boolean; models: unknown | null };
+      };
+      sendMessage: { params: string; response: { stopReason: string } };
+      cancelPrompt: { params: void; response: void };
+      respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
+      saveEvent: { params: { sessionId: string; event: unknown }; response: void };
+      getEvents: { params: string; response: unknown[] };
+      updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
+      deleteSession: { params: string; response: void };
+      disconnect: { params: void; response: void };
+      getCwd: { params: void; response: string };
+      pickWorkDir: { params: void; response: string | null };
+      getModels: {
+        params: void;
+        response: {
+          availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
+          currentModelId: string;
+        } | null;
+      };
+      setModel: { params: string; response: void };
+      readDir: {
+        params: { path: string; depth?: number };
+        response: unknown;
+      };
+      createFile: { params: { path: string; isFolder: boolean }; response: void };
+      deleteFile: { params: string; response: void };
+      renameFile: { params: { oldPath: string; newPath: string }; response: void };
+      moveFile: { params: { oldPath: string; newPath: string }; response: void };
+      readFile: { params: string; response: string };
+    };
+    messages: Record<never, never>;
+  };
+  webview: {
+    requests: {
+      // Bun → Webview calls
+      onSessionUpdate: { params: string; response: { ok: boolean } };
+      onPermissionRequest: { params: string; response: { ok: boolean } };
+    };
+    messages: Record<never, never>;
+  };
+};

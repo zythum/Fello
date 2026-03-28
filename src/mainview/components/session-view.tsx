@@ -1,0 +1,82 @@
+import { useAppStore } from "../store";
+import { ChatArea } from "./chat-area";
+import { ChatInput } from "./chat-input";
+import { FileTree } from "./file-tree";
+import { Button } from "@/components/ui/button";
+import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
+
+export function SessionView() {
+  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } =
+    useAppStore();
+
+  const session = sessions.find((s) => s.id === activeSessionId) ?? null;
+
+  return (
+    <>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card/50 px-4 backdrop-blur">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeft className="size-4" />
+          </Button>
+          <span className="text-sm font-medium">Cowork</span>
+          {session && (
+            <span
+              className="flex items-center gap-1 truncate text-xs text-muted-foreground"
+              title={session.cwd}
+            >
+              <Folder className="size-3 shrink-0" />
+              <span className="max-w-[200px] truncate">
+                {session.cwd.split("/").slice(-2).join("/")}
+              </span>
+            </span>
+          )}
+          <span className="ml-auto text-xs text-muted-foreground">Kiro ACP</span>
+        </header>
+
+        {isConnecting ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Connecting to agent...</p>
+          </div>
+        ) : session ? (
+          <>
+            <ChatArea />
+            <ChatInput />
+          </>
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+              <MessageSquare className="size-8 text-primary" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Cowork</h1>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                An ACP client for Kiro. Start a new chat from the sidebar to
+                connect with the agent and begin collaborating.
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground/60">
+              Powered by Agent Client Protocol
+            </span>
+          </div>
+        )}
+      </main>
+
+      {session && !isConnecting && (
+        <aside className="flex h-full w-64 flex-col border-l border-border bg-sidebar">
+          <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
+            <span className="text-xs font-medium text-sidebar-foreground">Files</span>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <FileTree />
+          </div>
+        </aside>
+      )}
+    </>
+  );
+}
