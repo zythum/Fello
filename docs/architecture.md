@@ -22,7 +22,9 @@
 
 - Bun Process（`src/bun/`）：主进程，管理 ACP 连接、文件操作、数据持久化
 - Webview（`src/mainview/`）：渲染进程，React SPA，通过 Electrobun RPC 与主进程通信
-- kiro-cli acp：外部 ACP server 进程，通过 stdin/stdout 的 NDJSON 流通信
+- kiro-cli acp：单个 ACP server 进程，通过 stdin/stdout 的 NDJSON 流通信，管理所有 session
+
+应用全局只启动一个 `kiro-cli acp` 进程（`ACPBridge` 单例），所有 session 的创建（`newSession`）、恢复（`loadSession`）、对话（`prompt`）均复用同一个 ACP 连接。`ACPBridge` 内部通过 `Map<sessionId, ModelState>` 维护各 session 的模型状态。
 
 ## 通信链路
 

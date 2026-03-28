@@ -6,8 +6,8 @@
 |------|------|------|
 | 运行时 | Bun | 替代 Node.js，内置 SQLite、更快的启动 |
 | 桌面框架 | Electrobun 1.16 | 基于 Bun 的桌面应用框架，类似 Electron |
-| 前端框架 | React 18 | UI 渲染 |
-| 构建工具 | Vite 6 | HMR 开发、生产构建 |
+| 前端框架 | React 19 | UI 渲染 |
+| 构建工具 | Vite 8 | HMR 开发、生产构建 |
 
 ## UI 与样式
 

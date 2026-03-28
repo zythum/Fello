@@ -29,17 +29,17 @@ async function getMainViewUrl(): Promise<string> {
 }
 
 // --- State ---
-const bridges = new Map<string, ACPBridge>();
+let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
 
-function getActiveBridge(): ACPBridge | null {
-  if (!activeSessionId) return null;
-  return bridges.get(activeSessionId) ?? null;
-}
-
-function createBridge(cwd: string): ACPBridge {
-  return new ACPBridge({
+async function ensureBridge(cwd: string): Promise<ACPBridge> {
+  if (bridge?.isConnected) return bridge;
+  // Disconnect stale bridge if any
+  if (bridge) {
+    await bridge.disconnect().catch(() => {});
+  }
+  bridge = new ACPBridge({
     command: "/Users/zhuyi/.local/bin/kiro-cli",
     args: ["acp"],
     cwd,
@@ -54,21 +54,34 @@ function createBridge(cwd: string): ACPBridge {
       });
     },
   });
+  await bridge.connect();
+  return bridge;
 }
 
 // --- Cleanup on exit ---
 async function cleanupAll() {
-  console.log("[Cowork] Cleaning up all bridges...");
-  const promises = Array.from(bridges.values()).map((b) =>
-    b.disconnect().catch((e) => console.error("[Cowork] cleanup error:", e)),
-  );
-  await Promise.all(promises);
-  bridges.clear();
+  console.log("[Cowork] Cleaning up bridge...");
+  if (bridge) {
+    await bridge.disconnect().catch((e) => console.error("[Cowork] cleanup error:", e));
+    bridge = null;
+  }
 }
 
 process.on("exit", () => { cleanupAll(); });
 process.on("SIGINT", async () => { await cleanupAll(); process.exit(0); });
 process.on("SIGTERM", async () => { await cleanupAll(); process.exit(0); });
+
+function formatModels(models: any) {
+  if (!models) return null;
+  return {
+    availableModels: models.availableModels.map((m: any) => ({
+      modelId: m.modelId,
+      name: m.name,
+      description: m.description ?? null,
+    })),
+    currentModelId: models.currentModelId,
+  };
+}
 
 // --- RPC Handlers ---
 const handlers = {
@@ -78,13 +91,11 @@ const handlers = {
 
   async newChat(cwd: string) {
     try {
-      const bridge = createBridge(cwd);
-      const initResult = await bridge.connect();
-      const sessionId = await bridge.createSession();
-      bridges.set(sessionId, bridge);
+      const b = await ensureBridge(cwd);
+      const { sessionId, models } = await b.createSession(cwd);
       activeSessionId = sessionId;
       dbOps.createSession(sessionId, cwd, "kiro-cli acp");
-      return { sessionId, agentInfo: initResult };
+      return { sessionId, agentInfo: b.agentInfo };
     } catch (err) {
       console.error("[newChat] failed:", err);
       throw err;
@@ -92,45 +103,18 @@ const handlers = {
   },
 
   async resumeChat({ sessionId, cwd }: { sessionId: string; cwd: string }) {
-    // If already connected, just switch
-    if (bridges.has(sessionId)) {
-      activeSessionId = sessionId;
-      const bridge = bridges.get(sessionId)!;
-      const models = bridge.modelState;
-      return {
-        ok: true,
-        models: models
-          ? {
-              availableModels: models.availableModels.map((m) => ({
-                modelId: m.modelId,
-                name: m.name,
-                description: m.description ?? null,
-              })),
-              currentModelId: models.currentModelId,
-            }
-          : null,
-      };
-    }
-    // Otherwise connect and load
     try {
-      const bridge = createBridge(cwd);
-      await bridge.connect();
-      const models = await bridge.resumeSession(sessionId);
-      bridges.set(sessionId, bridge);
+      const b = await ensureBridge(cwd);
+      // If bridge already knows this session, just switch
+      const existingModels = b.getModelState(sessionId);
+      if (existingModels) {
+        activeSessionId = sessionId;
+        return { ok: true, models: formatModels(existingModels) };
+      }
+      // Otherwise load it
+      const models = await b.resumeSession(sessionId, cwd);
       activeSessionId = sessionId;
-      return {
-        ok: true,
-        models: models
-          ? {
-              availableModels: models.availableModels.map((m) => ({
-                modelId: m.modelId,
-                name: m.name,
-                description: m.description ?? null,
-              })),
-              currentModelId: models.currentModelId,
-            }
-          : null,
-      };
+      return { ok: true, models: formatModels(models) };
     } catch (err) {
       console.error("[resumeChat] failed:", err);
       return { ok: false, models: null };
@@ -138,21 +122,16 @@ const handlers = {
   },
 
   async sendMessage(text: string) {
-    const bridge = getActiveBridge();
-    if (!bridge || !bridge.currentSessionId) {
-      throw new Error("No active session");
-    }
-    // Save user message as a synthetic event
-    dbOps.addEvent(bridge.currentSessionId, {
+    if (!bridge || !activeSessionId) throw new Error("No active session");
+    dbOps.addEvent(activeSessionId, {
       sessionUpdate: "user_message",
       content: { type: "text", text },
     });
-    return await bridge.sendPrompt(text);
+    return await bridge.sendPrompt(activeSessionId, text);
   },
 
   async cancelPrompt() {
-    const bridge = getActiveBridge();
-    if (bridge) await bridge.cancel();
+    if (bridge && activeSessionId) await bridge.cancel(activeSessionId);
   },
 
   async respondPermission({ toolCallId, optionId }: { toolCallId: string; optionId: string }) {
@@ -177,11 +156,6 @@ const handlers = {
 
   async deleteSession(sessionId: string) {
     dbOps.deleteSession(sessionId);
-    const bridge = bridges.get(sessionId);
-    if (bridge) {
-      await bridge.disconnect();
-      bridges.delete(sessionId);
-    }
     if (activeSessionId === sessionId) {
       activeSessionId = null;
     }
@@ -208,24 +182,14 @@ const handlers = {
   },
 
   async getModels() {
-    const bridge = getActiveBridge();
-    if (!bridge) return null;
-    const state = bridge.modelState;
-    if (!state) return null;
-    return {
-      availableModels: state.availableModels.map((m) => ({
-        modelId: m.modelId,
-        name: m.name,
-        description: m.description ?? null,
-      })),
-      currentModelId: state.currentModelId,
-    };
+    if (!bridge || !activeSessionId) return null;
+    const state = bridge.getModelState(activeSessionId);
+    return formatModels(state);
   },
 
   async setModel(modelId: string) {
-    const bridge = getActiveBridge();
-    if (!bridge) throw new Error("No active session");
-    await bridge.setModel(modelId);
+    if (!bridge || !activeSessionId) throw new Error("No active session");
+    await bridge.setModel(activeSessionId, modelId);
   },
 
   async readDir({ path: dirPath, depth = 1 }: { path: string; depth?: number }) {

@@ -27,12 +27,11 @@ export interface ACPBridgeOptions {
 export class ACPBridge {
   private process: ChildProcess | null = null;
   private connection: acp.ClientSideConnection | null = null;
-  private sessionId: string | null = null;
   private onSessionUpdate: SessionUpdateCallback;
   private onPermissionRequest: PermissionRequestCallback;
   private _isConnected = false;
   private _agentInfo: acp.InitializeResponse | null = null;
-  private _modelState: acp.SessionModelState | null = null;
+  private _modelStates = new Map<string, acp.SessionModelState>();
 
   constructor(private options: ACPBridgeOptions) {
     this.onSessionUpdate = options.onSessionUpdate;
@@ -45,11 +44,9 @@ export class ACPBridge {
   get agentInfo() {
     return this._agentInfo;
   }
-  get modelState() {
-    return this._modelState;
-  }
-  get currentSessionId() {
-    return this.sessionId;
+
+  getModelState(sessionId: string): acp.SessionModelState | null {
+    return this._modelStates.get(sessionId) ?? null;
   }
 
   async connect(): Promise<acp.InitializeResponse> {
@@ -129,56 +126,54 @@ export class ACPBridge {
     return initResult;
   }
 
-  async createSession(): Promise<string> {
+  async createSession(cwd: string): Promise<{ sessionId: string; models: acp.SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.newSession({
-      cwd: this.options.cwd,
+      cwd,
       mcpServers: [],
     });
-    this.sessionId = result.sessionId;
-    this._modelState = result.models ?? null;
-    return result.sessionId;
+    const models = result.models ?? null;
+    if (models) this._modelStates.set(result.sessionId, models);
+    return { sessionId: result.sessionId, models };
   }
 
-  async setModel(modelId: string): Promise<void> {
-    if (!this.connection || !this.sessionId) throw new Error("No active session");
-    await this.connection.unstable_setSessionModel({
-      sessionId: this.sessionId,
-      modelId,
-    });
-    if (this._modelState) {
-      this._modelState.currentModelId = modelId;
+  async setModel(sessionId: string, modelId: string): Promise<void> {
+    if (!this.connection) throw new Error("Not connected");
+    await this.connection.unstable_setSessionModel({ sessionId, modelId });
+    const state = this._modelStates.get(sessionId);
+    if (state) {
+      state.currentModelId = modelId;
     }
   }
 
-  async resumeSession(sessionId: string): Promise<acp.SessionModelState | null> {
+  async resumeSession(sessionId: string, cwd: string): Promise<acp.SessionModelState | null> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.loadSession({
       sessionId,
-      cwd: this.options.cwd,
+      cwd,
       mcpServers: [],
     });
-    this.sessionId = sessionId;
-    this._modelState = result.models ?? null;
-    return this._modelState;
+    const models = result.models ?? null;
+    if (models) this._modelStates.set(sessionId, models);
+    return models;
   }
 
-  async sendPrompt(text: string): Promise<acp.PromptResponse> {
-    if (!this.connection || !this.sessionId) throw new Error("No active session");
+  async sendPrompt(sessionId: string, text: string): Promise<acp.PromptResponse> {
+    if (!this.connection) throw new Error("Not connected");
     return this.connection.prompt({
-      sessionId: this.sessionId,
+      sessionId,
       prompt: [{ type: "text", text }],
     });
   }
 
-  async cancel(): Promise<void> {
-    if (!this.connection || !this.sessionId) return;
-    await this.connection.cancel({ sessionId: this.sessionId });
+  async cancel(sessionId: string): Promise<void> {
+    if (!this.connection) return;
+    await this.connection.cancel({ sessionId });
   }
 
   async disconnect(): Promise<void> {
     this._isConnected = false;
-    this.sessionId = null;
+    this._modelStates.clear();
     this.connection = null;
     if (this.process) {
       const proc = this.process;
