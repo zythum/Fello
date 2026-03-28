@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Streamdown } from "streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import { Bot } from "lucide-react";
@@ -11,7 +12,7 @@ interface Props {
   message: ChatMessage;
 }
 
-export function AssistantBubble({ message }: Props) {
+export const AssistantBubble = memo(function AssistantBubble({ message }: Props) {
   return (
     <div className="flex gap-3 justify-start items-start pr-10">
       <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -29,4 +30,4 @@ export function AssistantBubble({ message }: Props) {
       </div>
     </div>
   );
-}
+});

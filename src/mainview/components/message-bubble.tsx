@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ChatMessage } from "../store";
 import { ToolBubble } from "./bubbles/tool-bubble";
 import { ThinkingBubble } from "./bubbles/thinking-bubble";
@@ -8,7 +9,7 @@ interface Props {
   message: ChatMessage;
 }
 
-export function MessageBubble({ message }: Props) {
+export const MessageBubble = memo(function MessageBubble({ message }: Props) {
   switch (message.role) {
     case "tool":
       return <ToolBubble message={message} />;
@@ -21,4 +22,4 @@ export function MessageBubble({ message }: Props) {
     default:
       return null;
   }
-}
+});

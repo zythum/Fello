@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ChatMessage } from "../../store";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,7 +34,7 @@ interface ToolItemProps {
   message: ChatMessage;
 }
 
-export function ToolItem({ message }: ToolItemProps) {
+export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
   const isLive = message.toolStatus === "in_progress" || message.toolStatus === "pending";
   const status = isLive ? message.toolStatus! : (message.toolStatus ?? "completed");
   const kindIcon = message.toolKind ? kindIcons[message.toolKind] : null;
@@ -90,16 +91,16 @@ export function ToolItem({ message }: ToolItemProps) {
       </div>
     </details>
   );
-}
+});
 
 interface ToolBubbleProps {
   message: ChatMessage;
 }
 
-export function ToolBubble({ message }: ToolBubbleProps) {
+export const ToolBubble = memo(function ToolBubble({ message }: ToolBubbleProps) {
   return (
     <div className="rounded-md border border-border bg-card mx-10">
       <ToolItem message={message} />
     </div>
   );
-}
+});

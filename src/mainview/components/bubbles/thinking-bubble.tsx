@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Streamdown } from "streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import { Lightbulb } from "lucide-react";
@@ -11,7 +12,7 @@ interface Props {
   message: ChatMessage;
 }
 
-export function ThinkingBubble({ message }: Props) {
+export const ThinkingBubble = memo(function ThinkingBubble({ message }: Props) {
   return (
     <details className="w-full px-10" open={message.streaming}>
       <summary className="flex cursor-pointer select-none items-center gap-2 rounded-t-lg bg-muted/50 px-4 py-2 text-xs text-muted-foreground hover:text-foreground">
@@ -31,4 +32,4 @@ export function ThinkingBubble({ message }: Props) {
       </div>
     </details>
   );
-}
+});

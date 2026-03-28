@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { User } from "lucide-react";
 import type { ChatMessage } from "../../store";
 
@@ -5,7 +6,7 @@ interface Props {
   message: ChatMessage;
 }
 
-export function UserBubble({ message }: Props) {
+export const UserBubble = memo(function UserBubble({ message }: Props) {
   return (
     <div className="flex gap-3 justify-end items-start pl-10">
       <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground">
@@ -16,4 +17,4 @@ export function UserBubble({ message }: Props) {
       </div>
     </div>
   );
-}
+});
