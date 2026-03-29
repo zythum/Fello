@@ -1,4 +1,4 @@
-import { useAppStore, type SessionInfo } from "../store";
+import { useAppStore, useActiveSessionState, type SessionInfo } from "../store";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { FileTree } from "./file-tree";
@@ -6,10 +6,21 @@ import { Button } from "@/components/ui/button";
 import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
 import { rpc } from "../rpc";
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function formatCost(cost: { amount: number; currency: string }): string {
+  return `${cost.currency} ${cost.amount.toFixed(4)}`;
+}
+
 export function SessionView() {
   const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting, setSessions } =
     useAppStore();
 
+  const { usage } = useActiveSessionState();
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
   const handleChangeCwd = async () => {
@@ -57,7 +68,24 @@ export function SessionView() {
               </span>
             </button>
           )}
-          <span className="ml-auto text-xs text-muted-foreground">Kiro ACP</span>
+          {usage && usage.used > 0 && (
+            <span
+              className="ml-auto flex items-center gap-2 text-xs tabular-nums text-muted-foreground"
+              title={`Used: ${usage.used.toLocaleString()} / ${usage.size.toLocaleString()} tokens${usage.cost ? ` · Cost: ${formatCost(usage.cost)}` : ""}`}
+            >
+              <span>
+                {formatTokens(usage.used)} / {formatTokens(usage.size)}
+              </span>
+              {usage.cost && (
+                <span className="text-muted-foreground/60">{formatCost(usage.cost)}</span>
+              )}
+            </span>
+          )}
+          <span
+            className={`text-xs text-muted-foreground${usage && usage.used > 0 ? "" : " ml-auto"}`}
+          >
+            Kiro ACP
+          </span>
         </header>
 
         {isConnecting ? (

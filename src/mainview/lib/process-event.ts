@@ -48,12 +48,9 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
 
     case "usage_update":
       store.setUsage(sessionId, {
-        inputTokens: event.usage?.inputTokens ?? 0,
-        outputTokens: event.usage?.outputTokens ?? 0,
-        totalTokens: event.usage?.totalTokens ?? 0,
-        thoughtTokens: event.usage?.thoughtTokens,
-        cachedReadTokens: event.usage?.cachedReadTokens,
-        cachedWriteTokens: event.usage?.cachedWriteTokens,
+        size: event.size ?? 0,
+        used: event.used ?? 0,
+        cost: event.cost ?? null,
       });
       break;
 
@@ -169,12 +166,9 @@ export function replayEvents(sessionId: string, events: unknown[]) {
 
       case "usage_update":
         usage = {
-          inputTokens: event.usage?.inputTokens ?? 0,
-          outputTokens: event.usage?.outputTokens ?? 0,
-          totalTokens: event.usage?.totalTokens ?? 0,
-          thoughtTokens: event.usage?.thoughtTokens,
-          cachedReadTokens: event.usage?.cachedReadTokens,
-          cachedWriteTokens: event.usage?.cachedWriteTokens,
+          size: event.size ?? 0,
+          used: event.used ?? 0,
+          cost: event.cost ?? null,
         };
         break;
 

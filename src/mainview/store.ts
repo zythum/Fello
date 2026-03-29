@@ -26,12 +26,12 @@ export interface SessionInfo {
 }
 
 export interface SessionUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  thoughtTokens?: number | null;
-  cachedReadTokens?: number | null;
-  cachedWriteTokens?: number | null;
+  /** Total context window size in tokens */
+  size: number;
+  /** Tokens currently in context */
+  used: number;
+  /** Cumulative session cost (optional) */
+  cost?: { amount: number; currency: string } | null;
 }
 
 export interface ModelOption {
