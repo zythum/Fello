@@ -1,6 +1,6 @@
 import { BrowserWindow, BrowserView, Updater, Utils } from "electrobun/bun";
 import { ACPBridge } from "./acp-bridge";
-import { dbOps } from "./db";
+import { storageOps } from "./storage";
 import type { CoworkRPCSchema } from "./rpc-schema";
 import type {
   SessionNotification,
@@ -94,7 +94,7 @@ function formatModels(models: any) {
 // --- RPC Handlers ---
 const handlers = {
   async listSessions() {
-    return dbOps.listSessions();
+    return storageOps.listSessions();
   },
 
   async newChat(cwd: string) {
@@ -102,7 +102,7 @@ const handlers = {
       const b = await ensureBridge(cwd);
       const { sessionId, models: _models } = await b.createSession(cwd);
       activeSessionId = sessionId;
-      dbOps.createSession(sessionId, cwd, "kiro-cli acp");
+      storageOps.createSession(sessionId, cwd, "kiro-cli acp");
       return { sessionId, agentInfo: b.agentInfo };
     } catch (err) {
       console.error("[newChat] failed:", err);
@@ -119,7 +119,6 @@ const handlers = {
         activeSessionId = sessionId;
         return { ok: true, models: formatModels(existingModels) };
       }
-      // Otherwise load it
       const models = await b.resumeSession(sessionId, cwd);
       activeSessionId = sessionId;
       return { ok: true, models: formatModels(models) };
@@ -131,10 +130,7 @@ const handlers = {
 
   async sendMessage(text: string) {
     if (!bridge || !activeSessionId) throw new Error("No active session");
-    dbOps.addEvent(activeSessionId, {
-      sessionUpdate: "user_message",
-      content: { type: "text", text },
-    });
+    storageOps.touchSession(activeSessionId);
     return await bridge.sendPrompt(activeSessionId, text);
   },
 
@@ -150,16 +146,8 @@ const handlers = {
     }
   },
 
-  async saveEvent({ sessionId, event }: { sessionId: string; event: unknown }) {
-    dbOps.addEvent(sessionId, event as Record<string, unknown>);
-  },
-
-  async getEvents(sessionId: string) {
-    return dbOps.getEvents(sessionId);
-  },
-
   async updateSessionTitle({ sessionId, title }: { sessionId: string; title: string }) {
-    dbOps.updateSessionTitle(sessionId, title);
+    storageOps.updateSessionTitle(sessionId, title);
   },
 
   async changeWorkDir({ sessionId }: { sessionId: string }) {
@@ -177,7 +165,7 @@ const handlers = {
       const b = await ensureBridge(newCwd);
       await b.resumeSession(sessionId, newCwd);
       activeSessionId = sessionId;
-      dbOps.updateSessionCwd(sessionId, newCwd);
+      storageOps.updateSessionCwd(sessionId, newCwd);
       return { ok: true, cwd: newCwd };
     } catch (err) {
       console.error("[changeWorkDir] failed:", err);
@@ -186,7 +174,7 @@ const handlers = {
   },
 
   async deleteSession(sessionId: string) {
-    dbOps.deleteSession(sessionId);
+    storageOps.deleteSession(sessionId);
     if (activeSessionId === sessionId) {
       activeSessionId = null;
     }

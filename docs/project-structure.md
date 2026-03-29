@@ -6,7 +6,7 @@ cowork/
 │   ├── bun/                        # Bun 主进程
 │   │   ├── index.ts                # 入口，RPC handlers，窗口创建，进程管理
 │   │   ├── acp-bridge.ts           # ACP 连接封装（spawn、initialize、session 管理）
-│   │   ├── db.ts                   # 数据持久化（JSONL 事件日志 + JSON 元数据）
+│   │   ├── storage.ts               # Session 元数据持久化（meta.json）
 │   │   └── rpc-schema.ts           # Electrobun RPC 类型定义（bun ↔ webview）
 │   │
 │   └── mainview/                   # Webview 渲染进程（React SPA）
@@ -18,7 +18,7 @@ cowork/
 │       ├── store.ts                # Zustand store（全局状态）
 │       │
 │       ├── lib/
-│       │   ├── process-event.ts    # 事件处理核心（processEvent/flushStreaming/replayEvents）
+│       │   ├── process-event.ts    # 事件处理核心（processEvent/flushStreaming）
 │       │   └── utils.ts            # cn() 工具函数
 │       │
 │       └── components/
@@ -60,6 +60,5 @@ cowork/
 ~/.cowork/
 └── sessions/
     └── <session-id>/
-        ├── meta.json               # { id, title, cwd, agentCommand, createdAt, updatedAt }
-        └── events.jsonl            # 每行一条 ACP SessionUpdate 事件（rawOutput 已过滤）
+        └── meta.json               # { id, title, cwd, agentCommand, createdAt, updatedAt }
 ```

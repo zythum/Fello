@@ -36,14 +36,15 @@
 
 ```
 ACP Event → onSessionUpdate → RPC → CustomEvent → processEvent() → Zustand Store → React UI
-                                                        ↓
-                                                   saveEvent() → JSONL 持久化
 ```
 
-恢复会话时反向：
+恢复会话时，通过 ACP `loadSession` 重放历史，复用同一条 `onSessionUpdate` 链路还原 UI：
 
 ```
-JSONL → getEvents() → replayEvents() → processEvent() × N → flushStreaming() → Store → UI
+resumeChat → loadSession → ACP server 重放 → onSessionUpdate × N → processEvent → Store → UI
 ```
 
-`processEvent` 是唯一的事件处理函数，实时流和历史回放共用，保证行为一致。
+### 持久化
+
+会话历史完全由 ACP server 管理，客户端不存储事件日志。
+本地仅通过 `storage.ts` 维护 session 元数据（`meta.json`），包含 id、title、cwd、创建/更新时间等。

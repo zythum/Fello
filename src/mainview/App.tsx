@@ -25,7 +25,6 @@ function App() {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
       processEvent(sid, update);
-      rpc.saveEvent(sid, update);
     };
 
     const handlePermissionRequest = (e: Event) => {

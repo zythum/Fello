@@ -28,7 +28,6 @@ new Electroview({ rpc: rpcInstance });
 // Typed helpers for webview → bun calls
 export const rpc = {
   listSessions: () => rpcInstance.request.listSessions(),
-  getEvents: (sessionId: string) => rpcInstance.request.getEvents(sessionId),
   newChat: (cwd: string) => rpcInstance.request.newChat(cwd),
   resumeChat: (sessionId: string, cwd: string) =>
     rpcInstance.request.resumeChat({ sessionId, cwd }),
@@ -36,8 +35,6 @@ export const rpc = {
   cancelPrompt: () => rpcInstance.request.cancelPrompt(),
   respondPermission: (toolCallId: string, optionId: string) =>
     rpcInstance.request.respondPermission({ toolCallId, optionId }),
-  saveEvent: (sessionId: string, event: unknown) =>
-    rpcInstance.request.saveEvent({ sessionId, event }),
   updateSessionTitle: (sessionId: string, title: string) =>
     rpcInstance.request.updateSessionTitle({ sessionId, title }),
   changeWorkDir: (sessionId: string) => rpcInstance.request.changeWorkDir({ sessionId }),

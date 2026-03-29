@@ -1,14 +1,6 @@
 import { join } from "path";
 import { homedir } from "os";
-import {
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  appendFileSync,
-  readdirSync,
-  rmSync,
-  existsSync,
-} from "fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 
 const DATA_DIR = join(homedir(), ".cowork");
 const SESSIONS_DIR = join(DATA_DIR, "sessions");
@@ -29,9 +21,6 @@ function sessionDir(id: string) {
 function metaPath(id: string) {
   return join(sessionDir(id), "meta.json");
 }
-function eventsPath(id: string) {
-  return join(sessionDir(id), "events.jsonl");
-}
 
 function readMeta(id: string): SessionMeta | null {
   try {
@@ -46,18 +35,10 @@ function writeMeta(meta: SessionMeta) {
   writeFileSync(metaPath(meta.id), JSON.stringify(meta, null, 2));
 }
 
-// Strip large fields before persisting
-function sanitizeEvent(event: Record<string, unknown>): Record<string, unknown> {
-  const copy = { ...event };
-  delete copy.rawOutput;
-  return copy;
-}
-
-export const dbOps = {
+export const storageOps = {
   createSession(id: string, cwd: string, agentCommand: string) {
     const now = Math.floor(Date.now() / 1000);
     writeMeta({ id, title: "New Chat", cwd, agentCommand, createdAt: now, updatedAt: now });
-    writeFileSync(eventsPath(id), "");
   },
 
   updateSessionTitle(id: string, title: string) {
@@ -100,31 +81,12 @@ export const dbOps = {
     }));
   },
 
-  // Append a raw ACP event (or synthetic user_message) to the session log
-  addEvent(sessionId: string, event: Record<string, unknown>) {
-    const fp = eventsPath(sessionId);
-    const record = {
-      ...sanitizeEvent(event),
-      _ts: Math.floor(Date.now() / 1000),
-    };
-    appendFileSync(fp, JSON.stringify(record) + "\n");
-    const meta = readMeta(sessionId);
-    if (meta) {
-      meta.updatedAt = record._ts;
-      writeMeta(meta);
-    }
-  },
-
-  // Read all events for a session
-  getEvents(sessionId: string): unknown[] {
-    const fp = eventsPath(sessionId);
-    if (!existsSync(fp)) return [];
-    return readFileSync(fp, "utf-8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
+  touchSession(id: string) {
+    const meta = readMeta(id);
+    if (!meta) return;
+    meta.updatedAt = Math.floor(Date.now() / 1000);
+    writeMeta(meta);
   },
 };
 
-export default dbOps;
+export default storageOps;

@@ -1,6 +1,5 @@
 import { useAppStore, type SessionInfo } from "../store";
 import { rpc } from "../rpc";
-import { replayEvents } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -44,8 +43,6 @@ export function Sidebar() {
     setActiveSessionId(session.id);
     setIsConnecting(true);
     try {
-      const events = (await rpc.getEvents(session.id)) as unknown[];
-      replayEvents(session.id, events);
       const result = (await rpc.resumeChat(session.id, session.cwd)) as {
         ok: boolean;
         models: { availableModels: any[]; currentModelId: string } | null;
@@ -74,10 +71,6 @@ export function Sidebar() {
     if (activeSessionId === id) {
       const next = updated.length > 0 ? updated[0].id : null;
       setActiveSessionId(next);
-      if (next) {
-        const events = (await rpc.getEvents(next)) as unknown[];
-        replayEvents(next, events);
-      }
     }
   };
 
