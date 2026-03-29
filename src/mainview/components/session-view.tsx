@@ -1,14 +1,32 @@
-import { useAppStore } from "../store";
+import { useAppStore, type SessionInfo } from "../store";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { FileTree } from "./file-tree";
 import { Button } from "@/components/ui/button";
 import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
+import { rpc } from "../rpc";
 
 export function SessionView() {
-  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
+  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen, isConnecting, setSessions } =
+    useAppStore();
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
+
+  const handleChangeCwd = async () => {
+    if (!session) return;
+    try {
+      const result = (await rpc.changeWorkDir(session.id)) as {
+        ok: boolean;
+        cwd: string | null;
+      };
+      if (result.ok && result.cwd) {
+        const updated = ((await rpc.listSessions()) as SessionInfo[]) ?? [];
+        setSessions(updated);
+      }
+    } catch (err) {
+      console.error("Failed to change work dir:", err);
+    }
+  };
 
   return (
     <>
@@ -22,17 +40,22 @@ export function SessionView() {
           >
             <PanelLeft className="size-4" />
           </Button>
-          <span className="text-sm font-medium">Cowork</span>
           {session && (
-            <span
-              className="flex items-center gap-1 truncate text-xs text-muted-foreground"
-              title={session.cwd}
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-1 truncate rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              title={`${session.cwd} (click to change)`}
+              onClick={handleChangeCwd}
             >
               <Folder className="size-3 shrink-0" />
               <span className="max-w-[200px] truncate">
-                {session.cwd.split("/").slice(-2).join("/")}
+                {(() => {
+                  const parts = session.cwd.split("/").filter(Boolean);
+                  if (parts.length <= 5) return session.cwd;
+                  return "/" + [...parts.slice(0, 2), "...", ...parts.slice(-2)].join("/");
+                })()}
               </span>
-            </span>
+            </button>
           )}
           <span className="ml-auto text-xs text-muted-foreground">Kiro ACP</span>
         </header>

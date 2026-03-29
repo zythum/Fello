@@ -68,6 +68,14 @@ export const dbOps = {
     writeMeta(meta);
   },
 
+  updateSessionCwd(id: string, cwd: string) {
+    const meta = readMeta(id);
+    if (!meta) return;
+    meta.cwd = cwd;
+    meta.updatedAt = Math.floor(Date.now() / 1000);
+    writeMeta(meta);
+  },
+
   deleteSession(id: string) {
     const dir = sessionDir(id);
     if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });

@@ -40,6 +40,7 @@ export const rpc = {
     rpcInstance.request.saveEvent({ sessionId, event }),
   updateSessionTitle: (sessionId: string, title: string) =>
     rpcInstance.request.updateSessionTitle({ sessionId, title }),
+  changeWorkDir: (sessionId: string) => rpcInstance.request.changeWorkDir({ sessionId }),
   deleteSession: (sessionId: string) => rpcInstance.request.deleteSession(sessionId),
   disconnect: () => rpcInstance.request.disconnect(),
   getCwd: () => rpcInstance.request.getCwd(),

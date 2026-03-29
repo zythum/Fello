@@ -17,6 +17,10 @@ export type CoworkRPCSchema = ElectrobunRPCSchema & {
       saveEvent: { params: { sessionId: string; event: unknown }; response: void };
       getEvents: { params: string; response: unknown[] };
       updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
+      changeWorkDir: {
+        params: { sessionId: string };
+        response: { ok: boolean; cwd: string | null };
+      };
       deleteSession: { params: string; response: void };
       disconnect: { params: void; response: void };
       getCwd: { params: void; response: string };

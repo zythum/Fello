@@ -162,6 +162,29 @@ const handlers = {
     dbOps.updateSessionTitle(sessionId, title);
   },
 
+  async changeWorkDir({ sessionId }: { sessionId: string }) {
+    try {
+      const paths = await Utils.openFileDialog({
+        startingFolder: homedir(),
+        canChooseFiles: false,
+        canChooseDirectory: true,
+        allowsMultipleSelection: false,
+      });
+      if (!paths || paths.length === 0 || paths[0] === "") {
+        return { ok: false, cwd: null };
+      }
+      const newCwd = paths[0];
+      const b = await ensureBridge(newCwd);
+      await b.resumeSession(sessionId, newCwd);
+      activeSessionId = sessionId;
+      dbOps.updateSessionCwd(sessionId, newCwd);
+      return { ok: true, cwd: newCwd };
+    } catch (err) {
+      console.error("[changeWorkDir] failed:", err);
+      return { ok: false, cwd: null };
+    }
+  },
+
   async deleteSession(sessionId: string) {
     dbOps.deleteSession(sessionId);
     if (activeSessionId === sessionId) {
