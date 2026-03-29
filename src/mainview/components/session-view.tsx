@@ -4,7 +4,7 @@ import { ChatInput } from "./chat-input";
 import { FileTree } from "./file-tree";
 import { Button } from "@/components/ui/button";
 import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
-import { rpc } from "../rpc";
+import { request } from "../backend";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -26,12 +26,12 @@ export function SessionView() {
   const handleChangeCwd = async () => {
     if (!session) return;
     try {
-      const result = (await rpc.changeWorkDir(session.id)) as {
+      const result = (await request.changeWorkDir({ sessionId: session.id })) as {
         ok: boolean;
         cwd: string | null;
       };
       if (result.ok && result.cwd) {
-        const updated = ((await rpc.listSessions()) as SessionInfo[]) ?? [];
+        const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
         setSessions(updated);
       }
     } catch (err) {

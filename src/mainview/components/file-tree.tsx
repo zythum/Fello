@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { rpc } from "../rpc";
+import { request } from "../backend";
 import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
 import {
@@ -206,7 +206,7 @@ export function FileTree() {
   const loadTree = useCallback(async (path: string) => {
     setLoading(true);
     try {
-      const result = (await rpc.readDir(path, 3)) as TreeNode[] | null;
+      const result = (await request.readDir({ path, depth: 3 })) as TreeNode[] | null;
       setData(result ?? []);
     } catch (err) {
       console.error("Failed to load file tree:", err);
@@ -254,7 +254,7 @@ export function FileTree() {
       const parentPath = editingId.split("__parent__")[1] ?? cwd ?? "";
       const isFolder = editingId.includes("__folder__");
       try {
-        await rpc.createFile(`${parentPath}/${name}`, isFolder);
+        await request.createFile({ path: `${parentPath}/${name}`, isFolder });
       } catch (err) {
         console.error("Create failed:", err);
       }
@@ -264,7 +264,7 @@ export function FileTree() {
       const newPath = parts.join("/");
       if (editingId !== newPath) {
         try {
-          await rpc.renameFile(editingId, newPath);
+          await request.renameFile({ oldPath: editingId, newPath });
         } catch (err) {
           console.error("Rename failed:", err);
         }
@@ -295,7 +295,7 @@ export function FileTree() {
 
   const deleteNode = async (id: string) => {
     try {
-      await rpc.deleteFile(id);
+      await request.deleteFile(id);
     } catch (err) {
       console.error("Delete failed:", err);
     }
@@ -303,10 +303,10 @@ export function FileTree() {
   };
 
   const moveTo = async (id: string) => {
-    const dest = (await rpc.pickWorkDir()) as string | null;
+    const dest = (await request.pickWorkDir()) as string | null;
     if (!dest) return;
     try {
-      await rpc.moveFile(id, `${dest}/${id.split("/").pop()!}`);
+      await request.moveFile({ oldPath: id, newPath: `${dest}/${id.split("/").pop()!}` });
     } catch (err) {
       console.error("Move failed:", err);
     }
@@ -333,7 +333,7 @@ export function FileTree() {
       const newPath = `${targetId}/${srcName}`;
       if (dragId === newPath) return;
       try {
-        await rpc.moveFile(dragId, newPath);
+        await request.moveFile({ oldPath: dragId, newPath });
       } catch (err) {
         console.error("Move failed:", err);
       }
@@ -446,7 +446,7 @@ export function FileTree() {
             const newPath = `${cwd}/${srcName}`;
             if (dragId === newPath) return;
             try {
-              await rpc.moveFile(dragId, newPath);
+              await request.moveFile({ oldPath: dragId, newPath });
             } catch (err) {
               console.error("Move failed:", err);
             }

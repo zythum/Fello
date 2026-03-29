@@ -1,5 +1,5 @@
 import { useAppStore, type SessionInfo } from "../store";
-import { rpc } from "../rpc";
+import { request } from "../backend";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -19,18 +19,18 @@ export function Sidebar() {
 
   const handleNewChat = async () => {
     try {
-      const cwd = (await rpc.pickWorkDir()) as string | null;
+      const cwd = (await request.pickWorkDir()) as string | null;
       if (!cwd) return;
       setIsConnecting(true);
-      const result = (await rpc.newChat(cwd)) as { sessionId: string } | null;
+      const result = (await request.newChat(cwd)) as { sessionId: string } | null;
       if (!result) return;
       setActiveSessionId(result.sessionId);
-      const models = await rpc.getModels();
+      const models = await request.getModels();
       if (models) {
         useAppStore.getState().setAvailableModels(models.availableModels as any);
         useAppStore.getState().setCurrentModelId(models.currentModelId);
       }
-      const updated = ((await rpc.listSessions()) as SessionInfo[]) ?? [];
+      const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
       setSessions(updated);
     } catch (err) {
       console.error("Failed to create new chat:", err);
@@ -43,7 +43,7 @@ export function Sidebar() {
     setActiveSessionId(session.id);
     setIsConnecting(true);
     try {
-      const result = (await rpc.resumeChat(session.id, session.cwd)) as {
+      const result = (await request.resumeChat({ sessionId: session.id, cwd: session.cwd })) as {
         ok: boolean;
         models: { availableModels: any[]; currentModelId: string } | null;
       } | null;
@@ -60,13 +60,13 @@ export function Sidebar() {
 
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await rpc.deleteSession(id);
+    await request.deleteSession(id);
     // Remove per-session state
     const map = new Map(useAppStore.getState().sessionStates);
     map.delete(id);
     useAppStore.setState({ sessionStates: map });
 
-    const updated = ((await rpc.listSessions()) as SessionInfo[]) ?? [];
+    const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
     setSessions(updated);
     if (activeSessionId === id) {
       const next = updated.length > 0 ? updated[0].id : null;

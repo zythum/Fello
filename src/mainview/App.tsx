@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAppStore, useActiveSessionState } from "./store";
-import { rpc } from "./rpc";
+import { request, subscribe } from "./backend";
 import { processEvent } from "./lib/process-event";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
@@ -13,22 +13,19 @@ function App() {
   const { permissionRequests } = useActiveSessionState();
 
   useEffect(() => {
-    rpc.listSessions().then((s: unknown) => {
+    request.listSessions().then((s: unknown) => {
       setSessions((s as SessionInfo[]) ?? []);
     });
   }, [setSessions]);
 
   useEffect(() => {
-    const handleSessionUpdate = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      const update = detail.update;
+    const handleSessionUpdate = (detail: any) => {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
-      processEvent(sid, update);
+      processEvent(sid, detail.update);
     };
 
-    const handlePermissionRequest = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
+    const handlePermissionRequest = (detail: any) => {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
       addPermissionRequest(sid, {
@@ -37,11 +34,11 @@ function App() {
       });
     };
 
-    window.addEventListener("acp:session-update", handleSessionUpdate);
-    window.addEventListener("acp:permission-request", handlePermissionRequest);
+    subscribe.on("session-update", handleSessionUpdate);
+    subscribe.on("permission-request", handlePermissionRequest);
     return () => {
-      window.removeEventListener("acp:session-update", handleSessionUpdate);
-      window.removeEventListener("acp:permission-request", handlePermissionRequest);
+      subscribe.off("session-update", handleSessionUpdate);
+      subscribe.off("permission-request", handlePermissionRequest);
     };
   }, [addPermissionRequest]);
 

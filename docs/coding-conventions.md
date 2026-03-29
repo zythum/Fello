@@ -21,6 +21,7 @@
 - 样式使用 shadcn 语义化 CSS 变量（`bg-background`、`text-foreground`、`border-border` 等）
 - 图标使用 Lucide React
 - 组件变体使用 class-variance-authority（CVA）
+- 优先使用 shadcn 组件，避免手写可被 shadcn 组件替代的 UI 元素，以减少样式问题并保持视觉统一
 
 ## 事件处理
 

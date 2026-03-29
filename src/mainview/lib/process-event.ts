@@ -50,6 +50,10 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
         size: event.size ?? 0,
         used: event.used ?? 0,
         cost: event.cost ?? null,
+        inputTokens: event.inputTokens ?? 0,
+        outputTokens: event.outputTokens ?? 0,
+        totalTokens: event.totalTokens ?? 0,
+        thoughtTokens: event.thoughtTokens ?? 0,
       });
       break;
 

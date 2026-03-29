@@ -110,7 +110,9 @@ export class ACPBridge {
         const content = await readFile(params.path, "utf-8");
         return { content };
       },
-      async extNotification(_method: string, _params: unknown): Promise<void> {},
+      async extNotification(_method: string, _params: unknown): Promise<void> {
+        // console.log("[ACP extNotification]", _method, JSON.stringify(_params));
+      },
     };
 
     this.connection = new acp.ClientSideConnection((_agent) => client, stream);

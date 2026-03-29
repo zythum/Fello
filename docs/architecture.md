@@ -30,12 +30,12 @@
 
 1. Webview ←→ Bun：Electrobun 的 typed RPC（`BrowserView.defineRPC` / `Electroview.defineRPC`）
 2. Bun ←→ kiro-cli：ACP SDK 的 `ClientSideConnection`，基于 NDJSON over stdio
-3. 事件流：ACP session updates → Bun 转发 → Webview CustomEvent → processEvent → Zustand store
+3. 事件流：ACP session updates → Bun 转发 → Webview `backend.ts` 内置事件系统 → processEvent → Zustand store
 
 ## 数据流
 
 ```
-ACP Event → onSessionUpdate → RPC → CustomEvent → processEvent() → Zustand Store → React UI
+ACP Event → onSessionUpdate → RPC → backend.emit() → subscribe.on() → processEvent() → Zustand Store → React UI
 ```
 
 恢复会话时，通过 ACP `loadSession` 重放历史，复用同一条 `onSessionUpdate` 链路还原 UI：

@@ -1,5 +1,5 @@
 import type { PermissionRequest } from "../store";
-import { rpc } from "../rpc";
+import * as backend from "../backend";
 import { useAppStore } from "../store";
 import {
   Dialog,
@@ -20,7 +20,7 @@ export function PermissionDialog({ request }: Props) {
   const activeSessionId = useAppStore((s) => s.activeSessionId);
 
   const handleSelect = async (optionId: string) => {
-    await rpc.respondPermission(request.toolCall.toolCallId, optionId);
+    await backend.request.respondPermission({ toolCallId: request.toolCall.toolCallId, optionId });
     if (activeSessionId) {
       removePermissionRequest(activeSessionId, request.toolCall.toolCallId);
     }

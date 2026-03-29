@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
-import { rpc } from "../rpc";
+import { request } from "../backend";
 import { flushStreaming } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,14 +41,14 @@ export function ChatInput() {
     }
 
     try {
-      await rpc.sendMessage(text);
+      await request.sendMessage(text);
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
       if (messages.filter((m: ChatMessage) => m.role === "user").length === 1) {
         const title = text.length > 40 ? text.slice(0, 40) + "..." : text;
-        await rpc.updateSessionTitle(activeSessionId, title);
-        const sessions = await rpc.listSessions();
+        await request.updateSessionTitle({ sessionId: activeSessionId, title });
+        const sessions = await request.listSessions();
         useAppStore.getState().setSessions((sessions as never[]) ?? []);
       }
     } catch (err) {
@@ -104,7 +104,7 @@ export function ChatInput() {
                 title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}
               >
                 <Zap className="size-3" />
-                {(usage.totalTokens / 1000).toFixed(1)}k tokens
+                {((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens
               </span>
             )}
             {availableModels.length > 0 ? (
@@ -113,7 +113,7 @@ export function ChatInput() {
                 onValueChange={async (modelId) => {
                   setCurrentModelId(modelId as string);
                   try {
-                    await rpc.setModel(modelId as string);
+                    await request.setModel(modelId as string);
                   } catch (err) {
                     console.error("Failed to set model:", err);
                   }
@@ -139,7 +139,7 @@ export function ChatInput() {
                 variant="destructive"
                 size="icon"
                 className="size-7 rounded-lg"
-                onClick={() => rpc.cancelPrompt()}
+                onClick={() => request.cancelPrompt()}
                 aria-label="Stop"
               >
                 <Square className="size-3.5" />

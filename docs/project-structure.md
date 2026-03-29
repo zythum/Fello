@@ -14,7 +14,7 @@ cowork/
 │       ├── main.tsx                # React 入口
 │       ├── index.html              # HTML 模板
 │       ├── index.css               # 全局样式，shadcn CSS 变量
-│       ├── rpc.ts                  # Webview 侧 RPC 封装
+│       ├── backend.ts               # Webview 侧通信封装（request + subscribe）
 │       ├── store.ts                # Zustand store（全局状态）
 │       │
 │       ├── lib/

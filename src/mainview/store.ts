@@ -32,6 +32,14 @@ export interface SessionUsage {
   used: number;
   /** Cumulative session cost (optional) */
   cost?: { amount: number; currency: string } | null;
+  /** Input tokens */
+  inputTokens?: number;
+  /** Output tokens */
+  outputTokens?: number;
+  /** Total tokens */
+  totalTokens?: number;
+  /** Thinking/reasoning tokens */
+  thoughtTokens?: number;
 }
 
 export interface ModelOption {
