@@ -63,6 +63,9 @@ export function ChatInput() {
   }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearToolCalls]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Ignore key events during IME composition (e.g. Chinese/Japanese/Korean input)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -97,7 +100,14 @@ export function ChatInput() {
             aria-label="Message input"
           />
           {/* Bottom bar: model selector + send button */}
-          <div className="flex items-center justify-end gap-2 px-2 pb-2">
+          <div
+            className="flex cursor-text items-center justify-end gap-2 px-2 pb-2"
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest("button, select, [role='combobox']")) return;
+              textareaRef.current?.focus();
+            }}
+          >
             {usage && (
               <span
                 className="flex items-center gap-1 text-[10px] text-muted-foreground"
@@ -138,22 +148,24 @@ export function ChatInput() {
               <Button
                 variant="destructive"
                 size="icon"
-                className="size-7 rounded-lg"
+                className="size-7 cursor-default rounded-lg"
                 onClick={() => request.cancelPrompt()}
                 aria-label="Stop"
               >
                 <Square className="size-3.5" />
               </Button>
             ) : (
-              <Button
-                size="icon"
-                className="size-7 rounded-lg"
-                onClick={handleSubmit}
-                disabled={disabled || !input.trim()}
-                aria-label="Send"
-              >
-                <ArrowUp className="size-3.5" />
-              </Button>
+              <span className="cursor-default">
+                <Button
+                  size="icon"
+                  className="size-7 rounded-lg"
+                  onClick={handleSubmit}
+                  disabled={disabled || !input.trim()}
+                  aria-label="Send"
+                >
+                  <ArrowUp className="size-3.5" />
+                </Button>
+              </span>
             )}
           </div>
         </div>

@@ -1,4 +1,10 @@
-import Electrobun, { BrowserWindow, BrowserView, Updater, Utils } from "electrobun/bun";
+import Electrobun, {
+  BrowserWindow,
+  BrowserView,
+  ApplicationMenu,
+  Updater,
+  Utils,
+} from "electrobun/bun";
 import { ACPBridge } from "./acp-bridge";
 import { storageOps } from "./storage";
 import type { FelloRPCSchema } from "./rpc-schema";
@@ -307,6 +313,32 @@ const rpc = BrowserView.defineRPC<FelloRPCSchema>({
     requests: handlers as any,
   },
 });
+
+// --- Application Menu ---
+// macOS requires a native Edit menu for Cmd+C/V/X/A/Z to work in webviews.
+ApplicationMenu.setApplicationMenu([
+  {
+    submenu: [
+      { label: "About Fello", role: "about" },
+      { type: "separator" },
+      { label: "Quit Fello", role: "quit" },
+    ],
+  },
+  {
+    label: "Edit",
+    submenu: [
+      { role: "undo" },
+      { role: "redo" },
+      { type: "separator" },
+      { role: "cut" },
+      { role: "copy" },
+      { role: "paste" },
+      { role: "pasteAndMatchStyle" },
+      { role: "delete" },
+      { role: "selectAll" },
+    ],
+  },
+]);
 
 // --- Create Window ---
 const url = await getMainViewUrl();
