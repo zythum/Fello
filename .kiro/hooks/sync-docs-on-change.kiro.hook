@@ -10,6 +10,6 @@
     "type": "askAgent",
     "prompt": "A source file was just edited. Review the change and determine if any documentation in the docs/ folder (architecture.md, coding-conventions.md, overview.md, project-structure.md, tech-stack.md) or README.md needs to be updated to reflect the change. If the change is minor or doesn't affect documentation, do nothing. Only update docs when the change is meaningful — such as new components, architectural changes, dependency updates, new files/folders, or changes to conventions."
   },
-  "workspaceFolderName": "cowork",
+  "workspaceFolderName": "fello",
   "shortName": "sync-docs-on-change"
 }

@@ -118,7 +118,7 @@ export class ACPBridge {
     this.connection = new acp.ClientSideConnection((_agent) => client, stream);
     const initResult = await this.connection.initialize({
       protocolVersion: acp.PROTOCOL_VERSION,
-      clientInfo: { name: "Cowork", version: "0.1.0" },
+      clientInfo: { name: "Fello", version: "0.1.0" },
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
       },

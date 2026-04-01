@@ -111,7 +111,7 @@ export function Sidebar() {
         </div>
       </ScrollArea>
       <Separator />
-      <div className="p-3 text-xs text-muted-foreground">Cowork · ACP Client</div>
+      <div className="p-3 text-xs text-muted-foreground">Fello · ACP Client</div>
     </aside>
   );
 }

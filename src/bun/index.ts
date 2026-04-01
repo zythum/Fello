@@ -1,7 +1,7 @@
 import { BrowserWindow, BrowserView, Updater, Utils } from "electrobun/bun";
 import { ACPBridge } from "./acp-bridge";
 import { storageOps } from "./storage";
-import type { CoworkRPCSchema } from "./rpc-schema";
+import type { FelloRPCSchema } from "./rpc-schema";
 import type {
   SessionNotification,
   RequestPermissionRequest,
@@ -60,9 +60,9 @@ async function ensureBridge(cwd: string): Promise<ACPBridge> {
 
 // --- Cleanup on exit ---
 async function cleanupAll() {
-  console.log("[Cowork] Cleaning up bridge...");
+  console.log("[Fello] Cleaning up bridge...");
   if (bridge) {
-    await bridge.disconnect().catch((e) => console.error("[Cowork] cleanup error:", e));
+    await bridge.disconnect().catch((e) => console.error("[Fello] cleanup error:", e));
     bridge = null;
   }
 }
@@ -275,7 +275,7 @@ const handlers = {
   },
 };
 
-const rpc = BrowserView.defineRPC<CoworkRPCSchema>({
+const rpc = BrowserView.defineRPC<FelloRPCSchema>({
   maxRequestTime: Infinity,
   handlers: {
     requests: handlers as any,
@@ -286,7 +286,7 @@ const rpc = BrowserView.defineRPC<CoworkRPCSchema>({
 const url = await getMainViewUrl();
 
 new BrowserWindow({
-  title: "Cowork",
+  title: "Fello",
   url,
   rpc,
   frame: {
@@ -297,4 +297,4 @@ new BrowserWindow({
   },
 });
 
-console.log("Cowork started!");
+console.log("Fello started!");

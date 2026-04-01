@@ -1,7 +1,7 @@
 import type { ElectrobunRPCSchema } from "electrobun/bun";
 
 // Shared RPC schema between bun (main process) and webview (frontend)
-export type CoworkRPCSchema = ElectrobunRPCSchema & {
+export type FelloRPCSchema = ElectrobunRPCSchema & {
   bun: {
     requests: {
       // Webview → Bun calls

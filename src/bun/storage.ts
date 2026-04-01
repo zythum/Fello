@@ -2,7 +2,7 @@ import { join } from "path";
 import { homedir } from "os";
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 
-const DATA_DIR = join(homedir(), ".cowork");
+const DATA_DIR = join(homedir(), ".fello");
 const SESSIONS_DIR = join(DATA_DIR, "sessions");
 mkdirSync(SESSIONS_DIR, { recursive: true });
 

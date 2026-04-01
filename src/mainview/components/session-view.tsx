@@ -104,7 +104,7 @@ export function SessionView() {
               <MessageSquare className="size-8 text-primary" />
             </div>
             <div className="text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">Cowork</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Fello</h1>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
                 An ACP client for Kiro. Start a new chat from the sidebar to connect with the agent
                 and begin collaborating.

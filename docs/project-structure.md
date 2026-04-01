@@ -1,7 +1,7 @@
 # 项目结构
 
 ```
-cowork/
+fello/
 ├── src/
 │   ├── bun/                        # Bun 主进程
 │   │   ├── index.ts                # 入口，RPC handlers，窗口创建，进程管理
@@ -57,7 +57,7 @@ cowork/
 ## 数据目录
 
 ```
-~/.cowork/
+~/.fello/
 └── sessions/
     └── <session-id>/
         └── meta.json               # { id, title, cwd, agentCommand, createdAt, updatedAt }

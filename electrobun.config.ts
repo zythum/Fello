@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
   app: {
-    name: "Cowork",
-    identifier: "cowork.app.dev",
+    name: "Fello",
+    identifier: "fello.app.dev",
     version: "0.1.0",
   },
   build: {

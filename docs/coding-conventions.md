@@ -31,9 +31,9 @@
 
 ## RPC 通信
 
-- 类型定义在 `src/bun/rpc-schema.ts`（`CoworkRPCSchema`）
-- Bun 侧：`BrowserView.defineRPC<CoworkRPCSchema>()`
-- Webview 侧：`Electroview.defineRPC<CoworkRPCSchema>()`
+- 类型定义在 `src/bun/rpc-schema.ts`（`FelloRPCSchema`）
+- Bun 侧：`BrowserView.defineRPC<FelloRPCSchema>()`
+- Webview 侧：`Electroview.defineRPC<FelloRPCSchema>()`
 - 超时设置：`Infinity`（ACP 操作时间不可预测）
 
 ## ACP Bridge

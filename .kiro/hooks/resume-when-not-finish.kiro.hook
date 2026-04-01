@@ -7,6 +7,9 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "如果刚才回复中断了，请继续。"
-  }
+    "prompt": "If the reply was interrupted, please continue."
+  },
+  "workspaceFolderName": "fello",
+  "shortName": "resume-when-not-finish",
+  "description": "If the reply was interrupted, please continue."
 }

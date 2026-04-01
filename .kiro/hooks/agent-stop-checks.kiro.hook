@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Typecheck, Format & Lint on Agent Stop",
+  "description": "When the agent stops, asks Kiro to run npm typecheck, format, and lint to ensure code quality.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run the following commands in order and fix any issues found:\\n1. npm run typecheck\\n2. npm run format\\n3. npm run lint\\n\\nIf any command reports errors, fix them before proceeding to the next command."
+  }
+}

@@ -1,4 +1,5 @@
 ---
+description: Automatically sync documentation in docs/ folder when code changes are made
 inclusion: auto
 ---
 

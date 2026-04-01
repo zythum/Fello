@@ -38,7 +38,7 @@
 | ---------- | ---------------------------------- |
 | JSONL 文件 | 事件日志，与 ACP 协议结构一致      |
 | JSON 文件  | 会话元数据（meta.json）            |
-| 存储位置   | `~/.cowork/sessions/<session-id>/` |
+| 存储位置   | `~/.fello/sessions/<session-id>/` |
 
 ## Markdown 渲染
 

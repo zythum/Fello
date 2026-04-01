@@ -1,5 +1,5 @@
 import { Electroview } from "electrobun/view";
-import type { CoworkRPCSchema } from "../bun/rpc-schema";
+import type { FelloRPCSchema } from "../bun/rpc-schema";
 import type { SessionNotification, RequestPermissionRequest } from "@agentclientprotocol/sdk";
 
 // --- Typed event emitter ---
@@ -28,7 +28,7 @@ function emit<K extends keyof BackendEvents>(event: K, data: BackendEvents[K]) {
 
 // --- RPC instance ---
 
-const rpcInstance = Electroview.defineRPC<CoworkRPCSchema>({
+const rpcInstance = Electroview.defineRPC<FelloRPCSchema>({
   maxRequestTime: Infinity,
   handlers: {
     requests: {
