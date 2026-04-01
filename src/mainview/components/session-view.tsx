@@ -1,8 +1,8 @@
 import { useAppStore, useActiveSessionState, type SessionInfo } from "../store";
-import { ChatArea } from "./chat-area";
-import { ChatInput } from "./chat-input";
+import { Chat } from "./chat";
 import { FileTree } from "./file-tree";
 import { Button } from "@/components/ui/button";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { PanelLeft, Folder, Loader2, MessageSquare } from "lucide-react";
 import { request } from "../backend";
 
@@ -94,10 +94,24 @@ export function SessionView() {
             <p className="text-sm text-muted-foreground">Connecting to agent...</p>
           </div>
         ) : session ? (
-          <>
-            <ChatArea />
-            <ChatInput />
-          </>
+          <ResizablePanelGroup orientation="horizontal" className="flex-1">
+            <ResizablePanel defaultSize={70} minSize={30}>
+              <div className="flex h-full flex-col">
+                <Chat />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={30} minSize={15}>
+              <aside className="flex h-full flex-col bg-sidebar">
+                <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
+                  <span className="text-xs font-medium text-sidebar-foreground">Files</span>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <FileTree />
+                </div>
+              </aside>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
@@ -116,17 +130,6 @@ export function SessionView() {
           </div>
         )}
       </main>
-
-      {session && !isConnecting && (
-        <aside className="flex h-full w-64 flex-col border-l border-border bg-sidebar">
-          <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
-            <span className="text-xs font-medium text-sidebar-foreground">Files</span>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <FileTree />
-          </div>
-        </aside>
-      )}
     </>
   );
 }

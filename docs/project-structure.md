@@ -22,8 +22,9 @@ fello/
 │       │   └── utils.ts            # cn() 工具函数
 │       │
 │       └── components/
-│           ├── session-view.tsx     # 主视图（header + chat/welcome/loading）
+│           ├── session-view.tsx     # 主视图（header + resizable split-view: chat + file-tree）
 │           ├── sidebar.tsx          # 会话列表侧边栏
+│           ├── chat.tsx             # Chat 容器（chat-area + chat-input）
 │           ├── chat-area.tsx        # 消息列表 + 流式渲染
 │           ├── chat-input.tsx       # 输入框 + 模型选择 + token 用量
 │           ├── message-bubble.tsx   # 消息气泡（user/assistant/tool）
@@ -39,6 +40,7 @@ fello/
 │               ├── dropdown-menu.tsx
 │               ├── input.tsx
 │               ├── scroll-area.tsx
+│               ├── resizable.tsx
 │               ├── select.tsx
 │               ├── separator.tsx
 │               └── tooltip.tsx
