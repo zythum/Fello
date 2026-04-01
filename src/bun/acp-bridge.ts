@@ -53,7 +53,10 @@ export class ACPBridge {
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
       cwd: this.options.cwd,
+      detached: true,
     });
+    // Don't let the detached process group keep the parent alive
+    proc.unref();
     this.process = proc;
 
     const input = Writable.toWeb(proc.stdin!);
@@ -176,25 +179,93 @@ export class ACPBridge {
     await this.connection.cancel({ sessionId });
   }
 
+  async closeSession(sessionId: string): Promise<void> {
+    if (!this.connection || !this._isConnected) return;
+    try {
+      await this.connection.unstable_closeSession({ sessionId });
+    } catch {
+      // Agent may not support session.close
+    }
+    this._modelStates.delete(sessionId);
+  }
+
   async disconnect(): Promise<void> {
+    // 1. Close all active sessions via ACP protocol
+    if (this.connection && this._isConnected) {
+      const sessionIds = [...this._modelStates.keys()];
+      for (const sid of sessionIds) {
+        try {
+          await this.connection.unstable_closeSession({ sessionId: sid });
+        } catch {
+          // Session may already be closed or agent doesn't support it
+        }
+      }
+    }
+
     this._isConnected = false;
     this._modelStates.clear();
     this.connection = null;
+
     if (this.process) {
       const proc = this.process;
       this.process = null;
-      proc.kill();
+      // 2. Close stdin — ACP server detects EOF and exits gracefully
+      try {
+        proc.stdin?.end();
+      } catch {
+        // already closed
+      }
       await new Promise<void>((resolve) => {
         if (proc.exitCode !== null) {
           resolve();
           return;
         }
         proc.on("exit", () => resolve());
+        // If it hasn't exited after 3s, kill the entire process group
         setTimeout(() => {
-          proc.kill("SIGKILL");
-          resolve();
+          this.killProcessGroup(proc, "SIGTERM");
+          setTimeout(() => {
+            this.killProcessGroup(proc, "SIGKILL");
+            resolve();
+          }, 2000);
         }, 3000);
       });
+    }
+  }
+
+  /** Synchronously kill the child process (for use in before-quit where we can't await). */
+  killSync(): void {
+    this._isConnected = false;
+    this._modelStates.clear();
+    this.connection = null;
+    if (this.process) {
+      const proc = this.process;
+      this.process = null;
+      // Close stdin first
+      try {
+        proc.stdin?.end();
+      } catch {
+        // already closed
+      }
+      // Kill the entire process group (kiro-cli + kiro-cli-chat)
+      this.killProcessGroup(proc, "SIGTERM");
+    }
+  }
+
+  /** Send a signal to the entire process group (negative PID). */
+  private killProcessGroup(proc: ChildProcess, signal: NodeJS.Signals): void {
+    const pid = proc.pid;
+    if (pid == null) return;
+    try {
+      // Negative PID sends signal to the entire process group
+      process.kill(-pid, signal);
+    } catch {
+      // Process group already dead, try direct kill as fallback
+      try {
+        proc.kill(signal);
+      } catch {
+        // already dead
+      }
     }
   }
 }

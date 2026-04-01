@@ -1,4 +1,4 @@
-import { BrowserWindow, BrowserView, Updater, Utils } from "electrobun/bun";
+import Electrobun, { BrowserWindow, BrowserView, Updater, Utils } from "electrobun/bun";
 import { ACPBridge } from "./acp-bridge";
 import { storageOps } from "./storage";
 import type { FelloRPCSchema } from "./rpc-schema";
@@ -31,7 +31,18 @@ async function getMainViewUrl(): Promise<string> {
 // --- State ---
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
+let mainWindowId: number | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
+
+/** Safe RPC call — silently drops if no window is open */
+function safeRpcCall(fn: () => void) {
+  if (mainWindowId === null) return;
+  try {
+    fn();
+  } catch (e) {
+    console.warn("[Fello] RPC call failed (window may be closed):", e);
+  }
+}
 
 async function ensureBridge(cwd: string): Promise<ACPBridge> {
   if (bridge?.isConnected) return bridge;
@@ -44,13 +55,18 @@ async function ensureBridge(cwd: string): Promise<ACPBridge> {
     args: ["acp"],
     cwd,
     onSessionUpdate: (params: SessionNotification) => {
-      rpc.request.onSessionUpdate(JSON.stringify(params));
+      safeRpcCall(() => rpc.request.onSessionUpdate(JSON.stringify(params)));
     },
     onPermissionRequest: (params: RequestPermissionRequest) => {
       const toolCallId = params.toolCall.toolCallId;
+      if (mainWindowId === null) {
+        return Promise.resolve({
+          outcome: { outcome: "selected", optionId: "deny" },
+        } as RequestPermissionResponse);
+      }
       return new Promise<RequestPermissionResponse>((resolve) => {
         pendingPermissions.set(toolCallId, resolve);
-        rpc.request.onPermissionRequest(JSON.stringify(params));
+        safeRpcCall(() => rpc.request.onPermissionRequest(JSON.stringify(params)));
       });
     },
   });
@@ -66,6 +82,20 @@ async function cleanupAll() {
     bridge = null;
   }
 }
+
+/** Synchronously kill the child process (for use in before-quit where we can't await) */
+function killBridgeSync() {
+  if (bridge) {
+    bridge.killSync();
+    bridge = null;
+  }
+}
+
+// Electrobun before-quit: runs synchronously before forceExit
+Electrobun.events.on("before-quit", () => {
+  console.log("[Fello] before-quit: killing bridge process...");
+  killBridgeSync();
+});
 
 process.on("exit", () => {
   cleanupAll();
@@ -113,12 +143,8 @@ const handlers = {
   async resumeChat({ sessionId, cwd }: { sessionId: string; cwd: string }) {
     try {
       const b = await ensureBridge(cwd);
-      // If bridge already knows this session, just switch
-      const existingModels = b.getModelState(sessionId);
-      if (existingModels) {
-        activeSessionId = sessionId;
-        return { ok: true, models: formatModels(existingModels) };
-      }
+      // Always call resumeSession so the ACP agent re-loads the session
+      // (e.g. after the window was closed and reopened via dock icon).
       const models = await b.resumeSession(sessionId, cwd);
       activeSessionId = sessionId;
       return { ok: true, models: formatModels(models) };
@@ -285,16 +311,32 @@ const rpc = BrowserView.defineRPC<FelloRPCSchema>({
 // --- Create Window ---
 const url = await getMainViewUrl();
 
-new BrowserWindow({
-  title: "Fello",
-  url,
-  rpc,
-  frame: {
-    width: 1100,
-    height: 800,
-    x: 150,
-    y: 100,
-  },
+function createMainWindow() {
+  const win = new BrowserWindow({
+    title: "Fello",
+    url,
+    rpc,
+    frame: {
+      width: 1100,
+      height: 800,
+      x: 150,
+      y: 100,
+    },
+  });
+  mainWindowId = win.id;
+  win.on("close", () => {
+    mainWindowId = null;
+  });
+  return win;
+}
+
+createMainWindow();
+
+// macOS: reopen window when dock icon is clicked and no windows are open
+Electrobun.events.on("reopen", () => {
+  if (mainWindowId === null) {
+    createMainWindow();
+  }
 });
 
 console.log("Fello started!");

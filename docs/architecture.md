@@ -26,6 +26,10 @@
 
 应用全局只启动一个 `kiro-cli acp` 进程（`ACPBridge` 单例），所有 session 的创建（`newSession`）、恢复（`loadSession`）、对话（`prompt`）均复用同一个 ACP 连接。`ACPBridge` 内部通过 `Map<sessionId, ModelState>` 维护各 session 的模型状态。
 
+### 窗口生命周期（macOS）
+
+采用标准 macOS 应用行为：关闭主窗口时进程不退出，应用继续驻留在 Dock。点击 Dock 图标时通过 `reopen` 事件重新创建主窗口。通过 `electrobun.config.ts` 中 `runtime.exitOnLastWindowClosed: false` 配置实现。
+
 ## 通信链路
 
 1. Webview ←→ Bun：Electrobun 的 typed RPC（`BrowserView.defineRPC` / `Electroview.defineRPC`）

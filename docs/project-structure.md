@@ -43,6 +43,9 @@ fello/
 │               ├── separator.tsx
 │               └── tooltip.tsx
 │
+├── icons/                          # 应用图标
+│   ├── icon.iconset/               # macOS iconset（16~1024px + @2x）
+│   └── fello_icon.png              # 原始图标文件
 ├── docs/                           # 项目文档
 ├── .kiro/steering/                 # Kiro steering 规则
 ├── components.json                 # shadcn 配置
