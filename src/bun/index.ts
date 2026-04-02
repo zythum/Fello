@@ -314,6 +314,35 @@ const handlers = {
     exec(`open -R "${filePath}"`);
   },
 
+  async writeDroppedFile({
+    fileName,
+    base64,
+    destDir,
+  }: {
+    fileName: string;
+    base64: string;
+    destDir: string;
+  }) {
+    let dest = join(destDir, fileName);
+
+    // Avoid overwriting: append (n) suffix if target exists
+    const s = await stat(dest).catch(() => null);
+    if (s) {
+      const ext = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : "";
+      const base = ext ? fileName.slice(0, -ext.length) : fileName;
+      let i = 1;
+      while (await stat(join(destDir, `${base} (${i})${ext}`)).catch(() => null)) i++;
+      dest = join(destDir, `${base} (${i})${ext}`);
+    }
+
+    const buf = Buffer.from(base64, "base64");
+    await writeFile(dest, buf);
+  },
+
+  async writeDroppedFolder({ destDir }: { destDir: string }) {
+    await mkdir(destDir, { recursive: true });
+  },
+
   async showContextMenu({
     items,
   }: {

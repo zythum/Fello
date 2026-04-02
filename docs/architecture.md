@@ -20,7 +20,7 @@
 
 ## 进程模型
 
-- Bun Process（`src/bun/`）：主进程，管理 ACP 连接、文件操作、数据持久化
+- Bun Process（`src/bun/`）：主进程，管理 ACP 连接、文件操作（含外部拖拽复制）、数据持久化
 - Webview（`src/mainview/`）：渲染进程，React SPA，通过 Electrobun RPC 与主进程通信
 - kiro-cli acp：单个 ACP server 进程，通过 stdin/stdout 的 NDJSON 流通信，管理所有 session
 

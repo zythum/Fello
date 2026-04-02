@@ -41,6 +41,14 @@ export type FelloRPCSchema = ElectrobunRPCSchema & {
       moveFile: { params: { oldPath: string; newPath: string }; response: void };
       readFile: { params: string; response: string };
       revealInFinder: { params: string; response: void };
+      writeDroppedFile: {
+        params: { fileName: string; base64: string; destDir: string };
+        response: void;
+      };
+      writeDroppedFolder: {
+        params: { destDir: string };
+        response: void;
+      };
       showContextMenu: {
         params: {
           items: Array<{

@@ -98,7 +98,6 @@ function TreeItem({
         onDragStart={(e) => {
           e.stopPropagation();
           actions.startDrag(node.id, e);
-          e.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(e) => node.isFolder && actions.dragOver(e, node.id)}
         onDragLeave={actions.dragLeave}
@@ -426,18 +425,32 @@ export function FileTree() {
     [cwd],
   );
 
-  // --- Drag & drop (multi-select aware) ---
-  const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    setDropTargetId(id);
-  }, []);
+  // --- Drag & drop (multi-select aware, + external file drop) ---
+
+  /** Check whether a DragEvent carries files from outside the app */
+  const isExternalDrag = useCallback(
+    (e: React.DragEvent) => {
+      return e.dataTransfer.types.includes("Files") && dragIds.length === 0;
+    },
+    [dragIds],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, id: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect =
+        e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
+      setDropTargetId(id);
+    },
+    [dragIds],
+  );
 
   const handleStartDrag = useCallback(
     (id: string, e: React.DragEvent) => {
       const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
       setDragIds(ids);
+      e.dataTransfer.effectAllowed = "move";
 
       const root = document.documentElement;
       const styles = getComputedStyle(root);
@@ -464,10 +477,8 @@ export function FileTree() {
       `;
       ghost.textContent = ids.length > 1 ? `${ids.length} items` : id.split("/").pop()!;
       document.body.appendChild(ghost);
-      // Force layout so the browser captures the painted element
       ghost.getBoundingClientRect();
       e.dataTransfer.setDragImage(ghost, 0, 0);
-      // Clean up after drag ends instead of immediately
       const cleanup = () => {
         ghost.remove();
         e.target.removeEventListener("dragend", cleanup);
@@ -477,13 +488,103 @@ export function FileTree() {
     [selectedIds],
   );
 
+  /** Read a File as base64 string */
+  const readFileAsBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip the data:...;base64, prefix
+        resolve(result.split(",")[1] ?? "");
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  /** Recursively process a FileSystemEntry and write to destDir */
+  const processEntry = useCallback(
+    async (entry: FileSystemEntry, destDir: string) => {
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        const file = await new Promise<File>((resolve, reject) => fileEntry.file(resolve, reject));
+        const base64 = await readFileAsBase64(file);
+        await request.writeDroppedFile({ fileName: entry.name, base64, destDir });
+      } else if (entry.isDirectory) {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const subDir = `${destDir}/${entry.name}`;
+        await request.writeDroppedFolder({ destDir: subDir });
+        const reader = dirEntry.createReader();
+        const entries = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject),
+        );
+        for (const child of entries) {
+          await processEntry(child, subDir);
+        }
+      }
+    },
+    [readFileAsBase64],
+  );
+
+  /** Handle external files/folders dropped into a target directory */
+  const handleExternalDrop = useCallback(
+    async (e: React.DragEvent, destDir: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropTargetId(null);
+
+      const items = e.dataTransfer.items;
+      if (!items || items.length === 0) return;
+
+      // Use webkitGetAsEntry for folder support
+      const entries: FileSystemEntry[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry?.();
+        if (entry) entries.push(entry);
+      }
+
+      if (entries.length > 0) {
+        try {
+          for (const entry of entries) {
+            await processEntry(entry, destDir);
+          }
+        } catch (err) {
+          console.error("Drop files in failed:", err);
+        }
+        refresh();
+        return;
+      }
+
+      // Fallback: plain files without entry API
+      const files = e.dataTransfer.files;
+      if (!files || files.length === 0) return;
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const base64 = await readFileAsBase64(file);
+          await request.writeDroppedFile({ fileName: file.name, base64, destDir });
+        }
+      } catch (err) {
+        console.error("Drop files in failed:", err);
+      }
+      refresh();
+    },
+    [refresh, processEntry, readFileAsBase64],
+  );
+
   const handleDrop = useCallback(
     async (e: React.DragEvent, targetId: string) => {
       e.preventDefault();
       e.stopPropagation();
       setDropTargetId(null);
-      if (dragIds.length === 0) return;
 
+      // External file drop
+      if (isExternalDrag(e)) {
+        return handleExternalDrop(e, targetId);
+      }
+
+      // Internal move
+      if (dragIds.length === 0) return;
       const validIds = dragIds.filter((id) => id !== targetId && !targetId.startsWith(id + "/"));
       try {
         await Promise.all(
@@ -500,7 +601,7 @@ export function FileTree() {
       setDragIds([]);
       refresh();
     },
-    [dragIds, refresh],
+    [dragIds, refresh, isExternalDrag, handleExternalDrop],
   );
 
   const actions: Actions = {
@@ -614,14 +715,24 @@ export function FileTree() {
           }}
           onDragOver={(e) => {
             e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
+            e.dataTransfer.dropEffect =
+              e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
             setDropTargetId("__root__");
           }}
           onDragLeave={() => setDropTargetId(null)}
           onDrop={async (e) => {
             e.preventDefault();
             setDropTargetId(null);
-            if (dragIds.length === 0 || !cwd) return;
+            if (!cwd) return;
+
+            // External file drop onto root
+            if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
+              await handleExternalDrop(e as React.DragEvent, cwd);
+              return;
+            }
+
+            // Internal move to root
+            if (dragIds.length === 0) return;
             try {
               await Promise.all(
                 dragIds.map((id) => {
