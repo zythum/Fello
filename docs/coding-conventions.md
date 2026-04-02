@@ -42,3 +42,7 @@
 - 切换 session 不断开旧连接
 - 应用退出时遍历所有 bridge 执行 disconnect
 - JSON-RPC 通信日志：`[ACP ←]`（收到）/ `[ACP →]`（发送）
+
+## UI 语言
+
+- App UI 中所有面向用户的文字必须使用英语
