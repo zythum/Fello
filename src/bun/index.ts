@@ -18,6 +18,7 @@ import { homedir } from "os";
 import { readdir, stat, mkdir, writeFile, rm, rename, readFile as fsReadFile } from "fs/promises";
 import { join, dirname } from "path";
 import { exec } from "child_process";
+import { platform } from "os";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -294,8 +295,41 @@ const handlers = {
     }
   },
 
-  async deleteFile(filePath: string) {
-    await rm(filePath, { recursive: true, force: true });
+  async deleteFile({ path: filePath, permanent }: { path: string; permanent: boolean }) {
+    if (permanent) {
+      await rm(filePath, { recursive: true, force: true });
+      return;
+    }
+    const os = platform();
+    const escaped = filePath.replace(/"/g, '\\"');
+    if (os === "darwin") {
+      await new Promise<void>((resolve, reject) => {
+        exec(`osascript -e 'tell application "Finder" to delete POSIX file "${escaped}"'`, (err) =>
+          err ? reject(err) : resolve(),
+        );
+      });
+    } else if (os === "win32") {
+      // PowerShell: use Shell.Application to move to Recycle Bin
+      const ps = `$shell = New-Object -ComObject Shell.Application; $item = $shell.NameSpace(0).ParseName("${escaped}"); $item.InvokeVerb("delete")`;
+      await new Promise<void>((resolve, reject) => {
+        exec(`powershell -Command "${ps}"`, (err) => (err ? reject(err) : resolve()));
+      });
+    } else {
+      // Linux: try gio trash, fall back to trash-cli, then permanent delete
+      await new Promise<void>((resolve, reject) => {
+        exec(`gio trash "${escaped}"`, (err) => {
+          if (!err) return resolve();
+          exec(`trash-put "${escaped}"`, (err2) => {
+            if (!err2) return resolve();
+            rm(filePath, { recursive: true, force: true }).then(resolve, reject);
+          });
+        });
+      });
+    }
+  },
+
+  async getPlatform() {
+    return platform();
   },
 
   async renameFile({ oldPath, newPath }: { oldPath: string; newPath: string }) {

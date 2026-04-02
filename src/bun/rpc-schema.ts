@@ -36,7 +36,8 @@ export type FelloRPCSchema = ElectrobunRPCSchema & {
         response: unknown;
       };
       createFile: { params: { path: string; isFolder: boolean }; response: void };
-      deleteFile: { params: string; response: void };
+      deleteFile: { params: { path: string; permanent: boolean }; response: void };
+      getPlatform: { params: void; response: string };
       renameFile: { params: { oldPath: string; newPath: string }; response: void };
       moveFile: { params: { oldPath: string; newPath: string }; response: void };
       readFile: { params: string; response: string };

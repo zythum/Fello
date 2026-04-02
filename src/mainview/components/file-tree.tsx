@@ -336,15 +336,20 @@ export function FileTree() {
   };
 
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
+  const [osPlatform, setOsPlatform] = useState<string>("darwin");
+
+  useEffect(() => {
+    request.getPlatform().then((p: unknown) => setOsPlatform(p as string));
+  }, []);
 
   const deleteNode = (ids: string[]) => {
     setPendingDeleteIds(ids);
   };
 
-  const confirmDelete = async () => {
+  const executeDelete = async (permanent: boolean) => {
     if (!pendingDeleteIds) return;
     try {
-      await Promise.all(pendingDeleteIds.map((id) => request.deleteFile(id)));
+      await Promise.all(pendingDeleteIds.map((id) => request.deleteFile({ path: id, permanent })));
     } catch (err) {
       console.error("Delete failed:", err);
     }
@@ -360,6 +365,13 @@ export function FileTree() {
       console.error("Reveal in Finder failed:", err);
     }
   };
+
+  const trashLabel =
+    osPlatform === "darwin"
+      ? "Move to Trash"
+      : osPlatform === "win32"
+        ? "Move to Recycle Bin"
+        : "Move to Trash";
 
   // --- Native context menus ---
   const showNodeContextMenu = useCallback(
@@ -760,24 +772,29 @@ export function FileTree() {
 
       <Dialog
         open={pendingDeleteIds !== null}
-        onOpenChange={(open) => !open && setPendingDeleteIds(null)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteIds(null);
+        }}
         disablePointerDismissal
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle>Delete</DialogTitle>
             <DialogDescription>
               {pendingDeleteIds && pendingDeleteIds.length === 1
-                ? `确定要删除「${pendingDeleteIds[0].split("/").pop()}」吗？此操作无法撤销。`
-                : `确定要删除选中的 ${pendingDeleteIds?.length ?? 0} 个项目吗？此操作无法撤销。`}
+                ? `How would you like to delete "${pendingDeleteIds[0].split("/").pop()}"?`
+                : `How would you like to delete ${pendingDeleteIds?.length ?? 0} items?`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingDeleteIds(null)}>
-              取消
+              Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              删除
+            <Button variant="outline" onClick={() => executeDelete(false)}>
+              {trashLabel}
+            </Button>
+            <Button variant="destructive" onClick={() => executeDelete(true)}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
