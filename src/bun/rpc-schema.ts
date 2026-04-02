@@ -31,6 +31,10 @@ export type FelloRPCSchema = ElectrobunRPCSchema & {
         } | null;
       };
       setModel: { params: string; response: void };
+      searchFiles: {
+        params: { cwd: string; query?: string };
+        response: Array<{ id: string; display: string }>;
+      };
       readDir: {
         params: { path: string; depth?: number };
         response: unknown;

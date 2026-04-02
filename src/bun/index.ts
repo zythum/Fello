@@ -16,7 +16,8 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { homedir } from "os";
 import { readdir, stat, mkdir, writeFile, rm, rename, readFile as fsReadFile } from "fs/promises";
-import { join, dirname } from "path";
+import { join, dirname, relative } from "path";
+import Fuse from "fuse.js";
 import { exec } from "child_process";
 import { platform } from "os";
 
@@ -246,6 +247,65 @@ const handlers = {
   async setModel(modelId: string) {
     if (!bridge || !activeSessionId) throw new Error("No active session");
     await bridge.setModel(activeSessionId, modelId);
+  },
+
+  async searchFiles({ cwd, query }: { cwd: string; query?: string }) {
+    const IGNORE = new Set([
+      "node_modules",
+      ".git",
+      ".DS_Store",
+      "dist",
+      "build",
+      ".next",
+      ".cache",
+      "__pycache__",
+      ".vscode",
+    ]);
+
+    const MAX_RESULTS = 10;
+
+    // No query or empty: return top-level entries
+    if (!query || query.trim() === "") {
+      const entries = await readdir(cwd).catch(() => []);
+      const results: Array<{ id: string; display: string }> = [];
+      for (const name of entries) {
+        if (IGNORE.has(name)) continue;
+        const full = join(cwd, name);
+        const s = await stat(full).catch(() => null);
+        if (!s) continue;
+        results.push({ id: full, display: name });
+        if (results.length >= MAX_RESULTS) break;
+      }
+      results.sort((a, b) => a.display.localeCompare(b.display));
+      return results;
+    }
+
+    // Collect all files recursively for fuzzy search
+    const allFiles: Array<{ id: string; display: string }> = [];
+
+    async function collect(dir: string) {
+      const entries = await readdir(dir).catch(() => []);
+      for (const name of entries) {
+        if (IGNORE.has(name)) continue;
+        const full = join(dir, name);
+        const s = await stat(full).catch(() => null);
+        if (!s) continue;
+        const rel = relative(cwd, full);
+        allFiles.push({ id: full, display: rel });
+        if (s.isDirectory()) {
+          await collect(full);
+        }
+      }
+    }
+
+    await collect(cwd);
+
+    const fuse = new Fuse(allFiles, {
+      keys: ["display"],
+      threshold: 0.4,
+    });
+
+    return fuse.search(query, { limit: MAX_RESULTS }).map((r) => r.item);
   },
 
   async readDir({ path: dirPath, depth = 1 }: { path: string; depth?: number }) {

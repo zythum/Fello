@@ -43,6 +43,21 @@ export function ChatInput() {
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
+  /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
+  const fetchFileSuggestions = useCallback(
+    (search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
+      if (!session) {
+        callback([]);
+        return;
+      }
+      request
+        .searchFiles({ cwd: session.cwd, query: search || undefined })
+        .then((results) => callback(results as Array<{ id: string; display: string }>))
+        .catch(() => callback([]));
+    },
+    [session],
+  );
+
   const handleChangeCwd = useCallback(async () => {
     if (!session) return;
     try {
@@ -109,9 +124,7 @@ export function ChatInput() {
     try {
       const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
       if (nodes.length === 0) return;
-      const mentions = nodes
-        .map((n) => `@[${n.isFolder ? "📁 " : ""}${n.name}](${n.id})`)
-        .join(" ");
+      const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
       setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
       // Focus the textarea after drop
@@ -174,7 +187,7 @@ export function ChatInput() {
           >
             <Mention
               trigger="#"
-              data={[]}
+              data={fetchFileSuggestions}
               markup={MENTION_MARKUP}
               displayTransform={(_id, display) => `#${display}`}
               style={mentionStyle}
@@ -301,6 +314,7 @@ const mentionsInputStyle = {
     },
   },
   suggestions: {
+    backgroundColor: "transparent",
     list: {
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
