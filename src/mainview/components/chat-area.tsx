@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveSessionState } from "../store";
-import type { ChatMessage } from "../store";
 import { MessageBubble } from "./message-bubble";
-import { ToolGroupBubble } from "./bubbles/tool-group-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bot, ArrowDown } from "lucide-react";
-
-type MessageGroup =
-  | { type: "message"; key: string; msg: ChatMessage }
-  | { type: "tools"; key: string; msgs: ChatMessage[] };
 
 export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
@@ -39,54 +33,6 @@ export function ChatArea() {
     return () => viewport.removeEventListener("scroll", handleScroll);
   }, [getViewport]);
 
-  const grouped = useMemo(() => {
-    const result: MessageGroup[] = [];
-    let toolBatch: ChatMessage[] = [];
-
-    const flushTools = () => {
-      if (toolBatch.length > 0) {
-        result.push({
-          type: "tools",
-          key: `tools-${toolBatch[0].toolCallId ?? result.length}`,
-          msgs: toolBatch,
-        });
-        toolBatch = [];
-      }
-    };
-
-    for (const msg of messages) {
-      if (msg.role === "tool") {
-        toolBatch.push(msg);
-      } else {
-        flushTools();
-        result.push({
-          type: "message",
-          key: `msg-${msg.id ?? result.length}`,
-          msg,
-        });
-      }
-    }
-    flushTools();
-    return result;
-  }, [messages]);
-
-  const activeToolMsgs = useMemo(() => {
-    const result: ChatMessage[] = [];
-    for (const [id, tc] of activeToolCalls) {
-      result.push({
-        role: "tool",
-        content: tc.content,
-        toolCallId: id,
-        toolTitle: tc.title,
-        toolStatus: tc.status,
-        toolKind: tc.kind,
-        rawInput: tc.rawInput,
-        locations: tc.locations,
-      });
-    }
-    return result;
-  }, [activeToolCalls]);
-
   const lastMsg = messages[messages.length - 1];
   const hasStreamingContent = lastMsg?.streaming && lastMsg.role === "assistant";
 
@@ -98,15 +44,9 @@ export function ChatArea() {
     <div className="relative min-h-0 flex-1">
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="mx-auto max-w-3xl space-y-4 p-4">
-          {grouped.map((group) =>
-            group.type === "tools" ? (
-              <ToolGroupBubble key={group.key} messages={group.msgs} />
-            ) : (
-              <MessageBubble key={group.key} message={group.msg} />
-            ),
-          )}
-
-          {activeToolMsgs.length > 0 && <ToolGroupBubble messages={activeToolMsgs} />}
+          {messages.map((msg, i) => (
+            <MessageBubble key={msg.id ?? msg.toolCallId ?? `msg-${i}`} message={msg} />
+          ))}
 
           {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
             <div className="flex gap-3 justify-start">

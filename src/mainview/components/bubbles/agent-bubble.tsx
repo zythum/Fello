@@ -12,7 +12,7 @@ interface Props {
   message: ChatMessage;
 }
 
-export const AssistantBubble = memo(function AssistantBubble({ message }: Props) {
+export const AgentBubble = memo(function AssistantBubble({ message }: Props) {
   return (
     <div className="flex gap-3 justify-start items-start pr-10">
       <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">

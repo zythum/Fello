@@ -192,7 +192,28 @@ export const useAppStore = create<AppState>((set, get) => ({
         Object.entries(data).filter(([, v]) => v != null && v !== ""),
       );
       newMap.set(id, { title: "", status: "pending", content: "", ...existing, ...filtered });
-      return { activeToolCalls: newMap };
+
+      // Also upsert into messages so tools appear interleaved with other roles
+      const msgs = [...s.messages];
+      const idx = msgs.findIndex((m) => m.toolCallId === id);
+      const merged = { ...newMap.get(id)! };
+      const toolMsg: import("./store").ChatMessage = {
+        role: "tool",
+        content: merged.content,
+        toolCallId: id,
+        toolTitle: merged.title,
+        toolStatus: merged.status,
+        toolKind: merged.kind,
+        rawInput: merged.rawInput,
+        locations: merged.locations,
+      };
+      if (idx !== -1) {
+        msgs[idx] = toolMsg;
+      } else {
+        msgs.push(toolMsg);
+      }
+
+      return { activeToolCalls: newMap, messages: msgs };
     }),
   clearToolCalls: (sessionId) =>
     get().updateSessionState(sessionId, () => ({ activeToolCalls: new Map() })),

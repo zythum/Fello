@@ -3,7 +3,7 @@ import type { ChatMessage } from "../store";
 import { ToolBubble } from "./bubbles/tool-bubble";
 import { ThinkingBubble } from "./bubbles/thinking-bubble";
 import { UserBubble } from "./bubbles/user-bubble";
-import { AssistantBubble } from "./bubbles/assistant-bubble";
+import { AgentBubble } from "./bubbles/agent-bubble";
 
 interface Props {
   message: ChatMessage;
@@ -18,7 +18,7 @@ export const MessageBubble = memo(function MessageBubble({ message }: Props) {
     case "user":
       return <UserBubble message={message} />;
     case "assistant":
-      return <AssistantBubble message={message} />;
+      return <AgentBubble message={message} />;
     default:
       return null;
   }

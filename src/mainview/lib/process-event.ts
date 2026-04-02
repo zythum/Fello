@@ -68,18 +68,23 @@ export function flushStreaming(sessionId: string) {
   const store = useAppStore.getState();
   const ss = store.getSessionState(sessionId);
 
-  for (const [id, tc] of ss.activeToolCalls) {
-    store.addMessage(sessionId, {
-      role: "tool",
-      content: "",
-      toolCallId: id,
-      toolTitle: tc.title,
-      toolStatus: tc.status === "in_progress" || tc.status === "pending" ? "completed" : tc.status,
-      toolKind: tc.kind,
-      rawInput: tc.rawInput,
-      locations: tc.locations,
-    });
+  // Finalize any in-progress tool messages already in the messages array
+  if (ss.activeToolCalls.size > 0) {
+    const activeIds = new Set(ss.activeToolCalls.keys());
+    store.updateSessionState(sessionId, (s) => ({
+      messages: s.messages.map((m) => {
+        if (m.toolCallId && activeIds.has(m.toolCallId)) {
+          const status =
+            m.toolStatus === "in_progress" || m.toolStatus === "pending"
+              ? "completed"
+              : m.toolStatus;
+          return { ...m, toolStatus: status };
+        }
+        return m;
+      }),
+    }));
   }
+
   store.clearToolCalls(sessionId);
   store.finalizeStreamingMessages(sessionId);
 }
