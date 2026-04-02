@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useActiveSessionState, type ChatMessage, type SessionInfo } from "../store";
 import { request } from "../backend";
 import { flushStreaming } from "../lib/process-event";
@@ -12,9 +13,20 @@ import {
 } from "@/components/ui/select";
 import { ArrowUp, Square, Zap, Folder } from "lucide-react";
 
+/** Markup format used by react-mentions: @[display](id) */
+const MENTION_MARKUP = "@[__display__](__id__)";
+const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+
+/** Replace all mention markup with the raw absolute path */
+function resolveMentions(value: string): string {
+  return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
+}
+
 export function ChatInput() {
   const [input, setInput] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     sessions,
     activeSessionId,
@@ -48,25 +60,21 @@ export function ChatInput() {
   }, [session, setSessions]);
 
   const handleSubmit = useCallback(async () => {
-    const text = input.trim();
-    if (!text || !activeSessionId || isStreaming) return;
+    const resolved = resolveMentions(input).trim();
+    if (!resolved || !activeSessionId || isStreaming) return;
 
     setInput("");
-    addMessage(activeSessionId, { role: "user", content: text });
+    addMessage(activeSessionId, { role: "user", content: resolved });
     setIsStreaming(activeSessionId, true);
     clearToolCalls(activeSessionId);
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-
     try {
-      await request.sendMessage(text);
+      await request.sendMessage(resolved);
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
       if (messages.filter((m: ChatMessage) => m.role === "user").length === 1) {
-        const title = text.length > 40 ? text.slice(0, 40) + "..." : text;
+        const title = resolved.length > 40 ? resolved.slice(0, 40) + "..." : resolved;
         await request.updateSessionTitle({ sessionId: activeSessionId, title });
         const sessions = await request.listSessions();
         useAppStore.getState().setSessions((sessions as never[]) ?? []);
@@ -83,49 +91,103 @@ export function ChatInput() {
   }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearToolCalls]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Ignore key events during IME composition (e.g. Chinese/Japanese/Korean input)
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  };
+  /** Insert mention markup for each dropped tree node */
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData("application/x-fello-tree-nodes");
+    if (!raw) return; // not from file-tree, ignore
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    try {
+      const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
+      if (nodes.length === 0) return;
+      const mentions = nodes
+        .map((n) => `@[${n.isFolder ? "📁 " : ""}${n.name}](${n.id})`)
+        .join(" ");
+      setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+
+      // Focus the textarea after drop
+      requestAnimationFrame(() => {
+        containerRef.current?.querySelector("textarea")?.focus();
+      });
+    } catch {
+      // ignore malformed data
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    // Must always preventDefault on dragover to allow drop
+    if (e.dataTransfer.types.includes("application/x-fello-tree-nodes")) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      // Clear any pending drag-leave timeout (child→child transitions fire leave+enter)
+      if (dragLeaveTimer.current) {
+        clearTimeout(dragLeaveTimer.current);
+        dragLeaveTimer.current = null;
+      }
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Debounce to avoid flicker when moving between child elements
+    dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
+  }, []);
 
   const disabled = !activeSessionId || isConnecting;
 
   return (
     <div className="border-t border-border p-3">
       <div className="mx-auto max-w-3xl">
-        <div className="rounded-xl border border-input bg-card shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
+        <div
+          ref={containerRef}
+          className={`rounded-xl border bg-card shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring ${
+            isDragOver ? "border-primary ring-1 ring-primary bg-primary/5" : "border-input"
+          }`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          {/* MentionsInput */}
+          <MentionsInput
             value={input}
-            onChange={handleInput}
+            onChange={(_e, newValue) => setInput(newValue)}
             onKeyDown={handleKeyDown}
             placeholder={
               disabled ? "Start a new chat to begin..." : "Ask anything... (Enter to send)"
             }
             disabled={disabled}
-            rows={1}
-            className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
             aria-label="Message input"
-          />
+            style={mentionsInputStyle}
+            allowSuggestionsAboveCursor
+            a11ySuggestionsListLabel="Suggestions"
+          >
+            <Mention
+              trigger="#"
+              data={[]}
+              markup={MENTION_MARKUP}
+              displayTransform={(_id, display) => `#${display}`}
+              style={mentionStyle}
+              appendSpaceOnAdd
+            />
+          </MentionsInput>
           {/* Bottom bar: model selector + send button */}
           <div
             className="flex cursor-text items-center gap-2 px-2 pb-2"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
-              textareaRef.current?.focus();
+              containerRef.current?.querySelector("textarea")?.focus();
             }}
           >
             {session && (
@@ -212,3 +274,52 @@ export function ChatInput() {
     </div>
   );
 }
+
+/** Inline styles for MentionsInput to match the existing textarea look */
+const mentionsInputStyle = {
+  control: {
+    fontSize: 14,
+    lineHeight: "1.5",
+  },
+  "&multiLine": {
+    control: {
+      minHeight: 36,
+    },
+    highlighter: {
+      padding: "12px 16px 8px",
+      border: "none",
+    },
+    input: {
+      padding: "12px 16px 8px",
+      border: "none",
+      outline: "none",
+      overflow: "auto",
+      maxHeight: 200,
+      color: "var(--foreground)",
+      fontSize: 14,
+      lineHeight: "1.5",
+    },
+  },
+  suggestions: {
+    list: {
+      backgroundColor: "var(--card)",
+      border: "1px solid var(--border)",
+      borderRadius: 8,
+      fontSize: 13,
+      overflow: "hidden",
+    },
+    item: {
+      padding: "6px 12px",
+      "&focused": {
+        backgroundColor: "var(--accent)",
+      },
+    },
+  },
+};
+
+const mentionStyle = {
+  backgroundColor: "color-mix(in srgb, var(--primary) 15%, transparent)",
+  borderRadius: 4,
+  padding: "1px 1px",
+  margin: "-1px -1px",
+};

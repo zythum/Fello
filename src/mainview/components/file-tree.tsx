@@ -462,7 +462,21 @@ export function FileTree() {
     (id: string, e: React.DragEvent) => {
       const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
       setDragIds(ids);
-      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.effectAllowed = "copyMove";
+
+      // Attach structured node info so chat-input can create mentions
+      const nodesPayload = ids.map((nodeId) => {
+        let isFolder = false;
+        for (const root of data) {
+          const found = findNode(root, nodeId);
+          if (found) {
+            isFolder = found.isFolder;
+            break;
+          }
+        }
+        return { id: nodeId, name: nodeId.split("/").pop() ?? nodeId, isFolder };
+      });
+      e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayload));
 
       const root = document.documentElement;
       const styles = getComputedStyle(root);
@@ -497,7 +511,7 @@ export function FileTree() {
       };
       e.target.addEventListener("dragend", cleanup);
     },
-    [selectedIds],
+    [selectedIds, data],
   );
 
   /** Read a File as base64 string */

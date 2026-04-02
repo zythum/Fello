@@ -16,6 +16,7 @@
 | Tailwind CSS 4           | 原子化 CSS，`@import "tailwindcss"`     |
 | shadcn/ui (Base UI)      | 组件库，基于 `@base-ui/react`，非 Radix |
 | react-resizable-panels   | 可拖拽调整宽度的分栏面板                |
+| react-mentions           | 输入框 mention 支持，用于文件/文件夹引用 |
 | Lucide React             | 图标库                                  |
 | class-variance-authority | 组件变体管理                            |
 | tailwind-merge + clsx    | 类名合并工具（`cn()` 函数）             |
