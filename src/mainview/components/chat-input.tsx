@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useActiveSessionState, type ChatMessage, type SessionInfo } from "../store";
-import { request } from "../backend";
+import { request, subscribe } from "../backend";
 import { flushStreaming } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +74,37 @@ export function ChatInput() {
     }
   }, [session, setSessions]);
 
+  const STREAMING_TIMEOUT_MS = 30_000;
+  const streamingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStreamingTimer = useCallback(() => {
+    if (streamingTimer.current) {
+      clearTimeout(streamingTimer.current);
+      streamingTimer.current = null;
+    }
+  }, []);
+
+  // Reset the streaming timeout whenever a session update arrives
+  useEffect(() => {
+    const handleUpdate = () => {
+      if (!streamingTimer.current) return;
+      clearStreamingTimer();
+      streamingTimer.current = setTimeout(() => {
+        const sid = useAppStore.getState().activeSessionId;
+        if (sid && useAppStore.getState().getSessionState(sid).isStreaming) {
+          flushStreaming(sid);
+          useAppStore.getState().setIsStreaming(sid, false);
+          useAppStore.getState().addMessage(sid, {
+            role: "system",
+            content: "Agent stopped responding (timed out after 30s).",
+          });
+        }
+      }, STREAMING_TIMEOUT_MS);
+    };
+    subscribe.on("session-update", handleUpdate);
+    return () => subscribe.off("session-update", handleUpdate);
+  }, [clearStreamingTimer]);
+
   const handleSubmit = useCallback(async () => {
     const resolved = resolveMentions(input).trim();
     if (!resolved || !activeSessionId || isStreaming) return;
@@ -82,6 +113,19 @@ export function ChatInput() {
     addMessage(activeSessionId, { role: "user", content: resolved });
     setIsStreaming(activeSessionId, true);
     clearToolCalls(activeSessionId);
+
+    // Start the streaming inactivity timeout
+    clearStreamingTimer();
+    streamingTimer.current = setTimeout(() => {
+      if (useAppStore.getState().getSessionState(activeSessionId).isStreaming) {
+        flushStreaming(activeSessionId);
+        useAppStore.getState().setIsStreaming(activeSessionId, false);
+        useAppStore.getState().addMessage(activeSessionId, {
+          role: "system",
+          content: "Agent stopped responding (timed out after 30s).",
+        });
+      }
+    }, STREAMING_TIMEOUT_MS);
 
     try {
       await request.sendMessage(resolved);
@@ -101,9 +145,18 @@ export function ChatInput() {
         content: `Error: ${err instanceof Error ? err.message : String(err)}`,
       });
     } finally {
+      clearStreamingTimer();
       setIsStreaming(activeSessionId, false);
     }
-  }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearToolCalls]);
+  }, [
+    input,
+    activeSessionId,
+    isStreaming,
+    addMessage,
+    setIsStreaming,
+    clearToolCalls,
+    clearStreamingTimer,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
