@@ -114,7 +114,7 @@ function TreeItem({
           isSelected
             ? "bg-accent text-accent-foreground"
             : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
-          isDragOver && "ring-1 ring-primary bg-primary/5",
+          isDragOver && "relative ring-1 ring-primary bg-primary/5",
         )}
         style={{ paddingLeft: `${depth * 16 + 6}px` }}
         onClick={(e) => {
@@ -435,12 +435,44 @@ export function FileTree() {
   }, []);
 
   const handleStartDrag = useCallback(
-    (id: string, _e: React.DragEvent) => {
-      if (selectedIds.has(id) && selectedIds.size > 1) {
-        setDragIds([...selectedIds]);
-      } else {
-        setDragIds([id]);
-      }
+    (id: string, e: React.DragEvent) => {
+      const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
+      setDragIds(ids);
+
+      const root = document.documentElement;
+      const styles = getComputedStyle(root);
+      const bg = styles.getPropertyValue("--accent").trim();
+      const fg = styles.getPropertyValue("--accent-foreground").trim();
+      const border = styles.getPropertyValue("--border").trim();
+
+      const ghost = document.createElement("div");
+      ghost.style.cssText = `
+        position: fixed; left: -9999px; top: -9999px;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background-color: ${bg};
+        color: ${fg};
+        border: 1px solid ${border};
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 12px;
+        line-height: 1.4;
+        pointer-events: none;
+        z-index: 99999;
+      `;
+      ghost.textContent = ids.length > 1 ? `${ids.length} items` : id.split("/").pop()!;
+      document.body.appendChild(ghost);
+      // Force layout so the browser captures the painted element
+      ghost.getBoundingClientRect();
+      e.dataTransfer.setDragImage(ghost, 0, 0);
+      // Clean up after drag ends instead of immediately
+      const cleanup = () => {
+        ghost.remove();
+        e.target.removeEventListener("dragend", cleanup);
+      };
+      e.target.addEventListener("dragend", cleanup);
     },
     [selectedIds],
   );
