@@ -1,6 +1,5 @@
-import { Electroview } from "electrobun/view";
-import type { FelloRPCSchema } from "../bun/rpc-schema";
 import type { SessionNotification, RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { FelloIPCSchema } from "../electron/ipc-schema";
 
 // --- Typed event emitter ---
 
@@ -26,27 +25,35 @@ function emit<K extends keyof BackendEvents>(event: K, data: BackendEvents[K]) {
   listeners.get(event)?.forEach((fn) => fn(data));
 }
 
-// --- RPC instance ---
-
-const rpcInstance = Electroview.defineRPC<FelloRPCSchema>({
-  maxRequestTime: Infinity,
-  handlers: {
-    requests: {
-      async onSessionUpdate(jsonStr: unknown) {
-        emit("session-update", JSON.parse(jsonStr as string));
-        return { ok: true };
-      },
-      async onPermissionRequest(jsonStr: unknown) {
-        emit("permission-request", JSON.parse(jsonStr as string));
-        return { ok: true };
-      },
-    },
-  },
-});
-
-new Electroview({ rpc: rpcInstance });
-
 // --- Public API ---
 
-export const request = rpcInstance.request;
+type Requests = FelloIPCSchema["requests"];
+type RequestClient = {
+  [K in keyof Requests]: (
+    params: Requests[K]["params"],
+  ) => Promise<Requests[K]["response"]>;
+};
+
+const fallbackBridge = {
+  invoke: async () => {
+    throw new Error("Electron bridge is not available");
+  },
+  on: () => {},
+  off: () => {},
+};
+
+const bridge = window.fello ?? fallbackBridge;
+
+export const request = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      return (params: unknown) => bridge.invoke(prop as keyof Requests, params as never);
+    },
+  },
+) as RequestClient;
+
 export const subscribe = { on, off };
+
+bridge.on("session-update", (payload) => emit("session-update", payload));
+bridge.on("permission-request", (payload) => emit("permission-request", payload));

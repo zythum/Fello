@@ -18,6 +18,7 @@ interface SessionMeta {
 function sessionDir(id: string) {
   return join(SESSIONS_DIR, id);
 }
+
 function metaPath(id: string) {
   return join(sessionDir(id), "meta.json");
 }

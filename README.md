@@ -1,61 +1,54 @@
-# React + Tailwind + Vite Electrobun Template
+# Fello (Electron + React + Vite + Tailwind)
 
-A fast Electrobun desktop app template with React, Tailwind CSS, and Vite for hot module replacement (HMR).
+An ACP Client desktop app powered by Electron. The renderer is a React + Vite app with Tailwind CSS.
 
 ## Getting Started
 
 ```bash
 # Install dependencies
-bun install
+npm install
 
-# Development without HMR (uses bundled assets)
-bun run dev
+# Development
+npm run dev
 
-# Development with HMR (recommended)
-bun run dev:hmr
+# Build
+npm run build
 
-# Build for production
-bun run build
-
-# Build for production release
-bun run build:prod
+# Preview the built app
+npm run preview
 ```
 
 ## How HMR Works
 
-When you run `bun run dev:hmr`:
+When you run `npm run dev`:
 
 1. **Vite dev server** starts on `http://localhost:5173` with HMR enabled
-2. **Electrobun** starts and detects the running Vite server
-3. The app loads from the Vite dev server instead of bundled assets
-4. Changes to React components update instantly without full page reload
+2. **Electron** starts and loads the renderer from the Vite dev server
+3. Changes to React components update instantly without full page reload
 
-When you run `bun run dev` (without HMR):
-
-1. Electrobun starts and loads from `views://mainview/index.html`
-2. You need to rebuild (`bun run build`) to see changes
+Main/preload changes typically require restarting the dev process.
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── bun/
-│   │   └── index.ts        # Main process (Electrobun/Bun)
+│   ├── electron/
+│   │   ├── main.ts         # Electron main process
+│   │   ├── preload.ts      # Preload (contextBridge)
+│   │   └── ipc-schema.ts   # Typed IPC contracts
 │   └── mainview/
 │       ├── App.tsx         # React app component
 │       ├── main.tsx        # React entry point
 │       ├── index.html      # HTML template
 │       └── index.css       # Tailwind CSS
-├── electrobun.config.ts    # Electrobun configuration
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.js      # Tailwind configuration
+├── electron.vite.config.ts # electron-vite configuration
 └── package.json
 ```
 
 ## Customizing
 
 - **React components**: Edit files in `src/mainview/`
-- **Tailwind theme**: Edit `tailwind.config.js`
-- **Vite settings**: Edit `vite.config.ts`
-- **Window settings**: Edit `src/bun/index.ts`
-- **App metadata**: Edit `electrobun.config.ts`
+- **Window / app lifecycle**: Edit `src/electron/main.ts`
+- **Renderer ↔ main bridge**: Edit `src/electron/preload.ts` and `src/mainview/backend.ts`
+- **IPC types**: Edit `src/electron/ipc-schema.ts`
+- **Build settings**: Edit `electron.vite.config.ts`

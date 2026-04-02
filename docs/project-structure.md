@@ -3,18 +3,20 @@
 ```
 fello/
 ├── src/
-│   ├── bun/                        # Bun 主进程
-│   │   ├── index.ts                # 入口，RPC handlers，窗口创建，进程管理
+│   ├── electron/                   # Electron 主进程
+│   │   ├── main.ts                 # 入口，BrowserWindow，IPC handlers，进程管理
+│   │   ├── preload.ts              # preload，向 renderer 暴露受限 IPC API
 │   │   ├── acp-bridge.ts           # ACP 连接封装（spawn、initialize、session 管理）
-│   │   ├── storage.ts               # Session 元数据持久化（meta.json）
-│   │   └── rpc-schema.ts           # Electrobun RPC 类型定义（bun ↔ webview）
+│   │   ├── storage.ts              # Session 元数据持久化（meta.json）
+│   │   └── ipc-schema.ts           # Electron IPC 类型定义（main ↔ renderer）
 │   │
-│   └── mainview/                   # Webview 渲染进程（React SPA）
+│   └── mainview/                   # Renderer 渲染进程（React SPA）
 │       ├── App.tsx                 # 根组件，事件监听，布局
 │       ├── main.tsx                # React 入口
 │       ├── index.html              # HTML 模板
 │       ├── index.css               # 全局样式，shadcn CSS 变量
-│       ├── backend.ts               # Webview 侧通信封装（request + subscribe）
+│       ├── backend.ts              # Renderer 侧通信封装（request + subscribe）
+│       ├── global.d.ts             # window.fello 类型声明
 │       ├── store.ts                # Zustand store（全局状态）
 │       │
 │       ├── lib/
@@ -51,11 +53,11 @@ fello/
 ├── docs/                           # 项目文档
 ├── .kiro/steering/                 # Kiro steering 规则
 ├── components.json                 # shadcn 配置
-├── electrobun.config.ts            # Electrobun 构建配置
-├── vite.config.ts                  # Vite 配置
-├── tsconfig.json                   # TypeScript 配置
-├── .prettierrc                     # Prettier 配置（2 空格）
-├── .prettierignore                 # 忽略 shadcn ui 组件
+├── electron.vite.config.ts         # electron-vite 配置（main / preload / renderer）
+├── tsconfig.json                   # Renderer TypeScript 配置
+├── tsconfig.node.json              # Electron 主进程 TypeScript 配置
+├── .oxfmtrc.json                   # oxfmt 配置
+├── .oxlintrc.json                  # oxlint 配置
 └── package.json
 ```
 

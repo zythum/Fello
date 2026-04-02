@@ -98,6 +98,7 @@ interface AppState {
   setActiveSessionId: (id: string | null) => void;
 
   // Per-session mutators (sessionId required)
+  resetSessionState: (sessionId: string) => void;
   setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setUsage: (sessionId: string, usage: SessionUsage | null) => void;
@@ -146,6 +147,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveSessionId: (id) => set({ activeSessionId: id }),
 
   // Per-session mutators
+  resetSessionState: (sessionId) =>
+    set((state) => {
+      const map = new Map(state.sessionStates);
+      map.set(sessionId, emptySessionState());
+      return { sessionStates: map };
+    }),
   setMessages: (sessionId, messages) => get().updateSessionState(sessionId, () => ({ messages })),
   addMessage: (sessionId, message) =>
     get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),

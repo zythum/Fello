@@ -15,10 +15,11 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/mainview/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "build"]
+  "include": ["src/mainview"],
+  "exclude": ["node_modules", "build", "out", "src/electron"]
 }

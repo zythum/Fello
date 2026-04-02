@@ -4,10 +4,11 @@
 
 | 层级     | 技术            | 说明                                   |
 | -------- | --------------- | -------------------------------------- |
-| 运行时   | Bun             | 替代 Node.js，内置 SQLite、更快的启动  |
-| 桌面框架 | Electrobun 1.16 | 基于 Bun 的桌面应用框架，类似 Electron |
+| 运行时   | Node.js         | Electron 主进程运行时                  |
+| 桌面框架 | Electron 37     | 桌面应用容器                           |
 | 前端框架 | React 19        | UI 渲染                                |
-| 构建工具 | Vite 8          | HMR 开发、生产构建                     |
+| 构建工具 | electron-vite 5 | 统一构建 main、preload、renderer       |
+| Renderer | Vite 7          | HMR 开发、生产构建                     |
 
 ## UI 与样式
 
@@ -38,8 +39,8 @@
 
 | 技术       | 说明                               |
 | ---------- | ---------------------------------- |
-| JSONL 文件 | 事件日志，与 ACP 协议结构一致      |
 | JSON 文件  | 会话元数据（meta.json）            |
+| ACP 重放   | 历史事件由 ACP server 重放恢复     |
 | 存储位置   | `~/.fello/sessions/<session-id>/` |
 
 ## Markdown 渲染
@@ -54,4 +55,5 @@
 | 技术       | 说明                   |
 | ---------- | ---------------------- |
 | TypeScript | 全量类型检查           |
-| Prettier   | 代码格式化，2 空格缩进 |
+| oxfmt      | 代码格式化             |
+| oxlint     | 静态检查               |

@@ -13,6 +13,7 @@ export function Sidebar() {
     setSessions,
     setIsConnecting,
     sidebarOpen,
+    resetSessionState,
   } = useAppStore();
 
   if (!sidebarOpen) return null;
@@ -40,6 +41,7 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
+    resetSessionState(session.id);
     setActiveSessionId(session.id);
     setIsConnecting(true);
     try {

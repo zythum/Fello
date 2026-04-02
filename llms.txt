@@ -1,24 +1,27 @@
-# Electrobun Project
+Fello (Electron ACP Client)
 
-This is an Electrobun desktop application.
+Runtime
+- Main process: src/electron/main.ts
+- Preload (contextBridge): src/electron/preload.ts
+- Renderer (React + Vite): src/mainview/
 
-IMPORTANT: Electrobun is NOT Electron. Do not use Electron APIs or patterns.
+IPC
+- Typed contracts: src/electron/ipc-schema.ts
+- Renderer API wrapper: src/mainview/backend.ts (uses window.fello from preload)
 
-## Documentation
+Sessions & Persistence
+- Session metadata persistence: src/electron/storage.ts
+- Message history is replayed from the ACP server when resuming a session
+- Renderer state store: src/mainview/store.ts
 
-Full API reference: https://blackboard.sh/electrobun/llms.txt
-Getting started: https://blackboard.sh/electrobun/docs/
+Dev / Build Commands
+- npm run dev (electron-vite dev; Vite server on http://localhost:5173)
+- npm run build
+- npm run preview
+- npm run lint
+- npm run typecheck
+- npm run format
 
-## Quick Reference
-
-Import patterns:
-- Main process (Bun): `import { BrowserWindow } from "electrobun/bun"`
-- Browser context: `import { Electroview } from "electrobun/view"`
-
-Use `views://` URLs to load bundled assets (e.g., `url: "views://mainview/index.html"`).
-Views must be configured in `electrobun.config.ts` to be built and copied into the bundle.
-
-## About
-
-Electrobun is built by Blackboard (https://blackboard.sh), an innovation lab building
-tools and funding teams that define the next generation of technology.
+Repo Conventions
+- Electron code lives under src/electron (no Bun/Electrobun)
+- UI code lives under src/mainview
