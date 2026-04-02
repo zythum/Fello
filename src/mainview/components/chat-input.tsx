@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
+import { useAppStore, useActiveSessionState, type ChatMessage, type SessionInfo } from "../store";
 import { request } from "../backend";
 import { flushStreaming } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Zap } from "lucide-react";
+import { ArrowUp, Square, Zap, Folder } from "lucide-react";
 
 export function ChatInput() {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
+    sessions,
     activeSessionId,
     isConnecting,
     addMessage,
@@ -24,8 +25,27 @@ export function ChatInput() {
     availableModels,
     currentModelId,
     setCurrentModelId,
+    setSessions,
   } = useAppStore();
   const { isStreaming, usage } = useActiveSessionState();
+
+  const session = sessions.find((s) => s.id === activeSessionId) ?? null;
+
+  const handleChangeCwd = useCallback(async () => {
+    if (!session) return;
+    try {
+      const result = (await request.changeWorkDir({ sessionId: session.id })) as {
+        ok: boolean;
+        cwd: string | null;
+      };
+      if (result.ok && result.cwd) {
+        const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
+        setSessions(updated);
+      }
+    } catch (err) {
+      console.error("Failed to change work dir:", err);
+    }
+  }, [session, setSessions]);
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
@@ -101,72 +121,91 @@ export function ChatInput() {
           />
           {/* Bottom bar: model selector + send button */}
           <div
-            className="flex cursor-text items-center justify-end gap-2 px-2 pb-2"
+            className="flex cursor-text items-center gap-2 px-2 pb-2"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
               textareaRef.current?.focus();
             }}
           >
-            {usage && (
-              <span
-                className="flex items-center gap-1 text-[10px] text-muted-foreground"
-                title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}
+            {session && (
+              <button
+                type="button"
+                className="flex cursor-pointer items-center gap-1 truncate rounded px-1.5 py-0.5 text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+                title={`${session.cwd} (click to change)`}
+                onClick={handleChangeCwd}
               >
-                <Zap className="size-3" />
-                {((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens
-              </span>
+                <Folder className="size-3 shrink-0" />
+                <span className="max-w-[200px] truncate">
+                  {(() => {
+                    const parts = session.cwd.split("/").filter(Boolean);
+                    if (parts.length <= 5) return session.cwd;
+                    return "/" + [...parts.slice(0, 2), "...", ...parts.slice(-2)].join("/");
+                  })()}
+                </span>
+              </button>
             )}
-            {availableModels.length > 0 ? (
-              <Select
-                value={currentModelId ?? ""}
-                onValueChange={async (modelId) => {
-                  setCurrentModelId(modelId as string);
-                  try {
-                    await request.setModel(modelId as string);
-                  } catch (err) {
-                    console.error("Failed to set model:", err);
-                  }
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="h-6 w-auto border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:text-foreground"
+            <div className="ml-auto flex items-center gap-2">
+              {usage && (
+                <span
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground"
+                  title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModels.map((m) => (
-                    <SelectItem key={m.modelId} value={m.modelId}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
-            {isStreaming ? (
-              <Button
-                variant="destructive"
-                size="icon"
-                className="size-7 cursor-default rounded-lg"
-                onClick={() => request.cancelPrompt()}
-                aria-label="Stop"
-              >
-                <Square className="size-3.5" />
-              </Button>
-            ) : (
-              <span className="cursor-default">
+                  <Zap className="size-3" />
+                  {((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens
+                </span>
+              )}
+              {availableModels.length > 0 ? (
+                <Select
+                  value={currentModelId ?? ""}
+                  onValueChange={async (modelId) => {
+                    setCurrentModelId(modelId as string);
+                    try {
+                      await request.setModel(modelId as string);
+                    } catch (err) {
+                      console.error("Failed to set model:", err);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="h-6 w-auto border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:text-foreground"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModels.map((m) => (
+                      <SelectItem key={m.modelId} value={m.modelId}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
+              {isStreaming ? (
                 <Button
+                  variant="destructive"
                   size="icon"
-                  className="size-7 rounded-lg"
-                  onClick={handleSubmit}
-                  disabled={disabled || !input.trim()}
-                  aria-label="Send"
+                  className="size-7 cursor-default rounded-lg"
+                  onClick={() => request.cancelPrompt()}
+                  aria-label="Stop"
                 >
-                  <ArrowUp className="size-3.5" />
+                  <Square className="size-3.5" />
                 </Button>
-              </span>
-            )}
+              ) : (
+                <span className="cursor-default">
+                  <Button
+                    size="icon"
+                    className="size-7 rounded-lg"
+                    onClick={handleSubmit}
+                    disabled={disabled || !input.trim()}
+                    aria-label="Send"
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

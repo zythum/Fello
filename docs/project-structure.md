@@ -22,11 +22,11 @@ fello/
 │       │   └── utils.ts            # cn() 工具函数
 │       │
 │       └── components/
-│           ├── session-view.tsx     # 主视图（header + resizable split-view: chat + file-tree）
+│           ├── session-view.tsx     # 主视图（resizable split-view: chat + file-tree）
 │           ├── sidebar.tsx          # 会话列表侧边栏
 │           ├── chat.tsx             # Chat 容器（chat-area + chat-input）
 │           ├── chat-area.tsx        # 消息列表 + 流式渲染
-│           ├── chat-input.tsx       # 输入框 + 模型选择 + token 用量
+│           ├── chat-input.tsx       # 输入框 + 项目目录切换 + 模型选择 + token 用量
 │           ├── message-bubble.tsx   # 消息气泡（user/assistant/tool）
 │           ├── tool-call-indicator.tsx  # 实时 tool call 指示器
 │           ├── permission-dialog.tsx    # 权限请求对话框

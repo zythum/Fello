@@ -2,6 +2,7 @@ import Electrobun, {
   BrowserWindow,
   BrowserView,
   ApplicationMenu,
+  ContextMenu,
   Updater,
   Utils,
 } from "electrobun/bun";
@@ -16,9 +17,12 @@ import type {
 import { homedir } from "os";
 import { readdir, stat, mkdir, writeFile, rm, rename, readFile as fsReadFile } from "fs/promises";
 import { join, dirname } from "path";
+import { exec } from "child_process";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
+
+let pendingContextMenuCleanup: (() => void) | null = null;
 
 async function getMainViewUrl(): Promise<string> {
   const channel = await Updater.localInfo.channel();
@@ -304,6 +308,50 @@ const handlers = {
 
   async readFile(filePath: string) {
     return await fsReadFile(filePath, "utf-8");
+  },
+
+  async revealInFinder(filePath: string) {
+    exec(`open -R "${filePath}"`);
+  },
+
+  async showContextMenu({
+    items,
+  }: {
+    items: Array<{
+      label?: string;
+      action?: string;
+      type?: string;
+      enabled?: boolean;
+      data?: unknown;
+    }>;
+  }) {
+    // Cancel any previously pending context menu
+    if (pendingContextMenuCleanup) {
+      pendingContextMenuCleanup();
+      pendingContextMenuCleanup = null;
+    }
+
+    return new Promise<string | null>((resolve) => {
+      let settled = false;
+
+      const settle = (value: string | null) => {
+        if (settled) return;
+        settled = true;
+        Electrobun.events.off("context-menu-clicked", handler);
+        pendingContextMenuCleanup = null;
+        resolve(value);
+      };
+
+      const handler = (e: any) => {
+        settle(e?.data?.action ?? null);
+      };
+
+      // Store cleanup so the next call can cancel this one
+      pendingContextMenuCleanup = () => settle(null);
+
+      Electrobun.events.on("context-menu-clicked", handler);
+      ContextMenu.showContextMenu(items as any);
+    });
   },
 };
 

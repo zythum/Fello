@@ -40,6 +40,19 @@ export type FelloRPCSchema = ElectrobunRPCSchema & {
       renameFile: { params: { oldPath: string; newPath: string }; response: void };
       moveFile: { params: { oldPath: string; newPath: string }; response: void };
       readFile: { params: string; response: string };
+      revealInFinder: { params: string; response: void };
+      showContextMenu: {
+        params: {
+          items: Array<{
+            label?: string;
+            action?: string;
+            type?: string;
+            enabled?: boolean;
+            data?: unknown;
+          }>;
+        };
+        response: string | null;
+      };
     };
     messages: Record<never, never>;
   };
