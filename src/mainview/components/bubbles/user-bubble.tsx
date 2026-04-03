@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { ChatMessage } from "../../store";
-import { request } from "../../backend";
+import { PathLink } from "./path-link";
 
 interface Props {
   message: ChatMessage;
@@ -30,16 +30,9 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
 
       const fileName = path.split(/[/\\]/).pop() || path;
       parts.push(
-        <button
-          key={`path-${index}`}
-          type="button"
-          title={`Reveal in Finder: ${path}`}
-          className="cursor-pointer rounded bg-muted/50 mx-1 px-1 text-muted-foreground hover:bg-muted ring-1 ring-border"
-          onClick={(e) => {
-            e.preventDefault();
-            request.revealInFinder(path);
-          }}
-        >#{fileName}</button>
+        <PathLink key={`path-${index}`} path={path}>
+          {fileName}
+        </PathLink>
       );
 
       lastIndex = index + path.length;

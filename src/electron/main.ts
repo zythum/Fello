@@ -27,7 +27,6 @@ import { storageOps } from "./storage";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
-const appIconPath = join(__dirname, "../../icons/icon.iconset/icon_512x512@2x.png");
 
 if (isDev) {
   app.commandLine.appendSwitch("no-sandbox");
@@ -773,7 +772,6 @@ function createMainWindow() {
     title: "Fello",
     width: 1100,
     height: 800,
-    icon: appIconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/preload.mjs"),
       contextIsolation: true,
@@ -838,10 +836,6 @@ app.on("before-quit", () => {
 });
 
 app.whenReady().then(() => {
-  const dockIcon = nativeImage.createFromPath(appIconPath);
-  if (!dockIcon.isEmpty() && process.platform === "darwin" && app.dock) {
-    app.dock.setIcon(dockIcon);
-  }
   setupMenu();
   createMainWindow();
 });

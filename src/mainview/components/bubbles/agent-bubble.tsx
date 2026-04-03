@@ -4,8 +4,7 @@ import { createCodePlugin } from "@streamdown/code";
 import type { ChatMessage } from "../../store";
 import { cn } from "@/lib/utils";
 import { remarkFilePath } from "../../lib/remark-filepath";
-import { request } from "../../backend";
-import { FolderOpen } from "lucide-react";
+import { PathLink } from "./path-link";
 
 const code = createCodePlugin({
   themes: ["github-light", "github-dark"],
@@ -36,17 +35,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
           a: ({ href, children, ...props }: any) => {
             if (href?.startsWith("reveal://")) {
               const path = href.slice(9);
-              return (
-                <button
-                  type="button"
-                  title={`Reveal in Finder: ${path}`}
-                  className="cursor-pointer rounded bg-muted/50 mx-1 px-1 text-muted-foreground hover:bg-muted ring-1 ring-border"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    request.revealInFinder(path);
-                  }}
-                >#{children}</button>
-              );
+              return <PathLink path={path}>{children}</PathLink>;
             }
             return (
               <a href={href} {...props}>
