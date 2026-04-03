@@ -262,14 +262,17 @@ export function ChatInput() {
                     >
                       <SelectValue placeholder="Mode" />
                     </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} className="p-1">
+                    <SelectContent alignItemWithTrigger={false} className="w-60 p-1">
                       {availableModes.map((mode) => (
                         <SelectItem
                           className="rounded-1 text-xs text-muted-foreground/90"
                           key={mode.id}
                           value={mode.id}
                         >
-                          {mode.name}
+                          <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
+                            <span>{mode.name}</span>
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/50 line-clamp-2">{mode.description}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -305,10 +308,17 @@ export function ChatInput() {
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} className="p-1">
+                  <SelectContent alignItemWithTrigger={false} className="w-60 p-1">
                     {availableModels.map((m) => (
-                      <SelectItem className="text-xs rounded-1 text-muted-foreground/90" key={m.modelId} value={m.modelId}>
-                        {m.name}
+                      <SelectItem
+                        className="rounded-1 text-xs text-muted-foreground/90"
+                        key={m.modelId}
+                        value={m.modelId}
+                      >
+                        <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
+                          <span>{m.name}</span>
+                          <span className="wrap-break-word text-[10px] text-muted-foreground/45 line-clamp-2">{m.description}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
