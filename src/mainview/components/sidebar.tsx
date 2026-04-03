@@ -5,6 +5,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Plus, X } from "lucide-react";
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (typeof error === "string" && error.trim()) return error.trim();
+  return "Failed to create a new chat.";
+}
+
 export function Sidebar() {
   const {
     sessions,
@@ -12,6 +18,7 @@ export function Sidebar() {
     setActiveSessionId,
     setSessions,
     setIsConnecting,
+    pushGlobalErrorMessage,
     sidebarOpen,
     resetSessionState,
   } = useAppStore();
@@ -35,6 +42,7 @@ export function Sidebar() {
       setSessions(updated);
     } catch (err) {
       console.error("Failed to create new chat:", err);
+      pushGlobalErrorMessage(getErrorMessage(err));
     } finally {
       setIsConnecting(false);
     }

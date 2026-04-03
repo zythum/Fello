@@ -89,6 +89,7 @@ interface AppState {
   sidebarOpen: boolean;
   availableModels: ModelOption[];
   currentModelId: string | null;
+  globalErrorMessages: string[];
 
   // Helpers to get/update the active session's state
   getSessionState: (id?: string | null) => SessionState;
@@ -116,6 +117,9 @@ interface AppState {
   setSidebarOpen: (v: boolean) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
+  pushGlobalErrorMessage: (message: string) => void;
+  shiftGlobalErrorMessage: () => void;
+  clearGlobalErrors: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -127,6 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
   availableModels: [],
   currentModelId: null,
+  globalErrorMessages: [],
 
   getSessionState: (id) => {
     const sid = id ?? get().activeSessionId;
@@ -230,6 +235,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
+  pushGlobalErrorMessage: (message) =>
+    set((state) => ({ globalErrorMessages: [...state.globalErrorMessages, message] })),
+  shiftGlobalErrorMessage: () =>
+    set((state) => ({ globalErrorMessages: state.globalErrorMessages.slice(1) })),
+  clearGlobalErrors: () => set({ globalErrorMessages: [] }),
 }));
 
 // Selector: derive current session's state for use in components
