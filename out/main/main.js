@@ -2,11 +2,12 @@ import { app, nativeImage, BrowserWindow, shell, dialog, ipcMain, Menu } from "e
 import Fuse from "fuse.js";
 import { homedir } from "os";
 import { spawn as spawn$1 } from "node-pty";
-import { spawn } from "child_process";
+import { createHash } from "crypto";
 import { mkdir, stat, writeFile, readFile, rename, rm, readdir, chmod } from "fs/promises";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { spawn } from "child_process";
 import { Writable, Readable } from "stream";
 import * as acp from "@agentclientprotocol/sdk";
 import { mkdirSync, existsSync, readdirSync, rmSync, readFileSync, writeFileSync } from "fs";
@@ -272,6 +273,18 @@ const storageOps = {
       updated_at: s.updatedAt
     }));
   },
+  getSession(id) {
+    const meta = readMeta(id);
+    if (!meta) return null;
+    return {
+      id: meta.id,
+      title: meta.title,
+      cwd: meta.cwd,
+      agent_command: meta.agentCommand,
+      created_at: meta.createdAt,
+      updated_at: meta.updatedAt
+    };
+  },
   touchSession(id) {
     const meta = readMeta(id);
     if (!meta) return;
@@ -391,9 +404,6 @@ async function createTerminalProcess(cwd, initialSize) {
   const ptyShellArgs = process.platform === "win32" ? [] : ["-i"];
   const resolvedCwd = await resolveTerminalCwd(cwd);
   const shellCandidates = resolveShellCandidates();
-  const processShellCandidates = process.platform === "win32" ? shellCandidates : ["/bin/zsh", "/bin/bash", "/bin/sh"].filter(
-    (value, index, array) => value.length > 0 && array.indexOf(value) === index
-  );
   let child = null;
   let lastError = null;
   const createPtyTerminal = (shellPath) => {
@@ -413,8 +423,7 @@ async function createTerminalProcess(cwd, initialSize) {
       },
       onExit: (listener) => {
         pty.onExit(({ exitCode }) => listener(exitCode));
-      },
-      isPseudoTTY: true
+      }
     };
   };
   try {
@@ -422,32 +431,6 @@ async function createTerminalProcess(cwd, initialSize) {
   } catch (error) {
     lastError = error;
   }
-  const createProcessTerminal = (shellPath) => {
-    const processShellArgs = process.platform === "win32" ? [] : shellPath.includes("bash") ? ["-i"] : [];
-    const spawned = spawn(shellPath, processShellArgs, {
-      cwd: resolvedCwd,
-      env: { ...process.env, TERM: "xterm-256color" },
-      stdio: "pipe"
-    });
-    const childProcess = spawned;
-    return {
-      write: (data) => {
-        if (!childProcess.stdin.writable) return;
-        childProcess.stdin.write(data.replace(/\r/g, "\n"));
-      },
-      kill: () => childProcess.kill(),
-      resize: () => {
-      },
-      onData: (listener) => {
-        childProcess.stdout.on("data", (chunk) => listener(String(chunk)));
-        childProcess.stderr.on("data", (chunk) => listener(String(chunk)));
-      },
-      onExit: (listener) => {
-        childProcess.on("exit", (exitCode) => listener(exitCode));
-      },
-      isPseudoTTY: false
-    };
-  };
   for (const shellPath of shellCandidates) {
     try {
       child = createPtyTerminal(shellPath);
@@ -457,21 +440,12 @@ async function createTerminalProcess(cwd, initialSize) {
     }
   }
   if (!child) {
-    for (const shellPath of processShellCandidates) {
-      try {
-        child = createProcessTerminal(shellPath);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-  }
-  if (!child) {
     throw new Error(
-      `Failed to create terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; processShells=${processShellCandidates.join(", ")}; error=${String(lastError)}`
+      `Failed to create PTY terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; error=${String(lastError)}`
     );
   }
-  const terminalId = `terminal-${Date.now()}-${terminalCounter++}`;
+  const terminalSeed = `terminal-${Date.now()}-${terminalCounter++}`;
+  const terminalId = createHash("sha1").update(terminalSeed).digest("hex").slice(0, 12);
   terminals.set(terminalId, child);
   child.onData((data) => {
     safeSend("terminal-output", { terminalId, data });
@@ -746,15 +720,18 @@ const handlers = {
       });
     });
   },
-  async createTerminal({ cwd, cols, rows }) {
+  async createTerminal({
+    sessionId,
+    cols,
+    rows
+  }) {
+    const session = storageOps.getSession(sessionId);
+    const cwd = session?.cwd ?? process.cwd();
     return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
   },
   async writeTerminal({ terminalId, data }) {
     const terminal = terminals.get(terminalId);
     if (!terminal) return { ok: false };
-    if (!terminal.isPseudoTTY && data.length > 0) {
-      safeSend("terminal-output", { terminalId, data: data.replace(/\r/g, "\r\n") });
-    }
     terminal.write(data);
     return { ok: true };
   },

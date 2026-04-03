@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 interface TerminalItem {
   id: string;
-  title: string;
   running: boolean;
   sessionId: string;
 }
@@ -55,7 +54,6 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
     if (!activeSessionId) return "";
     return sessions.find((session) => session.id === activeSessionId)?.cwd ?? "";
   }, [activeSessionId, sessions]);
-
   const fitTerminal = (terminalId: string) => {
     const instance = instanceRefs.current.get(terminalId);
     const container = containerRefs.current.get(terminalId);
@@ -112,7 +110,8 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
 
   useEffect(() => {
     if (!isActive) return;
-    if (!activeSessionId || !cwd) return;
+    if (!activeSessionId) return;
+    if (!cwd) return;
     if (terminals.length > 0) return;
     if (creatingSessionRef.current.has(activeSessionId)) return;
     creatingSessionRef.current.add(activeSessionId);
@@ -252,15 +251,12 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
   async function createTerminal(sessionIdArg?: string, cwdArg?: string) {
     const sessionId = sessionIdArg ?? activeSessionId;
     const targetCwd = cwdArg ?? cwd;
-    if (!sessionId || !targetCwd) return;
-    const { terminalId } = await request.createTerminal({ cwd: targetCwd });
-    const title = crypto.randomUUID().replace(/-/g, "").slice(0, 4);
+    if (!sessionId) return;
+    if (!targetCwd) return;
+    const { terminalId } = await request.createTerminal({ sessionId, cwd: targetCwd });
     setSessionTerminals((prev) => ({
       ...prev,
-      [sessionId]: [
-        ...(prev[sessionId] ?? []),
-        { id: terminalId, title, running: true, sessionId },
-      ],
+      [sessionId]: [...(prev[sessionId] ?? []), { id: terminalId, running: true, sessionId }],
     }));
     setActiveTerminalBySession((prev) => ({ ...prev, [sessionId]: terminalId }));
   }
@@ -328,7 +324,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
                       : "text-muted-foreground",
                   )}
                 />
-                <span className="max-w-28 truncate">{terminal.title}</span>
+                <span className="max-w-28 truncate">{terminal.id.slice(0, 4)}</span>
               </button>
               <button
                 type="button"
@@ -378,9 +374,6 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
         )}
       </div>
 
-      <div className="flex h-8 shrink-0 items-center border-t border-border px-2 text-[11px] text-muted-foreground">
-        Integrated terminal powered by xterm.js
-      </div>
     </div>
   );
 }

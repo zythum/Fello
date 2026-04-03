@@ -82,6 +82,19 @@ export const storageOps = {
     }));
   },
 
+  getSession(id: string) {
+    const meta = readMeta(id);
+    if (!meta) return null;
+    return {
+      id: meta.id,
+      title: meta.title,
+      cwd: meta.cwd,
+      agent_command: meta.agentCommand,
+      created_at: meta.createdAt,
+      updated_at: meta.updatedAt,
+    };
+  },
+
   touchSession(id: string) {
     const meta = readMeta(id);
     if (!meta) return;

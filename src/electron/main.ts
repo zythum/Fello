@@ -7,7 +7,7 @@ import type {
 import Fuse from "fuse.js";
 import { homedir } from "os";
 import { spawn as spawnPty } from "node-pty";
-import { spawn as spawnProcess, type ChildProcessWithoutNullStreams } from "child_process";
+import { createHash } from "crypto";
 import {
   chmod,
   mkdir,
@@ -45,7 +45,6 @@ type ManagedTerminal = {
   resize: (cols: number, rows: number) => void;
   onData: (listener: (data: string) => void) => void;
   onExit: (listener: (exitCode: number | null) => void) => void;
-  isPseudoTTY: boolean;
 };
 const terminals = new Map<string, ManagedTerminal>();
 let terminalCounter = 0;
@@ -159,12 +158,6 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
   const ptyShellArgs = process.platform === "win32" ? [] : ["-i"];
   const resolvedCwd = await resolveTerminalCwd(cwd);
   const shellCandidates = resolveShellCandidates();
-  const processShellCandidates =
-    process.platform === "win32"
-      ? shellCandidates
-      : ["/bin/zsh", "/bin/bash", "/bin/sh"].filter(
-          (value, index, array) => value.length > 0 && array.indexOf(value) === index,
-        );
   let child: ManagedTerminal | null = null;
   let lastError: unknown = null;
 
@@ -186,7 +179,6 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
       onExit: (listener: (exitCode: number | null) => void) => {
         pty.onExit(({ exitCode }) => listener(exitCode));
       },
-      isPseudoTTY: true,
     } satisfies ManagedTerminal;
   };
 
@@ -195,33 +187,6 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
   } catch (error) {
     lastError = error;
   }
-
-  const createProcessTerminal = (shellPath: string) => {
-    const processShellArgs =
-      process.platform === "win32" ? [] : shellPath.includes("bash") ? ["-i"] : [];
-    const spawned = spawnProcess(shellPath, processShellArgs, {
-      cwd: resolvedCwd,
-      env: { ...process.env, TERM: "xterm-256color" },
-      stdio: "pipe",
-    });
-    const childProcess = spawned as ChildProcessWithoutNullStreams;
-    return {
-      write: (data: string) => {
-        if (!childProcess.stdin.writable) return;
-        childProcess.stdin.write(data.replace(/\r/g, "\n"));
-      },
-      kill: () => childProcess.kill(),
-      resize: () => {},
-      onData: (listener: (data: string) => void) => {
-        childProcess.stdout.on("data", (chunk) => listener(String(chunk)));
-        childProcess.stderr.on("data", (chunk) => listener(String(chunk)));
-      },
-      onExit: (listener: (exitCode: number | null) => void) => {
-        childProcess.on("exit", (exitCode) => listener(exitCode));
-      },
-      isPseudoTTY: false,
-    } satisfies ManagedTerminal;
-  };
 
   for (const shellPath of shellCandidates) {
     try {
@@ -232,21 +197,12 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
     }
   }
   if (!child) {
-    for (const shellPath of processShellCandidates) {
-      try {
-        child = createProcessTerminal(shellPath);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-  }
-  if (!child) {
     throw new Error(
-      `Failed to create terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; processShells=${processShellCandidates.join(", ")}; error=${String(lastError)}`,
+      `Failed to create PTY terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; error=${String(lastError)}`,
     );
   }
-  const terminalId = `terminal-${Date.now()}-${terminalCounter++}`;
+  const terminalSeed = `terminal-${Date.now()}-${terminalCounter++}`;
+  const terminalId = createHash("sha1").update(terminalSeed).digest("hex").slice(0, 12);
   terminals.set(terminalId, child);
   child.onData((data: string) => {
     safeSend("terminal-output", { terminalId, data });
@@ -575,16 +531,28 @@ const handlers: {
     });
   },
 
-  async createTerminal({ cwd, cols, rows }: { cwd: string; cols?: number; rows?: number }) {
+  async createTerminal({
+    sessionId,
+    cwd: requestedCwd,
+    cols,
+    rows,
+  }: {
+    sessionId: string;
+    cwd?: string;
+    cols?: number;
+    rows?: number;
+  }) {
+    const session = storageOps.getSession(sessionId);
+    const cwd = requestedCwd?.trim() || session?.cwd?.trim() || "";
+    if (!cwd) {
+      throw new Error(`Failed to create terminal: missing cwd for session ${sessionId}`);
+    }
     return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
   },
 
   async writeTerminal({ terminalId, data }: { terminalId: string; data: string }) {
     const terminal = terminals.get(terminalId);
     if (!terminal) return { ok: false };
-    if (!terminal.isPseudoTTY && data.length > 0) {
-      safeSend("terminal-output", { terminalId, data: data.replace(/\r/g, "\r\n") });
-    }
     terminal.write(data);
     return { ok: true };
   },

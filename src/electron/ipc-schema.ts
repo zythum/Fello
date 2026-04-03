@@ -63,7 +63,7 @@ export type FelloIPCRequests = {
     response: string | null;
   };
   createTerminal: {
-    params: { cwd: string; cols?: number; rows?: number };
+    params: { sessionId: string; cwd?: string; cols?: number; rows?: number };
     response: { terminalId: string };
   };
   writeTerminal: {
