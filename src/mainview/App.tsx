@@ -25,6 +25,7 @@ function App() {
   } = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
+  const [errorDialogKey, setErrorDialogKey] = useState(0);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentGlobalError = globalErrorMessages[0] ?? null;
 
@@ -67,6 +68,7 @@ function App() {
 
   useEffect(() => {
     if (visibleGlobalError || !currentGlobalError) return;
+    setErrorDialogKey((key) => key + 1);
     setVisibleGlobalError(currentGlobalError);
     setDialogOpen(true);
   }, [currentGlobalError, visibleGlobalError]);
@@ -93,12 +95,13 @@ function App() {
         <SessionView />
       </div>
       <Dialog
+        key={errorDialogKey}
         open={dialogOpen}
         onOpenChange={(open) => {
-          if (!open) handleCloseErrorDialog();
+          if (open) setDialogOpen(true);
         }}
       >
-        <DialogContent>
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Error</DialogTitle>
             <DialogDescription>{visibleGlobalError}</DialogDescription>
