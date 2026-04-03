@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -98,6 +99,7 @@ export function Sidebar() {
 
   const handleNewChat = async (projectId: string, agent: "kiro" | "kimi") => {
     try {
+      setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       setIsConnecting(true);
       const result = (await request.newSession({ projectId, agent })) as {
         sessionId: string;
@@ -359,13 +361,18 @@ export function Sidebar() {
                     <div
                       key={session.id}
                       onClick={() => handleSelectSession(session)}
-                      className={`group flex h-8 cursor-pointer items-center justify-between rounded-md px-2 ml-4 text-xs font-medium transition-colors ${
+                      className={`group flex h-8 cursor-pointer items-center justify-between rounded-md px-2 ml-3 text-xs font-medium transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/35 hover:text-sidebar-foreground/95"
                       } ${openSessionMenuId === session.id ? "bg-sidebar-accent/35" : ""}`}
                     >
-                      <span className="flex-1 truncate leading-normal">{session.title}</span>
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">
+                          {session.agent}
+                        </Badge>
+                        <span className="min-w-0 flex-1 truncate leading-normal">{session.title}</span>
+                      </div>
                       <DropdownMenu
                         onOpenChange={(open) => {
                           setOpenSessionMenuId((prev) =>
