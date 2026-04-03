@@ -217,8 +217,8 @@ export function ChatInput() {
       <div className="mx-auto max-w-3xl">
         <div
           ref={containerRef}
-          className={`rounded-xl border bg-card shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring ${
-            isDragOver ? "border-primary ring-1 ring-primary bg-primary/5" : "border-input"
+          className={`rounded-xl border bg-card shadow-sm transition-colors focus-within:border-ring focus-within:ring-ring ${
+            isDragOver ? "border-primary ring-0.5 ring-primary bg-primary/5" : "border-input"
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}

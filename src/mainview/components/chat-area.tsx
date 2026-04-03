@@ -43,7 +43,7 @@ export function ChatArea() {
   return (
     <div className="relative min-h-0 flex-1">
       <ScrollArea ref={scrollAreaRef} className="h-full">
-        <div className="py-4">
+        <div className="py-4 max-w-3xl mx-auto">
           {messages
           .filter(message => {
             if (message.role === 'assistant' && !message.content) {

@@ -109,7 +109,7 @@ function TreeItem({
           actions.showNodeContextMenu(node, e);
         }}
         className={cn(
-          "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-[13px] leading-none",
+          "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
           isSelected
             ? "bg-accent text-accent-foreground"
             : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
@@ -147,11 +147,11 @@ function TreeItem({
               if (e.key === "Enter") onEditSubmit();
               if (e.key === "Escape") onEditCancel();
             }}
-            className="min-w-0 flex-1 rounded border border-ring bg-background px-1 py-0.5 text-[13px] text-foreground outline-none"
+            className="min-w-0 flex-1 rounded border border-ring bg-background px-1 py-0.5 text-xs text-foreground outline-none"
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="flex-1 truncate">{node.name}</span>
+          <span className="flex-1 truncate leading-normal">{node.name}</span>
         )}
       </div>
       {node.isFolder &&
@@ -694,7 +694,7 @@ export function FilePanel() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-[13px]">
+    <div className="flex h-full min-h-0 flex-col text-xs">
       {/* Header: folder name left, buttons right */}
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
         <span className="truncate text-xs text-foreground/80 uppercase">{cwdFolderName}</span>
