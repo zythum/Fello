@@ -19,6 +19,7 @@ export type PermissionRequestCallback = (
 export interface ACPBridgeOptions {
   command: string;
   args: string[];
+  env?: Record<string, string>;
   cwd: string;
   onSessionUpdate: SessionUpdateCallback;
   onPermissionRequest: PermissionRequestCallback;
@@ -59,6 +60,7 @@ export class ACPBridge {
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
       cwd: this.options.cwd,
+      env: { ...process.env, ...this.options.env },
       detached: true,
     });
     proc.unref();

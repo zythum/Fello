@@ -11,6 +11,8 @@ export interface AgentConfig {
   id: string;
   name: string;
   command: string;
+  args: string[];
+  env: Record<string, string>;
 }
 
 export interface SettingsMeta {
@@ -19,8 +21,8 @@ export interface SettingsMeta {
 
 export const DEFAULT_SETTINGS: SettingsMeta = {
   agents: [
-    { id: "kiro", name: "Kiro", command: "kiro-cli acp" },
-    { id: "kimi", name: "Kimi", command: "kimi acp" },
+    { id: "kiro", name: "Kiro", command: "kiro-cli", args: ["acp"], env: {} },
+    { id: "kimi", name: "Kimi", command: "kimi", args: ["acp"], env: {} },
   ],
 };
 
@@ -32,9 +34,27 @@ function readSettings(): SettingsMeta {
   try {
     if (!existsSync(settingsPath())) return DEFAULT_SETTINGS;
     const raw = JSON.parse(readFileSync(settingsPath(), "utf-8"));
-    return {
-      agents: Array.isArray(raw.agents) ? raw.agents : DEFAULT_SETTINGS.agents,
-    };
+    const agents = Array.isArray(raw.agents)
+      ? raw.agents.map((a: any) => {
+          // migration from old format
+          if (typeof a.command === "string" && !a.args) {
+            const parts = a.command.trim().split(/\s+/);
+            return {
+              ...a,
+              command: parts[0] || "",
+              args: parts.slice(1),
+              env: a.env || {},
+            };
+          }
+          return {
+            ...a,
+            command: a.command || "",
+            args: Array.isArray(a.args) ? a.args : [],
+            env: a.env || {},
+          };
+        })
+      : DEFAULT_SETTINGS.agents;
+    return { agents };
   } catch {
     return DEFAULT_SETTINGS;
   }

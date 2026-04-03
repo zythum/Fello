@@ -27,11 +27,14 @@ export function SettingsDialog({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<AgentConfig | null>(null);
 
+  const [envRaw, setEnvRaw] = useState<string>("");
+
   useEffect(() => {
     if (open) {
       setAgents(configuredAgents);
       setEditingId(null);
       setEditForm(null);
+      setEnvRaw("");
     }
   }, [open, configuredAgents]);
 
@@ -47,15 +50,17 @@ export function SettingsDialog({
 
   const handleAdd = () => {
     const newId = `agent-${Date.now()}`;
-    const newAgent = { id: newId, name: "New Agent", command: "" };
+    const newAgent = { id: newId, name: "New Agent", command: "", args: [], env: {} };
     setAgents([...agents, newAgent]);
     setEditingId(newId);
     setEditForm(newAgent);
+    setEnvRaw("");
   };
 
   const handleEdit = (agent: AgentConfig) => {
     setEditingId(agent.id);
     setEditForm({ ...agent });
+    setEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
   };
 
   const handleDelete = (id: string) => {
@@ -72,6 +77,19 @@ export function SettingsDialog({
       pushGlobalErrorMessage("Name and Command are required.");
       return;
     }
+
+    if (envRaw.trim()) {
+      try {
+        const parsed = JSON.parse(envRaw.trim());
+        if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
+          throw new Error("Env must be a valid JSON object");
+        }
+      } catch {
+        pushGlobalErrorMessage("Env must be a valid JSON object.");
+        return;
+      }
+    }
+
     setAgents(agents.map((a) => (a.id === editForm.id ? editForm : a)));
     setEditingId(null);
     setEditForm(null);
@@ -116,10 +134,54 @@ export function SettingsDialog({
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className="h-8 text-xs"
                       />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Command (e.g. kiro-cli)"
+                          value={editForm.command}
+                          onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
+                          className="h-8 text-xs font-mono flex-1"
+                        />
+                        <Input
+                          placeholder="Args (e.g. acp)"
+                          value={editForm.args?.join(" ") || ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              args: e.target.value.split(/\s+/).filter(Boolean),
+                            })
+                          }
+                          className="h-8 text-xs font-mono flex-[2]"
+                        />
+                      </div>
                       <Input
-                        placeholder="Launch Command (e.g. kiro-cli acp)"
-                        value={editForm.command}
-                        onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
+                        placeholder='Env JSON (e.g. {"API_KEY": "..."})'
+                        value={envRaw}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnvRaw(val);
+                          const trimmed = val.trim();
+                          if (!trimmed) {
+                            setEditForm({ ...editForm, env: {} });
+                            return;
+                          }
+                          try {
+                            const parsed = JSON.parse(trimmed);
+                            if (
+                              typeof parsed === "object" &&
+                              !Array.isArray(parsed) &&
+                              parsed !== null
+                            ) {
+                              // Ensure all values are strings
+                              const stringifiedEnv: Record<string, string> = {};
+                              for (const [k, v] of Object.entries(parsed)) {
+                                stringifiedEnv[k] = String(v);
+                              }
+                              setEditForm({ ...editForm, env: stringifiedEnv });
+                            }
+                          } catch {
+                            // Let the user keep typing invalid JSON without throwing errors
+                          }
+                        }}
                         className="h-8 text-xs font-mono"
                       />
                       <div className="flex justify-end gap-2 mt-1">
@@ -141,7 +203,7 @@ export function SettingsDialog({
                       <div className="flex flex-col min-w-0 gap-1 flex-1 pr-4">
                         <span className="font-medium truncate">{agent.name}</span>
                         <span className="text-xs text-muted-foreground font-mono truncate">
-                          {agent.command}
+                          {[agent.command, ...(agent.args || [])].join(" ")}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">

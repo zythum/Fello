@@ -66,16 +66,16 @@ function resolveAgentRuntime(agentId: string) {
   if (!agent) {
     throw new Error(`Unknown agent: ${agentId}. Please check your settings.`);
   }
-  const cmdStr = agent.command.trim();
-  if (!cmdStr) {
+  const command = agent.command.trim();
+  if (!command) {
     throw new Error(`Agent "${agent.name}" has no command configured.`);
   }
-  // Simple split by space
-  const parts = cmdStr.split(/\s+/);
-  const command = parts[0];
-  const args = parts.slice(1);
 
-  return { command, args, commandLabel: cmdStr };
+  const args = agent.args || [];
+  const commandLabel = [command, ...args].join(" ");
+  const env = agent.env || {};
+
+  return { command, args, commandLabel, env };
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -135,6 +135,7 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
   const nextBridge = new ACPBridge({
     command: runtime.command,
     args: runtime.args,
+    env: runtime.env,
     cwd,
     onSessionUpdate: (params: SessionNotification) => safeSend("session-update", params),
     onPermissionRequest: (params: RequestPermissionRequest) => {

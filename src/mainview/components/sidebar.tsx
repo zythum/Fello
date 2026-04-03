@@ -391,8 +391,12 @@ export function Sidebar() {
                       } ${openSessionMenuId === session.id ? "bg-sidebar-accent/35" : ""}`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                        <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase max-w-[60px] truncate block text-center leading-none py-0">
-                          {configuredAgents.find(a => a.id === session.agent)?.name || session.agent}
+                        <Badge
+                          variant="outline"
+                          className="h-4 px-1 text-[10px] uppercase max-w-[60px] truncate block text-center leading-none py-0"
+                        >
+                          {configuredAgents.find((a) => a.id === session.agent)?.name ||
+                            session.agent}
                         </Badge>
                         <span className="min-w-0 flex-1 truncate leading-normal">
                           {session.title}
