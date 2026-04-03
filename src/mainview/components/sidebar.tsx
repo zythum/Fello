@@ -183,7 +183,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full min-h-0 w-64 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between px-3 py-3">
         <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
           Projects
@@ -197,7 +197,7 @@ export function Sidebar() {
           <FolderPlus className="size-3.5" />
         </Button>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-2 p-1.5">
           {projects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
