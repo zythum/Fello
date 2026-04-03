@@ -30,7 +30,7 @@ export type FelloIPCRequests = {
   renameProject: { params: { projectId: string; title: string }; response: void };
   deleteProject: { params: string; response: void };
   newSession: {
-    params: { projectId: string };
+    params: { projectId: string; agent: "kiro" | "kimi" };
     response: {
       sessionId: string;
       agentInfo: unknown;

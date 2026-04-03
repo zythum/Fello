@@ -37,6 +37,8 @@ if (isDev) {
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
 let activeStorageSessionId: string | null = null;
+type AgentType = "kiro" | "kimi";
+let activeAgent: AgentType | null = null;
 let mainWindow: BrowserWindow | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
 const require = createRequire(import.meta.url);
@@ -61,6 +63,23 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
 
 function getKiroCliCommand() {
   return process.env.KIRO_CLI_PATH?.trim() || "kiro-cli";
+}
+
+function getKimiCliCommand() {
+  return process.env.KIMI_CLI_PATH?.trim() || "kimi";
+}
+
+function normalizeAgent(agent: string): AgentType {
+  return agent === "kimi" ? "kimi" : "kiro";
+}
+
+function resolveAgentRuntime(agent: AgentType) {
+  if (agent === "kimi") {
+    const command = getKimiCliCommand();
+    return { command, args: ["acp"], commandLabel: `${command} cli` };
+  }
+  const command = getKiroCliCommand();
+  return { command, args: ["acp"], commandLabel: `${command} acp` };
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -106,14 +125,16 @@ function extractErrorMessage(error: unknown): string {
   return "Unknown error";
 }
 
-async function ensureBridge(cwd: string): Promise<ACPBridge> {
-  if (bridge?.isConnected) return bridge;
+async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
+  if (bridge?.isConnected && activeAgent === agent) return bridge;
   if (bridge) {
     await bridge.disconnect().catch(() => {});
+    activeAgent = null;
   }
+  const runtime = resolveAgentRuntime(agent);
   bridge = new ACPBridge({
-    command: getKiroCliCommand(),
-    args: ["acp"],
+    command: runtime.command,
+    args: runtime.args,
     cwd,
     onSessionUpdate: (params: SessionNotification) => safeSend("session-update", params),
     onPermissionRequest: (params: RequestPermissionRequest) => {
@@ -130,6 +151,7 @@ async function ensureBridge(cwd: string): Promise<ACPBridge> {
     },
   });
   await bridge.connect();
+  activeAgent = agent;
   return bridge;
 }
 
@@ -137,6 +159,7 @@ async function cleanupAll() {
   if (bridge) {
     await bridge.disconnect().catch(() => {});
     bridge = null;
+    activeAgent = null;
   }
   for (const terminal of terminals.values()) {
     terminal.kill();
@@ -148,6 +171,7 @@ function killBridgeSync() {
   if (bridge) {
     bridge.killSync();
     bridge = null;
+    activeAgent = null;
   }
   for (const terminal of terminals.values()) {
     terminal.kill();
@@ -308,16 +332,18 @@ const handlers: {
     }
   },
 
-  async newSession({ projectId }: { projectId: string }) {
+  async newSession({ projectId, agent }: { projectId: string; agent: "kiro" | "kimi" }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
-    const b = await ensureBridge(project.cwd);
+    const selectedAgent = normalizeAgent(agent);
+    const runtime = resolveAgentRuntime(selectedAgent);
+    const b = await ensureBridge(project.cwd, selectedAgent);
     const { sessionId, models } = await b.newSession(project.cwd);
     const storageSessionId = storageOps.createSession(
       project.id,
       sessionId,
-      `${getKiroCliCommand()} acp`,
-      "kiro",
+      runtime.commandLabel,
+      selectedAgent,
     );
     activeSessionId = sessionId;
     activeStorageSessionId = storageSessionId;
@@ -327,7 +353,7 @@ const handlers: {
   async loadSession({ sessionId }: { sessionId: string }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const b = await ensureBridge(session.cwd);
+    const b = await ensureBridge(session.cwd, normalizeAgent(session.agent));
     const models = await b.loadSession(session.acp_session_id, session.cwd);
     activeSessionId = session.acp_session_id;
     activeStorageSessionId = session.id;
@@ -372,6 +398,7 @@ const handlers: {
     await cleanupAll();
     activeSessionId = null;
     activeStorageSessionId = null;
+    activeAgent = null;
   },
 
   async getCwd() {

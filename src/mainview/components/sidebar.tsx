@@ -49,6 +49,7 @@ export function Sidebar() {
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<
     | { type: "project"; id: string; title: string }
@@ -95,10 +96,10 @@ export function Sidebar() {
     }
   };
 
-  const handleNewChat = async (projectId: string) => {
+  const handleNewChat = async (projectId: string, agent: "kiro" | "kimi") => {
     try {
       setIsConnecting(true);
-      const result = (await request.newSession({ projectId })) as {
+      const result = (await request.newSession({ projectId, agent })) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
       } | null;
@@ -240,7 +241,9 @@ export function Sidebar() {
                 <div
                   onClick={() => toggleProject(project.id)}
                   className={`group flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs font-medium text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
-                    openProjectMenuId === project.id ? "bg-sidebar-accent/25 text-sidebar-foreground/80" : ""
+                    openProjectMenuId === project.id || openAgentMenuProjectId === project.id
+                      ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
+                      : ""
                   }`}
                 >
                   {expanded ? (
@@ -308,18 +311,48 @@ export function Sidebar() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleNewChat(project.id);
+                  <DropdownMenu
+                    onOpenChange={(open) => {
+                      setOpenAgentMenuProjectId((prev) =>
+                        open ? project.id : prev === project.id ? null : prev,
+                      );
                     }}
-                    size="icon-sm"
-                    variant="ghost"
-                    className="size-4 opacity-0 transition-opacity group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                    aria-label={`Create chat in ${project.title}`}
                   >
-                    <MessageCirclePlus className="size-3" />
-                  </Button>
+                    <DropdownMenuTrigger
+                      onClick={(e) => e.stopPropagation()}
+                      className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
+                        openAgentMenuProjectId === project.id
+                          ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
+                          : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                      }`}
+                      aria-label={`Create chat in ${project.title}`}
+                    >
+                      <MessageCirclePlus className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="right"
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-28 py-1"
+                    >
+                      <DropdownMenuItem
+                        className="text-xs rounded-1 text-muted-foreground/90"
+                        onClick={() => {
+                          void handleNewChat(project.id, "kiro");
+                        }}
+                      >
+                        Kiro
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-xs rounded-1 text-muted-foreground/90"
+                        onClick={() => {
+                          void handleNewChat(project.id, "kimi");
+                        }}
+                      >
+                        Kimi
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 {expanded &&
                   projectSessions.map((session) => (

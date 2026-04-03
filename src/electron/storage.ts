@@ -25,6 +25,10 @@ interface SessionMeta {
   updated_at: number;
 }
 
+function commandForAgent(agent: string) {
+  return agent === "kimi" ? "kimi cli" : "kiro-cli acp";
+}
+
 function hashCwd(cwd: string) {
   return createHash("sha1").update(cwd.trim()).digest("hex");
 }
@@ -92,10 +96,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
       typeof raw.project_id === "string"
         ? raw.project_id
         : projectId;
-    const command =
-      typeof raw.command === "string"
-        ? raw.command
-        : "kiro-cli acp";
+    const command = typeof raw.command === "string" ? raw.command : commandForAgent(agent);
     const created_at =
       typeof raw.created_at === "number"
         ? raw.created_at
