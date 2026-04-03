@@ -4,7 +4,7 @@ import { request } from "../backend";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FolderOpen, FolderClosed, MessageCirclePlus, Plus, X } from "lucide-react";
+import { FolderOpen, FolderClosed, MessageCirclePlus, FolderPlus, X } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
@@ -134,7 +134,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between p-3">
         <span className="text-sm font-medium">Projects</span>
         <Button variant="ghost" size="icon" className="size-7" onClick={handleAddProject}>
-          <Plus className="size-4" />
+          <FolderPlus className="size-4" />
         </Button>
       </div>
       <Separator />
