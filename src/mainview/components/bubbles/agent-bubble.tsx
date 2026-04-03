@@ -3,6 +3,9 @@ import { Streamdown } from "streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import type { ChatMessage } from "../../store";
 import { cn } from "@/lib/utils";
+import { remarkFilePath } from "../../lib/remark-filepath";
+import { request } from "../../backend";
+import { FolderOpen } from "lucide-react";
 
 const code = createCodePlugin({
   themes: ["github-light", "github-dark"],
@@ -28,6 +31,30 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
       <Streamdown
         className="max-w-none font-normal"
         plugins={{ code }}
+        remarkPlugins={[remarkFilePath]}
+        components={{
+          a: ({ href, children, ...props }: any) => {
+            if (href?.startsWith("reveal://")) {
+              const path = href.slice(9);
+              return (
+                <button
+                  type="button"
+                  title={`Reveal in Finder: ${path}`}
+                  className="cursor-pointer rounded bg-muted/50 mx-1 px-1 text-muted-foreground hover:bg-muted ring-1 ring-border"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    request.revealInFinder(path);
+                  }}
+                >#{children}</button>
+              );
+            }
+            return (
+              <a href={href} {...props}>
+                {children}
+              </a>
+            );
+          },
+        }}
         shikiTheme={["github-light", "github-dark"]}
         isAnimating={message.streaming}
       >
