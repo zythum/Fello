@@ -55,17 +55,16 @@ function sessionMetaPath(projectId: string, sessionId: string) {
 
 function readProjectMeta(projectId: string): ProjectMeta | null {
   try {
-    const raw = JSON.parse(readFileSync(projectMetaPath(projectId), "utf-8")) as
-      | Record<string, unknown>
-      | null;
+    const raw = JSON.parse(readFileSync(projectMetaPath(projectId), "utf-8")) as Record<
+      string,
+      unknown
+    > | null;
     if (!raw) return null;
     const id = typeof raw.id === "string" ? raw.id : "";
     const title = typeof raw.title === "string" ? raw.title : "";
     const cwd = typeof raw.cwd === "string" ? raw.cwd : "";
     const created_at =
-      typeof raw.created_at === "number"
-        ? raw.created_at
-        : Math.floor(Date.now() / 1000);
+      typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
     if (!id || !title || !cwd) return null;
     return { id, title, cwd, created_at };
   } catch {
@@ -81,30 +80,20 @@ function writeProjectMeta(meta: ProjectMeta) {
 
 function readSessionMeta(projectId: string, sessionId: string): SessionMeta | null {
   try {
-    const raw = JSON.parse(readFileSync(sessionMetaPath(projectId, sessionId), "utf-8")) as
-      | Record<string, unknown>
-      | null;
+    const raw = JSON.parse(readFileSync(sessionMetaPath(projectId, sessionId), "utf-8")) as Record<
+      string,
+      unknown
+    > | null;
     if (!raw) return null;
     const id = typeof raw.id === "string" ? raw.id : "";
     const title = typeof raw.title === "string" ? raw.title : "New Chat";
     const agent = typeof raw.agent === "string" ? raw.agent : "kiro";
-    const session_id =
-      typeof raw.session_id === "string"
-        ? raw.session_id
-        : "";
-    const project_id =
-      typeof raw.project_id === "string"
-        ? raw.project_id
-        : projectId;
+    const session_id = typeof raw.session_id === "string" ? raw.session_id : "";
+    const project_id = typeof raw.project_id === "string" ? raw.project_id : projectId;
     const command = typeof raw.command === "string" ? raw.command : commandForAgent(agent);
     const created_at =
-      typeof raw.created_at === "number"
-        ? raw.created_at
-        : Math.floor(Date.now() / 1000);
-    const updated_at =
-      typeof raw.updated_at === "number"
-        ? raw.updated_at
-        : created_at;
+      typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
+    const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
     if (!id || !session_id || !project_id) return null;
     return { id, title, agent, session_id, project_id, command, created_at, updated_at };
   } catch {

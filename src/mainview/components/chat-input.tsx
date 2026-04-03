@@ -271,7 +271,9 @@ export function ChatInput() {
                         >
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span>{mode.name}</span>
-                            <span className="wrap-break-word text-[10px] text-muted-foreground/50 line-clamp-2">{mode.description}</span>
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/50 line-clamp-2">
+                              {mode.description}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
@@ -317,7 +319,9 @@ export function ChatInput() {
                       >
                         <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                           <span>{m.name}</span>
-                          <span className="wrap-break-word text-[10px] text-muted-foreground/45 line-clamp-2">{m.description}</span>
+                          <span className="wrap-break-word text-[10px] text-muted-foreground/45 line-clamp-2">
+                            {m.description}
+                          </span>
                         </div>
                       </SelectItem>
                     ))}

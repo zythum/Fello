@@ -3,6 +3,7 @@ import { ChatInput } from "./chat-input";
 import { PermissionDialog } from "./permission-dialog";
 import { useActiveSessionState, useAppStore } from "../store";
 import { Badge } from "@/components/ui/badge";
+import { formatSessionTime } from "@/lib/utils";
 
 export function Chat() {
   const { permissionRequests } = useActiveSessionState();
@@ -21,6 +22,9 @@ export function Chat() {
               </Badge>
               <span className="truncate text-sm font-medium text-sidebar-foreground/85">
                 {session.title}
+              </span>
+              <span className="ml-auto shrink-0 text-xs text-muted-foreground/60 whitespace-nowrap">
+                {formatSessionTime(session.updated_at)}
               </span>
             </div>
           </div>

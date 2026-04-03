@@ -17,8 +17,13 @@ import {
 import type { ProjectInfo, SessionInfo } from "./store";
 
 function App() {
-  const { addPermissionRequest, setSessions, setProjects, globalErrorMessages, shiftGlobalErrorMessage } =
-    useAppStore();
+  const {
+    addPermissionRequest,
+    setSessions,
+    setProjects,
+    globalErrorMessages,
+    shiftGlobalErrorMessage,
+  } = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
   const [errorDialogKey, setErrorDialogKey] = useState(0);

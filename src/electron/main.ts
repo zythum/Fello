@@ -342,8 +342,9 @@ const handlers: {
   },
 
   async deleteProject(projectId: string) {
-    const activeSession =
-      activeStorageSessionId ? storageOps.getSession(activeStorageSessionId) : null;
+    const activeSession = activeStorageSessionId
+      ? storageOps.getSession(activeStorageSessionId)
+      : null;
     storageOps.deleteProject(projectId);
     if (activeSession?.project_id === projectId) {
       activeStorageSessionId = null;

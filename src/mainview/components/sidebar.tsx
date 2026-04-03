@@ -172,7 +172,9 @@ export function Sidebar() {
     const normalizedTitle = renameValue.trim();
     if (!normalizedTitle) {
       pushGlobalErrorMessage(
-        renameTarget.type === "session" ? "Chat name cannot be empty." : "Project name cannot be empty.",
+        renameTarget.type === "session"
+          ? "Chat name cannot be empty."
+          : "Project name cannot be empty.",
       );
       return;
     }
@@ -272,7 +274,10 @@ export function Sidebar() {
                   ) : (
                     <FolderClosed className="size-3.5" />
                   )}
-                  <span className="flex-1 truncate leading-normal font-normal uppercase" title={project.cwd}>
+                  <span
+                    className="flex-1 truncate leading-normal font-normal uppercase"
+                    title={project.cwd}
+                  >
                     {project.title}
                   </span>
                   <DropdownMenu
@@ -390,7 +395,9 @@ export function Sidebar() {
                         <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">
                           {session.agent}
                         </Badge>
-                        <span className="min-w-0 flex-1 truncate leading-normal">{session.title}</span>
+                        <span className="min-w-0 flex-1 truncate leading-normal">
+                          {session.title}
+                        </span>
                       </div>
                       <DropdownMenu
                         onOpenChange={(open) => {
@@ -460,7 +467,9 @@ export function Sidebar() {
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>{renameTarget?.type === "session" ? "Rename Chat" : "Rename Project"}</DialogTitle>
+            <DialogTitle>
+              {renameTarget?.type === "session" ? "Rename Chat" : "Rename Project"}
+            </DialogTitle>
             <DialogDescription>
               {renameTarget?.type === "session"
                 ? "Enter a new chat name."

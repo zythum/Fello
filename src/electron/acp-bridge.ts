@@ -137,9 +137,7 @@ export class ACPBridge {
     return initResult;
   }
 
-  async newSession(
-    cwd: string,
-  ): Promise<{
+  async newSession(cwd: string): Promise<{
     sessionId: string;
     models: acp.SessionModelState | null;
     modes: acp.SessionModeState | null;
