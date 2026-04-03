@@ -694,7 +694,7 @@ export function FilePanel() {
   };
 
   return (
-    <div className="flex h-full flex-col text-[13px]">
+    <div className="flex h-full min-h-0 flex-col text-[13px]">
       {/* Header: folder name left, buttons right */}
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
         <span className="truncate text-xs text-foreground/80 uppercase">{cwdFolderName}</span>
@@ -737,7 +737,7 @@ export function FilePanel() {
           </Button>
         </div>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div
           className="min-h-full py-0.5"
           onClick={(e) => {

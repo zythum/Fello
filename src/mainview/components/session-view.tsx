@@ -40,9 +40,9 @@ export function SessionView() {
                 <Chat />
               </div>
             </ResizablePanel>
-            <ResizableHandle withHandle />
+            <ResizableHandle />
             <ResizablePanel defaultSize={30} minSize={15}>
-              <aside className="flex h-full flex-col bg-sidebar">
+              <aside className="flex h-full min-h-0 flex-col bg-sidebar">
                 <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
                   <button
                     type="button"
@@ -71,11 +71,13 @@ export function SessionView() {
                     <span>Terminal</span>
                   </button>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <div className={cn("h-full", rightTab === "files" ? "block" : "hidden")}>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className={cn("h-full min-h-0", rightTab === "files" ? "block" : "hidden")}>
                     <FilePanel />
                   </div>
-                  <div className={cn("h-full", rightTab === "terminal" ? "block" : "hidden")}>
+                  <div
+                    className={cn("h-full min-h-0", rightTab === "terminal" ? "block" : "hidden")}
+                  >
                     <TerminalPanel isActive={rightTab === "terminal"} />
                   </div>
                 </div>
