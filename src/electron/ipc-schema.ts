@@ -1,9 +1,34 @@
 import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
 
+export interface ProjectInfo {
+  id: string;
+  title: string;
+  cwd: string;
+  created_at: number;
+}
+
+export interface SessionInfo {
+  id: string;
+  title: string;
+  cwd: string;
+  project_id: string;
+  project_title: string;
+  agent: string;
+  acp_session_id: string;
+  agent_command: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export type FelloIPCRequests = {
-  listSessions: { params: void; response: unknown[] };
+  listSessions: { params: void; response: SessionInfo[] };
+  listProjects: { params: void; response: ProjectInfo[] };
+  addProject: {
+    params: void;
+    response: { project: ProjectInfo; created: boolean };
+  };
   newSession: {
-    params: string;
+    params: { projectId: string };
     response: {
       sessionId: string;
       agentInfo: unknown;
@@ -14,7 +39,7 @@ export type FelloIPCRequests = {
     };
   };
   loadSession: {
-    params: { sessionId: string; cwd: string };
+    params: { sessionId: string };
     response: {
       sessionId: string;
       agentInfo: unknown;

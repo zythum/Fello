@@ -20,9 +20,20 @@ export interface SessionInfo {
   id: string;
   title: string;
   cwd: string;
+  project_id: string;
+  project_title: string;
+  agent: string;
+  acp_session_id: string;
   agent_command: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface ProjectInfo {
+  id: string;
+  title: string;
+  cwd: string;
+  created_at: number;
 }
 
 export interface SessionUsage {
@@ -80,6 +91,7 @@ const emptySessionState = (): SessionState => ({
 });
 
 interface AppState {
+  projects: ProjectInfo[];
   sessions: SessionInfo[];
   activeSessionId: string | null;
   sessionStates: Map<string, SessionState>;
@@ -96,6 +108,7 @@ interface AppState {
   updateSessionState: (id: string, updater: (s: SessionState) => Partial<SessionState>) => void;
 
   setSessions: (sessions: SessionInfo[]) => void;
+  setProjects: (projects: ProjectInfo[]) => void;
   setActiveSessionId: (id: string | null) => void;
 
   // Per-session mutators (sessionId required)
@@ -123,6 +136,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  projects: [],
   sessions: [],
   activeSessionId: null,
   sessionStates: new Map(),
@@ -148,6 +162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  setProjects: (projects) => set({ projects }),
   setSessions: (sessions) => set({ sessions }),
   setActiveSessionId: (id) => set({ activeSessionId: id }),
 

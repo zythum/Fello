@@ -14,10 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { SessionInfo } from "./store";
+import type { ProjectInfo, SessionInfo } from "./store";
 
 function App() {
-  const { addPermissionRequest, setSessions, globalErrorMessages, shiftGlobalErrorMessage } =
+  const { addPermissionRequest, setSessions, setProjects, globalErrorMessages, shiftGlobalErrorMessage } =
     useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
@@ -33,10 +33,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    request.listSessions().then((s: unknown) => {
-      setSessions((s as SessionInfo[]) ?? []);
+    Promise.all([request.listProjects(), request.listSessions()]).then(([projects, sessions]) => {
+      setProjects((projects as ProjectInfo[]) ?? []);
+      setSessions((sessions as SessionInfo[]) ?? []);
     });
-  }, [setSessions]);
+  }, [setProjects, setSessions]);
 
   useEffect(() => {
     const handleSessionUpdate = (detail: any) => {

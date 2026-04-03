@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { MentionsInput, Mention } from "react-mentions";
-import { useAppStore, useActiveSessionState, type ChatMessage, type SessionInfo } from "../store";
+import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
 import { request, subscribe } from "../backend";
 import { flushStreaming } from "../lib/process-event";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Zap, Folder } from "lucide-react";
+import { ArrowUp, Square, Zap } from "lucide-react";
 
 /** Markup format used by react-mentions: @[display](id) */
 const MENTION_MARKUP = "@[__display__](__id__)";
@@ -37,7 +37,6 @@ export function ChatInput() {
     availableModels,
     currentModelId,
     setCurrentModelId,
-    setSessions,
   } = useAppStore();
   const { isStreaming, usage } = useActiveSessionState();
 
@@ -57,22 +56,6 @@ export function ChatInput() {
     },
     [session],
   );
-
-  const handleChangeCwd = useCallback(async () => {
-    if (!session) return;
-    try {
-      const result = (await request.changeWorkDir({ sessionId: session.id })) as {
-        ok: boolean;
-        cwd: string | null;
-      };
-      if (result.ok && result.cwd) {
-        const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
-        setSessions(updated);
-      }
-    } catch (err) {
-      console.error("Failed to change work dir:", err);
-    }
-  }, [session, setSessions]);
 
   const STREAMING_TIMEOUT_MS = 30_000;
   const streamingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,23 +239,6 @@ export function ChatInput() {
               containerRef.current?.querySelector("textarea")?.focus();
             }}
           >
-            {session && (
-              <button
-                type="button"
-                className="flex cursor-pointer items-center gap-1 truncate rounded px-1.5 py-0.5 text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground"
-                title={`${session.cwd} (click to change)`}
-                onClick={handleChangeCwd}
-              >
-                <Folder className="size-3 shrink-0" />
-                <span className="max-w-50 truncate">
-                  {(() => {
-                    const parts = session.cwd.split("/").filter(Boolean);
-                    if (parts.length <= 5) return session.cwd;
-                    return "/" + [...parts.slice(0, 2), "...", ...parts.slice(-2)].join("/");
-                  })()}
-                </span>
-              </button>
-            )}
             <div className="ml-auto flex items-center gap-2">
               {usage && (
                 <span
@@ -297,13 +263,13 @@ export function ChatInput() {
                 >
                   <SelectTrigger
                     size="sm"
-                    className="h-6 w-auto border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:text-foreground"
+                    className="h-6 w-auto bg-transparent text-xs text-muted-foreground hover:text-foreground"
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="p-1">
                     {availableModels.map((m) => (
-                      <SelectItem key={m.modelId} value={m.modelId}>
+                      <SelectItem className="text-xs rounded-1 text-muted-foreground/90" key={m.modelId} value={m.modelId}>
                         {m.name}
                       </SelectItem>
                     ))}

@@ -36,6 +36,7 @@ if (isDev) {
 
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
+let activeStorageSessionId: string | null = null;
 let mainWindow: BrowserWindow | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
 const require = createRequire(import.meta.url);
@@ -278,24 +279,50 @@ const handlers: {
     return storageOps.listSessions();
   },
 
-  async newSession(cwd: string) {
-    const b = await ensureBridge(cwd);
-    const { sessionId, models } = await b.newSession(cwd);
-    activeSessionId = sessionId;
-    storageOps.createSession(sessionId, cwd, `${getKiroCliCommand()} acp`);
-    return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
+  async listProjects() {
+    return storageOps.listProjects();
   },
 
-  async loadSession({ sessionId, cwd }: { sessionId: string; cwd: string }) {
-    const b = await ensureBridge(cwd);
-    const models = await b.loadSession(sessionId, cwd);
+  async addProject() {
+    const result = await dialog.showOpenDialog({
+      defaultPath: homedir(),
+      properties: ["openDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      throw new Error("Project selection was canceled");
+    }
+    return storageOps.addProject(result.filePaths[0]);
+  },
+
+  async newSession({ projectId }: { projectId: string }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project does not exist");
+    const b = await ensureBridge(project.cwd);
+    const { sessionId, models } = await b.newSession(project.cwd);
+    const storageSessionId = storageOps.createSession(
+      project.id,
+      sessionId,
+      `${getKiroCliCommand()} acp`,
+      "kiro",
+    );
     activeSessionId = sessionId;
-    return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
+    activeStorageSessionId = storageSessionId;
+    return { sessionId: storageSessionId, agentInfo: b.agentInfo, models: formatModels(models) };
+  },
+
+  async loadSession({ sessionId }: { sessionId: string }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const b = await ensureBridge(session.cwd);
+    const models = await b.loadSession(session.acp_session_id, session.cwd);
+    activeSessionId = session.acp_session_id;
+    activeStorageSessionId = session.id;
+    return { sessionId: session.id, agentInfo: b.agentInfo, models: formatModels(models) };
   },
 
   async sendMessage(text: string) {
     if (!bridge || !activeSessionId) throw new Error("No active session");
-    storageOps.touchSession(activeSessionId);
+    if (activeStorageSessionId) storageOps.touchSession(activeStorageSessionId);
     return await bridge.sendPrompt(activeSessionId, text);
   },
 
@@ -315,34 +342,22 @@ const handlers: {
     storageOps.updateSessionTitle(sessionId, title);
   },
 
-  async changeWorkDir({ sessionId }: { sessionId: string }) {
-    try {
-      const result = await dialog.showOpenDialog({
-        defaultPath: homedir(),
-        properties: ["openDirectory"],
-      });
-      if (result.canceled || result.filePaths.length === 0) {
-        return { ok: false, cwd: null };
-      }
-      const newCwd = result.filePaths[0];
-      const b = await ensureBridge(newCwd);
-      await b.loadSession(sessionId, newCwd);
-      activeSessionId = sessionId;
-      storageOps.updateSessionCwd(sessionId, newCwd);
-      return { ok: true, cwd: newCwd };
-    } catch {
-      return { ok: false, cwd: null };
-    }
+  async changeWorkDir() {
+    return { ok: false, cwd: null };
   },
 
   async deleteSession(sessionId: string) {
     storageOps.deleteSession(sessionId);
-    if (activeSessionId === sessionId) activeSessionId = null;
+    if (activeStorageSessionId === sessionId) {
+      activeStorageSessionId = null;
+      activeSessionId = null;
+    }
   },
 
   async disconnect() {
     await cleanupAll();
     activeSessionId = null;
+    activeStorageSessionId = null;
   },
 
   async getCwd() {
