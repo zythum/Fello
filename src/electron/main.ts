@@ -301,6 +301,18 @@ function formatModels(models: any) {
   };
 }
 
+function formatModes(modes: any) {
+  if (!modes) return null;
+  return {
+    availableModes: modes.availableModes.map((mode: any) => ({
+      id: mode.id,
+      name: mode.name,
+      description: mode.description ?? null,
+    })),
+    currentModeId: modes.currentModeId,
+  };
+}
+
 const handlers: {
   [K in keyof FelloIPCSchema["requests"]]: (
     params: FelloIPCSchema["requests"][K]["params"],
@@ -345,7 +357,7 @@ const handlers: {
     const selectedAgent = normalizeAgent(agent);
     const runtime = resolveAgentRuntime(selectedAgent);
     const b = await ensureBridge(project.cwd, selectedAgent);
-    const { sessionId, models } = await b.newSession(project.cwd);
+    const { sessionId, models, modes } = await b.newSession(project.cwd);
     const storageSessionId = storageOps.createSession(
       project.id,
       sessionId,
@@ -354,17 +366,27 @@ const handlers: {
     );
     activeSessionId = sessionId;
     activeStorageSessionId = storageSessionId;
-    return { sessionId: storageSessionId, agentInfo: b.agentInfo, models: formatModels(models) };
+    return {
+      sessionId: storageSessionId,
+      agentInfo: b.agentInfo,
+      models: formatModels(models),
+      modes: formatModes(modes),
+    };
   },
 
   async loadSession({ sessionId }: { sessionId: string }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const b = await ensureBridge(session.cwd, normalizeAgent(session.agent));
-    const models = await b.loadSession(session.acp_session_id, session.cwd);
+    const { models, modes } = await b.loadSession(session.acp_session_id, session.cwd);
     activeSessionId = session.acp_session_id;
     activeStorageSessionId = session.id;
-    return { sessionId: session.id, agentInfo: b.agentInfo, models: formatModels(models) };
+    return {
+      sessionId: session.id,
+      agentInfo: b.agentInfo,
+      models: formatModels(models),
+      modes: formatModes(modes),
+    };
   },
 
   async sendMessage(text: string) {
@@ -428,6 +450,16 @@ const handlers: {
   async setModel(modelId: string) {
     if (!bridge || !activeSessionId) throw new Error("No active session");
     await bridge.setSessionModel(activeSessionId, modelId);
+  },
+
+  async getModes() {
+    if (!bridge || !activeSessionId) return null;
+    return formatModes(bridge.getModeState(activeSessionId));
+  },
+
+  async setMode(modeId: string) {
+    if (!bridge || !activeSessionId) throw new Error("No active session");
+    await bridge.setSessionMode(activeSessionId, modeId);
   },
 
   async searchFiles({ cwd, query }: { cwd: string; query?: string }) {

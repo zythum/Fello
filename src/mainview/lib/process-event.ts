@@ -57,6 +57,10 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
       });
       break;
 
+    case "current_mode_update":
+      store.setCurrentModeId(event.currentModeId ?? null);
+      break;
+
     default:
       break;
   }

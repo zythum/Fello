@@ -21,7 +21,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
   return (
     <div
       className={cn(
-        "w-full px-4 text-sm leading-7 font-normal text-foreground/85",
+        "w-full px-4 text-sm leading-7 font-normal text-foreground/75",
         prevBubbleRole != null && "mt-4",
       )}
     >

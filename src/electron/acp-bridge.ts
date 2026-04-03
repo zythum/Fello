@@ -32,6 +32,7 @@ export class ACPBridge {
   private _isConnected = false;
   private _agentInfo: acp.InitializeResponse | null = null;
   private _modelStates = new Map<string, acp.SessionModelState>();
+  private _modeStates = new Map<string, acp.SessionModeState>();
 
   constructor(private options: ACPBridgeOptions) {
     this.onSessionUpdate = options.onSessionUpdate;
@@ -48,6 +49,10 @@ export class ACPBridge {
 
   getModelState(sessionId: string): acp.SessionModelState | null {
     return this._modelStates.get(sessionId) ?? null;
+  }
+
+  getModeState(sessionId: string): acp.SessionModeState | null {
+    return this._modeStates.get(sessionId) ?? null;
   }
 
   async connect(): Promise<acp.InitializeResponse> {
@@ -89,6 +94,7 @@ export class ACPBridge {
 
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
+    const modeStates = this._modeStates;
     const client: acp.Client = {
       async requestPermission(
         params: RequestPermissionRequest,
@@ -96,6 +102,12 @@ export class ACPBridge {
         return onPermission(params);
       },
       async sessionUpdate(params: SessionNotification): Promise<void> {
+        if (params.update?.sessionUpdate === "current_mode_update") {
+          const existing = modeStates.get(params.sessionId);
+          if (existing) {
+            existing.currentModeId = params.update.currentModeId;
+          }
+        }
         onUpdate(params);
       },
       async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
@@ -127,15 +139,21 @@ export class ACPBridge {
 
   async newSession(
     cwd: string,
-  ): Promise<{ sessionId: string; models: acp.SessionModelState | null }> {
+  ): Promise<{
+    sessionId: string;
+    models: acp.SessionModelState | null;
+    modes: acp.SessionModeState | null;
+  }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.newSession({
       cwd,
       mcpServers: [],
     });
     const models = result.models ?? null;
+    const modes = result.modes ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
-    return { sessionId: result.sessionId, models };
+    if (modes) this._modeStates.set(result.sessionId, modes);
+    return { sessionId: result.sessionId, models, modes };
   }
 
   async setSessionModel(sessionId: string, modelId: string): Promise<void> {
@@ -147,7 +165,10 @@ export class ACPBridge {
     }
   }
 
-  async loadSession(sessionId: string, cwd: string): Promise<acp.SessionModelState | null> {
+  async loadSession(
+    sessionId: string,
+    cwd: string,
+  ): Promise<{ models: acp.SessionModelState | null; modes: acp.SessionModeState | null }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.loadSession({
       sessionId,
@@ -155,8 +176,19 @@ export class ACPBridge {
       mcpServers: [],
     });
     const models = result.models ?? null;
+    const modes = result.modes ?? null;
     if (models) this._modelStates.set(sessionId, models);
-    return models;
+    if (modes) this._modeStates.set(sessionId, modes);
+    return { models, modes };
+  }
+
+  async setSessionMode(sessionId: string, modeId: string): Promise<void> {
+    if (!this.connection) throw new Error("Not connected");
+    await this.connection.setSessionMode({ sessionId, modeId });
+    const state = this._modeStates.get(sessionId);
+    if (state) {
+      state.currentModeId = modeId;
+    }
   }
 
   async sendPrompt(sessionId: string, text: string): Promise<acp.PromptResponse> {
@@ -174,7 +206,7 @@ export class ACPBridge {
 
   async disconnect(): Promise<void> {
     if (this.connection && this._isConnected) {
-      const sessionIds = [...this._modelStates.keys()];
+      const sessionIds = new Set([...this._modelStates.keys(), ...this._modeStates.keys()]);
       for (const sid of sessionIds) {
         try {
           await this.connection.unstable_closeSession({ sessionId: sid });
@@ -184,6 +216,7 @@ export class ACPBridge {
 
     this._isConnected = false;
     this._modelStates.clear();
+    this._modeStates.clear();
     this.connection = null;
 
     if (this.process) {
@@ -212,6 +245,7 @@ export class ACPBridge {
   killSync(): void {
     this._isConnected = false;
     this._modelStates.clear();
+    this._modeStates.clear();
     this.connection = null;
     if (this.process) {
       const proc = this.process;

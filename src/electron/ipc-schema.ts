@@ -20,6 +20,16 @@ export interface SessionInfo {
   updated_at: number;
 }
 
+export interface ModelState {
+  availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
+  currentModelId: string;
+}
+
+export interface ModeState {
+  availableModes: Array<{ id: string; name: string; description?: string | null }>;
+  currentModeId: string;
+}
+
 export type FelloIPCRequests = {
   listSessions: { params: void; response: SessionInfo[] };
   listProjects: { params: void; response: ProjectInfo[] };
@@ -34,10 +44,8 @@ export type FelloIPCRequests = {
     response: {
       sessionId: string;
       agentInfo: unknown;
-      models: {
-        availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
-        currentModelId: string;
-      } | null;
+      models: ModelState | null;
+      modes: ModeState | null;
     };
   };
   loadSession: {
@@ -45,10 +53,8 @@ export type FelloIPCRequests = {
     response: {
       sessionId: string;
       agentInfo: unknown;
-      models: {
-        availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
-        currentModelId: string;
-      } | null;
+      models: ModelState | null;
+      modes: ModeState | null;
     };
   };
   sendMessage: { params: string; response: { stopReason: string } };
@@ -65,12 +71,14 @@ export type FelloIPCRequests = {
   pickWorkDir: { params: void; response: string | null };
   getModels: {
     params: void;
-    response: {
-      availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
-      currentModelId: string;
-    } | null;
+    response: ModelState | null;
   };
   setModel: { params: string; response: void };
+  getModes: {
+    params: void;
+    response: ModeState | null;
+  };
+  setMode: { params: string; response: void };
   searchFiles: {
     params: { cwd: string; query?: string };
     response: Array<{ id: string; display: string }>;

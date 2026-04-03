@@ -59,6 +59,12 @@ export interface ModelOption {
   description?: string | null;
 }
 
+export interface ModeOption {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
 export interface PermissionRequest {
   toolCall: { title: string; toolCallId: string };
   options: Array<{ optionId: string; name: string; kind: string }>;
@@ -101,6 +107,8 @@ interface AppState {
   sidebarOpen: boolean;
   availableModels: ModelOption[];
   currentModelId: string | null;
+  availableModes: ModeOption[];
+  currentModeId: string | null;
   globalErrorMessages: string[];
 
   // Helpers to get/update the active session's state
@@ -130,6 +138,8 @@ interface AppState {
   setSidebarOpen: (v: boolean) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
+  setAvailableModes: (modes: ModeOption[]) => void;
+  setCurrentModeId: (id: string | null) => void;
   pushGlobalErrorMessage: (message: string) => void;
   shiftGlobalErrorMessage: () => void;
   clearGlobalErrors: () => void;
@@ -145,6 +155,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
   availableModels: [],
   currentModelId: null,
+  availableModes: [],
+  currentModeId: null,
   globalErrorMessages: [],
 
   getSessionState: (id) => {
@@ -250,6 +262,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
+  setAvailableModes: (modes) => set({ availableModes: modes }),
+  setCurrentModeId: (id) => set({ currentModeId: id }),
   pushGlobalErrorMessage: (message) =>
     set((state) => ({ globalErrorMessages: [...state.globalErrorMessages, message] })),
   shiftGlobalErrorMessage: () =>

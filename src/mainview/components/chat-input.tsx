@@ -37,6 +37,9 @@ export function ChatInput() {
     availableModels,
     currentModelId,
     setCurrentModelId,
+    availableModes,
+    currentModeId,
+    setCurrentModeId,
   } = useAppStore();
   const { isStreaming, usage } = useActiveSessionState();
 
@@ -232,14 +235,49 @@ export function ChatInput() {
           </MentionsInput>
           {/* Bottom bar: model selector + send button */}
           <div
-            className="flex cursor-text items-center gap-2 px-2 pb-2"
+            className="flex cursor-text items-center justify-between gap-2 px-2 pb-2"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
               containerRef.current?.querySelector("textarea")?.focus();
             }}
           >
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {availableModes.length > 0 && (
+                <>
+                  <Select
+                    value={currentModeId ?? ""}
+                    onValueChange={async (modeId) => {
+                      setCurrentModeId(modeId as string);
+                      try {
+                        await request.setMode(modeId as string);
+                      } catch (err) {
+                        console.error("Failed to set mode:", err);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-6 w-auto bg-transparent text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <SelectValue placeholder="Mode" />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false} className="p-1">
+                      {availableModes.map((mode) => (
+                        <SelectItem
+                          className="rounded-1 text-xs text-muted-foreground/90"
+                          key={mode.id}
+                          value={mode.id}
+                        >
+                          {mode.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               {usage && (
                 <span
                   className="flex items-center gap-1 text-[10px] text-muted-foreground"
@@ -315,7 +353,7 @@ const mentionsInputStyle = {
   },
   "&multiLine": {
     control: {
-      minHeight: 36,
+      minHeight: 76,
     },
     highlighter: {
       padding: "12px 16px 8px",
@@ -328,7 +366,7 @@ const mentionsInputStyle = {
       overflow: "auto",
       maxHeight: 200,
       color: "var(--foreground)",
-      fontSize: 14,
+      fontSize: 13,
       lineHeight: "1.5",
     },
   },

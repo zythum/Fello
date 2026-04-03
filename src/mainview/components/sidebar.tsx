@@ -62,10 +62,27 @@ export function Sidebar() {
 
   if (!sidebarOpen) return null;
 
-  const applyModels = (models: { availableModels: any[]; currentModelId: string } | null) => {
-    if (!models) return;
-    useAppStore.getState().setAvailableModels(models.availableModels);
-    useAppStore.getState().setCurrentModelId(models.currentModelId);
+  const applySessionState = (
+    payload: {
+      models: { availableModels: any[]; currentModelId: string } | null;
+      modes: { availableModes: any[]; currentModeId: string } | null;
+    } | null,
+  ) => {
+    if (!payload) return;
+    if (payload.models) {
+      useAppStore.getState().setAvailableModels(payload.models.availableModels);
+      useAppStore.getState().setCurrentModelId(payload.models.currentModelId);
+    } else {
+      useAppStore.getState().setAvailableModels([]);
+      useAppStore.getState().setCurrentModelId(null);
+    }
+    if (payload.modes) {
+      useAppStore.getState().setAvailableModes(payload.modes.availableModes);
+      useAppStore.getState().setCurrentModeId(payload.modes.currentModeId);
+    } else {
+      useAppStore.getState().setAvailableModes([]);
+      useAppStore.getState().setCurrentModeId(null);
+    }
   };
 
   const refreshData = async () => {
@@ -104,10 +121,11 @@ export function Sidebar() {
       const result = (await request.newSession({ projectId, agent })) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
+        modes: { availableModes: any[]; currentModeId: string } | null;
       } | null;
       if (!result) return;
       setActiveSessionId(result.sessionId);
-      applyModels(result.models);
+      applySessionState(result);
       await refreshData();
     } catch (err) {
       console.error("Failed to create new chat:", err);
@@ -125,9 +143,10 @@ export function Sidebar() {
       const result = (await request.loadSession({ sessionId: session.id })) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
+        modes: { availableModes: any[]; currentModeId: string } | null;
       } | null;
       if (!result) return;
-      applyModels(result.models);
+      applySessionState(result);
     } catch (err) {
       console.error("Failed to load session:", err);
       pushGlobalErrorMessage(getErrorMessage(err));
