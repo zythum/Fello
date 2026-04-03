@@ -62,11 +62,29 @@ export type FelloIPCRequests = {
     };
     response: string | null;
   };
+  createTerminal: {
+    params: { cwd: string; cols?: number; rows?: number };
+    response: { terminalId: string };
+  };
+  writeTerminal: {
+    params: { terminalId: string; data: string };
+    response: { ok: boolean };
+  };
+  killTerminal: {
+    params: { terminalId: string };
+    response: { ok: boolean };
+  };
+  resizeTerminal: {
+    params: { terminalId: string; cols: number; rows: number };
+    response: { ok: boolean };
+  };
 };
 
 export type FelloIPCEvents = {
   "session-update": SessionNotification;
   "permission-request": RequestPermissionRequest;
+  "terminal-output": { terminalId: string; data: string };
+  "terminal-exit": { terminalId: string; exitCode: number | null };
 };
 
 export type FelloIPCSchema = {

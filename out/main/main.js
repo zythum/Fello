@@ -1,10 +1,12 @@
 import { app, nativeImage, BrowserWindow, shell, dialog, ipcMain, Menu } from "electron";
 import Fuse from "fuse.js";
 import { homedir } from "os";
-import { mkdir, stat, writeFile, readFile, rename, rm, readdir } from "fs/promises";
+import { spawn as spawn$1 } from "node-pty";
+import { spawn } from "child_process";
+import { mkdir, stat, writeFile, readFile, rename, rm, readdir, chmod } from "fs/promises";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
+import { createRequire } from "module";
 import { Writable, Readable } from "stream";
 import * as acp from "@agentclientprotocol/sdk";
 import { mkdirSync, existsSync, readdirSync, rmSync, readFileSync, writeFileSync } from "fs";
@@ -288,6 +290,10 @@ let bridge = null;
 let activeSessionId = null;
 let mainWindow = null;
 const pendingPermissions = /* @__PURE__ */ new Map();
+const require$1 = createRequire(import.meta.url);
+const terminals = /* @__PURE__ */ new Map();
+let terminalCounter = 0;
+let isNodePtyHelperPrepared = false;
 function safeSend(channel, payload) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);
@@ -328,12 +334,153 @@ async function cleanupAll() {
     });
     bridge = null;
   }
+  for (const terminal of terminals.values()) {
+    terminal.kill();
+  }
+  terminals.clear();
 }
 function killBridgeSync() {
   if (bridge) {
     bridge.killSync();
     bridge = null;
   }
+  for (const terminal of terminals.values()) {
+    terminal.kill();
+  }
+  terminals.clear();
+}
+async function resolveTerminalCwd(preferredCwd) {
+  const candidates = [preferredCwd, process.cwd(), homedir()].map((value) => value.trim()).filter((value, index, array) => value.length > 0 && array.indexOf(value) === index);
+  for (const candidate of candidates) {
+    const info = await stat(candidate).catch(() => null);
+    if (info?.isDirectory()) return candidate;
+  }
+  return process.cwd();
+}
+function resolveShellCandidates() {
+  if (process.platform === "win32") {
+    return [process.env.COMSPEC?.trim() ?? "", "powershell.exe", "cmd.exe"].filter(
+      (value, index, array) => value.length > 0 && array.indexOf(value) === index
+    );
+  }
+  return [process.env.SHELL?.trim() ?? "", "/bin/zsh", "/bin/bash", "/bin/sh"].filter(
+    (value, index, array) => value.length > 0 && array.indexOf(value) === index
+  );
+}
+async function ensureNodePtySpawnHelperExecutable() {
+  if (process.platform === "win32") return;
+  if (isNodePtyHelperPrepared) return;
+  const packageJsonPath = require$1.resolve("node-pty/package.json");
+  const packageDir = dirname(packageJsonPath);
+  const helperPath = join(
+    packageDir,
+    "prebuilds",
+    `${process.platform}-${process.arch}`,
+    "spawn-helper"
+  );
+  const info = await stat(helperPath).catch(() => null);
+  if (!info?.isFile()) {
+    throw new Error(`node-pty spawn-helper not found: ${helperPath}`);
+  }
+  if ((info.mode & 73) === 0) {
+    await chmod(helperPath, 493);
+  }
+  isNodePtyHelperPrepared = true;
+}
+async function createTerminalProcess(cwd, initialSize) {
+  const ptyShellArgs = process.platform === "win32" ? [] : ["-i"];
+  const resolvedCwd = await resolveTerminalCwd(cwd);
+  const shellCandidates = resolveShellCandidates();
+  const processShellCandidates = process.platform === "win32" ? shellCandidates : ["/bin/zsh", "/bin/bash", "/bin/sh"].filter(
+    (value, index, array) => value.length > 0 && array.indexOf(value) === index
+  );
+  let child = null;
+  let lastError = null;
+  const createPtyTerminal = (shellPath) => {
+    const pty = spawn$1(shellPath, ptyShellArgs, {
+      cwd: resolvedCwd,
+      cols: Math.max(20, Math.floor(initialSize?.cols ?? 80)),
+      rows: Math.max(6, Math.floor(initialSize?.rows ?? 24)),
+      name: "xterm-256color",
+      env: { ...process.env, TERM: "xterm-256color" }
+    });
+    return {
+      write: (data) => pty.write(data),
+      kill: () => pty.kill(),
+      resize: (cols, rows) => pty.resize(cols, rows),
+      onData: (listener) => {
+        pty.onData((data) => listener(data));
+      },
+      onExit: (listener) => {
+        pty.onExit(({ exitCode }) => listener(exitCode));
+      },
+      isPseudoTTY: true
+    };
+  };
+  try {
+    await ensureNodePtySpawnHelperExecutable();
+  } catch (error) {
+    lastError = error;
+  }
+  const createProcessTerminal = (shellPath) => {
+    const processShellArgs = process.platform === "win32" ? [] : shellPath.includes("bash") ? ["-i"] : [];
+    const spawned = spawn(shellPath, processShellArgs, {
+      cwd: resolvedCwd,
+      env: { ...process.env, TERM: "xterm-256color" },
+      stdio: "pipe"
+    });
+    const childProcess = spawned;
+    return {
+      write: (data) => {
+        if (!childProcess.stdin.writable) return;
+        childProcess.stdin.write(data.replace(/\r/g, "\n"));
+      },
+      kill: () => childProcess.kill(),
+      resize: () => {
+      },
+      onData: (listener) => {
+        childProcess.stdout.on("data", (chunk) => listener(String(chunk)));
+        childProcess.stderr.on("data", (chunk) => listener(String(chunk)));
+      },
+      onExit: (listener) => {
+        childProcess.on("exit", (exitCode) => listener(exitCode));
+      },
+      isPseudoTTY: false
+    };
+  };
+  for (const shellPath of shellCandidates) {
+    try {
+      child = createPtyTerminal(shellPath);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!child) {
+    for (const shellPath of processShellCandidates) {
+      try {
+        child = createProcessTerminal(shellPath);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  if (!child) {
+    throw new Error(
+      `Failed to create terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; processShells=${processShellCandidates.join(", ")}; error=${String(lastError)}`
+    );
+  }
+  const terminalId = `terminal-${Date.now()}-${terminalCounter++}`;
+  terminals.set(terminalId, child);
+  child.onData((data) => {
+    safeSend("terminal-output", { terminalId, data });
+  });
+  child.onExit((exitCode) => {
+    terminals.delete(terminalId);
+    safeSend("terminal-exit", { terminalId, exitCode });
+  });
+  return terminalId;
 }
 function formatModels(models) {
   if (!models) return null;
@@ -598,6 +745,35 @@ const handlers = {
         callback: () => settle(null)
       });
     });
+  },
+  async createTerminal({ cwd, cols, rows }) {
+    return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
+  },
+  async writeTerminal({ terminalId, data }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    if (!terminal.isPseudoTTY && data.length > 0) {
+      safeSend("terminal-output", { terminalId, data: data.replace(/\r/g, "\r\n") });
+    }
+    terminal.write(data);
+    return { ok: true };
+  },
+  async killTerminal({ terminalId }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    terminal.kill();
+    terminals.delete(terminalId);
+    return { ok: true };
+  },
+  async resizeTerminal({
+    terminalId,
+    cols,
+    rows
+  }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    terminal.resize(Math.max(1, Math.floor(cols)), Math.max(1, Math.floor(rows)));
+    return { ok: true };
   }
 };
 function registerHandler(channel) {
@@ -626,6 +802,16 @@ function setupMenu() {
         { role: "delete" },
         { role: "selectAll" }
       ]
+    },
+    ...isDev ? [
+      {
+        label: "View",
+        submenu: [{ role: "toggleDevTools" }]
+      }
+    ] : [],
+    {
+      label: "Window",
+      submenu: [{ role: "close" }, { role: "minimize" }, { role: "zoom" }]
     }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -673,7 +859,6 @@ function createMainWindow() {
         preloadState,
         htmlLength
       });
-      win.webContents.openDevTools({ mode: "detach" });
     });
   }
   if (isDev) {

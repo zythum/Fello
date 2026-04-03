@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld("fello", {
     channel: K,
     params: FelloIPCSchema["requests"][K]["params"],
   ) {
-    return ipcRenderer.invoke(channel, params) as Promise<FelloIPCSchema["requests"][K]["response"]>;
+    return ipcRenderer.invoke(channel, params) as Promise<
+      FelloIPCSchema["requests"][K]["response"]
+    >;
   },
   on<K extends EventName>(channel: K, listener: EventListener<K>) {
     if (!wrappedListeners.has(channel)) wrappedListeners.set(channel, new WeakMap());

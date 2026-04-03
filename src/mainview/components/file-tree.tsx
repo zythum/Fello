@@ -479,14 +479,11 @@ export function FileTree() {
 
       e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayloads));
 
-      const downLoadablePlaylod = nodesPayloads.find(playlod => !playlod.isFolder);
+      const downLoadablePlaylod = nodesPayloads.find((playlod) => !playlod.isFolder);
       if (downLoadablePlaylod) {
         const fileName = downLoadablePlaylod.name;
         const fileUrl = `file://${downLoadablePlaylod.id}`;
-        e.dataTransfer.setData(
-          "DownloadURL",
-          `application/octet-stream:${fileName}:${fileUrl}`,
-        );
+        e.dataTransfer.setData("DownloadURL", `application/octet-stream:${fileName}:${fileUrl}`);
       }
 
       const root = document.documentElement;

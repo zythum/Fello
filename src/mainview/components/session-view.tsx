@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useAppStore } from "../store";
 import { Chat } from "./chat";
 import { FileTree } from "./file-tree";
+import { TerminalPanel } from "./terminal-panel";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { PanelLeft, Loader2, MessageSquare } from "lucide-react";
+import { PanelLeft, Loader2, MessageSquare, FolderTree, SquareTerminal } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
+  const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
   return (
     <>
@@ -39,11 +43,41 @@ export function SessionView() {
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={30} minSize={15}>
               <aside className="flex h-full flex-col bg-sidebar">
-                <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
-                  <span className="text-xs font-medium text-sidebar-foreground">Files</span>
+                <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
+                  <button
+                    type="button"
+                    onClick={() => setRightTab("files")}
+                    className={cn(
+                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                      rightTab === "files"
+                        ? "bg-accent text-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <FolderTree className="size-3.5" />
+                    <span>Files</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRightTab("terminal")}
+                    className={cn(
+                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                      rightTab === "terminal"
+                        ? "bg-accent text-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <SquareTerminal className="size-3.5" />
+                    <span>Terminal</span>
+                  </button>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <FileTree />
+                  <div className={cn("h-full", rightTab === "files" ? "block" : "hidden")}>
+                    <FileTree />
+                  </div>
+                  <div className={cn("h-full", rightTab === "terminal" ? "block" : "hidden")}>
+                    <TerminalPanel isActive={rightTab === "terminal"} />
+                  </div>
                 </div>
               </aside>
             </ResizablePanel>

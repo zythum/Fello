@@ -1,10 +1,26 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, shell } from "electron";
-import type { RequestPermissionRequest, RequestPermissionResponse, SessionNotification } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+  SessionNotification,
+} from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
-import { mkdir, readdir, readFile as fsReadFile, rename, rm, stat, writeFile } from "fs/promises";
+import { spawn as spawnPty } from "node-pty";
+import { spawn as spawnProcess, type ChildProcessWithoutNullStreams } from "child_process";
+import {
+  chmod,
+  mkdir,
+  readdir,
+  readFile as fsReadFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "fs/promises";
 import { dirname, join, relative } from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { ACPBridge } from "./acp-bridge";
 import type { FelloIPCSchema } from "./ipc-schema";
 import { storageOps } from "./storage";
@@ -22,6 +38,18 @@ let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
 let mainWindow: BrowserWindow | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
+const require = createRequire(import.meta.url);
+type ManagedTerminal = {
+  write: (data: string) => void;
+  kill: () => void;
+  resize: (cols: number, rows: number) => void;
+  onData: (listener: (data: string) => void) => void;
+  onExit: (listener: (exitCode: number | null) => void) => void;
+  isPseudoTTY: boolean;
+};
+const terminals = new Map<string, ManagedTerminal>();
+let terminalCounter = 0;
+let isNodePtyHelperPrepared = false;
 
 function safeSend<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
@@ -67,6 +95,10 @@ async function cleanupAll() {
     await bridge.disconnect().catch(() => {});
     bridge = null;
   }
+  for (const terminal of terminals.values()) {
+    terminal.kill();
+  }
+  terminals.clear();
 }
 
 function killBridgeSync() {
@@ -74,6 +106,156 @@ function killBridgeSync() {
     bridge.killSync();
     bridge = null;
   }
+  for (const terminal of terminals.values()) {
+    terminal.kill();
+  }
+  terminals.clear();
+}
+
+async function resolveTerminalCwd(preferredCwd: string) {
+  const candidates = [preferredCwd, process.cwd(), homedir()]
+    .map((value) => value.trim())
+    .filter((value, index, array) => value.length > 0 && array.indexOf(value) === index);
+  for (const candidate of candidates) {
+    const info = await stat(candidate).catch(() => null);
+    if (info?.isDirectory()) return candidate;
+  }
+  return process.cwd();
+}
+
+function resolveShellCandidates() {
+  if (process.platform === "win32") {
+    return [process.env.COMSPEC?.trim() ?? "", "powershell.exe", "cmd.exe"].filter(
+      (value, index, array) => value.length > 0 && array.indexOf(value) === index,
+    );
+  }
+  return [process.env.SHELL?.trim() ?? "", "/bin/zsh", "/bin/bash", "/bin/sh"].filter(
+    (value, index, array) => value.length > 0 && array.indexOf(value) === index,
+  );
+}
+
+async function ensureNodePtySpawnHelperExecutable() {
+  if (process.platform === "win32") return;
+  if (isNodePtyHelperPrepared) return;
+  const packageJsonPath = require.resolve("node-pty/package.json");
+  const packageDir = dirname(packageJsonPath);
+  const helperPath = join(
+    packageDir,
+    "prebuilds",
+    `${process.platform}-${process.arch}`,
+    "spawn-helper",
+  );
+  const info = await stat(helperPath).catch(() => null);
+  if (!info?.isFile()) {
+    throw new Error(`node-pty spawn-helper not found: ${helperPath}`);
+  }
+  if ((info.mode & 0o111) === 0) {
+    await chmod(helperPath, 0o755);
+  }
+  isNodePtyHelperPrepared = true;
+}
+
+async function createTerminalProcess(cwd: string, initialSize?: { cols?: number; rows?: number }) {
+  const ptyShellArgs = process.platform === "win32" ? [] : ["-i"];
+  const resolvedCwd = await resolveTerminalCwd(cwd);
+  const shellCandidates = resolveShellCandidates();
+  const processShellCandidates =
+    process.platform === "win32"
+      ? shellCandidates
+      : ["/bin/zsh", "/bin/bash", "/bin/sh"].filter(
+          (value, index, array) => value.length > 0 && array.indexOf(value) === index,
+        );
+  let child: ManagedTerminal | null = null;
+  let lastError: unknown = null;
+
+  const createPtyTerminal = (shellPath: string) => {
+    const pty = spawnPty(shellPath, ptyShellArgs, {
+      cwd: resolvedCwd,
+      cols: Math.max(20, Math.floor(initialSize?.cols ?? 80)),
+      rows: Math.max(6, Math.floor(initialSize?.rows ?? 24)),
+      name: "xterm-256color",
+      env: { ...process.env, TERM: "xterm-256color" },
+    });
+    return {
+      write: (data: string) => pty.write(data),
+      kill: () => pty.kill(),
+      resize: (cols: number, rows: number) => pty.resize(cols, rows),
+      onData: (listener: (data: string) => void) => {
+        pty.onData((data) => listener(data));
+      },
+      onExit: (listener: (exitCode: number | null) => void) => {
+        pty.onExit(({ exitCode }) => listener(exitCode));
+      },
+      isPseudoTTY: true,
+    } satisfies ManagedTerminal;
+  };
+
+  try {
+    await ensureNodePtySpawnHelperExecutable();
+  } catch (error) {
+    lastError = error;
+  }
+
+  const createProcessTerminal = (shellPath: string) => {
+    const processShellArgs =
+      process.platform === "win32" ? [] : shellPath.includes("bash") ? ["-i"] : [];
+    const spawned = spawnProcess(shellPath, processShellArgs, {
+      cwd: resolvedCwd,
+      env: { ...process.env, TERM: "xterm-256color" },
+      stdio: "pipe",
+    });
+    const childProcess = spawned as ChildProcessWithoutNullStreams;
+    return {
+      write: (data: string) => {
+        if (!childProcess.stdin.writable) return;
+        childProcess.stdin.write(data.replace(/\r/g, "\n"));
+      },
+      kill: () => childProcess.kill(),
+      resize: () => {},
+      onData: (listener: (data: string) => void) => {
+        childProcess.stdout.on("data", (chunk) => listener(String(chunk)));
+        childProcess.stderr.on("data", (chunk) => listener(String(chunk)));
+      },
+      onExit: (listener: (exitCode: number | null) => void) => {
+        childProcess.on("exit", (exitCode) => listener(exitCode));
+      },
+      isPseudoTTY: false,
+    } satisfies ManagedTerminal;
+  };
+
+  for (const shellPath of shellCandidates) {
+    try {
+      child = createPtyTerminal(shellPath);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!child) {
+    for (const shellPath of processShellCandidates) {
+      try {
+        child = createProcessTerminal(shellPath);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  if (!child) {
+    throw new Error(
+      `Failed to create terminal. cwd=${resolvedCwd}; ptyShells=${shellCandidates.join(", ")}; processShells=${processShellCandidates.join(", ")}; error=${String(lastError)}`,
+    );
+  }
+  const terminalId = `terminal-${Date.now()}-${terminalCounter++}`;
+  terminals.set(terminalId, child);
+  child.onData((data: string) => {
+    safeSend("terminal-output", { terminalId, data });
+  });
+  child.onExit((exitCode: number | null) => {
+    terminals.delete(terminalId);
+    safeSend("terminal-exit", { terminalId, exitCode });
+  });
+  return terminalId;
 }
 
 function formatModels(models: any) {
@@ -392,6 +574,43 @@ const handlers: {
       });
     });
   },
+
+  async createTerminal({ cwd, cols, rows }: { cwd: string; cols?: number; rows?: number }) {
+    return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
+  },
+
+  async writeTerminal({ terminalId, data }: { terminalId: string; data: string }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    if (!terminal.isPseudoTTY && data.length > 0) {
+      safeSend("terminal-output", { terminalId, data: data.replace(/\r/g, "\r\n") });
+    }
+    terminal.write(data);
+    return { ok: true };
+  },
+
+  async killTerminal({ terminalId }: { terminalId: string }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    terminal.kill();
+    terminals.delete(terminalId);
+    return { ok: true };
+  },
+
+  async resizeTerminal({
+    terminalId,
+    cols,
+    rows,
+  }: {
+    terminalId: string;
+    cols: number;
+    rows: number;
+  }) {
+    const terminal = terminals.get(terminalId);
+    if (!terminal) return { ok: false };
+    terminal.resize(Math.max(1, Math.floor(cols)), Math.max(1, Math.floor(rows)));
+    return { ok: true };
+  },
 };
 
 function registerHandler<K extends keyof FelloIPCSchema["requests"]>(channel: K) {
@@ -422,6 +641,18 @@ function setupMenu() {
         { role: "delete" },
         { role: "selectAll" },
       ],
+    },
+    ...(isDev
+      ? [
+          {
+            label: "View",
+            submenu: [{ role: "toggleDevTools" }],
+          },
+        ]
+      : []),
+    {
+      label: "Window",
+      submenu: [{ role: "close" }, { role: "minimize" }, { role: "zoom" }],
     },
   ];
 
@@ -477,7 +708,6 @@ function createMainWindow() {
         preloadState,
         htmlLength,
       });
-      win.webContents.openDevTools({ mode: "detach" });
     });
   }
 

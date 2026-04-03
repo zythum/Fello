@@ -1,12 +1,8 @@
-import type { SessionNotification, RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { FelloIPCSchema } from "../electron/ipc-schema";
 
 // --- Typed event emitter ---
 
-interface BackendEvents {
-  "session-update": SessionNotification;
-  "permission-request": RequestPermissionRequest;
-}
+type BackendEvents = FelloIPCSchema["events"];
 
 type Listener<T> = (data: T) => void;
 
@@ -29,9 +25,7 @@ function emit<K extends keyof BackendEvents>(event: K, data: BackendEvents[K]) {
 
 type Requests = FelloIPCSchema["requests"];
 type RequestClient = {
-  [K in keyof Requests]: (
-    params: Requests[K]["params"],
-  ) => Promise<Requests[K]["response"]>;
+  [K in keyof Requests]: (params: Requests[K]["params"]) => Promise<Requests[K]["response"]>;
 };
 
 const fallbackBridge = {
@@ -57,3 +51,5 @@ export const subscribe = { on, off };
 
 bridge.on("session-update", (payload) => emit("session-update", payload));
 bridge.on("permission-request", (payload) => emit("permission-request", payload));
+bridge.on("terminal-output", (payload) => emit("terminal-output", payload));
+bridge.on("terminal-exit", (payload) => emit("terminal-exit", payload));
