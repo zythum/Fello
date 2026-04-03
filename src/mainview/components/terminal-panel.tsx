@@ -377,7 +377,6 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
           </div>
         )}
       </div>
-
     </div>
   );
 }

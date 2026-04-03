@@ -125,7 +125,7 @@ export class ACPBridge {
     return initResult;
   }
 
-  async createSession(
+  async newSession(
     cwd: string,
   ): Promise<{ sessionId: string; models: acp.SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
@@ -138,7 +138,7 @@ export class ACPBridge {
     return { sessionId: result.sessionId, models };
   }
 
-  async setModel(sessionId: string, modelId: string): Promise<void> {
+  async setSessionModel(sessionId: string, modelId: string): Promise<void> {
     if (!this.connection) throw new Error("Not connected");
     await this.connection.unstable_setSessionModel({ sessionId, modelId });
     const state = this._modelStates.get(sessionId);
@@ -147,7 +147,7 @@ export class ACPBridge {
     }
   }
 
-  async resumeSession(sessionId: string, cwd: string): Promise<acp.SessionModelState | null> {
+  async loadSession(sessionId: string, cwd: string): Promise<acp.SessionModelState | null> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.loadSession({
       sessionId,

@@ -2,7 +2,7 @@ import type { RequestPermissionRequest, SessionNotification } from "@agentclient
 
 export type FelloIPCRequests = {
   listSessions: { params: void; response: unknown[] };
-  newChat: {
+  newSession: {
     params: string;
     response: {
       sessionId: string;
@@ -13,7 +13,7 @@ export type FelloIPCRequests = {
       } | null;
     };
   };
-  resumeChat: {
+  loadSession: {
     params: { sessionId: string; cwd: string };
     response: {
       sessionId: string;

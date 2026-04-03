@@ -116,7 +116,7 @@ export const ToolBubble = memo(function ToolBubble({
         !isGroupedWithPrev && hasPrevBubble && "mt-4",
         isGroupedWithPrev && "-mt-px",
         !isGroupedWithPrev && "rounded-t-md",
-        !isGroupedWithNext && "rounded-b-md"
+        !isGroupedWithNext && "rounded-b-md",
       )}
     >
       <ToolItem message={message} />

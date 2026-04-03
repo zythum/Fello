@@ -34,10 +34,20 @@ export const MessageBubble = memo(function MessageBubble({
         />
       );
     case "user":
-      return <UserBubble message={message} prevBubbleRole={prevBubbleRole} nextBubbleRole={nextBubbleRole} />;
+      return (
+        <UserBubble
+          message={message}
+          prevBubbleRole={prevBubbleRole}
+          nextBubbleRole={nextBubbleRole}
+        />
+      );
     case "assistant":
       return (
-        <AgentBubble message={message} prevBubbleRole={prevBubbleRole} nextBubbleRole={nextBubbleRole} />
+        <AgentBubble
+          message={message}
+          prevBubbleRole={prevBubbleRole}
+          nextBubbleRole={nextBubbleRole}
+        />
       );
     default:
       return null;

@@ -22,7 +22,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
     <div
       className={cn(
         "w-full px-4 text-sm leading-7 font-normal text-foreground/85",
-        prevBubbleRole != null && "mt-4"
+        prevBubbleRole != null && "mt-4",
       )}
     >
       <Streamdown

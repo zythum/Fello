@@ -36,7 +36,7 @@ export function Sidebar() {
       const cwd = (await request.pickWorkDir()) as string | null;
       if (!cwd) return;
       setIsConnecting(true);
-      const result = (await request.newChat(cwd)) as {
+      const result = (await request.newSession(cwd)) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
       } | null;
@@ -58,7 +58,7 @@ export function Sidebar() {
     setActiveSessionId(session.id);
     setIsConnecting(true);
     try {
-      const result = (await request.resumeChat({ sessionId: session.id, cwd: session.cwd })) as {
+      const result = (await request.loadSession({ sessionId: session.id, cwd: session.cwd })) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
       } | null;

@@ -84,8 +84,12 @@ function extractErrorMessage(error: unknown): string {
       record.message,
       record.error,
       record.data,
-      typeof record.data === "object" && record.data ? (record.data as Record<string, unknown>).message : null,
-      typeof record.data === "object" && record.data ? (record.data as Record<string, unknown>).error : null,
+      typeof record.data === "object" && record.data
+        ? (record.data as Record<string, unknown>).message
+        : null,
+      typeof record.data === "object" && record.data
+        ? (record.data as Record<string, unknown>).error
+        : null,
     ];
     for (const candidate of candidates) {
       const message = walk(candidate, depth + 1);
@@ -274,17 +278,17 @@ const handlers: {
     return storageOps.listSessions();
   },
 
-  async newChat(cwd: string) {
+  async newSession(cwd: string) {
     const b = await ensureBridge(cwd);
-    const { sessionId, models } = await b.createSession(cwd);
+    const { sessionId, models } = await b.newSession(cwd);
     activeSessionId = sessionId;
     storageOps.createSession(sessionId, cwd, `${getKiroCliCommand()} acp`);
     return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
   },
 
-  async resumeChat({ sessionId, cwd }: { sessionId: string; cwd: string }) {
+  async loadSession({ sessionId, cwd }: { sessionId: string; cwd: string }) {
     const b = await ensureBridge(cwd);
-    const models = await b.resumeSession(sessionId, cwd);
+    const models = await b.loadSession(sessionId, cwd);
     activeSessionId = sessionId;
     return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
   },
@@ -322,7 +326,7 @@ const handlers: {
       }
       const newCwd = result.filePaths[0];
       const b = await ensureBridge(newCwd);
-      await b.resumeSession(sessionId, newCwd);
+      await b.loadSession(sessionId, newCwd);
       activeSessionId = sessionId;
       storageOps.updateSessionCwd(sessionId, newCwd);
       return { ok: true, cwd: newCwd };
@@ -361,7 +365,7 @@ const handlers: {
 
   async setModel(modelId: string) {
     if (!bridge || !activeSessionId) throw new Error("No active session");
-    await bridge.setModel(activeSessionId, modelId);
+    await bridge.setSessionModel(activeSessionId, modelId);
   },
 
   async searchFiles({ cwd, query }: { cwd: string; query?: string }) {
