@@ -3,7 +3,7 @@ import { useActiveSessionState } from "../store";
 import { MessageBubble } from "./message-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowDown } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 
 export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
@@ -63,7 +63,6 @@ export function ChatArea() {
 
           {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
             <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
               <span>Thinking...</span>
             </div>
           )}
