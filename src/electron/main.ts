@@ -34,11 +34,11 @@ if (isDev) {
   app.disableHardwareAcceleration();
 }
 
+type AgentType = "kiro" | "kimi";
+const bridgePool = new Map<AgentType, ACPBridge>();
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
 let activeStorageSessionId: string | null = null;
-type AgentType = "kiro" | "kimi";
-let activeAgent: AgentType | null = null;
 let mainWindow: BrowserWindow | null = null;
 const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
 const require = createRequire(import.meta.url);
@@ -126,13 +126,17 @@ function extractErrorMessage(error: unknown): string {
 }
 
 async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
-  if (bridge?.isConnected && activeAgent === agent) return bridge;
-  if (bridge) {
-    await bridge.disconnect().catch(() => {});
-    activeAgent = null;
+  const pooledBridge = bridgePool.get(agent);
+  if (pooledBridge?.isConnected) {
+    bridge = pooledBridge;
+    return pooledBridge;
+  }
+  if (pooledBridge) {
+    await pooledBridge.disconnect().catch(() => {});
+    bridgePool.delete(agent);
   }
   const runtime = resolveAgentRuntime(agent);
-  bridge = new ACPBridge({
+  const nextBridge = new ACPBridge({
     command: runtime.command,
     args: runtime.args,
     cwd,
@@ -150,17 +154,19 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
       });
     },
   });
-  await bridge.connect();
-  activeAgent = agent;
-  return bridge;
+  await nextBridge.connect();
+  bridgePool.set(agent, nextBridge);
+  bridge = nextBridge;
+  return nextBridge;
 }
 
 async function cleanupAll() {
-  if (bridge) {
-    await bridge.disconnect().catch(() => {});
-    bridge = null;
-    activeAgent = null;
+  const allBridges = [...bridgePool.values()];
+  for (const pooledBridge of allBridges) {
+    await pooledBridge.disconnect().catch(() => {});
   }
+  bridgePool.clear();
+  bridge = null;
   for (const terminal of terminals.values()) {
     terminal.kill();
   }
@@ -168,11 +174,12 @@ async function cleanupAll() {
 }
 
 function killBridgeSync() {
-  if (bridge) {
-    bridge.killSync();
-    bridge = null;
-    activeAgent = null;
+  const allBridges = [...bridgePool.values()];
+  for (const pooledBridge of allBridges) {
+    pooledBridge.killSync();
   }
+  bridgePool.clear();
+  bridge = null;
   for (const terminal of terminals.values()) {
     terminal.kill();
   }
@@ -398,7 +405,6 @@ const handlers: {
     await cleanupAll();
     activeSessionId = null;
     activeStorageSessionId = null;
-    activeAgent = null;
   },
 
   async getCwd() {
