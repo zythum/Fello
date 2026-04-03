@@ -267,7 +267,7 @@ export function ChatInput() {
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="p-1">
+                  <SelectContent alignItemWithTrigger={false} className="p-1">
                     {availableModels.map((m) => (
                       <SelectItem className="text-xs rounded-1 text-muted-foreground/90" key={m.modelId} value={m.modelId}>
                         {m.name}
