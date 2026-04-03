@@ -722,11 +722,15 @@ const handlers = {
   },
   async createTerminal({
     sessionId,
+    cwd: requestedCwd,
     cols,
     rows
   }) {
     const session = storageOps.getSession(sessionId);
-    const cwd = session?.cwd ?? process.cwd();
+    const cwd = requestedCwd?.trim() || session?.cwd?.trim() || "";
+    if (!cwd) {
+      throw new Error(`Failed to create terminal: missing cwd for session ${sessionId}`);
+    }
     return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
   },
   async writeTerminal({ terminalId, data }) {

@@ -121,6 +121,9 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
   }, [isActive, activeSessionId, cwd, terminals.length]);
 
   useEffect(() => {
+    const terminalBackground =
+      window.getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
+      "#0f0f10";
     for (const terminalItem of allTerminals) {
       if (instanceRefs.current.has(terminalItem.id)) continue;
       const container = containerRefs.current.get(terminalItem.id);
@@ -130,7 +133,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
         fontSize: 12,
         lineHeight: 1.35,
         theme: {
-          background: "#0f0f10",
+          background: terminalBackground,
         },
       });
       const fitAddon = new FitAddon();

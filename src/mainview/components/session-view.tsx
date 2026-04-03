@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store";
 import { Chat } from "./chat";
-import { FileTree } from "./file-tree";
+import { FilePanel } from "./file-panel";
 import { TerminalPanel } from "./terminal-panel";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -73,7 +73,7 @@ export function SessionView() {
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <div className={cn("h-full", rightTab === "files" ? "block" : "hidden")}>
-                    <FileTree />
+                    <FilePanel />
                   </div>
                   <div className={cn("h-full", rightTab === "terminal" ? "block" : "hidden")}>
                     <TerminalPanel isActive={rightTab === "terminal"} />

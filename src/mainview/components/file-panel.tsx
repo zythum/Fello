@@ -175,7 +175,7 @@ async function showNativeContextMenu(
   return (await request.showContextMenu({ items })) as string | null;
 }
 
-export function FileTree() {
+export function FilePanel() {
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
