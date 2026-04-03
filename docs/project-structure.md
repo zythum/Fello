@@ -10,7 +10,7 @@ fello/
 │   │   ├── acp-bridge.ts             # ACP 连接封装（spawn/initialize/session/model）
 │   │   ├── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
 │   │   ├── ipc-schema.ts             # 主渲染通信协议（请求/事件类型）
-│   │   └── storage.ts                # 会话元数据持久化（meta.json）
+│   │   └── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │
 │   └── mainview/                     # Renderer（React SPA）
 │       ├── App.tsx                   # 根组件，订阅全局事件，管理错误弹窗
@@ -27,7 +27,7 @@ fello/
 │       │
 │       └── components/
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
-│           ├── sidebar.tsx           # 会话列表与会话操作
+│           ├── sidebar.tsx           # 项目分组侧边栏与项目/会话操作
 │           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
 │           ├── chat-area.tsx         # 消息渲染与滚动控制
 │           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
@@ -80,18 +80,28 @@ fello/
 
 - 纯前端视图与状态管理，依赖 `window.fello` 调用主进程能力
 - 事件订阅统一在 `backend.ts`，避免组件直接绑定 Electron API
-- 页面逻辑围绕“会话”展开，所有聊天状态以 sessionId 隔离
+- 页面逻辑围绕“项目 + 会话”展开，聊天状态仍以 sessionId 隔离
 
 ## 数据目录（运行时）
 
 ```
 ~/.fello/
-└── sessions/
-    └── <session-id>/
-        └── meta.json
+└── projects/
+    └── <project-id>/
+        ├── project.json
+        └── sessions/
+            └── <session-id>/
+                └── session.json
 ```
 
-`meta.json` 字段：
+`project.json` 字段：
+
+- `id`: 项目 ID
+- `title`: 项目名称
+- `cwd`: 项目工作目录
+- `createdAt` / `updatedAt`: 秒级时间戳
+
+`session.json` 字段：
 
 - `id`: 会话 ID
 - `title`: 会话标题（默认 "New Chat"，首轮消息后自动截断生成）

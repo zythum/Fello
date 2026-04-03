@@ -8,6 +8,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FolderOpen,
@@ -15,6 +24,8 @@ import {
   MessageCirclePlus,
   FolderPlus,
   MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -39,6 +50,13 @@ export function Sidebar() {
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<
+    | { type: "project"; id: string; title: string }
+    | { type: "session"; id: string; title: string }
+    | null
+  >(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<ProjectInfo | null>(null);
 
   if (!sidebarOpen) return null;
 
@@ -127,41 +145,56 @@ export function Sidebar() {
     }
   };
 
-  const handleRenameSession = async (session: SessionInfo) => {
-    const nextTitle = window.prompt("Rename chat", session.title);
-    if (nextTitle == null) return;
-    const normalizedTitle = nextTitle.trim();
+  const handleRenameSubmit = async () => {
+    if (!renameTarget) return;
+    const normalizedTitle = renameValue.trim();
     if (!normalizedTitle) {
-      pushGlobalErrorMessage("Chat name cannot be empty.");
+      pushGlobalErrorMessage(
+        renameTarget.type === "session" ? "Chat name cannot be empty." : "Project name cannot be empty.",
+      );
       return;
     }
-    await request.updateSessionTitle({ sessionId: session.id, title: normalizedTitle });
+    if (renameTarget.type === "session") {
+      await request.updateSessionTitle({ sessionId: renameTarget.id, title: normalizedTitle });
+    } else {
+      await request.renameProject({ projectId: renameTarget.id, title: normalizedTitle });
+    }
+    setRenameTarget(null);
+    setRenameValue("");
     await refreshData();
   };
 
-  const handleRenameProject = async (project: ProjectInfo) => {
-    const nextTitle = window.prompt("Rename project", project.title);
-    if (nextTitle == null) return;
-    const normalizedTitle = nextTitle.trim();
-    if (!normalizedTitle) {
-      pushGlobalErrorMessage("Project name cannot be empty.");
-      return;
-    }
-    await request.renameProject({ projectId: project.id, title: normalizedTitle });
-    await refreshData();
+  const handleRenameProject = (project: ProjectInfo) => {
+    setRenameTarget({ type: "project", id: project.id, title: project.title });
+    setRenameValue(project.title);
   };
 
-  const handleDeleteProject = async (project: ProjectInfo) => {
-    const shouldDelete = window.confirm(
-      `Delete project "${project.title}" and all chats in it? This action cannot be undone.`,
-    );
-    if (!shouldDelete) return;
-    await request.deleteProject(project.id);
+  const handleRenameSession = (session: SessionInfo) => {
+    setRenameTarget({ type: "session", id: session.id, title: session.title });
+    setRenameValue(session.title);
+  };
+
+  const handleDeleteProject = (project: ProjectInfo) => {
+    setPendingDeleteProject(project);
+  };
+
+  const handleRevealProjectInFinder = async (project: ProjectInfo) => {
+    try {
+      await request.revealInFinder(project.cwd);
+    } catch (err) {
+      pushGlobalErrorMessage(getErrorMessage(err));
+    }
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    if (!pendingDeleteProject) return;
+    await request.deleteProject(pendingDeleteProject.id);
     const map = new Map(useAppStore.getState().sessionStates);
     for (const session of sessions) {
-      if (session.project_id === project.id) map.delete(session.id);
+      if (session.project_id === pendingDeleteProject.id) map.delete(session.id);
     }
     useAppStore.setState({ sessionStates: map });
+    setPendingDeleteProject(null);
     const { sessions: updated } = await refreshData();
     if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
       setActiveSessionId(updated.length > 0 ? updated[0].id : null);
@@ -183,7 +216,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-64 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between px-3 py-3">
         <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
           Projects
@@ -198,7 +231,7 @@ export function Sidebar() {
         </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-2 p-1.5">
+        <div className="space-y-0.5 p-1.5">
           {projects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
@@ -240,25 +273,37 @@ export function Sidebar() {
                       side="right"
                       align="start"
                       onClick={(e) => e.stopPropagation()}
-                      className="w-28"
+                      className="w-28 py-1"
                     >
                       <DropdownMenuItem
-                        className="text-xs"
+                        className="text-xs rounded-1 text-muted-foreground/90"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleRenameProject(project);
+                          void handleRevealProjectInFinder(project);
                         }}
                       >
+                        <FolderOpen className="size-3" />
+                        Reveal in Finder
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-xs rounded-1 text-muted-foreground/90"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenameProject(project);
+                        }}
+                      >
+                        <Pencil className="size-3" />
                         Rename
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
-                        className="text-xs"
+                        className="text-xs rounded-1 text-muted-foreground/90"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleDeleteProject(project);
+                          handleDeleteProject(project);
                         }}
                       >
+                        <Trash2 className="size-3" />
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -310,25 +355,27 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           onClick={(e) => e.stopPropagation()}
-                          className="w-28"
+                          className="w-28 py-1"
                         >
                           <DropdownMenuItem
-                            className="text-xs"
+                            className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={(e) => {
                               e.stopPropagation();
-                              void handleRenameSession(session);
+                              handleRenameSession(session);
                             }}
                           >
+                            <Pencil className="size-3" />
                             Rename
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            className="text-xs"
+                            className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleDeleteSession(session.id);
                             }}
                           >
+                            <Trash2 className="size-3" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -343,6 +390,75 @@ export function Sidebar() {
           )}
         </div>
       </ScrollArea>
+      <Dialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameTarget(null);
+            setRenameValue("");
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{renameTarget?.type === "session" ? "Rename Chat" : "Rename Project"}</DialogTitle>
+            <DialogDescription>
+              {renameTarget?.type === "session"
+                ? "Enter a new chat name."
+                : "Enter a new project name."}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleRenameSubmit();
+              }
+            }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRenameTarget(null);
+                setRenameValue("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleRenameSubmit()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={pendingDeleteProject !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteProject(null);
+        }}
+        disablePointerDismissal
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteProject
+                ? `Delete project "${pendingDeleteProject.title}" and all chats in it? This action cannot be undone.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteProject(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleConfirmDeleteProject()}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

@@ -29,7 +29,7 @@
 - `acp-bridge.ts`：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
 - `preload.ts`：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - `ipc-schema.ts`：主进程与渲染进程请求/事件的统一契约
-- `storage.ts`：`~/.fello/sessions/<id>/meta.json` 元数据持久化
+- `storage.ts`：`~/.fello/projects/<project-id>/` 下的项目与会话元数据持久化
 
 ### Renderer（`src/mainview/`）
 
@@ -37,7 +37,7 @@
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
 - `lib/process-event.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - 组件层：
-  - `sidebar.tsx`：会话列表、新建/恢复/删除会话
+  - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
   - `chat.tsx`：聊天区容器 + 权限对话框
   - `file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `terminal-panel.tsx`：多终端标签、输出订阅、窗口 resize 自适配
@@ -104,10 +104,12 @@ ACP sessionUpdate
 ### A. 新建会话
 
 ```
-Renderer: pickWorkDir
+Renderer: addProject(pickWorkDir)
+  → Main: storage.addProject(project.json)
+  → Renderer: 在项目下触发 newSession
   → Main: ensureBridge(cwd)
   → ACP: newSession
-  → Main: storage.createSession(meta.json)
+  → Main: storage.createSession(session.json)
   → Renderer: 刷新 sessions + 进入 active session
 ```
 
@@ -163,6 +165,6 @@ Renderer: createTerminal(sessionId, cwd)
 
 ## 持久化边界
 
-- 客户端本地仅保存会话元数据（标题、cwd、时间戳、agent command）
+- 客户端本地保存项目元数据与会话元数据
 - 聊天历史与事件日志不落盘，由 ACP 服务端负责持有与重放
-- 删除会话时删除对应 `~/.fello/sessions/<id>/` 目录
+- 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话）

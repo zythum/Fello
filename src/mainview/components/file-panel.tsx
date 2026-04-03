@@ -109,7 +109,7 @@ function TreeItem({
           actions.showNodeContextMenu(node, e);
         }}
         className={cn(
-          "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
+          "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
           isSelected
             ? "bg-accent text-accent-foreground"
             : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",

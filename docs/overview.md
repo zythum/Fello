@@ -12,9 +12,10 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ### 会话与连接
 
-- 新建会话：选择工作目录后创建新 session
-- 恢复会话：从本地会话列表恢复，ACP 服务端重放历史事件
-- 删除会话：删除本地会话元数据目录
+- 项目分组：以工作目录为项目，项目下管理多个 chat session
+- 新建会话：在项目下创建新 session
+- 恢复会话：从侧边栏会话列表恢复，ACP 服务端重放历史事件
+- 重命名/删除：支持项目与会话的重命名、删除操作
 - 连接状态：切换会话时显示连接中状态，异常信息进入全局错误队列
 
 ### 对话体验
@@ -53,15 +54,15 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 用户交互流程（简版）
 
-1. 点击 New Chat，选择工作目录  
-2. 创建 session 并建立 ACP 连接  
-3. 输入消息，接收流式响应/工具事件  
-4. 如遇权限请求，在弹窗中选择策略  
-5. 通过文件树或终端继续上下文协作  
+1. 点击 Add Project，选择工作目录
+2. 在项目下点击 New Chat，创建 session 并建立 ACP 连接
+3. 输入消息，接收流式响应/工具事件
+4. 如遇权限请求，在弹窗中选择策略
+5. 通过文件树或终端继续上下文协作
 
 ## 数据与安全边界
 
-- 本地保存：仅会话元数据（`~/.fello/sessions/<id>/meta.json`）
+- 本地保存：项目与会话元数据（`~/.fello/projects/<project-id>/project.json` 与 `~/.fello/projects/<project-id>/sessions/<session-id>/session.json`）
 - 不本地保存：完整对话事件日志（由 ACP 服务端持有）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 
@@ -71,4 +72,4 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - Electron（桌面容器）
 - React + Vite（渲染层）
 - ACP Server：`kiro-cli acp`
-- 数据目录：`~/.fello/sessions/`
+- 数据目录：`~/.fello/projects/`
