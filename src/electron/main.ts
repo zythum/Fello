@@ -294,6 +294,20 @@ const handlers: {
     return storageOps.addProject(result.filePaths[0]);
   },
 
+  async renameProject({ projectId, title }: { projectId: string; title: string }) {
+    storageOps.updateProjectTitle(projectId, title);
+  },
+
+  async deleteProject(projectId: string) {
+    const activeSession =
+      activeStorageSessionId ? storageOps.getSession(activeStorageSessionId) : null;
+    storageOps.deleteProject(projectId);
+    if (activeSession?.project_id === projectId) {
+      activeStorageSessionId = null;
+      activeSessionId = null;
+    }
+  },
+
   async newSession({ projectId }: { projectId: string }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");

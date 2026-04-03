@@ -1,10 +1,21 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState } from "react";
 import { useAppStore, type ProjectInfo, type SessionInfo } from "../store";
 import { request } from "../backend";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { FolderOpen, FolderClosed, MessageCirclePlus, FolderPlus, X } from "lucide-react";
+import {
+  FolderOpen,
+  FolderClosed,
+  MessageCirclePlus,
+  FolderPlus,
+  MoreHorizontal,
+} from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
@@ -26,6 +37,8 @@ export function Sidebar() {
     resetSessionState,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
 
   if (!sidebarOpen) return null;
 
@@ -102,8 +115,7 @@ export function Sidebar() {
     }
   };
 
-  const handleDeleteSession = async (e: MouseEvent, id: string) => {
-    e.stopPropagation();
+  const handleDeleteSession = async (id: string) => {
     await request.deleteSession(id);
     const map = new Map(useAppStore.getState().sessionStates);
     map.delete(id);
@@ -112,6 +124,47 @@ export function Sidebar() {
     if (activeSessionId === id) {
       const next = updated.length > 0 ? updated[0].id : null;
       setActiveSessionId(next);
+    }
+  };
+
+  const handleRenameSession = async (session: SessionInfo) => {
+    const nextTitle = window.prompt("Rename chat", session.title);
+    if (nextTitle == null) return;
+    const normalizedTitle = nextTitle.trim();
+    if (!normalizedTitle) {
+      pushGlobalErrorMessage("Chat name cannot be empty.");
+      return;
+    }
+    await request.updateSessionTitle({ sessionId: session.id, title: normalizedTitle });
+    await refreshData();
+  };
+
+  const handleRenameProject = async (project: ProjectInfo) => {
+    const nextTitle = window.prompt("Rename project", project.title);
+    if (nextTitle == null) return;
+    const normalizedTitle = nextTitle.trim();
+    if (!normalizedTitle) {
+      pushGlobalErrorMessage("Project name cannot be empty.");
+      return;
+    }
+    await request.renameProject({ projectId: project.id, title: normalizedTitle });
+    await refreshData();
+  };
+
+  const handleDeleteProject = async (project: ProjectInfo) => {
+    const shouldDelete = window.confirm(
+      `Delete project "${project.title}" and all chats in it? This action cannot be undone.`,
+    );
+    if (!shouldDelete) return;
+    await request.deleteProject(project.id);
+    const map = new Map(useAppStore.getState().sessionStates);
+    for (const session of sessions) {
+      if (session.project_id === project.id) map.delete(session.id);
+    }
+    useAppStore.setState({ sessionStates: map });
+    const { sessions: updated } = await refreshData();
+    if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
+      setActiveSessionId(updated.length > 0 ? updated[0].id : null);
     }
   };
 
@@ -130,33 +183,86 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between p-3">
-        <span className="text-sm font-medium">Projects</span>
-        <Button variant="ghost" size="icon" className="size-7" onClick={handleAddProject}>
-          <FolderPlus className="size-4" />
+    <aside className="flex h-full w-64 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
+      <div className="flex items-center justify-between px-3 py-3">
+        <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
+          Projects
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-4 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
+          onClick={handleAddProject}
+        >
+          <FolderPlus className="size-3.5" />
         </Button>
       </div>
-      <Separator />
       <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
+        <div className="space-y-2 p-1.5">
           {projects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
             return (
-              <div key={project.id} className="space-y-1">
+              <div key={project.id} className="space-y-0.5">
                 <div
                   onClick={() => toggleProject(project.id)}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  className={`group flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs font-medium text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                    openProjectMenuId === project.id ? "bg-sidebar-accent/25 text-sidebar-foreground/80" : ""
+                  }`}
                 >
                   {expanded ? (
-                    <FolderOpen className="size-4" />
+                    <FolderOpen className="size-3.5" />
                   ) : (
-                    <FolderClosed className="size-4" />
+                    <FolderClosed className="size-3.5" />
                   )}
-                  <span className="flex-1 truncate" title={project.cwd}>
+                  <span className="flex-1 truncate leading-normal uppercase" title={project.cwd}>
                     {project.title}
                   </span>
+                  <DropdownMenu
+                    onOpenChange={(open) => {
+                      setOpenProjectMenuId((prev) =>
+                        open ? project.id : prev === project.id ? null : prev,
+                      );
+                    }}
+                  >
+                    <DropdownMenuTrigger
+                      onClick={(e) => e.stopPropagation()}
+                      className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
+                        openProjectMenuId === project.id
+                          ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
+                          : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                      }`}
+                      aria-label={`Project actions for ${project.title}`}
+                    >
+                      <MoreHorizontal className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="right"
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-28"
+                    >
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleRenameProject(project);
+                        }}
+                      >
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteProject(project);
+                        }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -164,10 +270,10 @@ export function Sidebar() {
                     }}
                     size="icon-sm"
                     variant="ghost"
-                    className="-mr-2"
+                    className="size-4 opacity-0 transition-opacity group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                     aria-label={`Create chat in ${project.title}`}
                   >
-                    <MessageCirclePlus className="size-3.5" />
+                    <MessageCirclePlus className="size-3" />
                   </Button>
                 </div>
                 {expanded &&
@@ -175,20 +281,58 @@ export function Sidebar() {
                     <div
                       key={session.id}
                       onClick={() => handleSelectSession(session)}
-                      className={`group flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      className={`group flex h-8 cursor-pointer items-center justify-between rounded-md px-2 ml-4 text-xs font-medium transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                      }`}
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/35 hover:text-sidebar-foreground/95"
+                      } ${openSessionMenuId === session.id ? "bg-sidebar-accent/35" : ""}`}
                     >
-                      <span className="flex-1 truncate">{session.title}</span>
-                      <button
-                        onClick={(e) => void handleDeleteSession(e, session.id)}
-                        className="ml-2 opacity-0 transition-opacity group-hover:opacity-100"
-                        aria-label={`Delete session ${session.title}`}
+                      <span className="flex-1 truncate leading-normal">{session.title}</span>
+                      <DropdownMenu
+                        onOpenChange={(open) => {
+                          setOpenSessionMenuId((prev) =>
+                            open ? session.id : prev === session.id ? null : prev,
+                          );
+                        }}
                       >
-                        <X className="size-3.5 text-muted-foreground hover:text-destructive" />
-                      </button>
+                        <DropdownMenuTrigger
+                          onClick={(e) => e.stopPropagation()}
+                          className={`ml-1.5 flex size-4 items-center justify-center rounded-sm transition-opacity ${
+                            openSessionMenuId === session.id || activeSessionId === session.id
+                              ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
+                              : "opacity-0 group-hover:opacity-80 text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/75"
+                          }`}
+                          aria-label={`Chat actions for ${session.title}`}
+                        >
+                          <MoreHorizontal className="size-3" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="right"
+                          align="start"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-28"
+                        >
+                          <DropdownMenuItem
+                            className="text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRenameSession(session);
+                            }}
+                          >
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            className="text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeleteSession(session.id);
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   ))}
               </div>
@@ -199,8 +343,6 @@ export function Sidebar() {
           )}
         </div>
       </ScrollArea>
-      <Separator />
-      <div className="p-3 text-xs text-muted-foreground">Fello · ACP Client</div>
     </aside>
   );
 }

@@ -180,6 +180,20 @@ export const storageOps = {
     };
   },
 
+  updateProjectTitle(projectId: string, title: string) {
+    const project = readProjectMeta(projectId);
+    if (!project) return;
+    const nextTitle = title.trim();
+    if (!nextTitle) return;
+    project.title = nextTitle;
+    writeProjectMeta(project);
+  },
+
+  deleteProject(projectId: string) {
+    const dir = projectDir(projectId);
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  },
+
   getProject(projectId: string) {
     const project = readProjectMeta(projectId);
     if (!project) return null;

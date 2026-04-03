@@ -27,6 +27,8 @@ export type FelloIPCRequests = {
     params: void;
     response: { project: ProjectInfo; created: boolean };
   };
+  renameProject: { params: { projectId: string; title: string }; response: void };
+  deleteProject: { params: string; response: void };
   newSession: {
     params: { projectId: string };
     response: {
