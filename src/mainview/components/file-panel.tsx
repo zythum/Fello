@@ -697,7 +697,7 @@ export function FilePanel() {
     <div className="flex h-full flex-col text-[13px]">
       {/* Header: folder name left, buttons right */}
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
-        <span className="truncate text-xs font-medium text-foreground/80">{cwdFolderName}</span>
+        <span className="truncate text-xs text-foreground/80 uppercase">{cwdFolderName}</span>
         <div className="ml-auto flex items-center gap-0.5">
           <Button
             variant="ghost"

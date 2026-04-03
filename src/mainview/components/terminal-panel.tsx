@@ -296,16 +296,16 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-10 shrink-0 items-center border-b border-border px-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+      <div className="flex shrink-0 items-center gap-0.5 border-b border-border px-1.5 py-1">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
           {terminals.map((terminal) => (
             <div
               key={terminal.id}
               className={cn(
-                "flex h-7 items-center gap-1 rounded-md pr-1 text-xs",
+                "flex h-6 items-center gap-1 rounded-md pr-1 text-xs",
                 terminal.id === activeTerminalId
                   ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
               )}
             >
               <button
@@ -317,7 +317,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
                     [activeSessionId]: terminal.id,
                   }))
                 }
-                className="flex h-7 items-center gap-1 px-2"
+                className="flex h-6 items-center gap-1 px-2"
               >
                 <Circle
                   className={cn(
@@ -341,11 +341,12 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
         </div>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
           onClick={() => void createTerminal()}
           aria-label="Add terminal"
         >
-          <Plus className="size-3" />
+          <Plus className="size-3.5" />
         </Button>
       </div>
 
