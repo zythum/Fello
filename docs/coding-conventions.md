@@ -1,48 +1,61 @@
 # 编码规范
 
-## 格式化
+## 基础格式
 
-- 缩进：2 空格，无 Tab
-- 格式化工具：oxfmt
-- 运行格式化：`npm run format`
+- 缩进统一 2 空格，禁止 Tab
+- 使用 `oxfmt` 进行格式化，命令：`npm run format`
+- 提交前至少通过 `npm run lint` 与 `npm run typecheck`
 
-## 文件命名
+## 命名与文件组织
 
-- 组件文件：kebab-case（`chat-input.tsx`、`file-tree.tsx`）
-- shadcn 组件：保持 shadcn CLI 生成的原始命名
-- 工具函数：kebab-case（`process-event.ts`、`utils.ts`）
-- Electron 侧模块：kebab-case（`acp-bridge.ts`、`ipc-schema.ts`）
+- 文件名统一 kebab-case（如 `chat-input.tsx`、`acp-bridge.ts`）
+- React 组件文件以功能命名，按页面结构放入 `components/`
+- 消息气泡按角色拆分到 `components/bubbles/`
+- UI primitives 保持 `components/ui/`，避免跨目录重复实现
 
-## 组件规范
+## React 组件约定
 
-- 函数组件，named export
-- 状态管理统一使用 Zustand store（`useAppStore`）
-- 样式使用 shadcn 语义化 CSS 变量（`bg-background`、`text-foreground`、`border-border` 等）
-- 图标使用 Lucide React
-- 组件变体使用 class-variance-authority（CVA）
-- 优先使用 shadcn 组件，避免手写可被 shadcn 组件替代的 UI 元素，以减少样式问题并保持视觉统一
+- 优先使用函数组件与具名导出
+- 组件职责保持单一：容器组件负责数据流，展示组件负责渲染
+- 复杂交互使用 `useCallback`/`useMemo`/`useRef` 控制重渲染与副作用
+- 涉及订阅（事件、监听器）必须在 `useEffect` 中成对注册/清理
 
-## 事件处理
+## 状态管理约定（Zustand）
 
-- ACP 事件统一通过 `processEvent()` 处理（`src/mainview/lib/process-event.ts`）
-- 实时流和历史回放共用同一个处理函数，保证行为一致
-- 恢复会话前需先清空对应 session 的本地状态，避免 `loadSession` 回放历史时与旧消息叠加
+- 全局状态统一走 `useAppStore`
+- 与会话相关的状态必须按 `sessionId` 隔离在 `sessionStates` 中
+- 不在组件中散落维护重复业务状态，优先通过 store mutator 更新
+- 流式消息结束时统一调用 `flushStreaming` 收尾，保证消息状态一致
 
-## IPC 通信
+## 事件处理约定（ACP）
 
-- 类型定义在 `src/electron/ipc-schema.ts`（`FelloIPCSchema`）
-- Main 侧：`ipcMain.handle(...)`
-- Renderer 侧：`window.fello.invoke(...)` + `backend.ts` 封装
-- 事件推送：`webContents.send(...)` → `window.fello.on(...)`
+- ACP 更新事件统一进入 `processEvent(sessionId, event)`
+- 历史回放与实时流式共用同一处理逻辑，避免行为分叉
+- 切换/恢复会话前先 `resetSessionState`，避免历史与旧状态混叠
+- tool call 状态更新必须同时同步到 `activeToolCalls` 与 `messages`
 
-## ACP Bridge
+## IPC 约定
 
-- 应用全局复用单个 `ACPBridge` 实例
-- 模型状态按 session 维度存储在 `Map<sessionId, SessionModelState>`
-- 切换 session 不重建 ACP server，恢复会话时复用同一连接
-- 应用退出时对 bridge 执行 disconnect / killSync
-- JSON-RPC 通信日志：`[ACP ←]`（收到）/ `[ACP →]`（发送）
+- 所有主渲染请求/事件类型定义集中在 `src/electron/ipc-schema.ts`
+- 主进程通过 `ipcMain.handle` 提供请求式 API
+- 渲染层只通过 `window.fello.invoke/on/off` 与主进程交互
+- 渲染业务组件应使用 `backend.ts` 的 `request/subscribe`，不直接触达 `window.fello`
 
-## UI 语言
+## Electron 与系统能力边界
 
-- App UI 中所有面向用户的文字必须使用英语
+- 文件系统、终端、系统对话框、原生菜单必须在主进程执行
+- 渲染进程禁止直接访问 Node 能力，依赖 preload 暴露的受限 API
+- 退出流程需要清理 ACP 子进程与 PTY，避免僵尸进程
+
+## UI 与样式约定
+
+- 优先复用现有 shadcn/base-ui 组件，不重复造轮子
+- 统一使用语义化 token 类名（如 `bg-background`、`text-foreground`）
+- 图标统一使用 `lucide-react`
+- 所有用户可见文本必须为英语
+
+## 错误处理约定
+
+- 异常信息尽量标准化为可读 message，再反馈给 UI
+- 关键异步流程应有 `try/catch/finally`，避免 loading 状态悬挂
+- 面向用户的错误优先进入全局错误队列或系统消息，不静默吞错

@@ -1,21 +1,74 @@
 # Fello 项目简介
 
-Fello 是一个基于 ACP（Agent Client Protocol）的桌面端 AI 对话客户端，当前运行在 Electron + Node.js 上，通过 `kiro-cli acp` 连接 Kiro Agent，提供完整的对话、工具调用、权限管理和文件浏览功能。
+Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端。它以 Electron 作为桌面容器，通过 `kiro-cli acp` 与 agent 建立连接，在一个应用内整合了对话、工具调用、权限决策、文件树和终端面板。
 
-## 核心功能
+## 产品定位
 
-- 多会话管理：创建、切换、删除、恢复（session/load）会话
-- 流式对话：实时显示 agent 回复、thinking 过程、tool 调用
-- 权限管理：agent 请求权限时弹出对话框，支持并发权限请求
-- 模型选择：从 agent 获取可用模型列表，支持运行时切换
-- 工作空间文件树：浏览、创建、删除、重命名、拖拽移动文件
-- 数据持久化：本地仅保存 session 元数据，历史事件由 ACP server 负责重放
-- Token 用量显示：实时展示 session 的 token 消耗
+- 面向本地开发工作流的桌面端 AI 协作工具
+- 强调“会话上下文 + 工作目录 + 文件/终端联动”
+- 使用 ACP 作为统一协议层，兼容 agent 的流式事件与权限模型
+
+## 功能清单
+
+### 会话与连接
+
+- 新建会话：选择工作目录后创建新 session
+- 恢复会话：从本地会话列表恢复，ACP 服务端重放历史事件
+- 删除会话：删除本地会话元数据目录
+- 连接状态：切换会话时显示连接中状态，异常信息进入全局错误队列
+
+### 对话体验
+
+- 流式渲染：实时显示 assistant chunk 与 thinking chunk
+- 工具调用可视化：在消息流中插入 tool 状态与结果
+- 中断能力：支持手动 `cancelPrompt`
+- 超时兜底：30 秒无事件时自动结束 streaming 并注入系统提示
+
+### 权限交互
+
+- 当 agent 请求权限时弹出 `Permission Required` 对话框
+- 选项由 agent 下发，前端直接回传 `optionId`
+- 会话内支持权限请求队列，逐个处理
+
+### 文件工作区
+
+- 文件树浏览（分层加载 + 目录优先排序）
+- 新建文件/文件夹、重命名、删除（回收站或永久删除）
+- 支持内部拖拽移动与多选批量移动
+- 支持外部文件/文件夹拖入并落盘
+- 支持原生右键菜单与 Finder 定位
+
+### 终端能力
+
+- 每个会话可创建多个终端 tab
+- 基于 `node-pty` + `xterm`，支持实时输入输出
+- 支持终端 resize 与进程退出状态反馈
+- 会话删除或应用退出时自动清理终端资源
+
+### 模型与用量
+
+- 从 ACP 模型状态读取可用模型列表
+- 支持在会话运行中切换模型
+- 在输入区显示 token 统计（input/output/total/think）
+
+## 用户交互流程（简版）
+
+1. 点击 New Chat，选择工作目录  
+2. 创建 session 并建立 ACP 连接  
+3. 输入消息，接收流式响应/工具事件  
+4. 如遇权限请求，在弹窗中选择策略  
+5. 通过文件树或终端继续上下文协作  
+
+## 数据与安全边界
+
+- 本地保存：仅会话元数据（`~/.fello/sessions/<id>/meta.json`）
+- 不本地保存：完整对话事件日志（由 ACP 服务端持有）
+- 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 
 ## 运行环境
 
-- 运行时：Node.js
-- 桌面端框架：Electron
-- 开发构建：electron-vite（renderer 基于 Vite）
-- ACP Server：`kiro-cli acp`（需预先安装）
+- Node.js（Electron 主进程运行时）
+- Electron（桌面容器）
+- React + Vite（渲染层）
+- ACP Server：`kiro-cli acp`
 - 数据目录：`~/.fello/sessions/`
