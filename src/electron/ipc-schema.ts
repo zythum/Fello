@@ -2,10 +2,27 @@ import type { RequestPermissionRequest, SessionNotification } from "@agentclient
 
 export type FelloIPCRequests = {
   listSessions: { params: void; response: unknown[] };
-  newChat: { params: string; response: { sessionId: string; agentInfo: unknown } };
+  newChat: {
+    params: string;
+    response: {
+      sessionId: string;
+      agentInfo: unknown;
+      models: {
+        availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
+        currentModelId: string;
+      } | null;
+    };
+  };
   resumeChat: {
     params: { sessionId: string; cwd: string };
-    response: { ok: boolean; models: unknown | null };
+    response: {
+      sessionId: string;
+      agentInfo: unknown;
+      models: {
+        availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
+        currentModelId: string;
+      } | null;
+    };
   };
   sendMessage: { params: string; response: { stopReason: string } };
   cancelPrompt: { params: void; response: void };

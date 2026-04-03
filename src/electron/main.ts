@@ -276,21 +276,17 @@ const handlers: {
 
   async newChat(cwd: string) {
     const b = await ensureBridge(cwd);
-    const { sessionId } = await b.createSession(cwd);
+    const { sessionId, models } = await b.createSession(cwd);
     activeSessionId = sessionId;
     storageOps.createSession(sessionId, cwd, `${getKiroCliCommand()} acp`);
-    return { sessionId, agentInfo: b.agentInfo };
+    return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
   },
 
   async resumeChat({ sessionId, cwd }: { sessionId: string; cwd: string }) {
-    try {
-      const b = await ensureBridge(cwd);
-      const models = await b.resumeSession(sessionId, cwd);
-      activeSessionId = sessionId;
-      return { ok: true, models: formatModels(models) };
-    } catch {
-      return { ok: false, models: null };
-    }
+    const b = await ensureBridge(cwd);
+    const models = await b.resumeSession(sessionId, cwd);
+    activeSessionId = sessionId;
+    return { sessionId, agentInfo: b.agentInfo, models: formatModels(models) };
   },
 
   async sendMessage(text: string) {

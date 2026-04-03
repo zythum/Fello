@@ -25,19 +25,24 @@ export function Sidebar() {
 
   if (!sidebarOpen) return null;
 
+  const applyModels = (models: { availableModels: any[]; currentModelId: string } | null) => {
+    if (!models) return;
+    useAppStore.getState().setAvailableModels(models.availableModels);
+    useAppStore.getState().setCurrentModelId(models.currentModelId);
+  };
+
   const handleNewChat = async () => {
     try {
       const cwd = (await request.pickWorkDir()) as string | null;
       if (!cwd) return;
       setIsConnecting(true);
-      const result = (await request.newChat(cwd)) as { sessionId: string } | null;
+      const result = (await request.newChat(cwd)) as {
+        sessionId: string;
+        models: { availableModels: any[]; currentModelId: string } | null;
+      } | null;
       if (!result) return;
       setActiveSessionId(result.sessionId);
-      const models = await request.getModels();
-      if (models) {
-        useAppStore.getState().setAvailableModels(models.availableModels as any);
-        useAppStore.getState().setCurrentModelId(models.currentModelId);
-      }
+      applyModels(result.models);
       const updated = ((await request.listSessions()) as SessionInfo[]) ?? [];
       setSessions(updated);
     } catch (err) {
@@ -54,15 +59,14 @@ export function Sidebar() {
     setIsConnecting(true);
     try {
       const result = (await request.resumeChat({ sessionId: session.id, cwd: session.cwd })) as {
-        ok: boolean;
+        sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
       } | null;
-      if (result?.ok && result.models) {
-        useAppStore.getState().setAvailableModels(result.models.availableModels);
-        useAppStore.getState().setCurrentModelId(result.models.currentModelId);
-      }
+      if (!result) return;
+      applyModels(result.models);
     } catch (err) {
       console.error("Failed to load session:", err);
+      pushGlobalErrorMessage(getErrorMessage(err));
     } finally {
       setIsConnecting(false);
     }
