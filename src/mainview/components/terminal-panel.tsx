@@ -130,7 +130,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
       if (!container) continue;
       const terminal = new Terminal({
         cursorBlink: true,
-        fontSize: 12,
+        fontSize: 11,
         lineHeight: 1.35,
         theme: {
           background: terminalBackground,

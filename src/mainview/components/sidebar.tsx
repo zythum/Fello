@@ -253,7 +253,7 @@ export function Sidebar() {
                   ) : (
                     <FolderClosed className="size-3.5" />
                   )}
-                  <span className="flex-1 truncate leading-normal uppercase" title={project.cwd}>
+                  <span className="flex-1 truncate leading-normal font-normal uppercase" title={project.cwd}>
                     {project.title}
                   </span>
                   <DropdownMenu
