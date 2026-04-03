@@ -59,7 +59,7 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
 }
 
 function getKiroCliCommand() {
-  return process.env.KIRO_CLI_PATH?.trim() || "kimi";
+  return process.env.KIRO_CLI_PATH?.trim() || "kiro-cli";
 }
 
 function extractErrorMessage(error: unknown): string {
