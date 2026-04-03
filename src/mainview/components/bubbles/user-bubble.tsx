@@ -52,7 +52,7 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
     <div className="px-4 flex flex-col">
       {prevBubbleRole != null && <div className="my-14 h-px bg-border" />}
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-secondary px-4 py-3 text-xs leading-relaxed font-normal text-card-foreground/75">
+        <div className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-secondary px-4 py-3 text-[13px] leading-relaxed font-normal text-card-foreground/75">
           <p className="whitespace-pre-wrap wrap-break-word font-normal">{contentNodes}</p>
         </div>
       </div>

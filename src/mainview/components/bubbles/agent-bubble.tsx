@@ -23,7 +23,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
   return (
     <div
       className={cn(
-        "w-full px-4 text-xs leading-relaxed font-normal text-foreground/75",
+        "w-full px-4 text-[13px] leading-relaxed font-normal text-foreground/75",
         prevBubbleRole != null && "mt-4",
       )}
     >
