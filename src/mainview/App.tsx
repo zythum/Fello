@@ -1,16 +1,14 @@
 import { useEffect } from "react";
-import { useAppStore, useActiveSessionState } from "./store";
+import { useAppStore } from "./store";
 import { request, subscribe } from "./backend";
 import { processEvent } from "./lib/process-event";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
-import { PermissionDialog } from "./components/permission-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { SessionInfo } from "./store";
 
 function App() {
   const { addPermissionRequest, setSessions } = useAppStore();
-  const { permissionRequests } = useActiveSessionState();
 
   useEffect(() => {
     request.listSessions().then((s: unknown) => {
@@ -47,9 +45,6 @@ function App() {
       <div className="flex h-screen bg-background text-foreground">
         <Sidebar />
         <SessionView />
-        {permissionRequests.map((req) => (
-          <PermissionDialog key={req.toolCall.toolCallId} request={req} />
-        ))}
       </div>
     </TooltipProvider>
   );

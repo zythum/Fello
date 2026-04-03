@@ -1,13 +1,6 @@
 import type { PermissionRequest } from "../store";
 import * as backend from "../backend";
 import { useAppStore } from "../store";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
 
@@ -27,19 +20,17 @@ export function PermissionDialog({ request }: Props) {
   };
 
   return (
-    <Dialog open onOpenChange={() => {}}>
-      <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-yellow-500/10">
-              <ShieldAlert className="size-5 text-yellow-400" />
-            </div>
-            <div>
-              <DialogTitle>Permission Required</DialogTitle>
-              <DialogDescription>{request.toolCall.title}</DialogDescription>
-            </div>
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 supports-backdrop-filter:backdrop-blur-xs">
+      <div className="grid w-full max-w-[calc(100%-2rem)] m-4 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 sm:max-w-md">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-yellow-500/10">
+            <ShieldAlert className="size-5 text-yellow-400" />
           </div>
-        </DialogHeader>
+          <div>
+            <h2 className="leading-none font-medium">Permission Required</h2>
+            <p className="text-sm text-muted-foreground">{request.toolCall.title}</p>
+          </div>
+        </div>
         <div className="flex flex-col gap-2">
           {request.options.map((option) => {
             const isAllow = option.kind === "allow_once" || option.kind === "allow_always";
@@ -56,7 +47,7 @@ export function PermissionDialog({ request }: Props) {
             );
           })}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
