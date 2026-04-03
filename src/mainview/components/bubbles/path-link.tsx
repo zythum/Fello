@@ -16,6 +16,8 @@ export const PathLink = memo(function PathLink({ path, children }: PathLinkProps
         e.preventDefault();
         request.revealInFinder(path);
       }}
-    >#{children}</button>
+    >
+      #{children}
+    </button>
   );
 });

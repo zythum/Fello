@@ -1,6 +1,7 @@
 import type { Plugin } from "unified";
 
-const ABSOLUTE_PATH_REGEX = /(?<=^|[^\w.:\\])(?:(?:\/[a-zA-Z0-9_.-]+)+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?|[a-zA-Z]:[\\/](?:[a-zA-Z0-9_.-]+[\\/])*[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?)/g;
+const ABSOLUTE_PATH_REGEX =
+  /(?<=^|[^\w.:\\])(?:(?:\/[a-zA-Z0-9_.-]+)+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?|[a-zA-Z]:[\\/](?:[a-zA-Z0-9_.-]+[\\/])*[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?)/g;
 
 export const remarkFilePath: Plugin = () => {
   return (tree: any) => {
@@ -31,7 +32,7 @@ export const remarkFilePath: Plugin = () => {
                   type: "link",
                   url: `reveal://${path}`,
                   title: path,
-                  children: [{ type: "text", value: path.split(/[/\\]/).pop() || path }]
+                  children: [{ type: "text", value: path.split(/[/\\]/).pop() || path }],
                 });
                 lastIndex = index + path.length;
               }

@@ -58,7 +58,7 @@
 - 发送消息：`prompt`
 - 取消生成：`cancel`
 
-`ACPBridge` 通过 `Map<sessionId, SessionModelState>` 维护模型状态缓存，避免会话切换时反复拉取模型信息。
+`ACPBridge` 通过 `Map<sessionId, SessionModelState>` 与 `Map<sessionId, SessionModeState>` 维护模型与模式状态缓存，避免会话切换时反复拉取。
 
 ### 2) 事件驱动的 UI 渲染
 
@@ -75,9 +75,9 @@ ACP sessionUpdate
 
 这种设计保证了实时流式更新与历史重放的处理逻辑一致。
 
-### 3) 会话隔离的状态桶
+### 3) 会话隔离与全局状态
 
-`store.ts` 使用 `Map<sessionId, SessionState>` 管理每个会话的：
+`store.ts` 使用 `Map<sessionId, SessionState>` 管理每个会话隔离的：
 
 - messages
 - usage token 统计
@@ -85,7 +85,12 @@ ACP sessionUpdate
 - activeToolCalls
 - isStreaming
 
-切换会话时只切换 `activeSessionId`，避免跨会话状态污染。
+全局共享状态则直接挂载于 store 根层级：
+
+- `availableModels` / `currentModelId`：当前连接环境可用的模型及所选模型
+- `availableModes` / `currentModeId`：当前连接环境可用的模式及所选模式
+
+切换会话时只切换 `activeSessionId`，避免跨会话状态污染，同时全局状态会自动同步为当前会话的模型与模式。
 
 ### 4) 主进程统一托管系统能力
 

@@ -8,7 +8,8 @@ interface Props {
   nextBubbleRole?: ChatMessage["role"];
 }
 
-const ABSOLUTE_PATH_REGEX = /(?<=^|[^\w.:\\])(?:(?:\/[a-zA-Z0-9_.-]+)+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?|[a-zA-Z]:[\\/](?:[a-zA-Z0-9_.-]+[\\/])*[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?)/g;
+const ABSOLUTE_PATH_REGEX =
+  /(?<=^|[^\w.:\\])(?:(?:\/[a-zA-Z0-9_.-]+)+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?|[a-zA-Z]:[\\/](?:[a-zA-Z0-9_.-]+[\\/])*[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?)/g;
 
 export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
   const contentNodes = useMemo(() => {
@@ -18,21 +19,23 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
     let lastIndex = 0;
 
     const matches = [...message.content.matchAll(ABSOLUTE_PATH_REGEX)];
-    const validMatches = matches.filter(m => m[0].length >= 3 && m[0] !== "/");
+    const validMatches = matches.filter((m) => m[0].length >= 3 && m[0] !== "/");
 
     for (const match of validMatches) {
       const index = match.index!;
       const path = match[0];
 
       if (index > lastIndex) {
-        parts.push(<span key={`text-${lastIndex}`}>{message.content.slice(lastIndex, index)}</span>);
+        parts.push(
+          <span key={`text-${lastIndex}`}>{message.content.slice(lastIndex, index)}</span>,
+        );
       }
 
       const fileName = path.split(/[/\\]/).pop() || path;
       parts.push(
         <PathLink key={`path-${index}`} path={path}>
           {fileName}
-        </PathLink>
+        </PathLink>,
       );
 
       lastIndex = index + path.length;

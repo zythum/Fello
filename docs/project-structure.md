@@ -23,7 +23,8 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── process-event.ts      # ACP 事件解析与流式收尾
-│       │   └── utils.ts              # cn() 等工具函数
+│       │   ├── remark-filepath.ts    # Markdown 文件路径转换为可点击链接的 remark 插件
+│       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
 │       └── components/
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
@@ -39,7 +40,8 @@ fello/
 │           │   ├── user-bubble.tsx
 │           │   ├── agent-bubble.tsx
 │           │   ├── thinking-bubble.tsx
-│           │   └── tool-bubble.tsx
+│           │   ├── tool-bubble.tsx
+│           │   └── path-link.tsx         # 提取的绝对路径链接渲染组件
 │           └── ui/                   # shadcn/base-ui 基础组件
 │               ├── badge.tsx
 │               ├── button.tsx
