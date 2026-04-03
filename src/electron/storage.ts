@@ -7,6 +7,43 @@ const DATA_DIR = join(homedir(), ".fello");
 const PROJECTS_DIR = join(DATA_DIR, "projects");
 mkdirSync(PROJECTS_DIR, { recursive: true });
 
+export interface AgentConfig {
+  id: string;
+  name: string;
+  command: string;
+}
+
+export interface SettingsMeta {
+  agents: AgentConfig[];
+}
+
+export const DEFAULT_SETTINGS: SettingsMeta = {
+  agents: [
+    { id: "kiro", name: "Kiro", command: "kiro-cli acp" },
+    { id: "kimi", name: "Kimi", command: "kimi acp" },
+  ],
+};
+
+function settingsPath() {
+  return join(DATA_DIR, "settings.json");
+}
+
+function readSettings(): SettingsMeta {
+  try {
+    if (!existsSync(settingsPath())) return DEFAULT_SETTINGS;
+    const raw = JSON.parse(readFileSync(settingsPath(), "utf-8"));
+    return {
+      agents: Array.isArray(raw.agents) ? raw.agents : DEFAULT_SETTINGS.agents,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function writeSettings(settings: SettingsMeta) {
+  writeFileSync(settingsPath(), JSON.stringify(settings, null, 2));
+}
+
 interface ProjectMeta {
   id: string;
   title: string;
@@ -23,10 +60,6 @@ interface SessionMeta {
   command: string;
   created_at: number;
   updated_at: number;
-}
-
-function commandForAgent(agent: string) {
-  return agent === "kimi" ? "kimi cli" : "kiro-cli acp";
 }
 
 function hashCwd(cwd: string) {
@@ -90,7 +123,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const agent = typeof raw.agent === "string" ? raw.agent : "kiro";
     const session_id = typeof raw.session_id === "string" ? raw.session_id : "";
     const project_id = typeof raw.project_id === "string" ? raw.project_id : projectId;
-    const command = typeof raw.command === "string" ? raw.command : commandForAgent(agent);
+    const command = typeof raw.command === "string" ? raw.command : "kiro-cli acp";
     const created_at =
       typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
     const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
@@ -132,6 +165,14 @@ function listSessionMetasByProject(projectId: string) {
 }
 
 export const storageOps = {
+  getSettings() {
+    return readSettings();
+  },
+
+  updateSettings(settings: SettingsMeta) {
+    writeSettings(settings);
+  },
+
   listProjects() {
     return listProjectMetas().map((p) => ({
       id: p.id,
@@ -195,7 +236,7 @@ export const storageOps = {
     };
   },
 
-  createSession(projectId: string, acpSessionId: string, command: string, agent = "kiro") {
+  createSession(projectId: string, acpSessionId: string, command: string, agent: string) {
     const project = readProjectMeta(projectId);
     if (!project) throw new Error("Project does not exist");
     const now = Math.floor(Date.now() / 1000);

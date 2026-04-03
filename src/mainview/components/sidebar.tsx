@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SettingsDialog } from "./settings-dialog";
 import {
   FolderOpen,
   FolderClosed,
@@ -27,6 +28,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Settings,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -47,6 +49,7 @@ export function Sidebar() {
     pushGlobalErrorMessage,
     sidebarOpen,
     resetSessionState,
+    configuredAgents,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
@@ -59,6 +62,7 @@ export function Sidebar() {
   >(null);
   const [renameValue, setRenameValue] = useState("");
   const [pendingDeleteProject, setPendingDeleteProject] = useState<ProjectInfo | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (!sidebarOpen) return null;
 
@@ -114,11 +118,11 @@ export function Sidebar() {
     }
   };
 
-  const handleNewChat = async (projectId: string, agent: "kiro" | "kimi") => {
+  const handleNewChat = async (projectId: string, agentId: string) => {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       setIsConnecting(true);
-      const result = (await request.newSession({ projectId, agent })) as {
+      const result = (await request.newSession({ projectId, agentId })) as {
         sessionId: string;
         models: { availableModels: any[]; currentModelId: string } | null;
         modes: { availableModes: any[]; currentModeId: string } | null;
@@ -263,7 +267,7 @@ export function Sidebar() {
               <div key={project.id} className="space-y-0.5">
                 <div
                   onClick={() => toggleProject(project.id)}
-                  className={`group flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs font-medium text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                  className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-medium text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
                     openProjectMenuId === project.id || openAgentMenuProjectId === project.id
                       ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                       : ""
@@ -361,22 +365,17 @@ export function Sidebar() {
                       onClick={(e) => e.stopPropagation()}
                       className="w-28 py-1"
                     >
-                      <DropdownMenuItem
-                        className="text-xs rounded-1 text-muted-foreground/90"
-                        onClick={() => {
-                          void handleNewChat(project.id, "kiro");
-                        }}
-                      >
-                        Kiro
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-xs rounded-1 text-muted-foreground/90"
-                        onClick={() => {
-                          void handleNewChat(project.id, "kimi");
-                        }}
-                      >
-                        Kimi
-                      </DropdownMenuItem>
+                      {configuredAgents.map((agent) => (
+                        <DropdownMenuItem
+                          key={agent.id}
+                          className="text-xs rounded-1 text-muted-foreground/90"
+                          onClick={() => {
+                            void handleNewChat(project.id, agent.id);
+                          }}
+                        >
+                          {agent.name}
+                        </DropdownMenuItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -392,8 +391,8 @@ export function Sidebar() {
                       } ${openSessionMenuId === session.id ? "bg-sidebar-accent/35" : ""}`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                        <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">
-                          {session.agent}
+                        <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase max-w-[60px] truncate block text-center leading-none py-0">
+                          {configuredAgents.find(a => a.id === session.agent)?.name || session.agent}
                         </Badge>
                         <span className="min-w-0 flex-1 truncate leading-normal">
                           {session.title}
@@ -456,6 +455,18 @@ export function Sidebar() {
           )}
         </div>
       </ScrollArea>
+
+      <div className="mt-auto border-t border-border/60 p-2">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Settings className="size-4" />
+          Settings
+        </Button>
+      </div>
+
       <Dialog
         open={renameTarget !== null}
         onOpenChange={(open) => {
@@ -527,6 +538,8 @@ export function Sidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </aside>
   );
 }

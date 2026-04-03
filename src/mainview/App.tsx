@@ -23,6 +23,7 @@ function App() {
     setProjects,
     globalErrorMessages,
     shiftGlobalErrorMessage,
+    setConfiguredAgents,
   } = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
@@ -38,10 +39,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    Promise.all([request.listProjects(), request.listSessions()]).then(([projects, sessions]) => {
+    async function loadData() {
+      const [projects, sessions, settings] = await Promise.all([
+        request.listProjects(),
+        request.listSessions(),
+        request.getSettings(),
+      ]);
       setProjects((projects as ProjectInfo[]) ?? []);
       setSessions((sessions as SessionInfo[]) ?? []);
-    });
+      setConfiguredAgents(settings.agents);
+    }
+    void loadData();
   }, [setProjects, setSessions]);
 
   useEffect(() => {

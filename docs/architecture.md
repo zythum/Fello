@@ -29,7 +29,7 @@
 - `acp-bridge.ts`：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
 - `preload.ts`：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - `ipc-schema.ts`：主进程与渲染进程请求/事件的统一契约
-- `storage.ts`：`~/.fello/projects/<project-id>/` 下的项目与会话元数据持久化
+- `storage.ts`：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据
 
 ### Renderer（`src/mainview/`）
 
@@ -87,6 +87,7 @@ ACP sessionUpdate
 
 全局共享状态则直接挂载于 store 根层级：
 
+- `configuredAgents`：用户在设置中自定义的可用 Agent 及启动命令
 - `availableModels` / `currentModelId`：当前连接环境可用的模型及所选模型
 - `availableModes` / `currentModeId`：当前连接环境可用的模式及所选模式
 

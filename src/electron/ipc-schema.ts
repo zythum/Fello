@@ -30,7 +30,19 @@ export interface ModeState {
   currentModeId: string;
 }
 
+export interface AgentConfig {
+  id: string;
+  name: string;
+  command: string;
+}
+
+export interface SettingsMeta {
+  agents: AgentConfig[];
+}
+
 export type FelloIPCRequests = {
+  getSettings: { params: void; response: SettingsMeta };
+  updateSettings: { params: SettingsMeta; response: void };
   listSessions: { params: void; response: SessionInfo[] };
   listProjects: { params: void; response: ProjectInfo[] };
   addProject: {
@@ -40,7 +52,7 @@ export type FelloIPCRequests = {
   renameProject: { params: { projectId: string; title: string }; response: void };
   deleteProject: { params: string; response: void };
   newSession: {
-    params: { projectId: string; agent: "kiro" | "kimi" };
+    params: { projectId: string; agentId: string };
     response: {
       sessionId: string;
       agentInfo: unknown;

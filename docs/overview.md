@@ -1,6 +1,6 @@
 # Fello 项目简介
 
-Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端。它以 Electron 作为桌面容器，通过 `kiro-cli acp` 与 agent 建立连接，在一个应用内整合了对话、工具调用、权限决策、文件树和终端面板。
+Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端。它以 Electron 作为桌面容器，通过可配置的命令行（如 `kiro-cli acp`）与 agent 建立连接，在一个应用内整合了对话、工具调用、权限决策、文件树和终端面板。
 
 ## 产品定位
 
@@ -50,6 +50,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ### 模型与模式
 
+- 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent，并自定义其启动命令。
 - 从 ACP 模型状态读取可用模型列表与模式（Mode）列表
 - 支持在下拉菜单中显示模型和模式的描述信息
 - 支持在会话运行中随时切换模型与模式
@@ -65,7 +66,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 数据与安全边界
 
-- 本地保存：项目与会话元数据（`~/.fello/projects/<project-id>/project.json` 与 `~/.fello/projects/<project-id>/sessions/<session-id>/session.json`）
+- 本地保存：项目与会话元数据（`~/.fello/projects/` 下），以及全局配置文件（`~/.fello/settings.json`）
 - 不本地保存：完整对话事件日志（由 ACP 服务端持有）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 

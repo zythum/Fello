@@ -96,6 +96,12 @@ const emptySessionState = (): SessionState => ({
   activeToolCalls: new Map(),
 });
 
+export interface AgentConfig {
+  id: string;
+  name: string;
+  command: string;
+}
+
 interface AppState {
   projects: ProjectInfo[];
   sessions: SessionInfo[];
@@ -105,6 +111,7 @@ interface AppState {
   // Global (not per-session)
   isConnecting: boolean;
   sidebarOpen: boolean;
+  configuredAgents: AgentConfig[];
   availableModels: ModelOption[];
   currentModelId: string | null;
   availableModes: ModeOption[];
@@ -136,6 +143,7 @@ interface AppState {
   // Global mutators
   setIsConnecting: (v: boolean) => void;
   setSidebarOpen: (v: boolean) => void;
+  setConfiguredAgents: (agents: AgentConfig[]) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
   setAvailableModes: (modes: ModeOption[]) => void;
@@ -153,6 +161,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   isConnecting: false,
   sidebarOpen: true,
+  configuredAgents: [],
   availableModels: [],
   currentModelId: null,
   availableModes: [],
@@ -260,6 +269,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Global mutators
   setIsConnecting: (v) => set({ isConnecting: v }),
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
+  setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
   setAvailableModes: (modes) => set({ availableModes: modes }),

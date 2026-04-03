@@ -33,7 +33,7 @@ if (isDev) {
   app.disableHardwareAcceleration();
 }
 
-type AgentType = "kiro" | "kimi";
+type AgentType = string;
 const bridgePool = new Map<AgentType, ACPBridge>();
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
@@ -60,25 +60,22 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
   mainWindow.webContents.send(channel, payload);
 }
 
-function getKiroCliCommand() {
-  return process.env.KIRO_CLI_PATH?.trim() || "kiro-cli";
-}
-
-function getKimiCliCommand() {
-  return process.env.KIMI_CLI_PATH?.trim() || "kimi";
-}
-
-function normalizeAgent(agent: string): AgentType {
-  return agent === "kimi" ? "kimi" : "kiro";
-}
-
-function resolveAgentRuntime(agent: AgentType) {
-  if (agent === "kimi") {
-    const command = getKimiCliCommand();
-    return { command, args: ["acp"], commandLabel: `${command} cli` };
+function resolveAgentRuntime(agentId: string) {
+  const settings = storageOps.getSettings();
+  const agent = settings.agents.find((a) => a.id === agentId);
+  if (!agent) {
+    throw new Error(`Unknown agent: ${agentId}. Please check your settings.`);
   }
-  const command = getKiroCliCommand();
-  return { command, args: ["acp"], commandLabel: `${command} acp` };
+  const cmdStr = agent.command.trim();
+  if (!cmdStr) {
+    throw new Error(`Agent "${agent.name}" has no command configured.`);
+  }
+  // Simple split by space
+  const parts = cmdStr.split(/\s+/);
+  const command = parts[0];
+  const args = parts.slice(1);
+
+  return { command, args, commandLabel: cmdStr };
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -317,6 +314,14 @@ const handlers: {
     params: FelloIPCSchema["requests"][K]["params"],
   ) => Promise<FelloIPCSchema["requests"][K]["response"]>;
 } = {
+  async getSettings() {
+    return storageOps.getSettings();
+  },
+
+  async updateSettings(settings) {
+    storageOps.updateSettings(settings);
+  },
+
   async listSessions() {
     return storageOps.listSessions();
   },
@@ -351,18 +356,17 @@ const handlers: {
     }
   },
 
-  async newSession({ projectId, agent }: { projectId: string; agent: "kiro" | "kimi" }) {
+  async newSession({ projectId, agentId }: { projectId: string; agentId: string }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
-    const selectedAgent = normalizeAgent(agent);
-    const runtime = resolveAgentRuntime(selectedAgent);
-    const b = await ensureBridge(project.cwd, selectedAgent);
+    const runtime = resolveAgentRuntime(agentId);
+    const b = await ensureBridge(project.cwd, agentId);
     const { sessionId, models, modes } = await b.newSession(project.cwd);
     const storageSessionId = storageOps.createSession(
       project.id,
       sessionId,
       runtime.commandLabel,
-      selectedAgent,
+      agentId,
     );
     activeSessionId = sessionId;
     activeStorageSessionId = storageSessionId;
@@ -377,7 +381,7 @@ const handlers: {
   async loadSession({ sessionId }: { sessionId: string }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const b = await ensureBridge(session.cwd, normalizeAgent(session.agent));
+    const b = await ensureBridge(session.cwd, session.agent);
     const { models, modes } = await b.loadSession(session.acp_session_id, session.cwd);
     activeSessionId = session.acp_session_id;
     activeStorageSessionId = session.id;
