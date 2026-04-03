@@ -7,18 +7,38 @@ import { AgentBubble } from "./bubbles/agent-bubble";
 
 interface Props {
   message: ChatMessage;
+  prevBubbleRole?: ChatMessage["role"];
+  nextBubbleRole?: ChatMessage["role"];
 }
 
-export const MessageBubble = memo(function MessageBubble({ message }: Props) {
+export const MessageBubble = memo(function MessageBubble({
+  message,
+  prevBubbleRole,
+  nextBubbleRole,
+}: Props) {
   switch (message.role) {
     case "tool":
-      return <ToolBubble message={message} />;
+      return (
+        <ToolBubble
+          message={message}
+          prevBubbleRole={prevBubbleRole}
+          nextBubbleRole={nextBubbleRole}
+        />
+      );
     case "thinking":
-      return <ThinkingBubble message={message} />;
+      return (
+        <ThinkingBubble
+          message={message}
+          prevBubbleRole={prevBubbleRole}
+          nextBubbleRole={nextBubbleRole}
+        />
+      );
     case "user":
-      return <UserBubble message={message} />;
+      return <UserBubble message={message} prevBubbleRole={prevBubbleRole} nextBubbleRole={nextBubbleRole} />;
     case "assistant":
-      return <AgentBubble message={message} />;
+      return (
+        <AgentBubble message={message} prevBubbleRole={prevBubbleRole} nextBubbleRole={nextBubbleRole} />
+      );
     default:
       return null;
   }

@@ -1,6 +1,7 @@
 import { memo } from "react";
 import type { ChatMessage } from "../../store";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Check,
   X,
@@ -95,11 +96,29 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
 
 interface ToolBubbleProps {
   message: ChatMessage;
+  prevBubbleRole?: ChatMessage["role"];
+  nextBubbleRole?: ChatMessage["role"];
 }
 
-export const ToolBubble = memo(function ToolBubble({ message }: ToolBubbleProps) {
+export const ToolBubble = memo(function ToolBubble({
+  message,
+  prevBubbleRole,
+  nextBubbleRole,
+}: ToolBubbleProps) {
+  const isGroupedWithPrev = prevBubbleRole === "tool";
+  const isGroupedWithNext = nextBubbleRole === "tool";
+  const hasPrevBubble = prevBubbleRole != null;
+
   return (
-    <div className="rounded-md border border-border bg-card mx-10">
+    <div
+      className={cn(
+        "tool-bubble mx-4 border border-border bg-card rounded-none",
+        !isGroupedWithPrev && hasPrevBubble && "mt-4",
+        isGroupedWithPrev && "-mt-px",
+        !isGroupedWithPrev && "rounded-t-md",
+        !isGroupedWithNext && "rounded-b-md"
+      )}
+    >
       <ToolItem message={message} />
     </div>
   );

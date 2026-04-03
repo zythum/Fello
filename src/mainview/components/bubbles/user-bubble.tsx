@@ -1,19 +1,18 @@
 import { memo } from "react";
-import { User } from "lucide-react";
 import type { ChatMessage } from "../../store";
+import { cn } from "@/lib/utils";
 
 interface Props {
   message: ChatMessage;
+  prevBubbleRole?: ChatMessage["role"];
+  nextBubbleRole?: ChatMessage["role"];
 }
 
-export const UserBubble = memo(function UserBubble({ message }: Props) {
+export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
   return (
-    <div className="flex gap-3 justify-end items-start pl-10">
-      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground">
-        <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
-      </div>
-      <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary">
-        <User className="size-4 text-primary-foreground" />
+    <div className={cn("flex justify-end px-4", prevBubbleRole != null && "mt-4")}>
+      <div className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-secondary px-4 py-3 text-xs leading-relaxed font-normal text-card-foreground">
+        <p className="whitespace-pre-wrap wrap-break-word font-normal">{message.content}</p>
       </div>
     </div>
   );

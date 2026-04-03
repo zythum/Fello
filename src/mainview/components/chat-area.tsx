@@ -3,7 +3,7 @@ import { useActiveSessionState } from "../store";
 import { MessageBubble } from "./message-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Loader2, Bot, ArrowDown } from "lucide-react";
+import { Loader2, ArrowDown } from "lucide-react";
 
 export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
@@ -43,20 +43,28 @@ export function ChatArea() {
   return (
     <div className="relative min-h-0 flex-1">
       <ScrollArea ref={scrollAreaRef} className="h-full">
-        <div className="mx-auto max-w-3xl space-y-4 p-4">
-          {messages.map((msg, i) => (
-            <MessageBubble key={msg.id ?? msg.toolCallId ?? `msg-${i}`} message={msg} />
+        <div className="py-4">
+          {messages
+          .filter(message => {
+            if (message.role === 'assistant' && !message.content) {
+              return false;
+            }
+            return true
+          })
+          .map((msg, i, messages) => (
+            <div key={msg.id ?? msg.toolCallId ?? `msg-${i}`} className="chat-message" data-role={msg.role}>
+              <MessageBubble
+                message={msg}
+                prevBubbleRole={messages[i - 1]?.role}
+                nextBubbleRole={messages[i + 1]?.role}
+              />
+            </div>
           ))}
 
           {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
-            <div className="flex gap-3 justify-start">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Bot className="size-4 text-primary" />
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-card px-4 py-3 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                <span>Thinking...</span>
-              </div>
+            <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Thinking...</span>
             </div>
           )}
 

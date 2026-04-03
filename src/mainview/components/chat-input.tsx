@@ -264,7 +264,7 @@ export function ChatInput() {
                 onClick={handleChangeCwd}
               >
                 <Folder className="size-3 shrink-0" />
-                <span className="max-w-[200px] truncate">
+                <span className="max-w-50 truncate">
                   {(() => {
                     const parts = session.cwd.split("/").filter(Boolean);
                     if (parts.length <= 5) return session.cwd;
