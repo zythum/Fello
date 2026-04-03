@@ -109,7 +109,7 @@ function TreeItem({
           actions.showNodeContextMenu(node, e);
         }}
         className={cn(
-          "flex h-[28px] cursor-default select-none items-center gap-1.5 px-1.5 text-[13px] leading-none",
+          "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-[13px] leading-none",
           isSelected
             ? "bg-accent text-accent-foreground"
             : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
@@ -465,7 +465,7 @@ export function FileTree() {
       e.dataTransfer.effectAllowed = "copyMove";
 
       // Attach structured node info so chat-input can create mentions
-      const nodesPayload = ids.map((nodeId) => {
+      const nodesPayloads = ids.map((nodeId) => {
         let isFolder = false;
         for (const root of data) {
           const found = findNode(root, nodeId);
@@ -476,7 +476,18 @@ export function FileTree() {
         }
         return { id: nodeId, name: nodeId.split("/").pop() ?? nodeId, isFolder };
       });
-      e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayload));
+
+      e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayloads));
+
+      const downLoadablePlaylod = nodesPayloads.find(playlod => !playlod.isFolder);
+      if (downLoadablePlaylod) {
+        const fileName = downLoadablePlaylod.name;
+        const fileUrl = `file://${downLoadablePlaylod.id}`;
+        e.dataTransfer.setData(
+          "DownloadURL",
+          `application/octet-stream:${fileName}:${fileUrl}`,
+        );
+      }
 
       const root = document.documentElement;
       const styles = getComputedStyle(root);
