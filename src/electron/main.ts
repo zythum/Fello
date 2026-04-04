@@ -2,8 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import type { FelloIPCSchema } from "./ipc-schema";
-import { backendHandlers, initBackend, killBridgeSync, extractErrorMessage } from "./backend";
+import { backendHandlers, initBackend, killBridgeSync, extractErrorMessage, type FelloIPCSchema } from "../backend/backend";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);

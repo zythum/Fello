@@ -1,4 +1,4 @@
-import type { FelloIPCSchema } from "../electron/ipc-schema";
+import type { FelloIPCSchema } from "../backend/ipc-schema";
 
 declare global {
   interface Window {

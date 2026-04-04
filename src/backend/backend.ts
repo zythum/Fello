@@ -618,3 +618,5 @@ export const backendHandlers: {
     return { ok: true };
   },
 };
+
+export { type FelloIPCSchema };
