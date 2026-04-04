@@ -218,7 +218,7 @@ export function ChatInput() {
             onChange={(_e, newValue) => setInput(newValue)}
             onKeyDown={handleKeyDown}
             placeholder={
-              disabled ? t('chatInput.placeholderDisabled') : t('chatInput.placeholderActive')
+              disabled ? t("chatInput.placeholderDisabled") : t("chatInput.placeholderActive")
             }
             disabled={disabled}
             aria-label="Message input"

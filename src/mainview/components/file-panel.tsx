@@ -428,7 +428,11 @@ export function FilePanel() {
   const executeDelete = async (permanent: boolean) => {
     if (!pendingDeleteIds) return;
     try {
-      await Promise.all(pendingDeleteIds.map((id) => request.deleteFile({ path: id, permanent })));
+      await Promise.all(
+        pendingDeleteIds.map((id) =>
+          permanent ? request.deleteFile({ path: id }) : request.trashFile(id),
+        ),
+      );
     } catch (err) {
       console.error("Delete failed:", err);
     }

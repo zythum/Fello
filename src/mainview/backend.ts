@@ -24,8 +24,20 @@ function emit<K extends keyof BackendEvents>(event: K, data: BackendEvents[K]) {
 // --- Public API ---
 
 type Requests = FelloIPCSchema["requests"];
+
+type ElectronRequests = {
+  showOpenDialog: { params: void; response: string | null };
+  revealInFinder: { params: string; response: void };
+  openInBrowser: { params: string; response: void };
+  trashFile: { params: string; response: void };
+};
+
+type AllRequests = Requests & ElectronRequests;
+
 type RequestClient = {
-  [K in keyof Requests]: (params: Requests[K]["params"]) => Promise<Requests[K]["response"]>;
+  [K in keyof AllRequests]: (
+    params: AllRequests[K]["params"],
+  ) => Promise<AllRequests[K]["response"]>;
 };
 
 const fallbackBridge = {
@@ -42,7 +54,7 @@ export const request = new Proxy(
   {},
   {
     get(_target, prop) {
-      return (params: unknown) => bridge.invoke(prop as keyof Requests, params as never);
+      return (params: unknown) => bridge.invoke(prop as any, params as never);
     },
   },
 ) as RequestClient;

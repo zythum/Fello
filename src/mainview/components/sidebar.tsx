@@ -125,7 +125,12 @@ export function Sidebar() {
 
   const handleAddProject = async () => {
     try {
-      const result = (await request.addProject()) as { project: ProjectInfo; created: boolean };
+      const selectedPath = await request.showOpenDialog();
+      if (!selectedPath) return; // User canceled
+      const result = (await request.addProject(selectedPath)) as {
+        project: ProjectInfo;
+        created: boolean;
+      };
       if (!result.created) {
         pushGlobalErrorMessage("Project already exists.");
         return;
@@ -304,12 +309,12 @@ export function Sidebar() {
           }`}
         >
           <Home className="size-3.5" />
-          <span className="flex-1 truncate leading-normal">{t('sidebar.welcome')}</span>
+          <span className="flex-1 truncate leading-normal">{t("sidebar.welcome")}</span>
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
         <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
-          {t('sidebar.projects')}
+          {t("sidebar.projects")}
         </span>
         <Button
           variant="ghost"
@@ -378,7 +383,7 @@ export function Sidebar() {
                         }}
                       >
                         <FolderOpen className="size-3" />
-                        {t('sidebar.revealInFinder')}
+                        {t("sidebar.revealInFinder")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-xs rounded-1 text-muted-foreground/90"
@@ -388,7 +393,7 @@ export function Sidebar() {
                         }}
                       >
                         <Pencil className="size-3" />
-                        {t('sidebar.rename')}
+                        {t("sidebar.rename")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
@@ -399,7 +404,7 @@ export function Sidebar() {
                         }}
                       >
                         <Trash2 className="size-3" />
-                        {t('sidebar.delete')}
+                        {t("sidebar.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -520,7 +525,7 @@ export function Sidebar() {
                             }}
                           >
                             <Pencil className="size-3" />
-                            {t('sidebar.rename')}
+                            {t("sidebar.rename")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
@@ -531,7 +536,7 @@ export function Sidebar() {
                             }}
                           >
                             <Trash2 className="size-3" />
-                            {t('sidebar.delete')}
+                            {t("sidebar.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -541,7 +546,9 @@ export function Sidebar() {
             );
           })}
           {projects.length === 0 && (
-            <p className="mt-4 text-center text-xs text-muted-foreground">{t('sidebar.noProjects')}</p>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              {t("sidebar.noProjects")}
+            </p>
           )}
         </div>
       </ScrollArea>
@@ -555,7 +562,7 @@ export function Sidebar() {
             )}
           >
             <Settings className="size-4" />
-            {t('sidebar.settings')}
+            {t("sidebar.settings")}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="py-1">
             <DropdownMenuItem
@@ -563,13 +570,13 @@ export function Sidebar() {
               onClick={() => setSettingsOpen(true)}
             >
               <Bot className="size-3" />
-              {t('sidebar.agents')}
+              {t("sidebar.agents")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
                 <Palette className="size-3" />
-                {t('sidebar.theme')}
+                {t("sidebar.theme")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="w-32 py-1">
@@ -578,7 +585,7 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("light")}
                   >
                     <Sun className="size-3" />
-                    {t('sidebar.light')}
+                    {t("sidebar.light")}
                     {theme.theme_mode === "light" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -588,7 +595,7 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("dark")}
                   >
                     <Moon className="size-3" />
-                    {t('sidebar.dark')}
+                    {t("sidebar.dark")}
                     {theme.theme_mode === "dark" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -598,7 +605,7 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("system")}
                   >
                     <Monitor className="size-3" />
-                    {t('sidebar.system')}
+                    {t("sidebar.system")}
                     {theme.theme_mode === "system" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -610,7 +617,7 @@ export function Sidebar() {
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
                 <Globe className="size-3" />
-                {t('sidebar.language')}
+                {t("sidebar.language")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="w-32 py-1">
@@ -618,7 +625,7 @@ export function Sidebar() {
                     className="text-xs rounded-1 text-muted-foreground/90"
                     onClick={() => void handleLanguageChange("en")}
                   >
-                    {t('sidebar.english')}
+                    {t("sidebar.english")}
                     {language === "en" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -627,7 +634,7 @@ export function Sidebar() {
                     className="text-xs rounded-1 text-muted-foreground/90"
                     onClick={() => void handleLanguageChange("zh-CN")}
                   >
-                    {t('sidebar.chinese')}
+                    {t("sidebar.chinese")}
                     {language === "zh-CN" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -651,12 +658,14 @@ export function Sidebar() {
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
-              {renameTarget?.type === "session" ? t('sidebar.renameChat') : t('sidebar.renameProject')}
+              {renameTarget?.type === "session"
+                ? t("sidebar.renameChat")
+                : t("sidebar.renameProject")}
             </DialogTitle>
             <DialogDescription>
               {renameTarget?.type === "session"
-                ? t('sidebar.enterNewChatName')
-                : t('sidebar.enterNewProjectName')}
+                ? t("sidebar.enterNewChatName")
+                : t("sidebar.enterNewProjectName")}
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -678,9 +687,9 @@ export function Sidebar() {
                 setRenameValue("");
               }}
             >
-              {t('sidebar.cancel')}
+              {t("sidebar.cancel")}
             </Button>
-            <Button onClick={() => void handleRenameSubmit()}>{t('sidebar.save')}</Button>
+            <Button onClick={() => void handleRenameSubmit()}>{t("sidebar.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -693,19 +702,19 @@ export function Sidebar() {
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>{t('sidebar.deleteProject')}</DialogTitle>
+            <DialogTitle>{t("sidebar.deleteProject")}</DialogTitle>
             <DialogDescription>
               {pendingDeleteProject
-                ? t('sidebar.deleteProjectConfirm', { title: pendingDeleteProject.title })
+                ? t("sidebar.deleteProjectConfirm", { title: pendingDeleteProject.title })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingDeleteProject(null)}>
-              {t('sidebar.cancel')}
+              {t("sidebar.cancel")}
             </Button>
             <Button variant="destructive" onClick={() => void handleConfirmDeleteProject()}>
-              {t('sidebar.delete')}
+              {t("sidebar.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

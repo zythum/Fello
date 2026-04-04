@@ -53,10 +53,7 @@ export type FelloIPCRequests = {
   updateSettings: { params: SettingsMeta; response: void };
   listSessions: { params: void; response: SessionInfo[] };
   listProjects: { params: void; response: ProjectInfo[] };
-  addProject: {
-    params: void;
-    response: { project: ProjectInfo; created: boolean };
-  };
+  addProject: { params: string; response: { project: ProjectInfo; created: boolean } };
   renameProject: { params: { projectId: string; title: string }; response: void };
   deleteProject: { params: string; response: void };
   newSession: {
@@ -88,7 +85,6 @@ export type FelloIPCRequests = {
   deleteSession: { params: string; response: void };
   disconnect: { params: void; response: void };
   getCwd: { params: void; response: string };
-  pickWorkDir: { params: void; response: string | null };
   getModels: {
     params: void;
     response: ModelState | null;
@@ -108,12 +104,11 @@ export type FelloIPCRequests = {
     response: unknown;
   };
   createFile: { params: { path: string; isFolder: boolean }; response: void };
-  deleteFile: { params: { path: string; permanent: boolean }; response: void };
+  deleteFile: { params: { path: string }; response: void };
   getPlatform: { params: void; response: string };
   renameFile: { params: { oldPath: string; newPath: string }; response: void };
   moveFile: { params: { oldPath: string; newPath: string }; response: void };
   readFile: { params: string; response: string };
-  revealInFinder: { params: string; response: void };
   writeDroppedFile: {
     params: { fileName: string; base64: string; destDir: string };
     response: void;
@@ -121,18 +116,6 @@ export type FelloIPCRequests = {
   writeDroppedFolder: {
     params: { destDir: string };
     response: void;
-  };
-  showContextMenu: {
-    params: {
-      items: Array<{
-        label?: string;
-        action?: string;
-        type?: string;
-        enabled?: boolean;
-        data?: unknown;
-      }>;
-    };
-    response: string | null;
   };
   createTerminal: {
     params: { sessionId: string; cwd?: string; cols?: number; rows?: number };
@@ -150,7 +133,6 @@ export type FelloIPCRequests = {
     params: { terminalId: string; cols: number; rows: number };
     response: { ok: boolean };
   };
-  openInBrowser: { params: string; response: void };
 };
 
 export type FelloIPCEvents = {

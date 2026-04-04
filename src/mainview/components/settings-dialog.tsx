@@ -107,18 +107,16 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{t('settings.title')}</DialogTitle>
-          <DialogDescription>
-            {t('settings.description')}
-          </DialogDescription>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
+          <DialogDescription>{t("settings.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">{t('settings.agents')}</h3>
+            <h3 className="text-sm font-medium">{t("settings.agents")}</h3>
             <Button variant="outline" size="sm" onClick={handleAdd} className="h-7 text-xs">
               <Plus className="mr-1 size-3" />
-              {t('settings.addAgent')}
+              {t("settings.addAgent")}
             </Button>
           </div>
 
@@ -132,20 +130,20 @@ export function SettingsDialog({
                   {editingId === agent.id && editForm ? (
                     <div className="flex w-full flex-col gap-2">
                       <Input
-                        placeholder={t('settings.agentName')}
+                        placeholder={t("settings.agentName")}
                         value={editForm.name}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className="h-8 text-xs"
                       />
                       <div className="flex gap-2">
                         <Input
-                          placeholder={t('settings.command')}
+                          placeholder={t("settings.command")}
                           value={editForm.command}
                           onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
                           className="h-8 text-xs font-mono flex-1"
                         />
                         <Input
-                          placeholder={t('settings.args')}
+                          placeholder={t("settings.args")}
                           value={editForm.args?.join(" ") || ""}
                           onChange={(e) =>
                             setEditForm({
@@ -157,7 +155,7 @@ export function SettingsDialog({
                         />
                       </div>
                       <Input
-                        placeholder={t('settings.envJson')}
+                        placeholder={t("settings.envJson")}
                         value={envRaw}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -194,10 +192,10 @@ export function SettingsDialog({
                           onClick={handleCancelEdit}
                           className="h-6 text-xs"
                         >
-                          {t('settings.cancel')}
+                          {t("settings.cancel")}
                         </Button>
                         <Button size="sm" onClick={handleSaveEdit} className="h-6 text-xs">
-                          {t('settings.save')}
+                          {t("settings.save")}
                         </Button>
                       </div>
                     </div>
@@ -233,7 +231,7 @@ export function SettingsDialog({
               ))}
               {agents.length === 0 && (
                 <div className="py-8 text-center text-sm text-muted-foreground">
-                  {t('settings.noAgents')}
+                  {t("settings.noAgents")}
                 </div>
               )}
             </div>
@@ -242,9 +240,9 @@ export function SettingsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('settings.cancel')}
+            {t("settings.cancel")}
           </Button>
-          <Button onClick={handleSave}>{t('settings.saveChanges')}</Button>
+          <Button onClick={handleSave}>{t("settings.saveChanges")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

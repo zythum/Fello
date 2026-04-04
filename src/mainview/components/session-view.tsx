@@ -33,7 +33,9 @@ export function SessionView() {
         {!activeSessionId && isConnecting ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
             <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="text-sm font-normal text-muted-foreground/50">{t('sessionView.connecting')}</p>
+            <p className="text-sm font-normal text-muted-foreground/50">
+              {t("sessionView.connecting")}
+            </p>
           </div>
         ) : activeSessionId ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
@@ -43,7 +45,9 @@ export function SessionView() {
                 {isConnecting && (
                   <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/50 backdrop-blur-sm">
                     <Loader2 className="size-8 animate-spin text-primary" />
-                    <p className="text-sm font-normal text-foreground/50">{t('sessionView.connecting')}</p>
+                    <p className="text-sm font-normal text-foreground/50">
+                      {t("sessionView.connecting")}
+                    </p>
                   </div>
                 )}
               </div>
@@ -63,7 +67,7 @@ export function SessionView() {
                     )}
                   >
                     <FolderTree className="size-3.5" />
-                    <span>{t('sessionView.files')}</span>
+                    <span>{t("sessionView.files")}</span>
                   </button>
                   <button
                     type="button"
@@ -76,7 +80,7 @@ export function SessionView() {
                     )}
                   >
                     <SquareTerminal className="size-3.5" />
-                    <span>{t('sessionView.terminal')}</span>
+                    <span>{t("sessionView.terminal")}</span>
                   </button>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
@@ -98,14 +102,14 @@ export function SessionView() {
               <MessageSquare className="size-8 text-primary" />
             </div>
             <div className="text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">{t('sessionView.welcomeTitle')}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("sessionView.welcomeTitle")}
+              </h1>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                {t('sessionView.welcomeDesc')}
+                {t("sessionView.welcomeDesc")}
               </p>
             </div>
-            <span className="text-xs text-muted-foreground/60">
-              {t('sessionView.poweredBy')}
-            </span>
+            <span className="text-xs text-muted-foreground/60">{t("sessionView.poweredBy")}</span>
           </div>
         )}
       </main>
