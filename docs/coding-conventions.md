@@ -36,10 +36,10 @@
 
 ## IPC 约定
 
-- 所有主渲染请求/事件类型定义集中在 `src/electron/ipc-schema.ts`
-- 主进程通过 `ipcMain.handle` 提供请求式 API
+- 所有主渲染请求/事件类型定义集中在 `src/backend/ipc-schema.ts`
+- 主进程通过 `ipcMain.handle` 注册由 `src/backend` 提供的请求式 API
 - 渲染层只通过 `window.fello.invoke/on/off` 与主进程交互
-- 渲染业务组件应使用 `backend.ts` 的 `request/subscribe`，不直接触达 `window.fello`
+- 渲染业务组件应使用 `src/mainview/backend.ts` 的 `request/subscribe`，不直接触达 `window.fello`
 
 ## Electron 与系统能力边界
 

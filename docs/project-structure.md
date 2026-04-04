@@ -5,12 +5,15 @@
 ```
 fello/
 ├── src/
-│   ├── electron/                     # Electron 主进程 + preload
-│   │   ├── main.ts                   # 应用入口、IPC handlers、窗口生命周期、FS/终端能力
+│   ├── backend/                      # Node.js 后端逻辑与系统能力
+│   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现
 │   │   ├── acp-bridge.ts             # ACP 连接封装（spawn/initialize/session/model）
-│   │   ├── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
 │   │   ├── ipc-schema.ts             # 主渲染通信协议（请求/事件类型）
 │   │   └── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
+│   │
+│   ├── electron/                     # Electron 主进程 + preload
+│   │   ├── main.ts                   # 应用入口、窗口生命周期、系统菜单
+│   │   └── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
 │   │
 │   └── mainview/                     # Renderer（React SPA）
 │       ├── App.tsx                   # 根组件，订阅全局事件，管理错误弹窗
@@ -78,11 +81,19 @@ fello/
 
 ## 目录职责细化
 
+### `src/backend`
+
+- 面向系统能力的底层实现：文件系统、终端 PTY
+- 负责 ACP 子进程与会话生命周期管理 (`acp-bridge.ts`)
+- 通过 `ipc-schema.ts` 保持主渲染层 API 契约稳定
+- 管理项目与会话的本地持久化 (`storage.ts`)
+
 ### `src/electron`
 
-- 面向系统能力的唯一出口：文件、终端、菜单、对话框、Finder 集成
-- 负责 ACP 子进程与会话生命周期管理
-- 通过 `ipc-schema.ts` 保持主渲染层 API 契约稳定
+- Electron 应用生命周期与窗口管理
+- 系统菜单、Dock 集成、系统对话框、Finder 定位等原生能力
+- 注册由 `src/backend` 提供的 IPC 处理器
+- `preload.ts` 负责安全地将 IPC 能力暴露给渲染进程
 
 ### `src/mainview`
 

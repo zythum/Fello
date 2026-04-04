@@ -32,14 +32,18 @@ Main/preload changes typically require restarting the dev process.
 
 ```
 ├── src/
-│   ├── electron/
-│   │   ├── main.ts         # Electron main process
-│   │   ├── preload.ts      # Preload (contextBridge)
+│   ├── backend/
+│   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal
+│   │   ├── acp-bridge.ts   # ACP connection wrapper
 │   │   ├── ipc-schema.ts   # Typed IPC contracts
 │   │   └── storage.ts      # Persistent storage & settings (JSON)
+│   ├── electron/
+│   │   ├── main.ts         # Electron main process
+│   │   └── preload.ts      # Preload (contextBridge)
 │   └── mainview/
 │       ├── App.tsx         # React app component
 │       ├── main.tsx        # React entry point
+│       ├── backend.ts      # IPC client wrapper
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)
 │       ├── index.html      # HTML template
@@ -53,7 +57,8 @@ Main/preload changes typically require restarting the dev process.
 - **React components**: Edit files in `src/mainview/`
 - **i18n Translation**: Edit `src/mainview/locales/*.json` and configure languages in `src/mainview/i18n.ts`
 - **Window / app lifecycle**: Edit `src/electron/main.ts`
+- **Backend logic**: Edit `src/backend/backend.ts` and `src/backend/acp-bridge.ts`
 - **Renderer ↔ main bridge**: Edit `src/electron/preload.ts` and `src/mainview/backend.ts`
-- **IPC types**: Edit `src/electron/ipc-schema.ts`
-- **Settings & Storage**: Modify `SettingsMeta` schema in `src/electron/storage.ts` and `src/electron/ipc-schema.ts`
+- **IPC types**: Edit `src/backend/ipc-schema.ts`
+- **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `src/backend/ipc-schema.ts`
 - **Build settings**: Edit `electron.vite.config.ts`

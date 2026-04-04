@@ -3,14 +3,15 @@ Fello (Electron ACP Client)
 Runtime
 - Main process: src/electron/main.ts
 - Preload (contextBridge): src/electron/preload.ts
+- Backend Logic (Node.js): src/backend/
 - Renderer (React + Vite): src/mainview/
 
 IPC
-- Typed contracts: src/electron/ipc-schema.ts
+- Typed contracts: src/backend/ipc-schema.ts
 - Renderer API wrapper: src/mainview/backend.ts (uses window.fello from preload)
 
 Sessions & Persistence
-- Session metadata persistence: src/electron/storage.ts
+- Session metadata persistence: src/backend/storage.ts
 - Message history is replayed from the ACP server when resuming a session
 - Renderer state store: src/mainview/store.ts
 
@@ -23,5 +24,6 @@ Dev / Build Commands
 - npm run format
 
 Repo Conventions
-- Electron code lives under src/electron (no Bun/Electrobun)
+- Electron code lives under src/electron
+- Backend logic lives under src/backend
 - UI code lives under src/mainview

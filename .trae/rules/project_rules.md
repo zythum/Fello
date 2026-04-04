@@ -11,5 +11,6 @@
 
 ## Repo Structure
 
-- Electron code: src/electron (main.ts, preload.ts, ipc-schema.ts)
+- Backend logic: src/backend (backend.ts, acp-bridge.ts, ipc-schema.ts, storage.ts)
+- Electron code: src/electron (main.ts, preload.ts)
 - Renderer code: src/mainview (React + Vite)

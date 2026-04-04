@@ -23,13 +23,14 @@
 
 ## 进程与模块职责
 
-### Main Process（`src/electron/`）
+### Main Process（`src/electron/` & `src/backend/`）
 
-- `main.ts`：窗口创建、应用菜单、IPC 注册、会话管理、文件系统能力、终端 PTY 管理
-- `acp-bridge.ts`：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
-- `preload.ts`：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
-- `ipc-schema.ts`：主进程与渲染进程请求/事件的统一契约
-- `storage.ts`：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据
+- **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框
+- **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
+- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理
+- **`src/backend/acp-bridge.ts`**：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
+- **`src/backend/ipc-schema.ts`**：主进程与渲染进程请求/事件的统一契约
+- **`src/backend/storage.ts`**：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据
 
 ### Renderer（`src/mainview/`）
 
