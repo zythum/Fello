@@ -12,6 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import {
   FilePlus,
   FolderPlus,
   RefreshCw,
@@ -20,6 +27,9 @@ import {
   File,
   Loader2,
   ChevronsDownUp,
+  Pencil,
+  Trash2,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +51,7 @@ interface Actions {
   dragLeave: () => void;
   drop: (e: React.DragEvent, id: string) => void;
   dragEnd: () => void;
-  showNodeContextMenu: (node: TreeNode, e: React.MouseEvent) => void;
+  revealInFinder: (id: string) => void;
 }
 
 function TreeItem({
@@ -93,67 +103,141 @@ function TreeItem({
 
   return (
     <>
-      <div
-        draggable={!isEditing}
-        onDragStart={(e) => {
-          e.stopPropagation();
-          actions.startDrag(node.id, e);
-        }}
-        onDragOver={(e) => node.isFolder && actions.dragOver(e, node.id)}
-        onDragLeave={actions.dragLeave}
-        onDrop={(e) => node.isFolder && actions.drop(e, node.id)}
-        onDragEnd={actions.dragEnd}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          actions.showNodeContextMenu(node, e);
-        }}
-        className={cn(
-          "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
-          isSelected
-            ? "bg-accent text-accent-foreground"
-            : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
-          isDragOver && "relative ring-1 ring-primary bg-primary/5",
-        )}
-        style={{ paddingLeft: `${depth * 16 + 6}px` }}
-        onClick={(e) => {
-          e.stopPropagation();
-          actions.select(node.id, e);
-          if (node.isFolder && !e.metaKey && !e.shiftKey) actions.toggle(node.id);
-        }}
-      >
-        {node.isFolder ? (
-          <ChevronRight
-            className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform",
-              isOpen && "rotate-90",
-            )}
-          />
-        ) : (
-          <span className="w-3.5 shrink-0" />
-        )}
-        {node.isFolder ? (
-          <Folder className="size-4 shrink-0 text-primary/60" />
-        ) : (
-          <File className="size-4 shrink-0 text-muted-foreground/60" />
-        )}
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={editingValue}
-            onChange={(e) => onEditChange(e.target.value)}
-            onBlur={onEditSubmit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onEditSubmit();
-              if (e.key === "Escape") onEditCancel();
+      <ContextMenu>
+        <ContextMenuTrigger
+          render={<div />}
+          draggable={!isEditing}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            actions.startDrag(node.id, e);
+          }}
+          onDragOver={(e) => node.isFolder && actions.dragOver(e, node.id)}
+          onDragLeave={actions.dragLeave}
+          onDrop={(e) => node.isFolder && actions.drop(e, node.id)}
+          onDragEnd={actions.dragEnd}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+            if (!selectedIds.has(node.id)) {
+              actions.select(node.id, e);
+            }
+          }}
+          className={cn(
+            "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
+            isSelected
+              ? "bg-accent text-accent-foreground"
+              : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
+            isDragOver && "relative ring-1 ring-primary bg-primary/5",
+          )}
+          style={{ paddingLeft: `${depth * 16 + 6}px` }}
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.select(node.id, e);
+            if (node.isFolder && !e.metaKey && !e.shiftKey) actions.toggle(node.id);
+          }}
+        >
+          {node.isFolder ? (
+            <ChevronRight
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                isOpen && "rotate-90",
+              )}
+            />
+          ) : (
+            <span className="w-3.5 shrink-0" />
+          )}
+          {node.isFolder ? (
+            <Folder className="size-4 shrink-0 text-primary/60" />
+          ) : (
+            <File className="size-4 shrink-0 text-muted-foreground/60" />
+          )}
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              value={editingValue}
+              onChange={(e) => onEditChange(e.target.value)}
+              onBlur={onEditSubmit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onEditSubmit();
+                if (e.key === "Escape") onEditCancel();
+              }}
+              className="min-w-0 flex-1 rounded border border-ring bg-background px-1 py-0.5 text-xs text-foreground outline-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="flex-1 truncate leading-normal">{node.name}</span>
+          )}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48 py-1">
+          {node.isFolder ? (
+            <>
+              <ContextMenuItem
+                className="text-xs rounded-1 text-muted-foreground/90"
+                onClick={() => actions.createIn(node.id, false)}
+              >
+                <FilePlus className="size-3" />
+                New File
+              </ContextMenuItem>
+              <ContextMenuItem
+                className="text-xs rounded-1 text-muted-foreground/90"
+                onClick={() => actions.createIn(node.id, true)}
+              >
+                <FolderPlus className="size-3" />
+                New Folder
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          ) : (
+            <>
+              <ContextMenuItem
+                className="text-xs rounded-1 text-muted-foreground/90"
+                onClick={() => actions.createIn(null, false)}
+              >
+                <FilePlus className="size-3" />
+                New File
+              </ContextMenuItem>
+              <ContextMenuItem
+                className="text-xs rounded-1 text-muted-foreground/90"
+                onClick={() => actions.createIn(null, true)}
+              >
+                <FolderPlus className="size-3" />
+                New Folder
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          <ContextMenuItem
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              actions.startRename(node);
             }}
-            className="min-w-0 flex-1 rounded border border-ring bg-background px-1 py-0.5 text-xs text-foreground outline-none"
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <span className="flex-1 truncate leading-normal">{node.name}</span>
-        )}
-      </div>
+          >
+            <Pencil className="size-3" />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              actions.revealInFinder(node.id);
+            }}
+          >
+            <FolderOpen className="size-3" />
+            Reveal in Finder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            variant="destructive"
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              const ids =
+                selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
+              actions.deleteNode(ids);
+            }}
+          >
+            <Trash2 className="size-3" />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {node.isFolder &&
         isOpen &&
         node.children?.map((child) => (
@@ -161,18 +245,6 @@ function TreeItem({
         ))}
     </>
   );
-}
-
-async function showNativeContextMenu(
-  items: Array<{
-    label?: string;
-    action?: string;
-    type?: string;
-    enabled?: boolean;
-    data?: unknown;
-  }>,
-): Promise<string | null> {
-  return (await request.showContextMenu({ items })) as string | null;
 }
 
 export function FilePanel() {
@@ -372,70 +444,6 @@ export function FilePanel() {
       : osPlatform === "win32"
         ? "Move to Recycle Bin"
         : "Move to Trash";
-
-  // --- Native context menus ---
-  const showNodeContextMenu = useCallback(
-    async (node: TreeNode, _e: React.MouseEvent) => {
-      const items: Array<{ label?: string; action?: string; type?: string; data?: unknown }> = [];
-
-      if (node.isFolder) {
-        items.push({ label: "New File", action: "new-file", data: { parentId: node.id } });
-        items.push({ label: "New Folder", action: "new-folder", data: { parentId: node.id } });
-        items.push({ type: "separator" });
-      } else {
-        items.push({ label: "New File", action: "new-file", data: { parentId: null } });
-        items.push({ label: "New Folder", action: "new-folder", data: { parentId: null } });
-        items.push({ type: "separator" });
-      }
-
-      items.push({
-        label: "Rename",
-        action: "rename",
-        data: { nodeId: node.id, nodeName: node.name, nodeIsFolder: node.isFolder },
-      });
-      items.push({ label: "Reveal in Finder", action: "reveal", data: { path: node.id } });
-      items.push({ type: "separator" });
-      items.push({ label: "Delete", action: "delete", data: { nodeId: node.id } });
-
-      const action = await showNativeContextMenu(items);
-      if (!action) return;
-
-      if (action.startsWith("new-file")) {
-        const parentId = node.isFolder ? node.id : null;
-        createIn(parentId, false);
-      } else if (action.startsWith("new-folder")) {
-        const parentId = node.isFolder ? node.id : null;
-        createIn(parentId, true);
-      } else if (action.startsWith("rename")) {
-        startRename(node);
-      } else if (action.startsWith("reveal")) {
-        revealInFinder(node.id);
-      } else if (action.startsWith("delete")) {
-        const ids = selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
-        deleteNode(ids);
-      }
-    },
-    [selectedIds, cwd],
-  );
-
-  const showBlankContextMenu = useCallback(
-    async (_e: React.MouseEvent) => {
-      const items = [
-        { label: "New File", action: "new-file" },
-        { label: "New Folder", action: "new-folder" },
-        { type: "separator" as const },
-        { label: "Reveal in Finder", action: "reveal" },
-      ];
-
-      const action = await showNativeContextMenu(items);
-      if (!action) return;
-
-      if (action === "new-file") createIn(null, false);
-      else if (action === "new-folder") createIn(null, true);
-      else if (action === "reveal") revealInFinder(cwd ?? "");
-    },
-    [cwd],
-  );
 
   // --- Drag & drop (multi-select aware, + external file drop) ---
 
@@ -652,7 +660,7 @@ export function FilePanel() {
       setDragIds([]);
       setDropTargetId(null);
     },
-    showNodeContextMenu,
+    revealInFinder,
   };
 
   const getSelectedFolder = (): string | null => {
@@ -738,58 +746,81 @@ export function FilePanel() {
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div
-          className="min-h-full py-0.5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) clearSelection();
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            showBlankContextMenu(e);
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect =
-              e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
-            setDropTargetId("__root__");
-          }}
-          onDragLeave={() => setDropTargetId(null)}
-          onDrop={async (e) => {
-            e.preventDefault();
-            setDropTargetId(null);
-            if (!cwd) return;
+        <ContextMenu>
+          <ContextMenuTrigger
+            render={<div />}
+            className="min-h-full py-0.5"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) clearSelection();
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect =
+                e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
+              setDropTargetId("__root__");
+            }}
+            onDragLeave={() => setDropTargetId(null)}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setDropTargetId(null);
+              if (!cwd) return;
 
-            // External file drop onto root
-            if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
-              await handleExternalDrop(e as React.DragEvent, cwd);
-              return;
-            }
+              // External file drop onto root
+              if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
+                await handleExternalDrop(e as React.DragEvent, cwd);
+                return;
+              }
 
-            // Internal move to root
-            if (dragIds.length === 0) return;
-            try {
-              await Promise.all(
-                dragIds.map((id) => {
-                  const srcName = id.split("/").pop()!;
-                  const newPath = `${cwd}/${srcName}`;
-                  if (id === newPath) return Promise.resolve();
-                  return request.moveFile({ oldPath: id, newPath });
-                }),
-              );
-            } catch (err) {
-              console.error("Move failed:", err);
-            }
-            setDragIds([]);
-            refresh();
-          }}
-        >
-          {data.map((node) => (
-            <TreeItem key={node.id} node={node} depth={0} {...sharedProps} />
-          ))}
-          {data.length === 0 && (
-            <div className="py-6 text-center text-xs text-muted-foreground">Empty directory</div>
-          )}
-        </div>
+              // Internal move to root
+              if (dragIds.length === 0) return;
+              try {
+                await Promise.all(
+                  dragIds.map((id) => {
+                    const srcName = id.split("/").pop()!;
+                    const newPath = `${cwd}/${srcName}`;
+                    if (id === newPath) return Promise.resolve();
+                    return request.moveFile({ oldPath: id, newPath });
+                  }),
+                );
+              } catch (err) {
+                console.error("Move failed:", err);
+              }
+              setDragIds([]);
+              refresh();
+            }}
+          >
+            {data.map((node) => (
+              <TreeItem key={node.id} node={node} depth={0} {...sharedProps} />
+            ))}
+            {data.length === 0 && (
+              <div className="py-6 text-center text-xs text-muted-foreground">Empty directory</div>
+            )}
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48 py-1">
+            <ContextMenuItem
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => createIn(null, false)}
+            >
+              <FilePlus className="size-3" />
+              New File
+            </ContextMenuItem>
+            <ContextMenuItem
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => createIn(null, true)}
+            >
+              <FolderPlus className="size-3" />
+              New Folder
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => revealInFinder(cwd ?? "")}
+            >
+              <FolderOpen className="size-3" />
+              Reveal in Finder
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </ScrollArea>
 
       <Dialog

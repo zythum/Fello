@@ -20,9 +20,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
         prevBubbleRole != null && "mt-4",
       )}
     >
-      <StreamMarkdown streaming={message.streaming}>
-        {message.content}
-      </StreamMarkdown>
+      <StreamMarkdown streaming={message.streaming}>{message.content}</StreamMarkdown>
     </div>
   );
 });

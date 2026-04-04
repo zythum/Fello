@@ -22,9 +22,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
       </summary>
       <div className="mt-1 pl-5 text-[11px] italic text-muted-foreground/60">
         <div className="max-w-none">
-          <StreamMarkdown streaming={message.streaming}>
-            {message.content}
-          </StreamMarkdown>
+          <StreamMarkdown streaming={message.streaming}>{message.content}</StreamMarkdown>
         </div>
       </div>
     </details>
