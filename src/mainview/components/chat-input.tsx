@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
 import { request, subscribe } from "../backend";
@@ -23,6 +24,7 @@ function resolveMentions(value: string): string {
 }
 
 export function ChatInput() {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -216,7 +218,7 @@ export function ChatInput() {
             onChange={(_e, newValue) => setInput(newValue)}
             onKeyDown={handleKeyDown}
             placeholder={
-              disabled ? "Start a new chat to begin..." : "Ask anything... (Enter to send)"
+              disabled ? t('chatInput.placeholderDisabled') : t('chatInput.placeholderActive')
             }
             disabled={disabled}
             aria-label="Message input"

@@ -45,6 +45,7 @@ export interface ThemeConfig {
 export interface SettingsMeta {
   agents: AgentConfig[];
   theme?: ThemeConfig;
+  language?: string;
 }
 
 export type FelloIPCRequests = {

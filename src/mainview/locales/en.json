@@ -1,0 +1,55 @@
+{
+  "sidebar": {
+    "welcome": "Welcome",
+    "projects": "Projects",
+    "noProjects": "No projects yet",
+    "revealInFinder": "Reveal in Finder",
+    "rename": "Rename",
+    "delete": "Delete",
+    "renameProject": "Rename Project",
+    "renameChat": "Rename Chat",
+    "enterNewProjectName": "Enter a new project name.",
+    "enterNewChatName": "Enter a new chat name.",
+    "deleteProject": "Delete Project",
+    "deleteProjectConfirm": "Delete project \"{{title}}\" and all chats in it? This action cannot be undone.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "settings": "Settings",
+    "agents": "Agents",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "language": "Language",
+    "english": "English",
+    "chinese": "简体中文"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure available AI agents and their launch commands.",
+    "agents": "Agents",
+    "addAgent": "Add Agent",
+    "agentName": "Agent Name (e.g. Kiro)",
+    "command": "Command (e.g. kiro-cli)",
+    "args": "Args (e.g. acp)",
+    "envJson": "Env JSON (e.g. {\"API_KEY\": \"...\"})",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saveChanges": "Save Changes",
+    "noAgents": "No agents configured.",
+    "errorNameCommand": "Name and Command are required.",
+    "errorEnvJson": "Env must be a valid JSON object."
+  },
+  "sessionView": {
+    "connecting": "Connecting to agent...",
+    "files": "Files",
+    "terminal": "Terminal",
+    "welcomeTitle": "Fello",
+    "welcomeDesc": "An ACP client for Kiro. Start a new chat from the sidebar to connect with the agent and begin collaborating.",
+    "poweredBy": "Powered by Agent Client Protocol"
+  },
+  "chatInput": {
+    "placeholderDisabled": "Start a new chat to begin...",
+    "placeholderActive": "Ask anything... (Enter to send)"
+  }
+}

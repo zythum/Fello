@@ -28,6 +28,7 @@
 | @base-ui/react | ^1.3.0 | 基础无样式交互 primitives（shadcn 基座） |
 | shadcn | ^4.1.2 | 项目内 UI 基础组件生成与组合 |
 | Lucide React | ^1.7.0 | 图标系统 |
+| i18next + react-i18next | - | 前端多语言 (i18n) 解决方案 |
 | react-resizable-panels | ^4.9.0 | 主视图左右分栏可拖拽布局 |
 | react-mentions | ^4.4.10 | 输入框文件提及（`#` 触发） |
 | class-variance-authority | ^0.7.1 | 组件变体管理 |

@@ -52,7 +52,7 @@
 - 优先复用现有 shadcn/base-ui 组件，不重复造轮子
 - 统一使用语义化 token 类名（如 `bg-background`、`text-foreground`）
 - 图标统一使用 `lucide-react`
-- 所有用户可见文本必须为英语
+- 所有用户可见文本必须支持多语言（使用 `react-i18next` 的 `t()` 函数），并且在 `locales/` 目录下维护对应的翻译文件。默认语言环境提供英文（`en.json`）和简体中文（`zh-CN.json`）。
 
 ## 错误处理约定
 

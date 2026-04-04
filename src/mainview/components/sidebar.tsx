@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore, type ProjectInfo, type SessionInfo } from "../store";
 import { request } from "../backend";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   Palette,
   LoaderCircle,
   Home,
+  Globe,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -51,6 +53,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function Sidebar() {
+  const { t, i18n } = useTranslation();
   const {
     projects,
     sessions,
@@ -65,6 +68,8 @@ export function Sidebar() {
     configuredAgents,
     theme,
     setTheme,
+    language,
+    setLanguage,
     sessionStates,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
@@ -252,9 +257,24 @@ export function Sidebar() {
       await request.updateSettings({
         agents: configuredAgents,
         theme: newTheme,
+        language,
       });
     } catch {
       pushGlobalErrorMessage("Failed to save theme setting.");
+    }
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    setLanguage(lang);
+    i18n.changeLanguage(lang);
+    try {
+      await request.updateSettings({
+        agents: configuredAgents,
+        theme,
+        language: lang,
+      });
+    } catch {
+      pushGlobalErrorMessage("Failed to save language setting.");
     }
   };
 
@@ -284,12 +304,12 @@ export function Sidebar() {
           }`}
         >
           <Home className="size-3.5" />
-          <span className="flex-1 truncate leading-normal">Welcome</span>
+          <span className="flex-1 truncate leading-normal">{t('sidebar.welcome')}</span>
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
         <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
-          Projects
+          {t('sidebar.projects')}
         </span>
         <Button
           variant="ghost"
@@ -358,7 +378,7 @@ export function Sidebar() {
                         }}
                       >
                         <FolderOpen className="size-3" />
-                        Reveal in Finder
+                        {t('sidebar.revealInFinder')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-xs rounded-1 text-muted-foreground/90"
@@ -368,7 +388,7 @@ export function Sidebar() {
                         }}
                       >
                         <Pencil className="size-3" />
-                        Rename
+                        {t('sidebar.rename')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
@@ -379,7 +399,7 @@ export function Sidebar() {
                         }}
                       >
                         <Trash2 className="size-3" />
-                        Delete
+                        {t('sidebar.delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -500,7 +520,7 @@ export function Sidebar() {
                             }}
                           >
                             <Pencil className="size-3" />
-                            Rename
+                            {t('sidebar.rename')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
@@ -511,7 +531,7 @@ export function Sidebar() {
                             }}
                           >
                             <Trash2 className="size-3" />
-                            Delete
+                            {t('sidebar.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -521,7 +541,7 @@ export function Sidebar() {
             );
           })}
           {projects.length === 0 && (
-            <p className="mt-4 text-center text-xs text-muted-foreground">No projects yet</p>
+            <p className="mt-4 text-center text-xs text-muted-foreground">{t('sidebar.noProjects')}</p>
           )}
         </div>
       </ScrollArea>
@@ -535,7 +555,7 @@ export function Sidebar() {
             )}
           >
             <Settings className="size-4" />
-            Settings
+            {t('sidebar.settings')}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="py-1">
             <DropdownMenuItem
@@ -543,13 +563,13 @@ export function Sidebar() {
               onClick={() => setSettingsOpen(true)}
             >
               <Bot className="size-3" />
-              Agents
+              {t('sidebar.agents')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
                 <Palette className="size-3" />
-                Theme
+                {t('sidebar.theme')}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="w-32 py-1">
@@ -558,7 +578,7 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("light")}
                   >
                     <Sun className="size-3" />
-                    Light
+                    {t('sidebar.light')}
                     {theme.theme_mode === "light" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -568,7 +588,7 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("dark")}
                   >
                     <Moon className="size-3" />
-                    Dark
+                    {t('sidebar.dark')}
                     {theme.theme_mode === "dark" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
@@ -578,8 +598,37 @@ export function Sidebar() {
                     onClick={() => void handleThemeChange("system")}
                   >
                     <Monitor className="size-3" />
-                    System
+                    {t('sidebar.system')}
                     {theme.theme_mode === "system" && (
+                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
+                <Globe className="size-3" />
+                {t('sidebar.language')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-32 py-1">
+                  <DropdownMenuItem
+                    className="text-xs rounded-1 text-muted-foreground/90"
+                    onClick={() => void handleLanguageChange("en")}
+                  >
+                    {t('sidebar.english')}
+                    {language === "en" && (
+                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs rounded-1 text-muted-foreground/90"
+                    onClick={() => void handleLanguageChange("zh-CN")}
+                  >
+                    {t('sidebar.chinese')}
+                    {language === "zh-CN" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
@@ -602,12 +651,12 @@ export function Sidebar() {
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
-              {renameTarget?.type === "session" ? "Rename Chat" : "Rename Project"}
+              {renameTarget?.type === "session" ? t('sidebar.renameChat') : t('sidebar.renameProject')}
             </DialogTitle>
             <DialogDescription>
               {renameTarget?.type === "session"
-                ? "Enter a new chat name."
-                : "Enter a new project name."}
+                ? t('sidebar.enterNewChatName')
+                : t('sidebar.enterNewProjectName')}
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -629,9 +678,9 @@ export function Sidebar() {
                 setRenameValue("");
               }}
             >
-              Cancel
+              {t('sidebar.cancel')}
             </Button>
-            <Button onClick={() => void handleRenameSubmit()}>Save</Button>
+            <Button onClick={() => void handleRenameSubmit()}>{t('sidebar.save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -644,19 +693,19 @@ export function Sidebar() {
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Delete Project</DialogTitle>
+            <DialogTitle>{t('sidebar.deleteProject')}</DialogTitle>
             <DialogDescription>
               {pendingDeleteProject
-                ? `Delete project "${pendingDeleteProject.title}" and all chats in it? This action cannot be undone.`
+                ? t('sidebar.deleteProjectConfirm', { title: pendingDeleteProject.title })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingDeleteProject(null)}>
-              Cancel
+              {t('sidebar.cancel')}
             </Button>
             <Button variant="destructive" onClick={() => void handleConfirmDeleteProject()}>
-              Delete
+              {t('sidebar.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

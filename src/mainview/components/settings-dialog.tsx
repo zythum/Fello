@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store";
 import { request } from "../backend";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function SettingsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const { configuredAgents, setConfiguredAgents, pushGlobalErrorMessage } = useAppStore();
   const [agents, setAgents] = useState<AgentConfig[]>(configuredAgents);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function SettingsDialog({
   const handleSaveEdit = () => {
     if (!editForm) return;
     if (!editForm.name.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage("Name and Command are required.");
+      pushGlobalErrorMessage(t("settings.errorNameCommand"));
       return;
     }
 
@@ -83,10 +85,10 @@ export function SettingsDialog({
       try {
         const parsed = JSON.parse(envRaw.trim());
         if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
-          throw new Error("Env must be a valid JSON object");
+          throw new Error(t("settings.errorEnvJson"));
         }
       } catch {
-        pushGlobalErrorMessage("Env must be a valid JSON object.");
+        pushGlobalErrorMessage(t("settings.errorEnvJson"));
         return;
       }
     }
@@ -105,18 +107,18 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle>{t('settings.title')}</DialogTitle>
           <DialogDescription>
-            Configure available AI agents and their launch commands.
+            {t('settings.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Agents</h3>
+            <h3 className="text-sm font-medium">{t('settings.agents')}</h3>
             <Button variant="outline" size="sm" onClick={handleAdd} className="h-7 text-xs">
               <Plus className="mr-1 size-3" />
-              Add Agent
+              {t('settings.addAgent')}
             </Button>
           </div>
 
@@ -130,20 +132,20 @@ export function SettingsDialog({
                   {editingId === agent.id && editForm ? (
                     <div className="flex w-full flex-col gap-2">
                       <Input
-                        placeholder="Agent Name (e.g. Kiro)"
+                        placeholder={t('settings.agentName')}
                         value={editForm.name}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className="h-8 text-xs"
                       />
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Command (e.g. kiro-cli)"
+                          placeholder={t('settings.command')}
                           value={editForm.command}
                           onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
                           className="h-8 text-xs font-mono flex-1"
                         />
                         <Input
-                          placeholder="Args (e.g. acp)"
+                          placeholder={t('settings.args')}
                           value={editForm.args?.join(" ") || ""}
                           onChange={(e) =>
                             setEditForm({
@@ -155,7 +157,7 @@ export function SettingsDialog({
                         />
                       </div>
                       <Input
-                        placeholder='Env JSON (e.g. {"API_KEY": "..."})'
+                        placeholder={t('settings.envJson')}
                         value={envRaw}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -192,10 +194,10 @@ export function SettingsDialog({
                           onClick={handleCancelEdit}
                           className="h-6 text-xs"
                         >
-                          Cancel
+                          {t('settings.cancel')}
                         </Button>
                         <Button size="sm" onClick={handleSaveEdit} className="h-6 text-xs">
-                          Save
+                          {t('settings.save')}
                         </Button>
                       </div>
                     </div>
@@ -231,7 +233,7 @@ export function SettingsDialog({
               ))}
               {agents.length === 0 && (
                 <div className="py-8 text-center text-sm text-muted-foreground">
-                  No agents configured.
+                  {t('settings.noAgents')}
                 </div>
               )}
             </div>
@@ -240,9 +242,9 @@ export function SettingsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('settings.cancel')}
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave}>{t('settings.saveChanges')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

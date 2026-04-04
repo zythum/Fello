@@ -88,6 +88,8 @@ ACP sessionUpdate
 全局共享状态则直接挂载于 store 根层级：
 
 - `configuredAgents`：用户在设置中自定义的可用 Agent 及启动命令
+- `theme`：UI 主题配置（深色、浅色、跟随系统）
+- `language`：应用语言配置（英语、简体中文）
 - `availableModels` / `currentModelId`：当前连接环境可用的模型及所选模型
 - `availableModes` / `currentModeId`：当前连接环境可用的模式及所选模式
 

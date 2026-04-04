@@ -22,6 +22,7 @@ export interface ThemeConfig {
 export interface SettingsMeta {
   agents: AgentConfig[];
   theme?: ThemeConfig;
+  language?: string;
 }
 
 export const DEFAULT_SETTINGS: SettingsMeta = {
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: SettingsMeta = {
     { id: "kimi", name: "Kimi", command: "kimi", args: ["acp"], env: {} },
   ],
   theme: { theme_mode: "system" },
+  language: "en",
 };
 
 function settingsPath() {
@@ -63,7 +65,8 @@ function readSettings(): SettingsMeta {
     const theme = raw.theme?.theme_mode
       ? { theme_mode: raw.theme.theme_mode }
       : DEFAULT_SETTINGS.theme;
-    return { agents, theme };
+    const language = typeof raw.language === "string" ? raw.language : DEFAULT_SETTINGS.language;
+    return { agents, theme, language };
   } catch {
     return DEFAULT_SETTINGS;
   }

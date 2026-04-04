@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe } from "./backend";
 import { processEvent } from "./lib/process-event";
@@ -25,7 +26,9 @@ function App() {
     shiftGlobalErrorMessage,
     setConfiguredAgents,
     setTheme,
+    setLanguage,
   } = useAppStore();
+  const { i18n } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
   const [errorDialogKey, setErrorDialogKey] = useState(0);
@@ -50,9 +53,13 @@ function App() {
       setSessions((sessions as SessionInfo[]) ?? []);
       setConfiguredAgents(settings.agents);
       if (settings.theme) setTheme(settings.theme);
+      if (settings.language) {
+        setLanguage(settings.language);
+        i18n.changeLanguage(settings.language);
+      }
     }
     void loadData();
-  }, [setProjects, setSessions, setConfiguredAgents, setTheme]);
+  }, [setProjects, setSessions, setConfiguredAgents, setTheme, setLanguage, i18n]);
 
   useEffect(() => {
     const handleSessionUpdate = (detail: any) => {

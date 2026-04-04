@@ -119,6 +119,7 @@ interface AppState {
   sidebarOpen: boolean;
   configuredAgents: AgentConfig[];
   theme: ThemeConfig;
+  language: string;
   availableModels: ModelOption[];
   currentModelId: string | null;
   availableModes: ModeOption[];
@@ -152,6 +153,7 @@ interface AppState {
   setSidebarOpen: (v: boolean) => void;
   setConfiguredAgents: (agents: AgentConfig[]) => void;
   setTheme: (theme: ThemeConfig) => void;
+  setLanguage: (lang: string) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
   setAvailableModes: (modes: ModeOption[]) => void;
@@ -171,6 +173,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
   configuredAgents: [],
   theme: { theme_mode: "system" },
+  language: "en",
   availableModels: [],
   currentModelId: null,
   availableModes: [],
@@ -280,6 +283,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
   setTheme: (theme) => set({ theme }),
+  setLanguage: (language) => set({ language }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
   setAvailableModes: (modes) => set({ availableModes: modes }),

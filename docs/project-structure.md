@@ -20,6 +20,11 @@ fello/
 │       ├── backend.ts                # request + subscribe 封装
 │       ├── global.d.ts               # window.fello 类型声明
 │       ├── store.ts                  # Zustand store（按 session 分桶）
+│       ├── i18n.ts                   # i18next 多语言配置初始化
+│       │
+│       ├── locales/                  # 多语言 JSON 字典文件
+│       │   ├── en.json
+│       │   └── zh-CN.json
 │       │
 │       ├── lib/
 │       │   ├── process-event.ts      # ACP 事件解析与流式收尾
@@ -101,6 +106,8 @@ fello/
 `settings.json` 字段：
 
 - `agents`: 自定义的 Agent 列表，包含 `id`、`name` 和 `command`
+- `theme`: UI 主题配置（如 `theme_mode`）
+- `language`: 应用语言配置（如 `en` 或 `zh-CN`）
 
 `project.json` 字段：
 
