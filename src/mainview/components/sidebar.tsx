@@ -40,6 +40,7 @@ import {
   Monitor,
   Bot,
   Palette,
+  LoaderCircle,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -63,6 +64,7 @@ export function Sidebar() {
     configuredAgents,
     theme,
     setTheme,
+    sessionStates,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
@@ -367,59 +369,83 @@ export function Sidebar() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <DropdownMenu
-                    onOpenChange={(open) => {
-                      setOpenAgentMenuProjectId((prev) =>
-                        open ? project.id : prev === project.id ? null : prev,
-                      );
-                    }}
-                  >
-                    <DropdownMenuTrigger
-                      onClick={(e) => e.stopPropagation()}
-                      className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
-                        openAgentMenuProjectId === project.id
-                          ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
-                          : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                      }`}
+                  {configuredAgents.length > 1 ? (
+                    <DropdownMenu
+                      onOpenChange={(open) => {
+                        setOpenAgentMenuProjectId((prev) =>
+                          open ? project.id : prev === project.id ? null : prev,
+                        );
+                      }}
+                    >
+                      <DropdownMenuTrigger
+                        onClick={(e) => e.stopPropagation()}
+                        className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
+                          openAgentMenuProjectId === project.id
+                            ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
+                            : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                        }`}
+                        aria-label={`Create chat in ${project.title}`}
+                      >
+                        <MessageCirclePlus className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        side="right"
+                        align="start"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-28 py-1"
+                      >
+                        {configuredAgents.map((agent) => (
+                          <DropdownMenuItem
+                            key={agent.id}
+                            className="text-xs rounded-1 text-muted-foreground/90"
+                            onClick={() => {
+                              void handleNewChat(project.id, agent.id);
+                            }}
+                          >
+                            {agent.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (configuredAgents.length === 1) {
+                          void handleNewChat(project.id, configuredAgents[0].id);
+                        } else {
+                          setSettingsOpen(true);
+                        }
+                      }}
+                      className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                       aria-label={`Create chat in ${project.title}`}
                     >
                       <MessageCirclePlus className="size-3" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      side="right"
-                      align="start"
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-28 py-1"
-                    >
-                      {configuredAgents.map((agent) => (
-                        <DropdownMenuItem
-                          key={agent.id}
-                          className="text-xs rounded-1 text-muted-foreground/90"
-                          onClick={() => {
-                            void handleNewChat(project.id, agent.id);
-                          }}
-                        >
-                          {agent.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </button>
+                  )}
                 </div>
                 {expanded &&
                   projectSessions.map((session) => (
                     <div
                       key={session.id}
                       onClick={() => handleSelectSession(session)}
-                      className={`group flex h-8 cursor-pointer items-center justify-between rounded-md px-2 ml-3 text-xs font-medium transition-colors ${
+                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-2 text-xs font-medium transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
                       } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <LoaderCircle
+                          className={cn(
+                            "size-3 animate-spin",
+                            !sessionStates.get(session.id)?.isStreaming && "invisible",
+                          )}
+                        />
                         <Badge
                           variant="outline"
-                          className="h-4 px-1 text-[10px] uppercase max-w-15 truncate block text-center leading-normal py-0"
+                          className="h-4 px-1 -ml-1 text-[10px] uppercase max-w-15 truncate block text-center leading-normal py-0"
                         >
                           {configuredAgents.find((a) => a.id === session.agent)?.name ||
                             session.agent}
@@ -438,7 +464,7 @@ export function Sidebar() {
                         <DropdownMenuTrigger
                           onClick={(e) => e.stopPropagation()}
                           className={`ml-1.5 flex size-4 items-center justify-center rounded-sm transition-opacity ${
-                            openSessionMenuId === session.id || activeSessionId === session.id
+                            openSessionMenuId === session.id
                               ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
                               : "opacity-0 group-hover:opacity-80 text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/75"
                           }`}
@@ -491,7 +517,7 @@ export function Sidebar() {
           <DropdownMenuTrigger
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "flex w-full items-center justify-start gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none"
+              "flex w-full items-center justify-start gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none",
             )}
           >
             <Settings className="size-4" />
@@ -519,7 +545,9 @@ export function Sidebar() {
                   >
                     <Sun className="size-3" />
                     Light
-                    {theme.theme_mode === "light" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                    {theme.theme_mode === "light" && (
+                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-xs rounded-1 text-muted-foreground/90"
@@ -527,7 +555,9 @@ export function Sidebar() {
                   >
                     <Moon className="size-3" />
                     Dark
-                    {theme.theme_mode === "dark" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                    {theme.theme_mode === "dark" && (
+                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-xs rounded-1 text-muted-foreground/90"
@@ -535,7 +565,9 @@ export function Sidebar() {
                   >
                     <Monitor className="size-3" />
                     System
-                    {theme.theme_mode === "system" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                    {theme.theme_mode === "system" && (
+                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                    )}
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>

@@ -60,7 +60,9 @@ function readSettings(): SettingsMeta {
           };
         })
       : DEFAULT_SETTINGS.agents;
-    const theme = raw.theme?.theme_mode ? { theme_mode: raw.theme.theme_mode } : DEFAULT_SETTINGS.theme;
+    const theme = raw.theme?.theme_mode
+      ? { theme_mode: raw.theme.theme_mode }
+      : DEFAULT_SETTINGS.theme;
     return { agents, theme };
   } catch {
     return DEFAULT_SETTINGS;
