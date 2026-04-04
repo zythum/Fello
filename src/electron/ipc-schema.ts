@@ -144,6 +144,7 @@ export type FelloIPCRequests = {
     params: { terminalId: string; cols: number; rows: number };
     response: { ok: boolean };
   };
+  openInBrowser: { params: string; response: void };
 };
 
 export type FelloIPCEvents = {

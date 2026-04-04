@@ -717,6 +717,10 @@ const handlers: {
     terminal.resize(Math.max(1, Math.floor(cols)), Math.max(1, Math.floor(rows)));
     return { ok: true };
   },
+
+  async openInBrowser(url: string) {
+    await shell.openExternal(url);
+  },
 };
 
 function registerHandler<K extends keyof FelloIPCSchema["requests"]>(channel: K) {
@@ -788,6 +792,24 @@ function createMainWindow() {
   mainWindow = win;
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null;
+  });
+
+  // 1. 处理当前窗口内的跳转（如 <a href="...">）
+  win.webContents.on('will-navigate', (event, url) => {
+    // 如果是外部链接（根据你的业务逻辑判断，比如不是 localhost）
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      event.preventDefault(); // 阻止 Electron 内部跳转
+      shell.openExternal(url); // 调用系统浏览器打开
+    }
+  });
+
+  // 2. 处理 target="_blank" 或 window.open 打开的新窗口
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      shell.openExternal(url);
+      return { action: 'deny' }; // 阻止 Electron 创建新窗口
+    }
+    return { action: 'allow' };
   });
 
   if (isDev) {

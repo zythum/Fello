@@ -10,11 +10,14 @@ export interface StreamMarkdownProps {
 }
 
 export function StreamMarkdown({ children, streaming }: StreamMarkdownProps) {
-  return <Streamdown
-    plugins={{ code, mermaid, math, cjk }}
-    shikiTheme={["github-light", "github-dark"]}
-    isAnimating={streaming}
-  >
-    {children}
-  </Streamdown>;
+  return (
+      <Streamdown
+        plugins={{ code, mermaid, math, cjk }}
+        shikiTheme={["github-light", "github-dark"]}
+        isAnimating={streaming}
+        linkSafety={{ enabled: false }}
+      >
+        {children}
+      </Streamdown>
+  );
 }
