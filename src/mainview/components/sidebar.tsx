@@ -393,7 +393,7 @@ export function Sidebar() {
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <Badge
                           variant="outline"
-                          className="h-4 px-1 text-[10px] uppercase max-w-[60px] truncate block text-center leading-none py-0"
+                          className="h-4 px-1 text-[10px] uppercase max-w-15 truncate block text-center leading-none py-0"
                         >
                           {configuredAgents.find((a) => a.id === session.agent)?.name ||
                             session.agent}

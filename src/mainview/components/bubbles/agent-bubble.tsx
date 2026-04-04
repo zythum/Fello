@@ -3,7 +3,6 @@ import { Streamdown } from "streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import type { ChatMessage } from "../../store";
 import { cn } from "@/lib/utils";
-import { remarkFilePath } from "../../lib/remark-filepath";
 import { PathLink } from "./path-link";
 
 const code = createCodePlugin({
@@ -30,7 +29,6 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
       <Streamdown
         className="max-w-none font-normal"
         plugins={{ code }}
-        remarkPlugins={[remarkFilePath]}
         components={{
           a: ({ href, children, ...props }: any) => {
             if (href?.startsWith("reveal://")) {

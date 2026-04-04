@@ -1,15 +1,13 @@
 import { memo, useMemo } from "react";
 import type { ChatMessage } from "../../store";
 import { PathLink } from "./path-link";
+import { ABSOLUTE_PATH_REGEX } from "@/lib/regexp";
 
 interface Props {
   message: ChatMessage;
   prevBubbleRole?: ChatMessage["role"];
   nextBubbleRole?: ChatMessage["role"];
 }
-
-const ABSOLUTE_PATH_REGEX =
-  /(?<=^|[^\w.:\\])(?:(?:\/[a-zA-Z0-9_.-]+)+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?|[a-zA-Z]:[\\/](?:[a-zA-Z0-9_.-]+[\\/])*[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9]+)?)/g;
 
 export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
   const contentNodes = useMemo(() => {

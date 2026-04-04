@@ -119,7 +119,7 @@ export function SettingsDialog({
             </Button>
           </div>
 
-          <ScrollArea className="h-[240px] rounded-md border p-2">
+          <ScrollArea className="h-60 rounded-md border p-2">
             <div className="space-y-2">
               {agents.map((agent) => (
                 <div
@@ -150,7 +150,7 @@ export function SettingsDialog({
                               args: e.target.value.split(/\s+/).filter(Boolean),
                             })
                           }
-                          className="h-8 text-xs font-mono flex-[2]"
+                          className="h-8 text-xs font-mono flex-2"
                         />
                       </div>
                       <Input
