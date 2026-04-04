@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { ChatMessage } from "../../store";
-import { PathLink } from "./path-link";
+import { request } from "../../backend";
 import { ABSOLUTE_PATH_REGEX } from "@/lib/regexp";
 
 interface Props {
@@ -8,6 +8,27 @@ interface Props {
   prevBubbleRole?: ChatMessage["role"];
   nextBubbleRole?: ChatMessage["role"];
 }
+
+interface PathLinkProps {
+  path: string;
+  children: React.ReactNode;
+}
+
+const PathLink = memo(function PathLink({ path, children }: PathLinkProps) {
+  return (
+    <button
+      type="button"
+      title={`Reveal in Finder: ${path}`}
+      className="cursor-pointer rounded bg-secondary/50 mx-1 px-1 text-muted-foreground ring-1 ring-border"
+      onClick={(e) => {
+        e.preventDefault();
+        request.revealInFinder(path);
+      }}
+    >
+      #{children}
+    </button>
+  );
+});
 
 export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
   const contentNodes = useMemo(() => {

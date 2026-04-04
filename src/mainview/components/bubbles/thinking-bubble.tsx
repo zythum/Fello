@@ -1,13 +1,8 @@
 import { memo } from "react";
-import { Streamdown } from "streamdown";
-import { createCodePlugin } from "@streamdown/code";
 import { Lightbulb } from "lucide-react";
 import type { ChatMessage } from "../../store";
 import { cn } from "@/lib/utils";
-
-const code = createCodePlugin({
-  themes: ["github-light", "github-dark"],
-});
+import { StreamMarkdown } from "./stream-markdown";
 
 interface Props {
   message: ChatMessage;
@@ -27,13 +22,9 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
       </summary>
       <div className="mt-1 pl-5 text-[11px] italic text-muted-foreground/60">
         <div className="max-w-none">
-          <Streamdown
-            plugins={{ code }}
-            shikiTheme={["github-light", "github-dark"]}
-            isAnimating={message.streaming}
-          >
+          <StreamMarkdown streaming={message.streaming}>
             {message.content}
-          </Streamdown>
+          </StreamMarkdown>
         </div>
       </div>
     </details>

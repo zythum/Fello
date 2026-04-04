@@ -1,13 +1,7 @@
 import { memo } from "react";
-import { Streamdown } from "streamdown";
-import { createCodePlugin } from "@streamdown/code";
 import type { ChatMessage } from "../../store";
 import { cn } from "@/lib/utils";
-import { PathLink } from "./path-link";
-
-const code = createCodePlugin({
-  themes: ["github-light", "github-dark"],
-});
+import { StreamMarkdown } from "./stream-markdown";
 
 interface Props {
   message: ChatMessage;
@@ -26,27 +20,9 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
         prevBubbleRole != null && "mt-4",
       )}
     >
-      <Streamdown
-        className="max-w-none font-normal"
-        plugins={{ code }}
-        components={{
-          a: ({ href, children, ...props }: any) => {
-            if (href?.startsWith("reveal://")) {
-              const path = href.slice(9);
-              return <PathLink path={path}>{children}</PathLink>;
-            }
-            return (
-              <a href={href} {...props}>
-                {children}
-              </a>
-            );
-          },
-        }}
-        shikiTheme={["github-light", "github-dark"]}
-        isAnimating={message.streaming}
-      >
+      <StreamMarkdown streaming={message.streaming}>
         {message.content}
-      </Streamdown>
+      </StreamMarkdown>
     </div>
   );
 });
