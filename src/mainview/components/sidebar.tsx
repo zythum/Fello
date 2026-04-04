@@ -41,6 +41,7 @@ import {
   Bot,
   Palette,
   LoaderCircle,
+  Home,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -273,7 +274,20 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between px-3 py-3">
+      <div className="px-2 pt-2 pb-1">
+        <div
+          onClick={() => setActiveSessionId(null)}
+          className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-medium transition-colors ${
+            !activeSessionId
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+          }`}
+        >
+          <Home className="size-3.5" />
+          <span className="flex-1 truncate leading-normal">Welcome</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between px-3 pb-2 pt-2">
         <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
           Projects
         </span>
