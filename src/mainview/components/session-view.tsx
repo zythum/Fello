@@ -28,7 +28,7 @@ export function SessionView() {
           </div>
         )}
 
-        {isConnecting ? (
+        {!activeSessionId && isConnecting ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Connecting to agent...</p>
@@ -36,8 +36,14 @@ export function SessionView() {
         ) : activeSessionId ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
             <ResizablePanel defaultSize={70} minSize={30}>
-              <div className="flex h-full flex-col">
+              <div className="relative flex h-full flex-col">
                 <Chat />
+                {isConnecting && (
+                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/50 backdrop-blur-sm">
+                    <Loader2 className="size-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium text-foreground">Connecting to agent...</p>
+                  </div>
+                )}
               </div>
             </ResizablePanel>
             <ResizableHandle />

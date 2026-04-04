@@ -263,6 +263,13 @@ export function FilePanel() {
   const cwd = activeSession?.cwd;
   const cwdFolderName = cwd ? (cwd.split("/").pop() ?? cwd) : "";
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setOpenFolders(new Set());
+    setLastSelectedId(null);
+    setEditingId(null);
+  }, [cwd]);
+
   const loadTree = useCallback(async (path: string) => {
     setLoading(true);
     try {
