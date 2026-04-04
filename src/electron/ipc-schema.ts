@@ -38,8 +38,13 @@ export interface AgentConfig {
   env: Record<string, string>;
 }
 
+export interface ThemeConfig {
+  theme_mode: "light" | "dark" | "system";
+}
+
 export interface SettingsMeta {
   agents: AgentConfig[];
+  theme?: ThemeConfig;
 }
 
 export type FelloIPCRequests = {

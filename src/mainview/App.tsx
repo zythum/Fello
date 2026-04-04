@@ -24,6 +24,7 @@ function App() {
     globalErrorMessages,
     shiftGlobalErrorMessage,
     setConfiguredAgents,
+    setTheme,
   } = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
@@ -48,9 +49,10 @@ function App() {
       setProjects((projects as ProjectInfo[]) ?? []);
       setSessions((sessions as SessionInfo[]) ?? []);
       setConfiguredAgents(settings.agents);
+      if (settings.theme) setTheme(settings.theme);
     }
     void loadData();
-  }, [setProjects, setSessions]);
+  }, [setProjects, setSessions, setConfiguredAgents, setTheme]);
 
   useEffect(() => {
     const handleSessionUpdate = (detail: any) => {

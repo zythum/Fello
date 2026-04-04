@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
 import { useAppStore, type ProjectInfo, type SessionInfo } from "../store";
 import { request } from "../backend";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -18,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SettingsDialog } from "./settings-dialog";
 import {
@@ -29,6 +35,11 @@ import {
   Pencil,
   Trash2,
   Settings,
+  Sun,
+  Moon,
+  Monitor,
+  Bot,
+  Palette,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown): string {
@@ -50,6 +61,8 @@ export function Sidebar() {
     sidebarOpen,
     resetSessionState,
     configuredAgents,
+    theme,
+    setTheme,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
@@ -229,6 +242,19 @@ export function Sidebar() {
     }
   };
 
+  const handleThemeChange = async (mode: "light" | "dark" | "system") => {
+    const newTheme = { theme_mode: mode };
+    setTheme(newTheme);
+    try {
+      await request.updateSettings({
+        agents: configuredAgents,
+        theme: newTheme,
+      });
+    } catch {
+      pushGlobalErrorMessage("Failed to save theme setting.");
+    }
+  };
+
   const sessionsByProject = useMemo(() => {
     const grouped: Record<string, SessionInfo[]> = {};
     for (const session of sessions) {
@@ -387,13 +413,13 @@ export function Sidebar() {
                       className={`group flex h-8 cursor-pointer items-center justify-between rounded-md px-2 ml-3 text-xs font-medium transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/35 hover:text-sidebar-foreground/95"
-                      } ${openSessionMenuId === session.id ? "bg-sidebar-accent/35" : ""}`}
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                      } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <Badge
                           variant="outline"
-                          className="h-4 px-1 text-[10px] uppercase max-w-15 truncate block text-center leading-none py-0"
+                          className="h-4 px-1 text-[10px] uppercase max-w-15 truncate block text-center leading-normal py-0"
                         >
                           {configuredAgents.find((a) => a.id === session.agent)?.name ||
                             session.agent}
@@ -461,14 +487,61 @@ export function Sidebar() {
       </ScrollArea>
 
       <div className="mt-auto border-t border-border/60 p-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90"
-          onClick={() => setSettingsOpen(true)}
-        >
-          <Settings className="size-4" />
-          Settings
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "flex w-full items-center justify-start gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none"
+            )}
+          >
+            <Settings className="size-4" />
+            Settings
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="py-1">
+            <DropdownMenuItem
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Bot className="size-3" />
+              Agents
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
+                <Palette className="size-3" />
+                Theme
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-32 py-1">
+                  <DropdownMenuItem
+                    className="text-xs rounded-1 text-muted-foreground/90"
+                    onClick={() => void handleThemeChange("light")}
+                  >
+                    <Sun className="size-3" />
+                    Light
+                    {theme.theme_mode === "light" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs rounded-1 text-muted-foreground/90"
+                    onClick={() => void handleThemeChange("dark")}
+                  >
+                    <Moon className="size-3" />
+                    Dark
+                    {theme.theme_mode === "dark" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs rounded-1 text-muted-foreground/90"
+                    onClick={() => void handleThemeChange("system")}
+                  >
+                    <Monitor className="size-3" />
+                    System
+                    {theme.theme_mode === "system" && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog

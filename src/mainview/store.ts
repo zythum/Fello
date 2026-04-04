@@ -96,6 +96,10 @@ const emptySessionState = (): SessionState => ({
   activeToolCalls: new Map(),
 });
 
+export interface ThemeConfig {
+  theme_mode: "light" | "dark" | "system";
+}
+
 export interface AgentConfig {
   id: string;
   name: string;
@@ -114,6 +118,7 @@ interface AppState {
   isConnecting: boolean;
   sidebarOpen: boolean;
   configuredAgents: AgentConfig[];
+  theme: ThemeConfig;
   availableModels: ModelOption[];
   currentModelId: string | null;
   availableModes: ModeOption[];
@@ -146,6 +151,7 @@ interface AppState {
   setIsConnecting: (v: boolean) => void;
   setSidebarOpen: (v: boolean) => void;
   setConfiguredAgents: (agents: AgentConfig[]) => void;
+  setTheme: (theme: ThemeConfig) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
   setAvailableModes: (modes: ModeOption[]) => void;
@@ -164,6 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isConnecting: false,
   sidebarOpen: true,
   configuredAgents: [],
+  theme: { theme_mode: "system" },
   availableModels: [],
   currentModelId: null,
   availableModes: [],
@@ -272,6 +279,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsConnecting: (v) => set({ isConnecting: v }),
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
+  setTheme: (theme) => set({ theme }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
   setAvailableModes: (modes) => set({ availableModes: modes }),

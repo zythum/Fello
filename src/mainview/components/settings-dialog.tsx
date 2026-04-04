@@ -40,7 +40,8 @@ export function SettingsDialog({
 
   const handleSave = async () => {
     try {
-      await request.updateSettings({ agents });
+      const { theme } = useAppStore.getState();
+      await request.updateSettings({ agents, theme });
       setConfiguredAgents(agents);
       onOpenChange(false);
     } catch (err) {

@@ -15,8 +15,13 @@ export interface AgentConfig {
   env: Record<string, string>;
 }
 
+export interface ThemeConfig {
+  theme_mode: "light" | "dark" | "system";
+}
+
 export interface SettingsMeta {
   agents: AgentConfig[];
+  theme?: ThemeConfig;
 }
 
 export const DEFAULT_SETTINGS: SettingsMeta = {
@@ -24,6 +29,7 @@ export const DEFAULT_SETTINGS: SettingsMeta = {
     { id: "kiro", name: "Kiro", command: "kiro-cli", args: ["acp"], env: {} },
     { id: "kimi", name: "Kimi", command: "kimi", args: ["acp"], env: {} },
   ],
+  theme: { theme_mode: "system" },
 };
 
 function settingsPath() {
@@ -54,7 +60,8 @@ function readSettings(): SettingsMeta {
           };
         })
       : DEFAULT_SETTINGS.agents;
-    return { agents };
+    const theme = raw.theme?.theme_mode ? { theme_mode: raw.theme.theme_mode } : DEFAULT_SETTINGS.theme;
+    return { agents, theme };
   } catch {
     return DEFAULT_SETTINGS;
   }
