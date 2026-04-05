@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { request } from "../backend";
 import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
@@ -329,6 +330,7 @@ function TreeItem({
 import { FilePreviewSheet } from "./file-preview";
 
 export function FilePanel() {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [panelWidth, setPanelWidth] = useState<number>(0);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -637,10 +639,10 @@ export function FilePanel() {
 
   const trashLabel =
     osPlatform === "darwin"
-      ? "Move to Trash"
+      ? t("filePanel.moveToTrash")
       : osPlatform === "win32"
-        ? "Move to Recycle Bin"
-        : "Move to Trash";
+        ? t("filePanel.moveToRecycleBin")
+        : t("filePanel.moveToTrash");
 
   // --- Drag & drop (multi-select aware, + external file drop) ---
 
@@ -937,7 +939,7 @@ export function FilePanel() {
   if (!activeSessionId) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        No active session
+        {t("filePanel.noActiveSession")}
       </div>
     );
   }
@@ -945,7 +947,7 @@ export function FilePanel() {
   if (loading && data.length === 0) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="size-3 animate-spin" /> Loading...
+        <Loader2 className="size-3 animate-spin" /> {t("filePanel.loading")}
       </div>
     );
   }
@@ -1055,7 +1057,9 @@ export function FilePanel() {
               <TreeItem key={node.id} node={node} depth={0} {...sharedProps} />
             ))}
             {data.length === 0 && (
-              <div className="py-6 text-center text-xs text-muted-foreground">Empty directory</div>
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                {t("filePanel.emptyDirectory")}
+              </div>
             )}
           </ContextMenuTrigger>
           <ContextMenuContent className="w-48 py-1">
@@ -1064,14 +1068,14 @@ export function FilePanel() {
               onClick={() => createIn(null, false)}
             >
               <FilePlus className="size-3" />
-              New File
+              {t("filePanel.newFile")}
             </ContextMenuItem>
             <ContextMenuItem
               className="text-xs rounded-1 text-muted-foreground/90"
               onClick={() => createIn(null, true)}
             >
               <FolderPlus className="size-3" />
-              New Folder
+              {t("filePanel.newFolder")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -1079,7 +1083,7 @@ export function FilePanel() {
               onClick={() => revealInFinder(cwd ?? "")}
             >
               <FolderOpen className="size-3" />
-              Reveal in Finder
+              {t("filePanel.revealInFinder")}
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
@@ -1096,22 +1100,22 @@ export function FilePanel() {
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Delete</DialogTitle>
+            <DialogTitle>{t("filePanel.delete")}</DialogTitle>
             <DialogDescription>
               {pendingDeleteIds && pendingDeleteIds.length === 1
-                ? `How would you like to delete "${pendingDeleteIds[0].split("/").pop()}"?`
-                : `How would you like to delete ${pendingDeleteIds?.length ?? 0} items?`}
+                ? t("filePanel.deleteConfirmSingle", { name: pendingDeleteIds[0].split("/").pop() })
+                : t("filePanel.deleteConfirmMultiple", { count: pendingDeleteIds?.length ?? 0 })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingDeleteIds(null)}>
-              Cancel
+              {t("filePanel.cancel")}
             </Button>
             <Button variant="outline" onClick={() => executeDelete(false)}>
               {trashLabel}
             </Button>
             <Button variant="destructive" onClick={() => executeDelete(true)}>
-              Delete
+              {t("filePanel.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

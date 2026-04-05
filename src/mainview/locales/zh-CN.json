@@ -51,5 +51,34 @@
   "chatInput": {
     "placeholderDisabled": "请先开启新的会话...",
     "placeholderActive": "有任何问题请问我... (回车发送)"
+  },
+  "filePreview": {
+    "fileNotFound": "文件不存在",
+    "fileTooLarge": "该文件过大不支持预览",
+    "fileFormatNotSupported": "该文件格式不支持预览",
+    "errorLoading": "加载文件失败",
+    "loading": "加载中...",
+    "preview": "预览",
+    "compare": "对比"
+  },
+  "filePanel": {
+    "emptyDirectory": "空目录",
+    "newFile": "新建文件",
+    "newFolder": "新建文件夹",
+    "revealInFinder": "在访达中显示",
+    "delete": "删除",
+    "deleteConfirmSingle": "是否删除“{{name}}”？",
+    "deleteConfirmMultiple": "是否删除选中的 {{count}} 个项目？",
+    "cancel": "取消",
+    "moveToTrash": "移至废纸篓",
+    "moveToRecycleBin": "移至回收站",
+    "noActiveSession": "无活动会话",
+    "loading": "加载中..."
+  },
+  "toolBubble": {
+    "tool": "工具"
+  },
+  "readonlyTerminal": {
+    "waitingForOutput": "等待输出..."
   }
 }

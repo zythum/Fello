@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { ChatMessage, ToolStatus } from "../../store";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 import {
   Check,
   X,
@@ -44,6 +45,7 @@ interface ToolItemProps {
 }
 
 export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
+  const { t } = useTranslation();
   const status: ToolStatus = message.toolStatus ?? "completed";
   const isLive = status === "in_progress" || status === "pending";
   const kindIcon = message.toolKind ? kindIcons[message.toolKind] : null;
@@ -53,7 +55,9 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
         {statusIcons[status]}
         {kindIcon}
-        <span className="font-medium text-foreground">{message.toolTitle || "Tool"}</span>
+        <span className="font-medium text-foreground">
+          {message.toolTitle || t("toolBubble.tool")}
+        </span>
         {message.toolKind && (
           <Badge variant="outline" className="text-[10px]">
             {message.toolKind}

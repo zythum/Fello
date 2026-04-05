@@ -7,6 +7,7 @@ import * as Diff from "diff";
 import { ScrollArea } from "./ui/scroll-area";
 import { File, XIcon } from "lucide-react";
 import { Button } from "./ui/button";
+import { useTranslation } from "react-i18next";
 
 interface FilePreviewProps {
   filePath: string | null;
@@ -16,6 +17,7 @@ interface FilePreviewProps {
 }
 
 export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePreviewProps) {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
   const [isDiffMode, setIsDiffMode] = useState(false);
@@ -42,13 +44,13 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
         const info = await request.getFileInfo({ path: filePath! });
         if (!active) return;
         if (!info || !info.isFile) {
-          setErrorMsg("File not found");
+          setErrorMsg(t("filePreview.fileNotFound"));
           setLoading(false);
           return;
         }
 
         if (info.size > 10 * 1024 * 1024) {
-          setErrorMsg("该文件过大不支持预览");
+          setErrorMsg(t("filePreview.fileTooLarge"));
           setLoading(false);
           return;
         }
@@ -69,7 +71,7 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
         }
 
         if (info.isBinary) {
-          setErrorMsg("该文件格式不支持预览");
+          setErrorMsg(t("filePreview.fileFormatNotSupported"));
           setLoading(false);
           return;
         }
@@ -84,7 +86,7 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
       } catch (e) {
         if (!active) return;
         console.error(e);
-        setErrorMsg("Error loading file");
+        setErrorMsg(t("filePreview.errorLoading"));
       } finally {
         if (active) setLoading(false);
       }
@@ -198,10 +200,10 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
               >
                 <TabsList className="h-8">
                   <TabsTrigger value="preview" className="text-[12px]">
-                    Preview
+                    {t("filePreview.preview")}
                   </TabsTrigger>
                   <TabsTrigger value="diff" disabled={gitContent === ""} className="text-[12px]">
-                    Compare
+                    {t("filePreview.compare")}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -219,7 +221,9 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
         </SheetHeader>
         <ScrollArea className="flex-1 w-full h-0 text-[12px] font-mono bg-[#ffffff] dark:bg-[#24292e]">
           {loading ? (
-            <div className="text-muted-foreground text-center mt-10">Loading...</div>
+            <div className="text-muted-foreground text-center mt-10">
+              {t("filePreview.loading")}
+            </div>
           ) : errorMsg ? (
             <div className="text-muted-foreground text-center mt-10">{errorMsg}</div>
           ) : isImage ? (

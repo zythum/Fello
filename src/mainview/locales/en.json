@@ -51,5 +51,34 @@
   "chatInput": {
     "placeholderDisabled": "Start a new chat to begin...",
     "placeholderActive": "Ask anything... (Enter to send)"
+  },
+  "filePreview": {
+    "fileNotFound": "File not found",
+    "fileTooLarge": "File is too large to preview",
+    "fileFormatNotSupported": "File format not supported for preview",
+    "errorLoading": "Error loading file",
+    "loading": "Loading...",
+    "preview": "Preview",
+    "compare": "Compare"
+  },
+  "filePanel": {
+    "emptyDirectory": "Empty directory",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "revealInFinder": "Reveal in Finder",
+    "delete": "Delete",
+    "deleteConfirmSingle": "How would you like to delete \"{{name}}\"?",
+    "deleteConfirmMultiple": "How would you like to delete {{count}} items?",
+    "cancel": "Cancel",
+    "moveToTrash": "Move to Trash",
+    "moveToRecycleBin": "Move to Recycle Bin",
+    "noActiveSession": "No active session",
+    "loading": "Loading..."
+  },
+  "toolBubble": {
+    "tool": "Tool"
+  },
+  "readonlyTerminal": {
+    "waitingForOutput": "Waiting for output..."
   }
 }
