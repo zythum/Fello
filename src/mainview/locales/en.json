@@ -40,6 +40,9 @@
     "errorNameCommand": "Name and Command are required.",
     "errorEnvJson": "Env must be a valid JSON object."
   },
+  "chatHeader": {
+    "refresh": "Refresh"
+  },
   "sessionView": {
     "connecting": "Connecting to agent...",
     "files": "Files",

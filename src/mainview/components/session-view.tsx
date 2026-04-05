@@ -14,7 +14,7 @@ export function SessionView() {
   const { t } = useTranslation();
   const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
-  
+
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const [rightPanelWidth, setRightPanelWidth] = useState<number>(0);
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function SessionView() {
               <div className="relative flex h-full flex-col">
                 <Chat />
                 {isConnecting && (
-                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/50">
+                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/10">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">
                       {t("sessionView.connecting")}
@@ -117,7 +117,7 @@ export function SessionView() {
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
+          <div className="flex flex-1 flex-col items-center bg-sidebar justify-center gap-6 px-8">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
               <MessageSquare className="size-8 text-primary" />
             </div>

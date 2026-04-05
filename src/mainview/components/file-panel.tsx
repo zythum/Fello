@@ -951,7 +951,11 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
           )}
         </DropdownMenuTrigger>
         {hasChanges && (
-          <DropdownMenuContent align="center" side="top" className="w-[calc(var(--anchor-width)-8px)] max-h-64 p-0">
+          <DropdownMenuContent
+            align="center"
+            side="top"
+            className="w-[calc(var(--anchor-width)-8px)] max-h-64 p-0"
+          >
             <ScrollArea className="max-h-64">
               <div className="p-1">
                 {Object.entries(gitStatus.files).map(([relPath, status]) => {
