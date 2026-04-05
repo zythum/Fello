@@ -7,7 +7,7 @@
 
 - Indentation: 2 spaces, no tabs.
 - UI: prefer existing shadcn/ui components over custom markup when possible.
-- Language: all user-facing UI text must be English.
+- Language & i18n: All user-facing UI text MUST be extracted to locale files (`src/mainview/locales/`) using `react-i18next` (`useTranslation`). Do not use hardcoded strings in components.
 
 ## Repo Structure
 
