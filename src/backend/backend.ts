@@ -672,6 +672,19 @@ export const backendHandlers: {
       return null;
     }
   },
+
+  async getGitFileContent({ cwd, path }) {
+    try {
+      const relPath = relative(cwd, path);
+      const { stdout } = await execFileAsync("git", ["show", `HEAD:./${relPath}`], {
+        cwd,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      return stdout;
+    } catch {
+      return "";
+    }
+  },
 };
 
 export { type FelloIPCSchema };

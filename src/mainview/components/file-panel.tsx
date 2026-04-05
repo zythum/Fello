@@ -53,6 +53,7 @@ interface Actions {
   drop: (e: React.DragEvent, id: string) => void;
   dragEnd: () => void;
   revealInFinder: (id: string) => void;
+  previewFile: (id: string) => void;
 }
 
 const GIT_FOLDER_STATUS = {
@@ -183,7 +184,15 @@ function TreeItem({
           onClick={(e) => {
             e.stopPropagation();
             actions.select(node.id, e);
-            if (node.isFolder && !e.metaKey && !e.shiftKey) actions.toggle(node);
+            if (node.isFolder && !e.metaKey && !e.shiftKey) {
+              actions.toggle(node);
+            }
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (!node.isFolder) {
+              actions.previewFile(node.id);
+            }
           }}
         >
           {node.isFolder ? (
@@ -317,6 +326,8 @@ function TreeItem({
   );
 }
 
+import { FilePreviewSheet } from "./file-preview";
+
 export function FilePanel() {
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -327,6 +338,7 @@ export function FilePanel() {
   const [editingValue, setEditingValue] = useState("");
   const [dragIds, setDragIds] = useState<string[]>([]);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
   const [gitStatus, setGitStatus] = useState<{
     branch: string;
     files: Record<string, string>;
@@ -833,6 +845,7 @@ export function FilePanel() {
       setDropTargetId(null);
     },
     revealInFinder,
+    previewFile: (id: string) => setPreviewFilePath(id),
   };
 
   const gitStatusMap = useMemo(() => {
@@ -1090,6 +1103,12 @@ export function FilePanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FilePreviewSheet
+        filePath={previewFilePath}
+        cwd={cwd || null}
+        onClose={() => setPreviewFilePath(null)}
+      />
     </div>
   );
 }

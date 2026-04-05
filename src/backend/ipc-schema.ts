@@ -138,6 +138,10 @@ export type FelloIPCRequests = {
     params: { cwd: string };
     response: { branch: string; files: Record<string, string> } | null;
   };
+  getGitFileContent: {
+    params: { cwd: string; path: string };
+    response: string;
+  };
 };
 
 export type FelloIPCEvents = {
