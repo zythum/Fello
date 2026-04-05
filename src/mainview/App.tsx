@@ -77,11 +77,17 @@ function App() {
       });
     };
 
+    const handleAgentTerminalOutput = (detail: any) => {
+      useAppStore.getState().appendTerminalLog(detail.terminalId, detail.data);
+    };
+
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
+    subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     return () => {
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
+      subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
     };
   }, [addPermissionRequest]);
 

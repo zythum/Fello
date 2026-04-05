@@ -25,25 +25,40 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
       }
       break;
 
-    case "tool_call":
-      store.updateToolCall(sessionId, event.toolCallId, {
-        title: event.title,
-        status: event.status || "pending",
-        content: "",
-        kind: event.kind,
-        rawInput: event.rawInput,
-        locations: event.locations,
-      });
-      break;
-
-    case "tool_call_update":
+    case "tool_call": {
+      let terminalId: string | null = null;
+      if (Array.isArray(event.content)) {
+        const termContent = event.content.find((c: any) => c.type === "terminal");
+        if (termContent) terminalId = termContent.terminalId;
+      }
       store.updateToolCall(sessionId, event.toolCallId, {
         title: event.title,
         status: event.status || "completed",
         content: "",
+        kind: event.kind,
+        terminalId,
+        rawInput: event.rawInput,
         locations: event.locations,
       });
       break;
+    }
+
+    case "tool_call_update": {
+      let terminalId: string | null = null;
+      if (Array.isArray(event.content)) {
+        const termContent = event.content.find((c: any) => c.type === "terminal");
+        if (termContent) terminalId = termContent.terminalId;
+      }
+      const updateData: any = {
+        title: event.title,
+        status: event.status || "completed",
+        content: "",
+        locations: event.locations,
+      };
+      if (terminalId) updateData.terminalId = terminalId;
+      store.updateToolCall(sessionId, event.toolCallId, updateData);
+      break;
+    }
 
     case "usage_update":
       store.setUsage(sessionId, {

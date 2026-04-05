@@ -9,12 +9,24 @@ import type {
   WriteTextFileResponse,
   ReadTextFileRequest,
   ReadTextFileResponse,
+  CreateTerminalRequest,
+  CreateTerminalResponse,
+  TerminalOutputRequest,
+  TerminalOutputResponse,
+  WaitForTerminalExitRequest,
+  WaitForTerminalExitResponse,
+  KillTerminalRequest,
+  KillTerminalResponse,
+  ReleaseTerminalRequest,
+  ReleaseTerminalResponse,
 } from "@agentclientprotocol/sdk";
+import { AgentTerminalManager } from "./agent-terminal-manager";
 
 export type SessionUpdateCallback = (update: SessionNotification) => void;
 export type PermissionRequestCallback = (
   params: RequestPermissionRequest,
 ) => Promise<RequestPermissionResponse>;
+export type AgentTerminalOutputCallback = (terminalId: string, data: string) => void;
 
 export interface ACPBridgeOptions {
   command: string;
@@ -23,6 +35,7 @@ export interface ACPBridgeOptions {
   cwd: string;
   onSessionUpdate: SessionUpdateCallback;
   onPermissionRequest: PermissionRequestCallback;
+  onAgentTerminalOutput: AgentTerminalOutputCallback;
 }
 
 export class ACPBridge {
@@ -34,10 +47,12 @@ export class ACPBridge {
   private _agentInfo: acp.InitializeResponse | null = null;
   private _modelStates = new Map<string, acp.SessionModelState>();
   private _modeStates = new Map<string, acp.SessionModeState>();
+  public terminalManager: AgentTerminalManager;
 
   constructor(private options: ACPBridgeOptions) {
     this.onSessionUpdate = options.onSessionUpdate;
     this.onPermissionRequest = options.onPermissionRequest;
+    this.terminalManager = new AgentTerminalManager(options.onAgentTerminalOutput);
   }
 
   get isConnected() {
@@ -97,6 +112,8 @@ export class ACPBridge {
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
     const modeStates = this._modeStates;
+    const terminalManager = this.terminalManager;
+    const defaultCwd = this.options.cwd;
     const client: acp.Client = {
       async requestPermission(
         params: RequestPermissionRequest,
@@ -122,6 +139,44 @@ export class ACPBridge {
         const content = await readFile(params.path, "utf-8");
         return { content };
       },
+      async createTerminal(params: CreateTerminalRequest): Promise<CreateTerminalResponse> {
+        const id = terminalManager.create(
+          params.command,
+          params.args || [],
+          params.cwd || defaultCwd,
+          params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
+          params.outputByteLimit || 1048576,
+        );
+        return { terminalId: id };
+      },
+      async terminalOutput(params: TerminalOutputRequest): Promise<TerminalOutputResponse> {
+        const { output, truncated } = terminalManager.getOutput(params.terminalId);
+        // SDK doesn't define exitStatus if it hasn't exited, so we shouldn't add it unless finished
+        // We'll leave it out for now as AgentTerminalManager doesn't return exitStatus in getOutput yet
+        // Wait, let's fix getOutput in AgentTerminalManager to return exitStatus if finished.
+        const term = (terminalManager as any).terminals.get(params.terminalId);
+        return {
+          output,
+          truncated,
+          ...(term?.isFinished
+            ? { exitStatus: { exitCode: term.exitCode, signal: term.signal } }
+            : {}),
+        };
+      },
+      async waitForTerminalExit(
+        params: WaitForTerminalExitRequest,
+      ): Promise<WaitForTerminalExitResponse> {
+        const { exitCode, signal } = await terminalManager.waitForExit(params.terminalId);
+        return { exitCode: exitCode ?? undefined, signal: signal ?? undefined };
+      },
+      async killTerminal(params: KillTerminalRequest): Promise<KillTerminalResponse> {
+        terminalManager.kill(params.terminalId);
+        return {};
+      },
+      async releaseTerminal(params: ReleaseTerminalRequest): Promise<ReleaseTerminalResponse> {
+        terminalManager.release(params.terminalId);
+        return {};
+      },
       async extNotification(_method: string, _params: unknown): Promise<void> {},
     };
 
@@ -131,6 +186,7 @@ export class ACPBridge {
       clientInfo: { name: "Fello", version: "0.1.0" },
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
+        terminal: true,
       },
     });
     this._isConnected = true;

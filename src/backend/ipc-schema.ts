@@ -133,6 +133,7 @@ export type FelloIPCRequests = {
     params: { terminalId: string; cols: number; rows: number };
     response: { ok: boolean };
   };
+  getAgentTerminalOutput: { params: string; response: string };
 };
 
 export type FelloIPCEvents = {
@@ -140,6 +141,7 @@ export type FelloIPCEvents = {
   "permission-request": RequestPermissionRequest;
   "terminal-output": { terminalId: string; data: string };
   "terminal-exit": { terminalId: string; exitCode: number | null };
+  "agent-terminal-output": { terminalId: string; data: string };
 };
 
 export type FelloIPCSchema = {

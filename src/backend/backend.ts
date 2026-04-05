@@ -147,6 +147,9 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
         pendingPermissions.set(toolCallId, resolve);
       });
     },
+    onAgentTerminalOutput: (terminalId: string, data: string) => {
+      sendEvent("agent-terminal-output", { terminalId, data });
+    },
   });
   await nextBridge.connect();
   bridgePool.set(agent, nextBridge);
@@ -616,6 +619,16 @@ export const backendHandlers: {
     if (!terminal) return { ok: false };
     terminal.resize(Math.max(1, Math.floor(cols)), Math.max(1, Math.floor(rows)));
     return { ok: true };
+  },
+
+  async getAgentTerminalOutput(terminalId: string) {
+    if (!bridge) return "";
+    try {
+      const output = bridge.terminalManager.getOutput(terminalId);
+      return output?.output || "";
+    } catch {
+      return "";
+    }
   },
 };
 

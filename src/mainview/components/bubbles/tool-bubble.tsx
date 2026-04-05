@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { ChatMessage } from "../../store";
+import type { ChatMessage, ToolStatus } from "../../store";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -17,6 +17,7 @@ import {
   ArrowRightLeft,
   Wrench,
 } from "lucide-react";
+import { ReadonlyTerminal } from "../readonly-terminal";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -31,25 +32,26 @@ const kindIcons: Record<string, React.ReactNode> = {
   other: <Wrench className="size-3 text-muted-foreground" />,
 };
 
+const statusIcons: Record<ToolStatus, React.ReactNode> = {
+  pending: <Loader2 className="size-3 text-muted-foreground" />,
+  in_progress: <Loader2 className="size-3 animate-spin text-primary" />,
+  completed: <Check className="size-3 text-green-400" />,
+  failed: <X className="size-3 text-destructive" />,
+};
+
 interface ToolItemProps {
   message: ChatMessage;
 }
 
 export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
-  const isLive = message.toolStatus === "in_progress" || message.toolStatus === "pending";
-  const status = isLive ? message.toolStatus! : (message.toolStatus ?? "completed");
+  const status: ToolStatus = message.toolStatus ?? "completed";
+  const isLive = status === "in_progress" || status === "pending";
   const kindIcon = message.toolKind ? kindIcons[message.toolKind] : null;
 
   return (
     <details className="text-xs min-w-0 overflow-hidden" open={isLive}>
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
-        {isLive ? (
-          <Loader2 className="size-3 animate-spin text-primary" />
-        ) : status === "completed" ? (
-          <Check className="size-3 text-green-400" />
-        ) : (
-          <X className="size-3 text-destructive" />
-        )}
+        {statusIcons[status]}
         {kindIcon}
         <span className="font-medium text-foreground">{message.toolTitle || "Tool"}</span>
         {message.toolKind && (
@@ -57,9 +59,6 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
             {message.toolKind}
           </Badge>
         )}
-        <Badge variant="secondary" className="ml-auto text-[10px]">
-          {status}
-        </Badge>
       </summary>
       <div className="border-t border-border overflow-hidden">
         {message.locations && message.locations.length > 0 && (
@@ -83,7 +82,12 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
               : JSON.stringify(message.rawInput, null, 2)}
           </pre>
         )}
-        {message.content && !message.rawInput && (
+        {message.terminalId && (
+          <div className="px-3 pb-2 pt-1">
+            <ReadonlyTerminal terminalId={message.terminalId} />
+          </div>
+        )}
+        {message.content && !message.rawInput && !message.terminalId && (
           <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
             {message.content.slice(0, 500)}
             {message.content.length > 500 && "..."}

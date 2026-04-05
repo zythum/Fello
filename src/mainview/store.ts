@@ -7,14 +7,17 @@ export interface ChatMessage {
   messageId?: string | null;
   toolCallId?: string | null;
   toolTitle?: string | null;
-  toolStatus?: string | null;
+  toolStatus?: ToolStatus | null;
   toolKind?: string | null;
+  terminalId?: string | null;
   rawInput?: unknown;
   locations?: Array<{ path: string; line?: number | null }> | null;
   createdAt?: number;
   /** True while this message is still being streamed */
   streaming?: boolean;
 }
+
+export type ToolStatus = "pending" | "in_progress" | "completed" | "failed";
 
 export interface SessionInfo {
   id: string;
@@ -72,9 +75,10 @@ export interface PermissionRequest {
 
 interface ActiveToolCall {
   title: string;
-  status: string;
+  status: ToolStatus;
   content: string;
   kind?: string | null;
+  terminalId?: string | null;
   rawInput?: unknown;
   locations?: Array<{ path: string; line?: number | null }> | null;
 }
@@ -125,28 +129,34 @@ interface AppState {
   availableModes: ModeOption[];
   currentModeId: string | null;
   globalErrorMessages: string[];
+  terminalLogs: Record<string, string>;
 
-  // Helpers to get/update the active session's state
-  getSessionState: (id?: string | null) => SessionState;
-  updateSessionState: (id: string, updater: (s: SessionState) => Partial<SessionState>) => void;
+  // Selectors
+  getSessionState: (id?: string) => SessionState;
 
-  setSessions: (sessions: SessionInfo[]) => void;
+  // Modifiers
+  updateSessionState: (id: string, updater: (state: SessionState) => Partial<SessionState>) => void;
   setProjects: (projects: ProjectInfo[]) => void;
+  setSessions: (sessions: SessionInfo[]) => void;
   setActiveSessionId: (id: string | null) => void;
 
-  // Per-session mutators (sessionId required)
+  // Per-session mutators
   resetSessionState: (sessionId: string) => void;
   setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setUsage: (sessionId: string, usage: SessionUsage | null) => void;
   setIsStreaming: (sessionId: string, v: boolean) => void;
-  appendToLastMessage: (sessionId: string, role: "assistant" | "thinking", chunk: string) => void;
+  appendToLastMessage: (sessionId: string, role: ChatMessage["role"], chunk: string) => void;
   finalizeStreamingMessages: (sessionId: string) => void;
   setPermissionRequest: (sessionId: string, req: PermissionRequest | null) => void;
   addPermissionRequest: (sessionId: string, req: PermissionRequest) => void;
   removePermissionRequest: (sessionId: string, toolCallId: string) => void;
   updateToolCall: (sessionId: string, id: string, data: Partial<ActiveToolCall>) => void;
   clearToolCalls: (sessionId: string) => void;
+
+  // Terminal log mutators
+  appendTerminalLog: (terminalId: string, chunk: string) => void;
+  setTerminalLog: (terminalId: string, fullLog: string) => void;
 
   // Global mutators
   setIsConnecting: (v: boolean) => void;
@@ -179,6 +189,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   availableModes: [],
   currentModeId: null,
   globalErrorMessages: [],
+  terminalLogs: {},
 
   getSessionState: (id) => {
     const sid = id ?? get().activeSessionId;
@@ -251,7 +262,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const filtered = Object.fromEntries(
         Object.entries(data).filter(([, v]) => v != null && v !== ""),
       );
-      newMap.set(id, { title: "", status: "pending", content: "", ...existing, ...filtered });
+      newMap.set(id, { title: "", status: "completed", content: "", ...existing, ...filtered });
 
       // Also upsert into messages so tools appear interleaved with other roles
       const msgs = [...s.messages];
@@ -264,6 +275,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         toolTitle: merged.title,
         toolStatus: merged.status,
         toolKind: merged.kind,
+        terminalId: merged.terminalId,
         rawInput: merged.rawInput,
         locations: merged.locations,
       };
@@ -277,6 +289,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   clearToolCalls: (sessionId) =>
     get().updateSessionState(sessionId, () => ({ activeToolCalls: new Map() })),
+
+  appendTerminalLog: (terminalId, chunk) =>
+    set((state) => ({
+      terminalLogs: {
+        ...state.terminalLogs,
+        [terminalId]: (state.terminalLogs[terminalId] || "") + chunk,
+      },
+    })),
+  setTerminalLog: (terminalId, fullLog) =>
+    set((state) => ({
+      terminalLogs: {
+        ...state.terminalLogs,
+        [terminalId]: fullLog,
+      },
+    })),
 
   // Global mutators
   setIsConnecting: (v) => set({ isConnecting: v }),
