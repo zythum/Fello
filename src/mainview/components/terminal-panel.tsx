@@ -129,8 +129,10 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
 
   useEffect(() => {
     const terminalBackground =
-      window.getComputedStyle(document.documentElement).getPropertyValue("--color-neutral-900").trim() ||
-      "#0f0f10";
+      window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-neutral-900")
+        .trim() || "#0f0f10";
     for (const terminalItem of allTerminals) {
       if (instanceRefs.current.has(terminalItem.id)) continue;
       const container = containerRefs.current.get(terminalItem.id);

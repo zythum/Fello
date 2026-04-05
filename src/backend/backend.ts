@@ -532,7 +532,7 @@ export const backendHandlers: {
         const s = await stat(full).catch(() => null);
         if (!s) continue;
         if (s.isDirectory()) {
-          const children = currentDepth > 1 ? await walk(full, currentDepth - 1) : [];
+          const children = currentDepth > 1 ? await walk(full, currentDepth - 1) : undefined;
           results.push({ id: full, name, isFolder: true, children });
         } else {
           results.push({ id: full, name, isFolder: false });

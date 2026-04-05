@@ -43,7 +43,7 @@ interface TreeNode {
 
 interface Actions {
   select: (id: string, e: React.MouseEvent) => void;
-  toggle: (id: string) => void;
+  toggle: (node: TreeNode) => void;
   startRename: (node: TreeNode) => void;
   createIn: (parentId: string | null, isFolder: boolean) => void;
   deleteNode: (ids: string[]) => void;
@@ -183,7 +183,7 @@ function TreeItem({
           onClick={(e) => {
             e.stopPropagation();
             actions.select(node.id, e);
-            if (node.isFolder && !e.metaKey && !e.shiftKey) actions.toggle(node.id);
+            if (node.isFolder && !e.metaKey && !e.shiftKey) actions.toggle(node);
           }}
         >
           {node.isFolder ? (
@@ -401,13 +401,47 @@ export function FilePanel() {
     [openFolders],
   );
 
-  const toggle = useCallback((id: string) => {
+  const toggle = useCallback((node: TreeNode) => {
+    const id = node.id;
     setOpenFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
+
+    if (node.isFolder && node.children === undefined) {
+      request
+        .readDir({ path: id, depth: 1 })
+        .then((children) => {
+          setData((oldData) => {
+            function updateTree(tree: TreeNode[]): TreeNode[] {
+              return tree.map((n) => {
+                if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
+                if (n.children) return { ...n, children: updateTree(n.children) };
+                return n;
+              });
+            }
+            return updateTree(oldData);
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to load children for", id, err);
+          setData((oldData) => {
+            function updateTree(tree: TreeNode[]): TreeNode[] {
+              return tree.map((n) => {
+                if (n.id === id) return { ...n, children: [] };
+                if (n.children) return { ...n, children: updateTree(n.children) };
+                return n;
+              });
+            }
+            return updateTree(oldData);
+          });
+        });
+    }
   }, []);
 
   const collapseAll = useCallback(() => {
@@ -501,7 +535,38 @@ export function FilePanel() {
     };
     if (parentId) {
       setOpenFolders((prev) => new Set(prev).add(parentId));
-      setData((prev) => insertTemp(prev, parentId, tempNode));
+      let needsFetch = false;
+      for (const root of data) {
+        const p = findNode(root, parentId);
+        if (p && p.isFolder && p.children === undefined) {
+          needsFetch = true;
+          break;
+        }
+      }
+
+      if (needsFetch) {
+        request
+          .readDir({ path: parentId, depth: 1 })
+          .then((children) => {
+            setData((oldData) => {
+              function updateTree(tree: TreeNode[]): TreeNode[] {
+                return tree.map((n) => {
+                  if (n.id === parentId)
+                    return { ...n, children: [tempNode, ...((children as TreeNode[]) ?? [])] };
+                  if (n.children) return { ...n, children: updateTree(n.children) };
+                  return n;
+                });
+              }
+              return updateTree(oldData);
+            });
+          })
+          .catch((err) => {
+            console.error("Failed to load children for create:", err);
+            setData((prev) => insertTemp(prev, parentId, tempNode));
+          });
+      } else {
+        setData((prev) => insertTemp(prev, parentId, tempNode));
+      }
     } else {
       setData((prev) => [tempNode, ...prev]);
     }
