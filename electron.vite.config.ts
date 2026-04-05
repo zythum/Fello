@@ -34,7 +34,7 @@ export default defineConfig({
       rollupOptions: {
         input: resolve(__dirname, "src/mainview/index.html"),
       },
-      outDir: "../../out/renderer",
+      outDir: "out/renderer",
       emptyOutDir: true,
     },
     server: {

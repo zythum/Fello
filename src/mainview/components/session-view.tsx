@@ -15,7 +15,7 @@ export function SessionView() {
   const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
-  const rightPanelRef = useRef<HTMLDivElement>(null);
+  const [rightPanel, setRightPanel] = useState<HTMLElement | null>(null);
   const [rightPanelWidth, setRightPanelWidth] = useState<number>(0);
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
 
@@ -24,15 +24,15 @@ export function SessionView() {
   }, [activeSessionId]);
 
   useEffect(() => {
-    if (!rightPanelRef.current) return;
+    if (!rightPanel) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setRightPanelWidth(entry.contentRect.width);
       }
     });
-    observer.observe(rightPanelRef.current);
+    observer.observe(rightPanel);
     return () => observer.disconnect();
-  }, []);
+  }, [rightPanel]);
 
   return (
     <>
@@ -74,7 +74,7 @@ export function SessionView() {
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={30} minSize={15}>
-              <aside ref={rightPanelRef} className="flex h-full min-h-0 flex-col bg-sidebar">
+              <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col bg-sidebar">
                 <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
                   <button
                     type="button"

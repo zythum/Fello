@@ -6,11 +6,51 @@
   "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && electron-builder",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:linux": "electron-vite build && electron-builder --linux",
     "preview": "electron-vite preview",
     "format": "oxfmt --write \"src/**/*.{ts,tsx}\"",
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json"
+  },
+  "build": {
+    "appId": "com.zythum.fello",
+    "productName": "Fello",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "icon": "icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "icon": "icons/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "icons/fello_icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.18.0",
@@ -55,6 +95,7 @@
     "electron-vite": "^5.0.0",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.58.0",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
