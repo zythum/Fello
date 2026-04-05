@@ -206,7 +206,7 @@ function TreeItem({
             <span className="w-3.5 shrink-0" />
           )}
           {node.isFolder ? (
-            <Folder className="size-4 shrink-0 text-primary/60" />
+            <Folder className="size-4 shrink-0 text-muted-foreground/60" />
           ) : (
             <File className="size-4 shrink-0 text-muted-foreground/60" />
           )}
@@ -329,6 +329,8 @@ function TreeItem({
 import { FilePreviewSheet } from "./file-preview";
 
 export function FilePanel() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [panelWidth, setPanelWidth] = useState<number>(0);
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -397,6 +399,17 @@ export function FilePanel() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setPanelWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Flatten tree for shift-select range
   const flattenTree = useCallback(
@@ -951,7 +964,7 @@ export function FilePanel() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-xs">
+    <div ref={containerRef} className="flex h-full min-h-0 flex-col text-xs">
       {/* Header: folder name left, buttons right */}
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
         <span className="truncate text-xs text-foreground/80 uppercase">{cwdFolderName}</span>
@@ -1108,6 +1121,7 @@ export function FilePanel() {
         filePath={previewFilePath}
         cwd={cwd || null}
         onClose={() => setPreviewFilePath(null)}
+        panelWidth={panelWidth}
       />
     </div>
   );
