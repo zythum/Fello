@@ -20,6 +20,12 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
   FilePlus,
   FolderPlus,
   RefreshCw,
@@ -32,6 +38,7 @@ import {
   Trash2,
   FolderOpen,
   GitBranch,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +62,7 @@ interface Actions {
   dragEnd: () => void;
   revealInFinder: (id: string) => void;
   previewFile: (id: string) => void;
+  copyPath: (id: string, isRelative: boolean) => void;
 }
 
 const GIT_FOLDER_STATUS = {
@@ -63,12 +71,12 @@ const GIT_FOLDER_STATUS = {
 } as const;
 
 const GIT_SUMMARY_BADGES = [
-  { key: "A", color: "text-emerald-500" },
-  { key: "U", color: "text-cyan-500" },
-  { key: "M", color: "text-amber-500" },
-  { key: "R", color: "text-orange-500" },
-  { key: "C", color: "text-yellow-500" },
-  { key: "D", color: "text-red-500" },
+  { key: "A", color: "text-emerald-500/90" },
+  { key: "U", color: "text-cyan-500/90" },
+  { key: "M", color: "text-amber-500/90" },
+  { key: "R", color: "text-orange-500/90" },
+  { key: "C", color: "text-yellow-500/90" },
+  { key: "D", color: "text-red-500/90" },
 ] as const;
 
 type GitSummaryKey = (typeof GIT_SUMMARY_BADGES)[number]["key"];
@@ -100,6 +108,7 @@ function TreeItem({
   onEditCancel: () => void;
   actions: Actions;
 }) {
+  const { t } = useTranslation();
   const isOpen = openFolders.has(node.id);
   const isSelected = selectedIds.has(node.id);
   const isEditing = editingId === node.id;
@@ -132,22 +141,22 @@ function TreeItem({
       statusColor = GIT_FOLDER_STATUS.color;
     } else if (status.includes("??")) {
       statusText = "U";
-      statusColor = "text-emerald-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || "";
     } else if (status.includes("A")) {
       statusText = "A";
-      statusColor = "text-emerald-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || "";
     } else if (status.includes("R")) {
       statusText = "R";
-      statusColor = "text-amber-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || "";
     } else if (status.includes("C")) {
       statusText = "C";
-      statusColor = "text-amber-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || "";
     } else if (status.includes("M")) {
       statusText = "M";
-      statusColor = "text-amber-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || "";
     } else if (status.includes("D")) {
       statusText = "D";
-      statusColor = "text-red-500";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || "";
     } else {
       statusText = status.trim();
       statusColor = "text-muted-foreground/80";
@@ -255,14 +264,14 @@ function TreeItem({
                 onClick={() => actions.createIn(node.id, false)}
               >
                 <FilePlus className="size-3" />
-                New File
+                {t("filePanel.newFile")}
               </ContextMenuItem>
               <ContextMenuItem
                 className="text-xs rounded-1 text-muted-foreground/90"
                 onClick={() => actions.createIn(node.id, true)}
               >
                 <FolderPlus className="size-3" />
-                New Folder
+                {t("filePanel.newFolder")}
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
@@ -273,14 +282,14 @@ function TreeItem({
                 onClick={() => actions.createIn(null, false)}
               >
                 <FilePlus className="size-3" />
-                New File
+                {t("filePanel.newFile")}
               </ContextMenuItem>
               <ContextMenuItem
                 className="text-xs rounded-1 text-muted-foreground/90"
                 onClick={() => actions.createIn(null, true)}
               >
                 <FolderPlus className="size-3" />
-                New Folder
+                {t("filePanel.newFolder")}
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
@@ -292,7 +301,25 @@ function TreeItem({
             }}
           >
             <Pencil className="size-3" />
-            Rename
+            {t("filePanel.rename")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              actions.copyPath(node.id, false);
+            }}
+          >
+            <Copy className="size-3" />
+            {t("filePanel.copyPath")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              actions.copyPath(node.id, true);
+            }}
+          >
+            <Copy className="size-3" />
+            {t("filePanel.copyRelativePath")}
           </ContextMenuItem>
           <ContextMenuItem
             className="text-xs rounded-1 text-muted-foreground/90"
@@ -301,7 +328,7 @@ function TreeItem({
             }}
           >
             <FolderOpen className="size-3" />
-            Reveal in Finder
+            {t("filePanel.revealInFinder")}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
@@ -314,7 +341,7 @@ function TreeItem({
             }}
           >
             <Trash2 className="size-3" />
-            Delete
+            {t("filePanel.delete")}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -861,6 +888,10 @@ export function FilePanel() {
     },
     revealInFinder,
     previewFile: (id: string) => setPreviewFilePath(id),
+    copyPath: (id: string, isRelative: boolean) => {
+      const text = isRelative && cwd && id.startsWith(`${cwd}/`) ? id.replace(`${cwd}/`, "") : id;
+      navigator.clipboard.writeText(text);
+    },
   };
 
   const gitStatusMap = useMemo(() => {
@@ -905,26 +936,96 @@ export function FilePanel() {
     const hasChanges = Object.values(counts).some((count) => count > 0);
 
     return (
-      <div className="flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-[10px] text-muted-foreground/80">
-        <div className="flex min-w-0 items-center gap-1" title={`Branch: ${gitStatus.branch}`}>
-          <GitBranch className="size-3 shrink-0" />
-          <span className="truncate">{gitStatus.branch}</span>
-        </div>
-        {hasChanges && (
-          <div className="ml-2 flex shrink-0 gap-1.5 font-medium tracking-tighter">
-            {GIT_SUMMARY_BADGES.map(({ key, color }) =>
-              counts[key] > 0 ? (
-                <span key={key} className={color}>
-                  {key}
-                  {counts[key]}
-                </span>
-              ) : null,
-            )}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className={cn(
+            "flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-[10px] text-muted-foreground/80 outline-none",
+            hasChanges && "hover:bg-accent/50 cursor-pointer",
+          )}
+          disabled={!hasChanges}
+        >
+          <div className="flex min-w-0 items-center gap-1" title={`Branch: ${gitStatus.branch}`}>
+            <GitBranch className="size-3 shrink-0" />
+            <span className="truncate">{gitStatus.branch}</span>
           </div>
+          {hasChanges && (
+            <div className="ml-2 flex shrink-0 gap-1.5 font-medium tracking-tighter">
+              {GIT_SUMMARY_BADGES.map(({ key, color }) =>
+                counts[key] > 0 ? (
+                  <span key={key} className={color}>
+                    {key}
+                    {counts[key]}
+                  </span>
+                ) : null,
+              )}
+            </div>
+          )}
+        </DropdownMenuTrigger>
+        {hasChanges && (
+          <DropdownMenuContent align="start" side="top" className="w-(--anchor-width) max-h-64 p-0">
+            <ScrollArea className="max-h-64">
+              <div className="p-1">
+                {Object.entries(gitStatus.files).map(([relPath, status]) => {
+                  let statusColor = "text-muted-foreground";
+                  let statusText = status.trim();
+                  if (status.includes("??")) {
+                    statusText = "U";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || statusColor;
+                  } else if (status.includes("A")) {
+                    statusText = "A";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || statusColor;
+                  } else if (status.includes("R")) {
+                    statusText = "R";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || statusColor;
+                  } else if (status.includes("C")) {
+                    statusText = "C";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || statusColor;
+                  } else if (status.includes("M")) {
+                    statusText = "M";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || statusColor;
+                  } else if (status.includes("D")) {
+                    statusText = "D";
+                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
+                  }
+
+                  const slashIdx = relPath.lastIndexOf("/");
+                  const folderPath = slashIdx !== -1 ? relPath.slice(0, slashIdx) : "";
+                  const fileName = slashIdx !== -1 ? relPath.slice(slashIdx + 1) : relPath;
+
+                  return (
+                    <DropdownMenuItem
+                      key={relPath}
+                      className="text-xs rounded-1 flex items-center justify-between cursor-pointer"
+                      onClick={() => cwd && setPreviewFilePath(`${cwd}/${relPath}`)}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className={cn("truncate font-normal", statusColor)} title={fileName}>
+                          {fileName}
+                        </span>
+                        {folderPath && (
+                          <span
+                            className="truncate text-[10px] text-muted-foreground/60"
+                            title={folderPath}
+                          >
+                            {folderPath}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={cn("ml-2 shrink-0 text-[10px] font-normal tracking-tighter", statusColor)}
+                      >
+                        {statusText}
+                      </span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </DropdownMenuContent>
         )}
-      </div>
+      </DropdownMenu>
     );
-  }, [gitStatus]);
+  }, [gitStatus, cwd]);
 
   const getSelectedFolder = (): string | null => {
     if (selectedIds.size !== 1) return null;
@@ -1123,7 +1224,6 @@ export function FilePanel() {
 
       <FilePreviewSheet
         filePath={previewFilePath}
-        cwd={cwd || null}
         onClose={() => setPreviewFilePath(null)}
         panelWidth={panelWidth}
       />

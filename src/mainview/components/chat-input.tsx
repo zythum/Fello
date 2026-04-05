@@ -200,6 +200,50 @@ export function ChatInput() {
 
   const disabled = !activeSessionId || isConnecting;
 
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const text = e.clipboardData.getData("text/plain");
+      if (!text || !session) return;
+
+      const trimmed = text.trim();
+      if (trimmed.includes("\n") || trimmed.length > 1024) return;
+
+      const target = e.target as HTMLElement;
+      if (target.tagName !== "TEXTAREA") return;
+      const textarea = target as HTMLTextAreaElement;
+
+      const isLikelyPath = trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes(".");
+      if (!isLikelyPath) return;
+
+      // We only want to intercept if it might be a path.
+      // To avoid blocking the UI, we prevent default and stop propagation, then do async check.
+      e.preventDefault();
+      e.stopPropagation();
+
+      (async () => {
+        let insertText = text;
+        try {
+          // Attempt to resolve as absolute or relative path
+          const isAbsolute = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
+          const absPath = isAbsolute ? trimmed : `${session.cwd}/${trimmed}`;
+
+          const info = await request.getFileInfo({ path: absPath });
+          if (info) {
+            const name = absPath.replace(/\\/g, "/").split("/").pop() || absPath;
+            insertText = `@[${name}](${absPath}) `;
+          }
+        } catch {
+          // ignore
+        }
+
+        // Restore focus and insert text natively so MentionsInput catches the onChange
+        textarea.focus();
+        document.execCommand("insertText", false, insertText);
+      })();
+    },
+    [session],
+  );
+
   return (
     <div className="border-t border-border p-3">
       <div className="mx-auto max-w-3xl">
@@ -211,6 +255,7 @@ export function ChatInput() {
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
+          onPasteCapture={handlePaste}
         >
           {/* MentionsInput */}
           <MentionsInput

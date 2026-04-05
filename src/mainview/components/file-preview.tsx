@@ -11,12 +11,11 @@ import { useTranslation } from "react-i18next";
 
 interface FilePreviewProps {
   filePath: string | null;
-  cwd: string | null;
   onClose: () => void;
   panelWidth?: number;
 }
 
-export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePreviewProps) {
+export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
@@ -28,7 +27,11 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
   const [imageBase64, setImageBase64] = useState("");
 
   useEffect(() => {
-    if (!filePath || !cwd) return;
+    setIsDiffMode(false);
+  }, [filePath]);
+
+  useEffect(() => {
+    if (!filePath) return;
     let active = true;
 
     async function load() {
@@ -95,7 +98,7 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
     return () => {
       active = false;
     };
-  }, [filePath, cwd]);
+  }, [filePath]);
 
   useEffect(() => {
     if (loading || !content) return;
