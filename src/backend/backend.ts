@@ -31,7 +31,8 @@ import { storageOps } from "./storage";
 const require = createRequire(import.meta.url);
 
 type AgentType = string;
-const bridgePool = new Map<AgentType, ACPBridge>();
+const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
+const bridgeRefs = new Map<AgentType, ACPBridge>();
 let bridge: ACPBridge | null = null;
 let activeSessionId: string | null = null;
 let activeStorageSessionId: string | null = null;
@@ -124,15 +125,22 @@ export function extractErrorMessage(error: unknown): string {
 }
 
 async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
-  const pooledBridge = bridgePool.get(agent);
-  if (pooledBridge?.isConnected) {
-    bridge = pooledBridge;
-    return pooledBridge;
-  }
-  if (pooledBridge) {
+  const pooledBridgePromise = bridgePool.get(agent);
+  if (pooledBridgePromise) {
+    const pooledBridge = await pooledBridgePromise;
+    if (pooledBridge.isConnected) {
+      bridge = pooledBridge;
+      return pooledBridge;
+    }
+    if (bridgePool.get(agent) === pooledBridgePromise) {
+      bridgePool.delete(agent);
+    }
+    if (bridgeRefs.get(agent) === pooledBridge) {
+      bridgeRefs.delete(agent);
+    }
     await pooledBridge.disconnect().catch(() => {});
-    bridgePool.delete(agent);
   }
+
   const runtime = resolveAgentRuntime(agent);
   const nextBridge = new ACPBridge({
     command: runtime.command,
@@ -156,17 +164,51 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
       sendEvent("agent-terminal-output", { terminalId, data });
     },
   });
-  await nextBridge.connect();
-  bridgePool.set(agent, nextBridge);
-  bridge = nextBridge;
-  return nextBridge;
+  bridgeRefs.set(agent, nextBridge);
+
+  let connectPromise!: Promise<ACPBridge>;
+  connectPromise = nextBridge
+    .connect()
+    .then(() => nextBridge)
+    .catch(async (error) => {
+      if (bridgePool.get(agent) === connectPromise) {
+        bridgePool.delete(agent);
+      }
+      if (bridgeRefs.get(agent) === nextBridge) {
+        bridgeRefs.delete(agent);
+      }
+      await nextBridge.disconnect().catch(() => {});
+      throw error;
+    });
+  bridgePool.set(agent, connectPromise);
+
+  const connectedBridge = await connectPromise;
+  if (!connectedBridge.isConnected) {
+    if (bridgePool.get(agent) === connectPromise) {
+      bridgePool.delete(agent);
+    }
+    if (bridgeRefs.get(agent) === connectedBridge) {
+      bridgeRefs.delete(agent);
+    }
+    await connectedBridge.disconnect().catch(() => {});
+    return ensureBridge(cwd, agent);
+  }
+  bridge = connectedBridge;
+  return connectedBridge;
 }
 
 export async function cleanupAll() {
-  const allBridges = [...bridgePool.values()];
+  const allBridges = new Set<ACPBridge>(bridgeRefs.values());
+  const settledBridges = await Promise.allSettled(bridgePool.values());
+  for (const result of settledBridges) {
+    if (result.status === "fulfilled") {
+      allBridges.add(result.value);
+    }
+  }
   for (const pooledBridge of allBridges) {
     await pooledBridge.disconnect().catch(() => {});
   }
+  bridgeRefs.clear();
   bridgePool.clear();
   bridge = null;
   for (const terminal of terminals.values()) {
@@ -176,10 +218,12 @@ export async function cleanupAll() {
 }
 
 export function killBridgeSync() {
-  const allBridges = [...bridgePool.values()];
+  const allBridges = new Set<ACPBridge>(bridgeRefs.values());
+  if (bridge) allBridges.add(bridge);
   for (const pooledBridge of allBridges) {
     pooledBridge.killSync();
   }
+  bridgeRefs.clear();
   bridgePool.clear();
   bridge = null;
   for (const terminal of terminals.values()) {

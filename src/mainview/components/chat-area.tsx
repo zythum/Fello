@@ -9,7 +9,7 @@ export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollRafRef = useRef<number | null>(null);
+  const scrollRafRef = useRef<any>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const getViewport = useCallback(() => {
@@ -18,17 +18,17 @@ export function ChatArea() {
 
   const scrollToBottom = useCallback(() => {
     if (scrollRafRef.current) {
-      cancelAnimationFrame(scrollRafRef.current);
+      clearTimeout(scrollRafRef.current);
     }
-    scrollRafRef.current = requestAnimationFrame(() => {
+    scrollRafRef.current = setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
+    }, 100);
   }, []);
 
   useEffect(() => {
     return () => {
       if (scrollRafRef.current) {
-        cancelAnimationFrame(scrollRafRef.current);
+        clearTimeout(scrollRafRef.current);
       }
     };
   }, []);
