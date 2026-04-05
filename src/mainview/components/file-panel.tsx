@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { request } from "../backend";
 import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
   Pencil,
   Trash2,
   FolderOpen,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,22 @@ interface Actions {
   revealInFinder: (id: string) => void;
 }
 
+const GIT_FOLDER_STATUS = {
+  text: "•",
+  color: "text-muted-foreground/50",
+} as const;
+
+const GIT_SUMMARY_BADGES = [
+  { key: "A", color: "text-emerald-500" },
+  { key: "U", color: "text-cyan-500" },
+  { key: "M", color: "text-amber-500" },
+  { key: "R", color: "text-orange-500" },
+  { key: "C", color: "text-yellow-500" },
+  { key: "D", color: "text-red-500" },
+] as const;
+
+type GitSummaryKey = (typeof GIT_SUMMARY_BADGES)[number]["key"];
+
 function TreeItem({
   node,
   depth,
@@ -62,6 +79,7 @@ function TreeItem({
   editingId,
   editingValue,
   dropTargetId,
+  gitStatusMap,
   onEditChange,
   onEditSubmit,
   onEditCancel,
@@ -74,6 +92,7 @@ function TreeItem({
   editingId: string | null;
   editingValue: string;
   dropTargetId: string | null;
+  gitStatusMap: Map<string, string>;
   onEditChange: (v: string) => void;
   onEditSubmit: () => void;
   onEditCancel: () => void;
@@ -95,11 +114,43 @@ function TreeItem({
     editingId,
     editingValue,
     dropTargetId,
+    gitStatusMap,
     onEditChange,
     onEditSubmit,
     onEditCancel,
     actions,
   };
+
+  const status = gitStatusMap.get(node.id);
+  let statusText = "";
+  let statusColor = "";
+  if (status) {
+    if (status === GIT_FOLDER_STATUS.text) {
+      statusText = GIT_FOLDER_STATUS.text;
+      statusColor = GIT_FOLDER_STATUS.color;
+    } else if (status.includes("??")) {
+      statusText = "U";
+      statusColor = "text-emerald-500";
+    } else if (status.includes("A")) {
+      statusText = "A";
+      statusColor = "text-emerald-500";
+    } else if (status.includes("R")) {
+      statusText = "R";
+      statusColor = "text-amber-500";
+    } else if (status.includes("C")) {
+      statusText = "C";
+      statusColor = "text-amber-500";
+    } else if (status.includes("M")) {
+      statusText = "M";
+      statusColor = "text-amber-500";
+    } else if (status.includes("D")) {
+      statusText = "D";
+      statusColor = "text-red-500";
+    } else {
+      statusText = status.trim();
+      statusColor = "text-muted-foreground/80";
+    }
+  }
 
   return (
     <>
@@ -164,7 +215,26 @@ function TreeItem({
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="flex-1 truncate leading-normal">{node.name}</span>
+            <>
+              <span
+                className={cn(
+                  "flex-1 truncate leading-normal",
+                  statusText && !node.isFolder && statusColor,
+                )}
+              >
+                {node.name}
+              </span>
+              {statusText && (
+                <span
+                  className={cn(
+                    "mx-1 shrink-0 text-[10px] font-medium tracking-tighter",
+                    statusColor,
+                  )}
+                >
+                  {statusText}
+                </span>
+              )}
+            </>
           )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48 py-1">
@@ -257,6 +327,11 @@ export function FilePanel() {
   const [editingValue, setEditingValue] = useState("");
   const [dragIds, setDragIds] = useState<string[]>([]);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [gitStatus, setGitStatus] = useState<{
+    branch: string;
+    files: Record<string, string>;
+  } | null>(null);
+  const refreshSeqRef = useRef(0);
   const { activeSessionId, sessions } = useAppStore();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -264,28 +339,49 @@ export function FilePanel() {
   const cwdFolderName = cwd ? (cwd.split("/").pop() ?? cwd) : "";
 
   useEffect(() => {
+    refreshSeqRef.current += 1;
     setSelectedIds(new Set());
     setOpenFolders(new Set());
     setLastSelectedId(null);
     setEditingId(null);
+    setGitStatus(null);
   }, [cwd]);
 
-  const loadTree = useCallback(async (path: string) => {
+  const loadTree = useCallback(async (path: string, seq: number) => {
     setLoading(true);
     try {
       const result = (await request.readDir({ path, depth: 3 })) as TreeNode[] | null;
+      if (refreshSeqRef.current !== seq) return;
       setData(result ?? []);
     } catch (err) {
+      if (refreshSeqRef.current !== seq) return;
       console.error("Failed to load file tree:", err);
       setData([]);
     } finally {
-      setLoading(false);
+      if (refreshSeqRef.current === seq) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  const fetchGitStatus = useCallback(async (path: string, seq: number) => {
+    try {
+      const status = await request.getGitStatus({ cwd: path });
+      if (refreshSeqRef.current !== seq) return;
+      setGitStatus(status);
+    } catch {
+      if (refreshSeqRef.current !== seq) return;
+      setGitStatus(null);
     }
   }, []);
 
   const refresh = useCallback(() => {
-    if (cwd) loadTree(cwd);
-  }, [cwd, loadTree]);
+    if (!cwd) return;
+    const seq = refreshSeqRef.current + 1;
+    refreshSeqRef.current = seq;
+    loadTree(cwd, seq);
+    fetchGitStatus(cwd, seq);
+  }, [cwd, loadTree, fetchGitStatus]);
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -674,6 +770,69 @@ export function FilePanel() {
     revealInFinder,
   };
 
+  const gitStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!gitStatus || !cwd) return map;
+    for (const [rel, status] of Object.entries(gitStatus.files)) {
+      const fullPath = `${cwd}/${rel}`;
+      map.set(fullPath, status);
+
+      let parent = fullPath;
+      while (true) {
+        const slashIdx = parent.lastIndexOf("/");
+        if (slashIdx <= cwd.length) break;
+        parent = parent.slice(0, slashIdx);
+        if (!map.has(parent)) {
+          map.set(parent, "•");
+        }
+      }
+    }
+    return map;
+  }, [gitStatus, cwd]);
+
+  const gitSummary = useMemo(() => {
+    if (!gitStatus) return null;
+    const counts: Record<GitSummaryKey, number> = {
+      A: 0,
+      U: 0,
+      M: 0,
+      R: 0,
+      C: 0,
+      D: 0,
+    };
+    for (const status of Object.values(gitStatus.files)) {
+      if (status.includes("??")) counts.U++;
+      else if (status.includes("A")) counts.A++;
+      else if (status.includes("U")) counts.U++;
+      else if (status.includes("M")) counts.M++;
+      else if (status.includes("R")) counts.R++;
+      else if (status.includes("C")) counts.C++;
+      else if (status.includes("D")) counts.D++;
+    }
+    const hasChanges = Object.values(counts).some((count) => count > 0);
+
+    return (
+      <div className="flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-[10px] text-muted-foreground/80">
+        <div className="flex min-w-0 items-center gap-1" title={`Branch: ${gitStatus.branch}`}>
+          <GitBranch className="size-3 shrink-0" />
+          <span className="truncate">{gitStatus.branch}</span>
+        </div>
+        {hasChanges && (
+          <div className="ml-2 flex shrink-0 gap-1.5 font-medium tracking-tighter">
+            {GIT_SUMMARY_BADGES.map(({ key, color }) =>
+              counts[key] > 0 ? (
+                <span key={key} className={color}>
+                  {key}
+                  {counts[key]}
+                </span>
+              ) : null,
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }, [gitStatus]);
+
   const getSelectedFolder = (): string | null => {
     if (selectedIds.size !== 1) return null;
     const id = [...selectedIds][0];
@@ -706,6 +865,7 @@ export function FilePanel() {
     editingId,
     editingValue,
     dropTargetId,
+    gitStatusMap,
     onEditChange: setEditingValue,
     onEditSubmit: submitEdit,
     onEditCancel: () => setEditingId(null),
@@ -833,6 +993,8 @@ export function FilePanel() {
           </ContextMenuContent>
         </ContextMenu>
       </ScrollArea>
+
+      {gitSummary}
 
       <Dialog
         open={pendingDeleteIds !== null}

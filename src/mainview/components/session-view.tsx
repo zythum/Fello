@@ -43,7 +43,7 @@ export function SessionView() {
               <div className="relative flex h-full flex-col">
                 <Chat />
                 {isConnecting && (
-                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/50 backdrop-blur-sm">
+                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/50">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">
                       {t("sessionView.connecting")}

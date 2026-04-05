@@ -129,7 +129,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
 
   useEffect(() => {
     const terminalBackground =
-      window.getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
+      window.getComputedStyle(document.documentElement).getPropertyValue("--color-neutral-900").trim() ||
       "#0f0f10";
     for (const terminalItem of allTerminals) {
       if (instanceRefs.current.has(terminalItem.id)) continue;
@@ -357,7 +357,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
         </Button>
       </div>
 
-      <div className="relative min-h-0 flex-1 bg-background">
+      <div className="relative min-h-0 flex-1 bg-neutral-900">
         {allTerminals.length > 0 ? (
           allTerminals.map((terminal) => (
             <div

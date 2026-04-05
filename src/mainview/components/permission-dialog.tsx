@@ -20,7 +20,7 @@ export function PermissionDialog({ request }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 supports-backdrop-filter:backdrop-blur-xs">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="grid w-full max-w-[calc(100%-2rem)] m-4 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 sm:max-w-md">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-full bg-yellow-500/10">

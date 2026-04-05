@@ -19,7 +19,11 @@ import {
 } from "fs/promises";
 import { dirname, join, relative } from "path";
 import { createRequire } from "module";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
+
+const execFileAsync = promisify(execFile);
 import type { FelloIPCSchema } from "./ipc-schema";
 import { storageOps } from "./storage";
 
@@ -628,6 +632,44 @@ export const backendHandlers: {
       return output?.output || "";
     } catch {
       return "";
+    }
+  },
+
+  async getGitStatus({ cwd }) {
+    try {
+      const { stdout } = await execFileAsync("git", ["status", "--porcelain", "-b", "-z"], {
+        cwd,
+        timeout: 2000,
+      });
+      const lines = stdout.split("\0").filter(Boolean);
+      if (lines.length === 0) return null;
+      let branchLine = lines[0];
+      let branch = "";
+      if (branchLine.startsWith("## ")) {
+        branchLine = branchLine.slice(3);
+        if (branchLine.startsWith("No commits yet on ")) {
+          branch = branchLine.slice("No commits yet on ".length);
+        } else if (branchLine.startsWith("HEAD (no branch)")) {
+          branch = "HEAD";
+        } else {
+          branch = branchLine.split("...")[0];
+        }
+      }
+      const files: Record<string, string> = {};
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const status = line.slice(0, 2);
+        if (line.length < 4) continue;
+        let path = line.slice(3);
+        if ((status.includes("R") || status.includes("C")) && i + 1 < lines.length) {
+          path = lines[i + 1];
+          i++;
+        }
+        files[path] = status;
+      }
+      return { branch, files };
+    } catch {
+      return null;
     }
   },
 };

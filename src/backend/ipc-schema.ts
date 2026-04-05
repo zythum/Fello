@@ -134,6 +134,10 @@ export type FelloIPCRequests = {
     response: { ok: boolean };
   };
   getAgentTerminalOutput: { params: string; response: string };
+  getGitStatus: {
+    params: { cwd: string };
+    response: { branch: string; files: Record<string, string> } | null;
+  };
 };
 
 export type FelloIPCEvents = {
