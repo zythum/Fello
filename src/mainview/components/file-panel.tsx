@@ -354,12 +354,13 @@ function TreeItem({
   );
 }
 
-import { FilePreviewSheet } from "./file-preview";
+export interface FilePanelProps {
+  onPreviewFile?: (path: string) => void;
+}
 
-export function FilePanel() {
+export function FilePanel({ onPreviewFile }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [panelWidth, setPanelWidth] = useState<number>(0);
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -369,7 +370,6 @@ export function FilePanel() {
   const [editingValue, setEditingValue] = useState("");
   const [dragIds, setDragIds] = useState<string[]>([]);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
-  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
   const [gitStatus, setGitStatus] = useState<{
     branch: string;
     files: Record<string, string>;
@@ -428,17 +428,6 @@ export function FilePanel() {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setPanelWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   // Flatten tree for shift-select range
   const flattenTree = useCallback(
@@ -887,7 +876,7 @@ export function FilePanel() {
       setDropTargetId(null);
     },
     revealInFinder,
-    previewFile: (id: string) => setPreviewFilePath(id),
+    previewFile: (id: string) => onPreviewFile?.(id),
     copyPath: (id: string, isRelative: boolean) => {
       const text = isRelative && cwd && id.startsWith(`${cwd}/`) ? id.replace(`${cwd}/`, "") : id;
       navigator.clipboard.writeText(text);
@@ -1002,7 +991,7 @@ export function FilePanel() {
                     <DropdownMenuItem
                       key={relPath}
                       className="text-xs rounded-1 flex items-center justify-between cursor-pointer"
-                      onClick={() => cwd && setPreviewFilePath(`${cwd}/${relPath}`)}
+                      onClick={() => cwd && onPreviewFile?.(`${cwd}/${relPath}`)}
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span className={cn("truncate font-normal", statusColor)} title={fileName}>
@@ -1230,12 +1219,6 @@ export function FilePanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <FilePreviewSheet
-        filePath={previewFilePath}
-        onClose={() => setPreviewFilePath(null)}
-        panelWidth={panelWidth}
-      />
     </div>
   );
 }
