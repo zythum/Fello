@@ -16,6 +16,7 @@ import {
   rm,
   stat,
   writeFile,
+  open,
 } from "fs/promises";
 import { dirname, join, relative } from "path";
 import { createRequire } from "module";
@@ -574,7 +575,32 @@ export const backendHandlers: {
   },
 
   async readFile({ path, encoding }) {
-    return fsReadFile(path, encoding ?? 'utf8');
+    return fsReadFile(path, encoding ?? "utf8");
+  },
+
+  async getFileInfo({ path }) {
+    try {
+      const s = await stat(path);
+      let isBinary = false;
+      if (s.isFile() && s.size > 0) {
+        const fd = await open(path, "r");
+        try {
+          const buffer = Buffer.alloc(512);
+          const { bytesRead } = await fd.read(buffer, 0, 512, 0);
+          for (let i = 0; i < bytesRead; i++) {
+            if (buffer[i] === 0) {
+              isBinary = true;
+              break;
+            }
+          }
+        } finally {
+          await fd.close();
+        }
+      }
+      return { size: s.size, isFile: s.isFile(), isBinary };
+    } catch {
+      return null;
+    }
   },
 
   async writeDroppedFile({ fileName, base64, destDir }) {
@@ -680,7 +706,7 @@ export const backendHandlers: {
       const { stdout } = await execFileAsync("git", ["show", `HEAD:./${relPath}`], {
         cwd,
         maxBuffer: 10 * 1024 * 1024,
-        encoding: encoding ?? 'utf8',
+        encoding: encoding ?? "utf8",
       });
       return stdout;
     } catch {

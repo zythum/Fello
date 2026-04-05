@@ -21,6 +21,9 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
   const [isDiffMode, setIsDiffMode] = useState(false);
   const [html, setHtml] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isImage, setIsImage] = useState(false);
+  const [imageBase64, setImageBase64] = useState("");
 
   useEffect(() => {
     if (!filePath || !cwd) return;
@@ -28,7 +31,49 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
 
     async function load() {
       setLoading(true);
+      setErrorMsg("");
+      setIsImage(false);
+      setImageBase64("");
+      setContent("");
+      setGitContent(null);
+      setHtml("");
+      setIsDiffMode(false);
       try {
+        const info = await request.getFileInfo({ path: filePath! });
+        if (!active) return;
+        if (!info || !info.isFile) {
+          setErrorMsg("File not found");
+          setLoading(false);
+          return;
+        }
+
+        if (info.size > 10 * 1024 * 1024) {
+          setErrorMsg("该文件过大不支持预览");
+          setLoading(false);
+          return;
+        }
+
+        const ext = filePath!.split(".").pop()?.toLowerCase() || "";
+        const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
+
+        if (imageExts.includes(ext)) {
+          setIsImage(true);
+          const base64 = await request.readFile({ path: filePath!, encoding: "base64" });
+          if (!active) return;
+          let mimeType = ext;
+          if (ext === "svg") mimeType = "svg+xml";
+          else if (ext === "jpg") mimeType = "jpeg";
+          setImageBase64(`data:image/${mimeType};base64,${base64}`);
+          setLoading(false);
+          return;
+        }
+
+        if (info.isBinary) {
+          setErrorMsg("该文件格式不支持预览");
+          setLoading(false);
+          return;
+        }
+
         const [current, git] = await Promise.all([
           request.readFile({ path: filePath! }),
           request.readGitHeadFile({ path: filePath! }),
@@ -39,8 +84,7 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
       } catch (e) {
         if (!active) return;
         console.error(e);
-        setContent("Error loading file");
-        setGitContent("");
+        setErrorMsg("Error loading file");
       } finally {
         if (active) setLoading(false);
       }
@@ -126,8 +170,8 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
   return (
     <Sheet
       open={!!filePath}
-      onOpenChange={(open, detail) => {
-        !open && onClose()
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
     >
       <SheetContent
@@ -146,20 +190,22 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
             {fileName}
           </SheetTitle>
           <div className="flex items-center gap-1">
-            <Tabs
-              value={isDiffMode ? "diff" : "preview"}
-              onValueChange={(v) => setIsDiffMode(v === "diff")}
-              className="h-8"
-            >
-              <TabsList className="h-8">
-                <TabsTrigger value="preview" className="text-[12px]">
-                  Preview
-                </TabsTrigger>
-                <TabsTrigger value="diff" disabled={gitContent === ""} className="text-[12px]">
-                  Compare
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {!isImage && !errorMsg && (
+              <Tabs
+                value={isDiffMode ? "diff" : "preview"}
+                onValueChange={(v) => setIsDiffMode(v === "diff")}
+                className="h-8"
+              >
+                <TabsList className="h-8">
+                  <TabsTrigger value="preview" className="text-[12px]">
+                    Preview
+                  </TabsTrigger>
+                  <TabsTrigger value="diff" disabled={gitContent === ""} className="text-[12px]">
+                    Compare
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"
@@ -174,6 +220,12 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
         <ScrollArea className="flex-1 w-full h-0 text-[12px] font-mono bg-[#ffffff] dark:bg-[#24292e]">
           {loading ? (
             <div className="text-muted-foreground text-center mt-10">Loading...</div>
+          ) : errorMsg ? (
+            <div className="text-muted-foreground text-center mt-10">{errorMsg}</div>
+          ) : isImage ? (
+            <div className="flex items-center justify-center min-h-full p-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZiIgLz4KPHBhdGggZD0iTTAgMGgxMHYxMEgwem0xMCAxMGgxMHYxMEgxMHoiIGZpbGw9IiNlZWVlZWUiIC8+Cjwvc3ZnPg==')] dark:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iIzIyMiIgLz4KPHBhdGggZD0iTTAgMGgxMHYxMEgwem0xMCAxMGgxMHYxMEgxMHoiIGZpbGw9IiMzMzMiIC8+Cjwvc3ZnPg==')]">
+              <img src={imageBase64} alt={fileName} className="max-w-full shadow-sm" />
+            </div>
           ) : (
             <div
               dangerouslySetInnerHTML={{ __html: html }}

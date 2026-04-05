@@ -108,7 +108,11 @@ export type FelloIPCRequests = {
   getPlatform: { params: void; response: string };
   renameFile: { params: { oldPath: string; newPath: string }; response: void };
   moveFile: { params: { oldPath: string; newPath: string }; response: void };
-  readFile: { params: { path: string, encoding?: 'utf8' | 'base64' }; response: string };
+  readFile: { params: { path: string; encoding?: "utf8" | "base64" }; response: string };
+  getFileInfo: {
+    params: { path: string };
+    response: { size: number; isFile: boolean; isBinary: boolean } | null;
+  };
   writeDroppedFile: {
     params: { fileName: string; base64: string; destDir: string };
     response: void;
@@ -139,7 +143,7 @@ export type FelloIPCRequests = {
     response: { branch: string; files: Record<string, string> } | null;
   };
   readGitHeadFile: {
-    params: { path: string, encoding?: 'utf8' | 'base64' };
+    params: { path: string; encoding?: "utf8" | "base64" };
     response: string;
   };
 };
