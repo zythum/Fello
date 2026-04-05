@@ -9,6 +9,7 @@ export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const getViewport = useCallback(() => {
@@ -16,7 +17,20 @@ export function ChatArea() {
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollRafRef.current) {
+      cancelAnimationFrame(scrollRafRef.current);
+    }
+    scrollRafRef.current = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -37,8 +51,8 @@ export function ChatArea() {
   const hasStreamingContent = lastMsg?.streaming && lastMsg.role === "assistant";
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activeToolCalls.size]);
+    scrollToBottom();
+  }, [messages, activeToolCalls.size, scrollToBottom]);
 
   return (
     <div className="relative min-h-0 flex-1">
