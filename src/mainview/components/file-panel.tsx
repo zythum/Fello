@@ -141,22 +141,22 @@ function TreeItem({
       statusColor = GIT_FOLDER_STATUS.color;
     } else if (status.includes("??")) {
       statusText = "U";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || statusColor;
     } else if (status.includes("A")) {
       statusText = "A";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || statusColor;
     } else if (status.includes("R")) {
       statusText = "R";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || statusColor;
     } else if (status.includes("C")) {
       statusText = "C";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || statusColor;
     } else if (status.includes("M")) {
       statusText = "M";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || statusColor;
     } else if (status.includes("D")) {
       statusText = "D";
-      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || "";
+      statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
     } else {
       statusText = status.trim();
       statusColor = "text-muted-foreground/80";
@@ -962,7 +962,7 @@ export function FilePanel() {
           )}
         </DropdownMenuTrigger>
         {hasChanges && (
-          <DropdownMenuContent align="start" side="top" className="w-(--anchor-width) max-h-64 p-0">
+          <DropdownMenuContent align="center" side="top" className="w-[calc(var(--anchor-width)-8px)] max-h-64 p-0">
             <ScrollArea className="max-h-64">
               <div className="p-1">
                 {Object.entries(gitStatus.files).map(([relPath, status]) => {
@@ -970,22 +970,28 @@ export function FilePanel() {
                   let statusText = status.trim();
                   if (status.includes("??")) {
                     statusText = "U";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "U")?.color || statusColor;
                   } else if (status.includes("A")) {
                     statusText = "A";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "A")?.color || statusColor;
                   } else if (status.includes("R")) {
                     statusText = "R";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "R")?.color || statusColor;
                   } else if (status.includes("C")) {
                     statusText = "C";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "C")?.color || statusColor;
                   } else if (status.includes("M")) {
                     statusText = "M";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "M")?.color || statusColor;
                   } else if (status.includes("D")) {
                     statusText = "D";
-                    statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
+                    statusColor =
+                      GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
                   }
 
                   const slashIdx = relPath.lastIndexOf("/");
@@ -1004,7 +1010,7 @@ export function FilePanel() {
                         </span>
                         {folderPath && (
                           <span
-                            className="truncate text-[10px] text-muted-foreground/60"
+                            className="truncate flex-1 text-[10px] text-muted-foreground/60"
                             title={folderPath}
                           >
                             {folderPath}
@@ -1012,7 +1018,10 @@ export function FilePanel() {
                         )}
                       </div>
                       <span
-                        className={cn("ml-2 shrink-0 text-[10px] font-normal tracking-tighter", statusColor)}
+                        className={cn(
+                          "ml-2 shrink-0 text-[10px] font-normal tracking-tighter",
+                          statusColor,
+                        )}
                       >
                         {statusText}
                       </span>

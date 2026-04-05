@@ -178,6 +178,8 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
+      modal={false}
+      disablePointerDismissal={true}
     >
       <SheetContent
         side="left"
