@@ -573,8 +573,8 @@ export const backendHandlers: {
     await rename(oldPath, newPath);
   },
 
-  async readFile(filePath: string) {
-    return fsReadFile(filePath, "utf-8");
+  async readFile({ path, encoding }) {
+    return fsReadFile(path, encoding ?? 'utf8');
   },
 
   async writeDroppedFile({ fileName, base64, destDir }) {
@@ -673,12 +673,14 @@ export const backendHandlers: {
     }
   },
 
-  async getGitFileContent({ cwd, path }) {
+  async readGitHeadFile({ path, encoding }) {
     try {
+      const cwd = dirname(path);
       const relPath = relative(cwd, path);
       const { stdout } = await execFileAsync("git", ["show", `HEAD:./${relPath}`], {
         cwd,
         maxBuffer: 10 * 1024 * 1024,
+        encoding: encoding ?? 'utf8',
       });
       return stdout;
     } catch {

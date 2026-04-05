@@ -30,8 +30,8 @@ export function FilePreviewSheet({ filePath, cwd, onClose, panelWidth }: FilePre
       setLoading(true);
       try {
         const [current, git] = await Promise.all([
-          request.readFile(filePath!),
-          request.getGitFileContent({ cwd: cwd!, path: filePath! }),
+          request.readFile({ path: filePath! }),
+          request.readGitHeadFile({ path: filePath! }),
         ]);
         if (!active) return;
         setContent(current);
