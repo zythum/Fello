@@ -41,8 +41,9 @@ Main/preload changes typically require restarting the dev process.
 │   │   ├── main.ts         # Electron main process
 │   │   └── preload.ts      # Preload (contextBridge)
 │   └── mainview/
-│       ├── App.tsx         # React app component
+│       ├── App.tsx         # React app component (with MessageProvider & ThemeProvider)
 │       ├── main.tsx        # React entry point
+│       ├── components/     # UI components (shadcn/ui, dialogs, etc.)
 │       ├── backend.ts      # IPC client wrapper
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)

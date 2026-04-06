@@ -16,7 +16,7 @@ fello/
 │   │   └── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
 │   │
 │   └── mainview/                     # Renderer（React SPA）
-│       ├── App.tsx                   # 根组件，订阅全局事件，管理错误弹窗
+│       ├── App.tsx                   # 根组件，订阅全局事件，挂载 MessageProvider
 │       ├── main.tsx                  # React 挂载入口
 │       ├── index.css                 # 全局样式与主题变量
 │       ├── index.html                # renderer HTML 模板
@@ -45,6 +45,8 @@ fello/
 │           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
 │           ├── terminal-panel.tsx    # 多终端页签（xterm + node-pty）
 │           ├── permission-dialog.tsx # 工具权限请求弹层
+│           ├── message.tsx           # 全局对话框与 Toast 队列 (MessageProvider)
+│           ├── theme-provider.tsx    # 主题切换上下文
 │           ├── bubbles/              # 各类消息气泡实现
 │           │   ├── user-bubble.tsx
 │           │   ├── agent-bubble.tsx
@@ -116,7 +118,7 @@ fello/
 
 `settings.json` 字段：
 
-- `agents`: 自定义的 Agent 列表，包含 `id`、`name` 和 `command`
+- `agents`: 自定义的 Agent 列表，包含 `id` 和 `command`
 - `theme`: UI 主题配置（如 `theme_mode`）
 - `language`: 应用语言配置（如 `en` 或 `zh-CN`）
 

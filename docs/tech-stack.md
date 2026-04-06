@@ -34,6 +34,8 @@
 | class-variance-authority | ^0.7.1 | 组件变体管理 |
 | clsx + tailwind-merge | ^2.1.1 / ^3.5.0 | className 拼接与冲突消解 |
 | tw-animate-css | ^1.4.0 | 动画样式工具 |
+| sonner | ^2.0.1 | Toast 消息提示组件 |
+| next-themes | ^0.4.4 | 主题切换与感知 |
 
 ## 终端与开发工作区能力
 

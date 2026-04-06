@@ -34,7 +34,7 @@
 
 ### Renderer（`src/mainview/`）
 
-- `App.tsx`：全局事件订阅、错误弹窗队列、主布局
+- `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 队列管理)、主布局
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
 - `lib/process-event.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - 组件层：
