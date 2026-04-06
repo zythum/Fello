@@ -159,10 +159,13 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
         } as RequestPermissionResponse);
       }
       return new Promise<RequestPermissionResponse>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          pendingPermissions.delete(toolCallId);
-          reject(new Error("Request Permission Timeout"));
-        }, 30 * 60 * 1000);
+        const timeoutId = setTimeout(
+          () => {
+            pendingPermissions.delete(toolCallId);
+            reject(new Error("Request Permission Timeout"));
+          },
+          30 * 60 * 1000,
+        );
         pendingPermissions.set(toolCallId, { resolve, timeoutId });
       });
     },
@@ -190,7 +193,7 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
 
 export function killBridgeSync() {
   for (const p of bridgePool.values()) {
-    p.then(b => b.killSync()).catch(() => {});
+    p.then((b) => b.killSync()).catch(() => {});
   }
   bridgePool.clear();
   for (const terminal of terminals.values()) {
@@ -424,8 +427,8 @@ export const backendHandlers: {
       update: {
         sessionUpdate: "user_message",
         messageId,
-        content: { type: "text", text }
-      }
+        content: { type: "text", text },
+      },
     } as any);
 
     return await b.sendPrompt(session.session_id, text);

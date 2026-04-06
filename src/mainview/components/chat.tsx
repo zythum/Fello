@@ -73,7 +73,7 @@ export function Chat() {
         <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
           <div className="min-w-0 flex flex-1">
             <div className="flex flex-1 min-w-0 items-center gap-1.5">
-              <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">
+              <Badge variant="outline" className="px-1 text-[10px] uppercase">
                 {session.agent}
               </Badge>
               <span className="truncate text-sm font-medium text-sidebar-foreground/85">

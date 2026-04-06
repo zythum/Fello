@@ -57,6 +57,13 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 支持在会话运行中随时切换模型与模式
 - 在输入区显示 token 统计（input/output/total/think）
 
+### WebUI 远程访问
+
+- 在设置中可开启 WebUI 服务，支持自定义端口和 Token
+- 允许在局域网内的浏览器中远程访问和使用 Fello 的完整功能
+- 远程环境通过 WebSocket 与桌面端的主进程进行 IPC 交互
+- Web 端支持所有桌面端功能，包括文件操作、终端交互、新建项目和会话
+
 ## 用户交互流程（简版）
 
 1. 点击 Add Project，选择工作目录

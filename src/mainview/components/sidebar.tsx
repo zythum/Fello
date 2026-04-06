@@ -119,9 +119,10 @@ export function Sidebar() {
       let selectedPath = "";
       if (isWebUI) {
         const p = await prompt({
-          title: "Add Project",
-          content: "Enter absolute path to project on the server:",
-          validate: (val) => (val.trim() ? undefined : "Path cannot be empty"),
+          title: t("sidebar.addProjectTitle", "Add Project"),
+          content: t("sidebar.enterProjectPath", "Enter absolute path to project on the server:"),
+          validate: (val) =>
+            val.trim() ? undefined : t("sidebar.pathCannotBeEmpty", "Path cannot be empty"),
         });
         if (!p || p === "cancel") return;
         selectedPath = p.trim();
@@ -130,7 +131,7 @@ export function Sidebar() {
         if (!p) return;
         selectedPath = p;
       }
-      
+
       const result = (await request.addProject(selectedPath)) as {
         project: ProjectInfo;
         created: boolean;
@@ -510,7 +511,7 @@ export function Sidebar() {
                         />
                         <Badge
                           variant="outline"
-                          className="h-4 px-1 -ml-1 text-[10px] uppercase max-w-15 truncate block text-center leading-normal py-0"
+                          className="px-1 -ml-1 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0"
                         >
                           {configuredAgents.find((a) => a.id === session.agent)?.id ||
                             session.agent}
@@ -592,7 +593,7 @@ export function Sidebar() {
               {t("sidebar.settings")}
             </div>
             {webUIStatus.enabled && (
-              <div title="WebUI Enabled">
+              <div title={t("sidebar.webuiEnabled", "WebUI Enabled")}>
                 <Globe className="size-3 text-green-500" />
               </div>
             )}
@@ -612,7 +613,7 @@ export function Sidebar() {
                   className="text-xs rounded-1 text-muted-foreground/90"
                   onClick={() => setWebUIOpen(true)}
                 >
-                  <Globe className="size-3" />
+                  <Globe className={cn("size-3", { 'text-green-500': webUIStatus.enabled })} />
                   WebUI
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

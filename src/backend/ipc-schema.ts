@@ -81,7 +81,10 @@ export type FelloIPCRequests = {
       modes: ModeState | null;
     };
   };
-  sendMessage: { params: { sessionId: string; text: string; messageId?: string }; response: { stopReason: string } };
+  sendMessage: {
+    params: { sessionId: string; text: string; messageId?: string };
+    response: { stopReason: string };
+  };
   cancelPrompt: { params: { sessionId: string }; response: void };
   respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
   updateSessionTitle: { params: { sessionId: string; title: string }; response: void };

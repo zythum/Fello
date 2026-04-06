@@ -10,14 +10,15 @@
 │  │ Renderer (React + Vite)     │  IPC     │ Main Process (Node.js)│ │
 │  │ - Sidebar / Chat / FilePanel│ ◄──────► │ - IPC handlers         │ │
 │  │ - TerminalPanel (xterm.js)  │          │ - ACPBridge lifecycle  │ │
-│  │ - Zustand session store      │          │ - FS / Dialog / Menu   │ │
-│  └─────────────────────────────┘          └───────────┬───────────┘ │
-│                                                        │ NDJSON over  │
-│                                                        │ stdio         │
-│                                              ┌─────────▼───────────┐ │
-│                                              │ kiro-cli acp        │ │
-│                                              │ (ACP Server process)│ │
-│                                              └─────────────────────┘ │
+│  │ - Zustand session store     │          │ - FS / Dialog / Menu   │ │
+│  └─────────────────────────────┘          │ - WebUI Server (ws)    │ │
+│                 ▲                         └───────────┬───────────┘ │
+│                 │ WebSocket (WebUI Mode)              │ NDJSON over │
+│  ┌──────────────▼──────────────┐                      │ stdio       │
+│  │ Remote Browser (WebUI)      │            ┌─────────▼───────────┐ │
+│  │ - App.tsx / backend.ts      │            │ kiro-cli acp        │ │
+│  └─────────────────────────────┘            │ (ACP Server process)│ │
+│                                             └─────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -27,7 +28,7 @@
 
 - **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框
 - **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
-- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理
+- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、WebUI WebSocket 服务端
 - **`src/backend/acp-bridge.ts`**：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
 - **`src/backend/ipc-schema.ts`**：主进程与渲染进程请求/事件的统一契约
 - **`src/backend/storage.ts`**：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据
@@ -37,6 +38,7 @@
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 队列管理)、主布局
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
 - `lib/process-event.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
+- `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
   - `chat.tsx`：聊天区容器 + 权限对话框

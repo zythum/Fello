@@ -3,12 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store";
 import { request } from "../backend";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
@@ -81,7 +76,7 @@ export function SettingsAgentsDialog({
   const handleSaveEdit = async () => {
     if (!editForm) return;
     if (!editForm.id.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage(t("settings.errorIdCommand"));
+      pushGlobalErrorMessage(t("settings.agents.errorIdCommand"));
       return;
     }
 
@@ -90,7 +85,7 @@ export function SettingsAgentsDialog({
         (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_agent_"),
       )
     ) {
-      pushGlobalErrorMessage(t("settings.errorDuplicateId"));
+      pushGlobalErrorMessage(t("settings.agents.errorDuplicateId"));
       return;
     }
 
@@ -98,10 +93,10 @@ export function SettingsAgentsDialog({
       try {
         const parsed = JSON.parse(envRaw.trim());
         if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
-          throw new Error(t("settings.errorEnvJson"));
+          throw new Error(t("settings.agents.errorEnvJson"));
         }
       } catch {
-        pushGlobalErrorMessage(t("settings.errorEnvJson"));
+        pushGlobalErrorMessage(t("settings.agents.errorEnvJson"));
         return;
       }
     }
@@ -127,16 +122,21 @@ export function SettingsAgentsDialog({
       <DialogContent showCloseButton={true} className="sm:max-w-xl gap-0.5">
         <DialogHeader className="mb-2 gap-1">
           <DialogTitle className="flex items-center gap-1 text-md">
-            {t("settings.agents")}
+            {t("settings.agents.title")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2 mb-2 pt-2">
           <div className="flex items-center justify-between p-1">
             <h3 className="text-xs text-foreground/50">{t("settings.description")}</h3>
-            <Button variant="outline" size="xs" onClick={handleAdd} className="h-7 text-xs text-foreground/70">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={handleAdd}
+              className="h-7 text-xs text-foreground/70"
+            >
               <Plus className="mr-1 size-3" />
-              {t("settings.addAgent")}
+              {t("settings.agents.addAgent")}
             </Button>
           </div>
 
@@ -150,20 +150,20 @@ export function SettingsAgentsDialog({
                   {editingId === agent.id && editForm ? (
                     <div className="flex w-full flex-col gap-2">
                       <Input
-                        placeholder={t("settings.agentId")}
+                        placeholder={t("settings.agents.agentId")}
                         value={editForm.id}
                         onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
                         className="h-8 text-xs! text-foreground/80 focus-visible:ring-0.5"
                       />
                       <div className="flex gap-2">
                         <Input
-                          placeholder={t("settings.command")}
+                          placeholder={t("settings.agents.command")}
                           value={editForm.command}
                           onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
                           className="h-8 text-[11px]! font-mono flex-4 text-foreground/80 focus-visible:ring-0.5"
                         />
                         <Input
-                          placeholder={t("settings.args")}
+                          placeholder={t("settings.agents.args")}
                           value={editForm.args?.join(" ") || ""}
                           onChange={(e) =>
                             setEditForm({
@@ -175,7 +175,7 @@ export function SettingsAgentsDialog({
                         />
                       </div>
                       <Input
-                        placeholder={t("settings.envJson")}
+                        placeholder={t("settings.agents.envJson")}
                         value={envRaw}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -212,10 +212,14 @@ export function SettingsAgentsDialog({
                           onClick={handleCancelEdit}
                           className="h-7 text-xs text-foreground/70"
                         >
-                          {t("settings.cancel")}
+                          {t("settings.agents.cancel")}
                         </Button>
-                        <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs text-foreground/70">
-                          {t("settings.save")}
+                        <Button
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          className="h-7 text-xs text-foreground/70"
+                        >
+                          {t("settings.agents.save")}
                         </Button>
                       </div>
                     </div>
@@ -251,7 +255,7 @@ export function SettingsAgentsDialog({
               ))}
               {agents.length === 0 && (
                 <div className="py-8 text-center text-sm text-muted-foreground">
-                  {t("settings.noAgents")}
+                  {t("settings.agents.noAgents")}
                 </div>
               )}
             </div>

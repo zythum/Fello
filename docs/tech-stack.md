@@ -19,6 +19,7 @@
 | NDJSON over stdio | - | 主进程与 `kiro-cli acp` 的传输层 |
 | Electron IPC | 内置 | `ipcMain.handle` + `ipcRenderer.invoke` 请求响应 |
 | contextBridge | 内置 | preload 暴露受限 API，隔离渲染层权限 |
+| WebSocket | 内置 | WebUI 远程访问时的 IPC 降级传输层 |
 
 ## UI 与交互层
 

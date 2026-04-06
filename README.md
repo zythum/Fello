@@ -33,7 +33,7 @@ Main/preload changes typically require restarting the dev process.
 ```
 ├── src/
 │   ├── backend/
-│   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal
+│   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal, WebUI server
 │   │   ├── acp-bridge.ts   # ACP connection wrapper
 │   │   ├── ipc-schema.ts   # Typed IPC contracts
 │   │   └── storage.ts      # Persistent storage & settings (JSON)
@@ -44,7 +44,7 @@ Main/preload changes typically require restarting the dev process.
 │       ├── App.tsx         # React app component (with MessageProvider & ThemeProvider)
 │       ├── main.tsx        # React entry point
 │       ├── components/     # UI components (shadcn/ui, dialogs, etc.)
-│       ├── backend.ts      # IPC client wrapper
+│       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)
 │       ├── index.html      # HTML template
@@ -52,6 +52,11 @@ Main/preload changes typically require restarting the dev process.
 ├── electron.vite.config.ts # electron-vite configuration
 └── package.json
 ```
+
+## Features
+
+- **Local AI Collaboration**: Connect to local agents via ACP (e.g. `kiro-cli acp`).
+- **WebUI Remote Access**: Expose the interface to a browser over the local network via WebSocket, enabling remote collaboration. (Enable in Settings > WebUI).
 
 ## Customizing
 

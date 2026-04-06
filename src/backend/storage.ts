@@ -121,9 +121,9 @@ function readProjectMeta(projectId: string): ProjectMeta | null {
       unknown
     > | null;
     if (!raw) return null;
-    const uuid = String(raw.uuid || '');
-    const title = String(raw.title || '');
-    const cwd = String(raw.cwd || '');
+    const uuid = String(raw.uuid || "");
+    const title = String(raw.title || "");
+    const cwd = String(raw.cwd || "");
     const created_at =
       typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
     if (!uuid || !title || !cwd) return null;

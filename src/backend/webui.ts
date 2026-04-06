@@ -32,7 +32,7 @@ function getLocalIP() {
 
 export function broadcastWebUIEvent<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
-  payload: FelloIPCSchema["events"][K]
+  payload: FelloIPCSchema["events"][K],
 ) {
   if (!isEnabled || !wss) return;
   const message = JSON.stringify({ type: "event", channel, payload });
@@ -43,12 +43,20 @@ export function broadcastWebUIEvent<K extends keyof FelloIPCSchema["events"]>(
   }
 }
 
-export async function startWebUI(options?: { port?: number; token?: string }): Promise<{ url: string }> {
+export async function startWebUI(options?: {
+  port?: number;
+  token?: string;
+}): Promise<{ url: string }> {
   if (isEnabled && httpServer) {
     return { url: getWebUIUrl(httpServer.address() as any) };
   }
 
-  currentToken = options?.token && options.token.trim() !== "" ? options.token.trim() : randomBytes(16).toString("hex");
+  stopWebUI();
+
+  currentToken =
+    options?.token && options.token.trim() !== ""
+      ? options.token.trim()
+      : randomBytes(16).toString("hex");
 
   httpServer = createServer(async (req, res) => {
     // Basic CORS for dev environment
@@ -97,11 +105,13 @@ export async function startWebUI(options?: { port?: number; token?: string }): P
         png: "image/png",
         jpg: "image/jpeg",
         svg: "image/svg+xml",
-        json: "application/json"
+        json: "application/json",
       };
 
       const content = await readFile(filePath);
-      res.writeHead(200, { "Content-Type": mimeTypes[ext || "html"] || "application/octet-stream" });
+      res.writeHead(200, {
+        "Content-Type": mimeTypes[ext || "html"] || "application/octet-stream",
+      });
       res.end(content);
     } catch (err) {
       res.writeHead(404, { "Content-Type": "text/plain" });

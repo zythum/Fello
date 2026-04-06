@@ -299,7 +299,10 @@ export function ChatInput() {
                     onValueChange={async (modeId) => {
                       setCurrentModeId(modeId as string);
                       try {
-                        await request.setMode({ sessionId: activeSessionId!, modeId: modeId as string });
+                        await request.setMode({
+                          sessionId: activeSessionId!,
+                          modeId: modeId as string,
+                        });
                       } catch (err) {
                         console.error("Failed to set mode:", err);
                       }
@@ -347,7 +350,10 @@ export function ChatInput() {
                   onValueChange={async (modelId) => {
                     setCurrentModelId(modelId as string);
                     try {
-                      await request.setModel({ sessionId: activeSessionId!, modelId: modelId as string });
+                      await request.setModel({
+                        sessionId: activeSessionId!,
+                        modelId: modelId as string,
+                      });
                     } catch (err) {
                       console.error("Failed to set model:", err);
                     }

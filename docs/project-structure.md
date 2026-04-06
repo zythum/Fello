@@ -6,7 +6,7 @@
 fello/
 ├── src/
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
-│   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现
+│   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现、WebUI WebSocket 服务
 │   │   ├── acp-bridge.ts             # ACP 连接封装（spawn/initialize/session/model）
 │   │   ├── ipc-schema.ts             # 主渲染通信协议（请求/事件类型）
 │   │   └── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
@@ -20,7 +20,7 @@ fello/
 │       ├── main.tsx                  # React 挂载入口
 │       ├── index.css                 # 全局样式与主题变量
 │       ├── index.html                # renderer HTML 模板
-│       ├── backend.ts                # request + subscribe 封装
+│       ├── backend.ts                # request + subscribe 封装，并处理 WebUI 的 WebSocket 降级
 │       ├── global.d.ts               # window.fello 类型声明
 │       ├── store.ts                  # Zustand store（按 session 分桶）
 │       ├── i18n.ts                   # i18next 多语言配置初始化
@@ -37,6 +37,7 @@ fello/
 │       └── components/
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
 │           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
+│           ├── settings-webui-dialog.tsx # WebUI 设置弹窗
 │           ├── sidebar.tsx           # 项目分组侧边栏与项目/会话操作
 │           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
 │           ├── chat-area.tsx         # 消息渲染与滚动控制
