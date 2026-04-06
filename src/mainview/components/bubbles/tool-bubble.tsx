@@ -53,16 +53,11 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
   return (
     <details className="text-xs min-w-0 overflow-hidden" open={isLive}>
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
-        {statusIcons[status]}
         {kindIcon}
-        <span className="font-medium text-foreground">
+        <span className="flex-1 font-medium text-foreground">
           {message.toolTitle || t("toolBubble.tool")}
         </span>
-        {message.toolKind && (
-          <Badge variant="outline" className="text-[10px]">
-            {message.toolKind}
-          </Badge>
-        )}
+        {statusIcons[status]}
       </summary>
       <div className="border-t border-border overflow-hidden">
         {message.locations && message.locations.length > 0 && (
