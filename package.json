@@ -22,7 +22,7 @@
       "output": "dist"
     },
     "mac": {
-      "icon": "icons/icon.icns",
+      "icon": "icons/fello.icon",
       "target": [
         "dmg",
         "zip"
@@ -31,14 +31,14 @@
       "gatekeeperAssess": false
     },
     "win": {
-      "icon": "icons/icon.ico",
+      "icon": "icons/fello.ico",
       "target": [
         "nsis",
         "zip"
       ]
     },
     "linux": {
-      "icon": "icons/fello_icon.png",
+      "icon": "icons/fello.png",
       "target": [
         "AppImage",
         "deb"
