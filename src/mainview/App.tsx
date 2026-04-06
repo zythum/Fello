@@ -45,7 +45,9 @@ function AppContent() {
 
   useEffect(() => {
     const handleSessionUpdate = (detail: any) => {
-      const sid = useAppStore.getState().activeSessionId;
+      const sessions = useAppStore.getState().sessions;
+      const targetSession = sessions.find((s) => s.acp_session_id === detail.sessionId);
+      const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
       if (!sid) return;
       processEvent(sid, detail.update);
     };

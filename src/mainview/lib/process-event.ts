@@ -9,7 +9,14 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
     case "user_message":
     case "user_message_chunk":
       if (event.content?.type === "text" && event.content.text) {
-        store.addMessage(sessionId, { role: "user", content: event.content.text });
+        const messageId = event.messageId;
+        if (messageId) {
+          const messages = store.getSessionState(sessionId).messages;
+          if (messages.some((m) => m.messageId === messageId)) {
+            break; // Already added optimistically
+          }
+        }
+        store.addMessage(sessionId, { role: "user", content: event.content.text, messageId });
       }
       break;
 

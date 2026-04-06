@@ -379,23 +379,34 @@ export const backendHandlers: {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const b = await ensureBridge(session.cwd, session.agent);
-    const { models, modes } = await b.loadSession(session.acp_session_id, session.cwd);
+    const { models, modes } = await b.loadSession(session.session_id, session.cwd);
     return {
-      sessionId: session.id,
+      sessionId: session.session_id,
       agentInfo: b.agentInfo,
       models: formatModels(models),
       modes: formatModes(modes),
     };
   },
 
-  async sendMessage({ sessionId, text }) {
+  async sendMessage({ sessionId, text, messageId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgePool.get(session.agent);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
-    return await b.sendPrompt(session.acp_session_id, text);
+
+    // Broadcast user message to other clients
+    sendEvent("session-update", {
+      sessionId: session.session_id,
+      update: {
+        sessionUpdate: "user_message",
+        messageId,
+        content: { type: "text", text }
+      }
+    } as any);
+
+    return await b.sendPrompt(session.session_id, text);
   },
 
   async cancelPrompt({ sessionId }) {
@@ -404,7 +415,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agent);
     if (connectPromise) {
       const b = await connectPromise;
-      await b.cancel(session.acp_session_id);
+      await b.cancel(session.session_id);
     }
   },
 
@@ -439,7 +450,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agent);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModels(b.getModelState(session.acp_session_id));
+    return formatModels(b.getModelState(session.session_id));
   },
 
   async setModel({ sessionId, modelId }) {
@@ -448,7 +459,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agent);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionModel(session.acp_session_id, modelId);
+    await b.setSessionModel(session.session_id, modelId);
   },
 
   async getModes({ sessionId }) {
@@ -457,7 +468,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agent);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModes(b.getModeState(session.acp_session_id));
+    return formatModes(b.getModeState(session.session_id));
   },
 
   async setMode({ sessionId, modeId }) {
@@ -466,7 +477,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agent);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionMode(session.acp_session_id, modeId);
+    await b.setSessionMode(session.session_id, modeId);
   },
 
   async searchFiles({ cwd, query }) {

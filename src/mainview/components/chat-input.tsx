@@ -97,8 +97,10 @@ export function ChatInput() {
     const resolved = resolveMentions(input).trim();
     if (!resolved || !activeSessionId || isStreaming) return;
 
+    const messageId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
     setInput("");
-    addMessage(activeSessionId, { role: "user", content: resolved });
+    addMessage(activeSessionId, { role: "user", content: resolved, messageId });
     setIsStreaming(activeSessionId, true);
     clearToolCalls(activeSessionId);
 
@@ -116,7 +118,7 @@ export function ChatInput() {
     }, STREAMING_TIMEOUT_MS);
 
     try {
-      await request.sendMessage({ sessionId: activeSessionId, text: resolved });
+      await request.sendMessage({ sessionId: activeSessionId, text: resolved, messageId });
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
