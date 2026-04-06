@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe } from "./backend";
@@ -6,18 +6,10 @@ import { processEvent } from "./lib/process-event";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { ProjectInfo, SessionInfo } from "./store";
+import { MessageProvider, useMessage } from "@/components/message";
 
-function App() {
+function AppContent() {
   const {
     addPermissionRequest,
     setSessions,
@@ -29,18 +21,8 @@ function App() {
     setLanguage,
   } = useAppStore();
   const { i18n } = useTranslation();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [visibleGlobalError, setVisibleGlobalError] = useState<string | null>(null);
-  const [errorDialogKey, setErrorDialogKey] = useState(0);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { alert } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
-
-  const clearCloseTimer = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -92,26 +74,18 @@ function App() {
   }, [addPermissionRequest]);
 
   useEffect(() => {
-    if (visibleGlobalError || !currentGlobalError) return;
-    setErrorDialogKey((key) => key + 1);
-    setVisibleGlobalError(currentGlobalError);
-    setDialogOpen(true);
-  }, [currentGlobalError, visibleGlobalError]);
-
-  useEffect(() => {
-    return () => clearCloseTimer();
-  }, [clearCloseTimer]);
-
-  const handleCloseErrorDialog = useCallback(() => {
-    if (!visibleGlobalError) return;
-    setDialogOpen(false);
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
+    if (!currentGlobalError) return;
+    
+    const showError = async () => {
+      await alert({
+        title: "Error",
+        content: currentGlobalError,
+      });
       shiftGlobalErrorMessage();
-      setVisibleGlobalError(null);
-      closeTimerRef.current = null;
-    }, 120);
-  }, [clearCloseTimer, shiftGlobalErrorMessage, visibleGlobalError]);
+    };
+
+    void showError();
+  }, [currentGlobalError, alert, shiftGlobalErrorMessage]);
 
   return (
     <TooltipProvider>
@@ -119,24 +93,15 @@ function App() {
         <Sidebar />
         <SessionView />
       </div>
-      <Dialog
-        key={errorDialogKey}
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          if (open) setDialogOpen(true);
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-            <DialogDescription>{visibleGlobalError}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={handleCloseErrorDialog}>OK</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </TooltipProvider>
+  );
+}
+
+function App() {
+  return (
+    <MessageProvider>
+      <AppContent />
+    </MessageProvider>
   );
 }
 

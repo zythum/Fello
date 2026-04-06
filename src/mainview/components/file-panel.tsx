@@ -4,14 +4,7 @@ import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useMessage } from "./message";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -376,6 +369,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
   } | null>(null);
   const refreshSeqRef = useRef(0);
   const { activeSessionId, sessions } = useAppStore();
+  const { confirm } = useMessage();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const cwd = activeSession?.cwd;
@@ -618,40 +612,11 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     setSelectedIds(new Set([tempId]));
   };
 
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
   const [osPlatform, setOsPlatform] = useState<string>("darwin");
 
   useEffect(() => {
     request.getPlatform().then((p: unknown) => setOsPlatform(p as string));
   }, []);
-
-  const deleteNode = (ids: string[]) => {
-    setPendingDeleteIds(ids);
-  };
-
-  const executeDelete = async (permanent: boolean) => {
-    if (!pendingDeleteIds) return;
-    try {
-      await Promise.all(
-        pendingDeleteIds.map((id) =>
-          permanent ? request.deleteFile({ path: id }) : request.trashFile(id),
-        ),
-      );
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
-    setPendingDeleteIds(null);
-    setSelectedIds(new Set());
-    refresh();
-  };
-
-  const revealInFinder = async (id: string) => {
-    try {
-      await request.revealInFinder(id);
-    } catch (err) {
-      console.error("Reveal in Finder failed:", err);
-    }
-  };
 
   const trashLabel =
     osPlatform === "darwin"
@@ -659,6 +624,48 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       : osPlatform === "win32"
         ? t("filePanel.moveToRecycleBin")
         : t("filePanel.moveToTrash");
+
+  const deleteNode = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    
+    await confirm({
+      title: t("filePanel.delete"),
+      content: ids.length === 1
+        ? t("filePanel.deleteConfirmSingle", { name: ids[0].split("/").pop() })
+        : t("filePanel.deleteConfirmMultiple", { count: ids.length }),
+      buttons: [
+        { text: t("filePanel.cancel"), value: "cancel", variant: "outline" },
+        {
+          text: trashLabel,
+          variant: "outline",
+          value: async () => {
+            try {
+              await Promise.all(ids.map((id) => request.trashFile(id)));
+            } catch (err) {
+              console.error("Delete failed:", err);
+            }
+            setSelectedIds(new Set());
+            refresh();
+            return "trashed";
+          }
+        },
+        {
+          text: t("filePanel.delete"),
+          variant: "destructive",
+          value: async () => {
+            try {
+              await Promise.all(ids.map((id) => request.deleteFile({ path: id })));
+            } catch (err) {
+              console.error("Delete failed:", err);
+            }
+            setSelectedIds(new Set());
+            refresh();
+            return "deleted";
+          }
+        }
+      ]
+    });
+  };
 
   // --- Drag & drop (multi-select aware, + external file drop) ---
 
@@ -860,6 +867,14 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     },
     [dragIds, refresh, isExternalDrag, handleExternalDrop],
   );
+
+  const revealInFinder = async (id: string) => {
+    try {
+      await request.revealInFinder(id);
+    } catch (err) {
+      console.error("Reveal in Finder failed:", err);
+    }
+  };
 
   const actions: Actions = {
     select: handleSelect,
@@ -1193,36 +1208,6 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       </ScrollArea>
 
       {gitSummary}
-
-      <Dialog
-        open={pendingDeleteIds !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingDeleteIds(null);
-        }}
-        disablePointerDismissal
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t("filePanel.delete")}</DialogTitle>
-            <DialogDescription>
-              {pendingDeleteIds && pendingDeleteIds.length === 1
-                ? t("filePanel.deleteConfirmSingle", { name: pendingDeleteIds[0].split("/").pop() })
-                : t("filePanel.deleteConfirmMultiple", { count: pendingDeleteIds?.length ?? 0 })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDeleteIds(null)}>
-              {t("filePanel.cancel")}
-            </Button>
-            <Button variant="outline" onClick={() => executeDelete(false)}>
-              {trashLabel}
-            </Button>
-            <Button variant="destructive" onClick={() => executeDelete(true)}>
-              {t("filePanel.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -14,19 +14,11 @@ import {
   DropdownMenuPortal,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SettingsDialog } from "./settings-dialog";
+import { useMessage } from "./message";
 import {
   FolderOpen,
   FolderClosed,
@@ -76,14 +68,8 @@ export function Sidebar() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
-  const [renameTarget, setRenameTarget] = useState<
-    | { type: "project"; id: string; title: string }
-    | { type: "session"; id: string; title: string }
-    | null
-  >(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [pendingDeleteProject, setPendingDeleteProject] = useState<ProjectInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { prompt, confirm } = useMessage();
 
   if (!sidebarOpen) return null;
 
@@ -185,51 +171,86 @@ export function Sidebar() {
     }
   };
 
-  const handleDeleteSession = async (id: string) => {
-    await request.deleteSession(id);
-    const map = new Map(useAppStore.getState().sessionStates);
-    map.delete(id);
-    useAppStore.setState({ sessionStates: map });
-    const { sessions: updated } = await refreshData();
-    if (activeSessionId === id) {
-      const next = updated.length > 0 ? updated[0].id : null;
-      setActiveSessionId(next);
+  const handleDeleteSession = async (session: SessionInfo) => {
+    await confirm({
+      title: t("sidebar.deleteChat"),
+      content: t("sidebar.deleteChatConfirm", { title: session.title }),
+      buttons: [
+        { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
+        {
+          text: t("sidebar.delete"),
+          variant: "destructive",
+          value: async () => {
+            await request.deleteSession(session.id);
+            const map = new Map(useAppStore.getState().sessionStates);
+            map.delete(session.id);
+            useAppStore.setState({ sessionStates: map });
+            const { sessions: updated } = await refreshData();
+            if (activeSessionId === session.id) {
+              const next = updated.length > 0 ? updated[0].id : null;
+              setActiveSessionId(next);
+            }
+            return "deleted";
+          }
+        }
+      ]
+    });
+  };
+
+  const handleRenameProject = async (project: ProjectInfo) => {
+    const newName = await prompt({
+      title: t("sidebar.renameProject"),
+      content: t("sidebar.enterNewProjectName"),
+      defaultValue: project.title,
+      validate: (val) => val.trim() ? undefined : "Project name cannot be empty",
+    });
+    
+    if (newName && newName !== "cancel") {
+      await request.renameProject({ projectId: project.id, title: newName.trim() });
+      await refreshData();
     }
   };
 
-  const handleRenameSubmit = async () => {
-    if (!renameTarget) return;
-    const normalizedTitle = renameValue.trim();
-    if (!normalizedTitle) {
-      pushGlobalErrorMessage(
-        renameTarget.type === "session"
-          ? "Chat name cannot be empty."
-          : "Project name cannot be empty.",
-      );
-      return;
+  const handleRenameSession = async (session: SessionInfo) => {
+    const newName = await prompt({
+      title: t("sidebar.renameChat"),
+      content: t("sidebar.enterNewChatName"),
+      defaultValue: session.title,
+      validate: (val) => val.trim() ? undefined : "Chat name cannot be empty",
+    });
+    
+    if (newName && newName !== "cancel") {
+      await request.updateSessionTitle({ sessionId: session.id, title: newName.trim() });
+      await refreshData();
     }
-    if (renameTarget.type === "session") {
-      await request.updateSessionTitle({ sessionId: renameTarget.id, title: normalizedTitle });
-    } else {
-      await request.renameProject({ projectId: renameTarget.id, title: normalizedTitle });
-    }
-    setRenameTarget(null);
-    setRenameValue("");
-    await refreshData();
   };
 
-  const handleRenameProject = (project: ProjectInfo) => {
-    setRenameTarget({ type: "project", id: project.id, title: project.title });
-    setRenameValue(project.title);
-  };
-
-  const handleRenameSession = (session: SessionInfo) => {
-    setRenameTarget({ type: "session", id: session.id, title: session.title });
-    setRenameValue(session.title);
-  };
-
-  const handleDeleteProject = (project: ProjectInfo) => {
-    setPendingDeleteProject(project);
+  const handleDeleteProject = async (project: ProjectInfo) => {
+    await confirm({
+      title: t("sidebar.deleteProject"),
+      content: t("sidebar.deleteProjectConfirm", { title: project.title }),
+      buttons: [
+        { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
+        { 
+          text: t("sidebar.delete"), 
+          value: async () => {
+            await request.deleteProject(project.id);
+            const map = new Map(useAppStore.getState().sessionStates);
+            for (const session of sessions) {
+              if (session.project_id === project.id) map.delete(session.id);
+            }
+            useAppStore.setState({ sessionStates: map });
+            
+            const { sessions: updated } = await refreshData();
+            if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
+              setActiveSessionId(updated.length > 0 ? updated[0].id : null);
+            }
+            return "confirm";
+          }, 
+          variant: "destructive" 
+        }
+      ]
+    });
   };
 
   const handleRevealProjectInFinder = async (project: ProjectInfo) => {
@@ -237,21 +258,6 @@ export function Sidebar() {
       await request.revealInFinder(project.cwd);
     } catch (err) {
       pushGlobalErrorMessage(getErrorMessage(err));
-    }
-  };
-
-  const handleConfirmDeleteProject = async () => {
-    if (!pendingDeleteProject) return;
-    await request.deleteProject(pendingDeleteProject.id);
-    const map = new Map(useAppStore.getState().sessionStates);
-    for (const session of sessions) {
-      if (session.project_id === pendingDeleteProject.id) map.delete(session.id);
-    }
-    useAppStore.setState({ sessionStates: map });
-    setPendingDeleteProject(null);
-    const { sessions: updated } = await refreshData();
-    if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
-      setActiveSessionId(updated.length > 0 ? updated[0].id : null);
     }
   };
 
@@ -532,7 +538,7 @@ export function Sidebar() {
                             className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={(e) => {
                               e.stopPropagation();
-                              void handleDeleteSession(session.id);
+                              void handleDeleteSession(session);
                             }}
                           >
                             <Trash2 className="size-3" />
@@ -645,80 +651,6 @@ export function Sidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <Dialog
-        open={renameTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameTarget(null);
-            setRenameValue("");
-          }
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>
-              {renameTarget?.type === "session"
-                ? t("sidebar.renameChat")
-                : t("sidebar.renameProject")}
-            </DialogTitle>
-            <DialogDescription>
-              {renameTarget?.type === "session"
-                ? t("sidebar.enterNewChatName")
-                : t("sidebar.enterNewProjectName")}
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void handleRenameSubmit();
-              }
-            }}
-            autoFocus
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRenameTarget(null);
-                setRenameValue("");
-              }}
-            >
-              {t("sidebar.cancel")}
-            </Button>
-            <Button onClick={() => void handleRenameSubmit()}>{t("sidebar.save")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={pendingDeleteProject !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingDeleteProject(null);
-        }}
-        disablePointerDismissal
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t("sidebar.deleteProject")}</DialogTitle>
-            <DialogDescription>
-              {pendingDeleteProject
-                ? t("sidebar.deleteProjectConfirm", { title: pendingDeleteProject.title })
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDeleteProject(null)}>
-              {t("sidebar.cancel")}
-            </Button>
-            <Button variant="destructive" onClick={() => void handleConfirmDeleteProject()}>
-              {t("sidebar.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </aside>
