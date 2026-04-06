@@ -53,14 +53,14 @@ export const useMessage = () => {
   return ctx;
 };
 
-const DialogButton = ({ 
-  btn, 
-  context, 
+const DialogButton = ({
+  btn,
+  context,
   onResolve,
   validate
-}: { 
-  btn: ButtonConfig; 
-  context: MessageContextValue; 
+}: {
+  btn: ButtonConfig;
+  context: MessageContextValue;
   onResolve: (val: string) => void;
   validate?: (val: string) => string | boolean | undefined | Promise<string | boolean | undefined>;
 }) => {
@@ -68,7 +68,7 @@ const DialogButton = ({
 
   const handleClick = async () => {
     const isCancel = btn.value === 'cancel';
-    
+
     // Manage delayed loading state
     let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
     const startLoading = () => {
@@ -80,7 +80,7 @@ const DialogButton = ({
       if (loadingTimeout) clearTimeout(loadingTimeout);
       setLoading(false);
     };
-    
+
     if (validate && !isCancel) {
       startLoading();
       try {
@@ -123,9 +123,10 @@ const DialogButton = ({
   };
 
   return (
-    <Button 
-      variant={btn.variant || 'default'} 
-      onClick={handleClick} 
+    <Button
+      size="xs"
+      variant={btn.variant || 'default'}
+      onClick={handleClick}
       disabled={loading}
       className="h-8 text-xs"
     >
@@ -197,43 +198,43 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
     <MessageContext.Provider value={{ alert, confirm, prompt, toast: sonnerToast }}>
       {children}
       <Toaster />
-      
+
       <Dialog open={!!activeDialog} onOpenChange={handleClose}>
-        <DialogContent showCloseButton={false} className="sm:max-w-[420px] p-5 gap-0">
+        <DialogContent showCloseButton={false} className="sm:max-w-105 p-3 gap-0.5">
           {activeDialog?.title && (
-            <DialogHeader className="mb-4">
-              <DialogTitle className="flex items-center gap-2 text-base">
-                {activeDialog.icon && <span className="flex-shrink-0 size-4">{activeDialog.icon}</span>}
+            <DialogHeader className="mb-2 gap-1">
+              <DialogTitle className="flex items-center gap-1 text-md">
+                {activeDialog.icon && <span className="shrink-0 size-4">{activeDialog.icon}</span>}
                 {activeDialog.title}
               </DialogTitle>
               {activeDialog?.content && (
                 <DialogDescription>
-                  <div className="text-sm text-foreground/80 pt-1">
+                  <div className="text-sm text-foreground/50 pt-1">
                     {activeDialog.content}
                   </div>
                 </DialogDescription>
               )}
             </DialogHeader>
           )}
-          
-          <div className={activeDialog?.title ? '' : 'mb-4'}>
+
+          <div className={activeDialog?.title ? '' : 'mb-2'}>
             {!activeDialog?.title && (
               <>
                 <DialogTitle className="sr-only">Message Dialog</DialogTitle>
                 {activeDialog?.icon && <div className="mb-3 size-4">{activeDialog.icon}</div>}
                 {activeDialog?.content && (
-                  <div className="text-sm text-foreground/80 mb-3">
+                  <div className="text-xs! text-foreground/80 mb-3">
                     {activeDialog.content}
                   </div>
                 )}
               </>
             )}
-            
+
             {activeDialog?.type === 'prompt' && (
-              <div className="mt-1 mb-5">
-                <Input 
+              <div className="mt-0 mb-2">
+                <Input
                   autoFocus
-                  className="h-8 text-xs"
+                  className="h-8 text-xs! text-foreground/95 focus-visible:ring-0.5"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={activeDialog.placeholder}
@@ -244,15 +245,15 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
               </div>
             )}
           </div>
-          
+
           {activeDialog?.buttons && activeDialog.buttons.length > 0 && (
-            <DialogFooter className="mt-2 sm:justify-end gap-2 sm:space-x-0">
+            <DialogFooter className="-m-3 mt-2 p-3 sm:justify-end gap-2 sm:space-x-0">
               {activeDialog.buttons.map((btn, idx) => (
-                <DialogButton 
-                  key={idx} 
-                  btn={btn} 
-                  context={{ inputValue }} 
-                  onResolve={handleResolve} 
+                <DialogButton
+                  key={idx}
+                  btn={btn}
+                  context={{ inputValue }}
+                  onResolve={handleResolve}
                   validate={activeDialog.validate}
                 />
               ))}
