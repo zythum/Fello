@@ -86,5 +86,12 @@
   },
   "readonlyTerminal": {
     "waitingForOutput": "等待输出..."
+  },
+  "message": {
+    "validationFailed": "验证失败",
+    "ok": "确定",
+    "cancel": "取消",
+    "confirm": "确认",
+    "dialogTitle": "消息提示"
   }
 }

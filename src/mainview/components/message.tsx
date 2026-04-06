@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import { useTranslation } from 'react-i18next';
 
 type MessageContextValue = {
   inputValue?: string;
@@ -65,19 +66,34 @@ const DialogButton = ({
   validate?: (val: string) => string | boolean | undefined | Promise<string | boolean | undefined>;
 }) => {
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleClick = async () => {
     const isCancel = btn.value === 'cancel';
 
     // Manage delayed loading state
-    let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
     const startLoading = () => {
-      loadingTimeout = setTimeout(() => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = setTimeout(() => {
         setLoading(true);
       }, 200);
     };
     const stopLoading = () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       setLoading(false);
     };
 
@@ -94,7 +110,7 @@ const DialogButton = ({
            return;
         }
       } catch (e: any) {
-        sonnerToast.error(e.message || 'Validation failed');
+        sonnerToast.error(e.message || t('message.validationFailed', 'Validation failed'));
         stopLoading();
         return;
       }
@@ -137,60 +153,99 @@ const DialogButton = ({
 };
 
 export const MessageProvider = ({ children }: { children: ReactNode }) => {
+  const [dialogQueue, setDialogQueue] = useState<ActiveDialogState[]>([]);
   const [activeDialog, setActiveDialog] = useState<ActiveDialogState | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (dialogQueue.length > 0 && !activeDialog) {
+      const nextDialog = dialogQueue[0];
+      setActiveDialog(nextDialog);
+      setDialogQueue((prev) => prev.slice(1));
+      
+      if (nextDialog.type === 'prompt') {
+        setInputValue(nextDialog.defaultValue || '');
+      } else {
+        setInputValue('');
+      }
+      
+      setIsOpen(true);
+    }
+  }, [dialogQueue, activeDialog]);
 
   const handleClose = useCallback((open: boolean) => {
     if (!open && activeDialog) {
       activeDialog.resolve(null);
-      setActiveDialog(null);
+      setIsOpen(false);
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+      closeTimeoutRef.current = setTimeout(() => {
+        setActiveDialog(null);
+      }, 150);
     }
   }, [activeDialog]);
 
   const alert = useCallback((options: DialogOptions) => {
     return new Promise<string | null>((resolve) => {
-      setActiveDialog({
+      setDialogQueue((prev) => [...prev, {
         type: 'alert',
         ...options,
-        buttons: options.buttons || [{ text: 'OK', value: 'ok', variant: 'default' }],
+        buttons: options.buttons || [{ text: t('message.ok', 'OK'), value: 'ok', variant: 'default' }],
         resolve
-      });
+      }]);
     });
-  }, []);
+  }, [t]);
 
   const confirm = useCallback((options: DialogOptions) => {
     return new Promise<string | null>((resolve) => {
-      setActiveDialog({
+      setDialogQueue((prev) => [...prev, {
         type: 'confirm',
         ...options,
         buttons: options.buttons || [
-          { text: 'Cancel', value: 'cancel', variant: 'outline' },
-          { text: 'Confirm', value: 'confirm', variant: 'default' }
+          { text: t('message.cancel', 'Cancel'), value: 'cancel', variant: 'outline' },
+          { text: t('message.confirm', 'Confirm'), value: 'confirm', variant: 'default' }
         ],
         resolve
-      });
+      }]);
     });
-  }, []);
+  }, [t]);
 
   const prompt = useCallback((options: PromptOptions) => {
     return new Promise<string | null>((resolve) => {
-      setInputValue(options.defaultValue || '');
-      setActiveDialog({
+      setDialogQueue((prev) => [...prev, {
         type: 'prompt',
         ...options,
         buttons: options.buttons || [
-          { text: 'Cancel', value: 'cancel', variant: 'outline' },
-          { text: 'Confirm', value: (ctx) => Promise.resolve(ctx.inputValue || ''), variant: 'default' }
+          { text: t('message.cancel', 'Cancel'), value: 'cancel', variant: 'outline' },
+          { text: t('message.confirm', 'Confirm'), value: (ctx) => Promise.resolve(ctx.inputValue || ''), variant: 'default' }
         ],
         resolve
-      });
+      }]);
     });
-  }, []);
+  }, [t]);
 
   const handleResolve = (val: string | null) => {
     if (activeDialog) {
       activeDialog.resolve(val);
-      setActiveDialog(null);
+      setIsOpen(false);
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+      closeTimeoutRef.current = setTimeout(() => {
+        setActiveDialog(null);
+      }, 150);
     }
   };
 
@@ -199,7 +254,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
       {children}
       <Toaster />
 
-      <Dialog open={!!activeDialog} onOpenChange={handleClose}>
+      <Dialog open={isOpen} onOpenChange={handleClose} disablePointerDismissal>
         <DialogContent showCloseButton={false} className="sm:max-w-105 p-3 gap-0.5">
           {activeDialog?.title && (
             <DialogHeader className="mb-2 gap-1">
@@ -220,7 +275,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
           <div className={activeDialog?.title ? '' : 'mb-2'}>
             {!activeDialog?.title && (
               <>
-                <DialogTitle className="sr-only">Message Dialog</DialogTitle>
+                <DialogTitle className="sr-only">{t('message.dialogTitle', 'Message Dialog')}</DialogTitle>
                 {activeDialog?.icon && <div className="mb-3 size-4">{activeDialog.icon}</div>}
                 {activeDialog?.content && (
                   <div className="text-xs! text-foreground/80 mb-3">

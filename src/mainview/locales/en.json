@@ -86,5 +86,12 @@
   },
   "readonlyTerminal": {
     "waitingForOutput": "Waiting for output..."
+  },
+  "message": {
+    "validationFailed": "Validation failed",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "dialogTitle": "Message Dialog"
   }
 }
