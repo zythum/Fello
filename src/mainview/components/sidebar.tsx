@@ -17,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SettingsDialog } from "./settings-dialog";
+import { SettingsAgentsDialog } from "./settings-agents-dialog";
 import { useMessage } from "./message";
 import {
   FolderOpen,
@@ -191,9 +191,9 @@ export function Sidebar() {
               setActiveSessionId(next);
             }
             return "deleted";
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
   };
 
@@ -202,9 +202,9 @@ export function Sidebar() {
       title: t("sidebar.renameProject"),
       content: t("sidebar.enterNewProjectName"),
       defaultValue: project.title,
-      validate: (val) => val.trim() ? undefined : "Project name cannot be empty",
+      validate: (val) => (val.trim() ? undefined : "Project name cannot be empty"),
     });
-    
+
     if (newName && newName !== "cancel") {
       await request.renameProject({ projectId: project.id, title: newName.trim() });
       await refreshData();
@@ -216,9 +216,9 @@ export function Sidebar() {
       title: t("sidebar.renameChat"),
       content: t("sidebar.enterNewChatName"),
       defaultValue: session.title,
-      validate: (val) => val.trim() ? undefined : "Chat name cannot be empty",
+      validate: (val) => (val.trim() ? undefined : "Chat name cannot be empty"),
     });
-    
+
     if (newName && newName !== "cancel") {
       await request.updateSessionTitle({ sessionId: session.id, title: newName.trim() });
       await refreshData();
@@ -231,8 +231,8 @@ export function Sidebar() {
       content: t("sidebar.deleteProjectConfirm", { title: project.title }),
       buttons: [
         { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
-        { 
-          text: t("sidebar.delete"), 
+        {
+          text: t("sidebar.delete"),
           value: async () => {
             await request.deleteProject(project.id);
             const map = new Map(useAppStore.getState().sessionStates);
@@ -240,16 +240,16 @@ export function Sidebar() {
               if (session.project_id === project.id) map.delete(session.id);
             }
             useAppStore.setState({ sessionStates: map });
-            
+
             const { sessions: updated } = await refreshData();
             if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
               setActiveSessionId(updated.length > 0 ? updated[0].id : null);
             }
             return "confirm";
-          }, 
-          variant: "destructive" 
-        }
-      ]
+          },
+          variant: "destructive",
+        },
+      ],
     });
   };
 
@@ -447,7 +447,7 @@ export function Sidebar() {
                               void handleNewChat(project.id, agent.id);
                             }}
                           >
-                            {agent.name}
+                            {agent.id}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -492,7 +492,7 @@ export function Sidebar() {
                           variant="outline"
                           className="h-4 px-1 -ml-1 text-[10px] uppercase max-w-15 truncate block text-center leading-normal py-0"
                         >
-                          {configuredAgents.find((a) => a.id === session.agent)?.name ||
+                          {configuredAgents.find((a) => a.id === session.agent)?.id ||
                             session.agent}
                         </Badge>
                         <span className="min-w-0 flex-1 truncate leading-normal">
@@ -652,7 +652,7 @@ export function Sidebar() {
         </DropdownMenu>
       </div>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsAgentsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </aside>
   );
 }

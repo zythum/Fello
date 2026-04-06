@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import type { AgentConfig } from "../store";
 
-export function SettingsDialog({
+export function SettingsAgentsDialog({
   open,
   onOpenChange,
 }: {
@@ -40,22 +39,26 @@ export function SettingsDialog({
     }
   }, [open, configuredAgents]);
 
-  const handleSave = async () => {
+  const handleSave = async (updatedAgents: AgentConfig[]) => {
     try {
       const { theme } = useAppStore.getState();
-      await request.updateSettings({ agents, theme });
-      setConfiguredAgents(agents);
-      onOpenChange(false);
+      await request.updateSettings({ agents: updatedAgents, theme });
+      setConfiguredAgents(updatedAgents);
     } catch (err) {
       pushGlobalErrorMessage(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleAdd = () => {
-    const newId = `agent-${Date.now()}`;
-    const newAgent = { id: newId, name: "New Agent", command: "", args: [], env: {} };
-    setAgents([...agents, newAgent]);
-    setEditingId(newId);
+    // Generate a temporary internal editing ID for the new item.
+    // The user will specify the actual Agent ID in the input field.
+    const internalEditingId = `__new_agent_${Date.now()}_${Math.floor(Math.random() * 1000)}__`;
+
+    const newAgent = { id: "", command: "", args: [], env: {} };
+    // Temporarily set the agent's ID to the internal editing ID so we can track it
+    // during the edit session. It will be replaced by the user's input when saved.
+    setAgents([...agents, { ...newAgent, id: internalEditingId }]);
+    setEditingId(internalEditingId);
     setEditForm(newAgent);
     setEnvRaw("");
   };
@@ -66,18 +69,29 @@ export function SettingsDialog({
     setEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
   };
 
-  const handleDelete = (id: string) => {
-    setAgents(agents.filter((a) => a.id !== id));
+  const handleDelete = async (id: string) => {
+    const updated = agents.filter((a) => a.id !== id);
+    setAgents(updated);
     if (editingId === id) {
       setEditingId(null);
       setEditForm(null);
     }
+    await handleSave(updated);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editForm) return;
-    if (!editForm.name.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage(t("settings.errorNameCommand"));
+    if (!editForm.id.trim() || !editForm.command.trim()) {
+      pushGlobalErrorMessage(t("settings.errorIdCommand"));
+      return;
+    }
+
+    if (
+      agents.some(
+        (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_agent_"),
+      )
+    ) {
+      pushGlobalErrorMessage(t("settings.errorDuplicateId"));
       return;
     }
 
@@ -93,54 +107,61 @@ export function SettingsDialog({
       }
     }
 
-    setAgents(agents.map((a) => (a.id === editForm.id ? editForm : a)));
+    const updated = agents.map((a) => (a.id === editingId ? editForm : a));
+    setAgents(updated);
     setEditingId(null);
     setEditForm(null);
+    await handleSave(updated);
   };
 
   const handleCancelEdit = () => {
+    // If the cancelled edit was a brand-new unsaved agent, remove it from the list
+    if (editingId && editingId.startsWith("__new_agent_")) {
+      setAgents(agents.filter((a) => a.id !== editingId));
+    }
     setEditingId(null);
     setEditForm(null);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t("settings.title")}</DialogTitle>
-          <DialogDescription>{t("settings.description")}</DialogDescription>
+      <DialogContent showCloseButton={true} className="sm:max-w-xl gap-0.5">
+        <DialogHeader className="mb-2 gap-1">
+          <DialogTitle className="flex items-center gap-1 text-md">
+            {t("settings.agents")}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">{t("settings.agents")}</h3>
-            <Button variant="outline" size="sm" onClick={handleAdd} className="h-7 text-xs">
+        <div className="space-y-2 mb-2 pt-2">
+          <div className="flex items-center justify-between p-1">
+            <h3 className="text-xs text-foreground/50">{t("settings.description")}</h3>
+            <Button variant="outline" size="xs" onClick={handleAdd} className="h-7 text-xs text-foreground/70">
               <Plus className="mr-1 size-3" />
               {t("settings.addAgent")}
             </Button>
           </div>
 
-          <ScrollArea className="h-60 rounded-md border p-2">
-            <div className="space-y-2">
+          <ScrollArea className="h-80 border-t border-border -mx-4 -mb-6">
+            <div className="space-y-1.5 m-3">
               {agents.map((agent) => (
                 <div
                   key={agent.id}
-                  className="flex items-center justify-between rounded-lg border p-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
                 >
                   {editingId === agent.id && editForm ? (
                     <div className="flex w-full flex-col gap-2">
                       <Input
-                        placeholder={t("settings.agentName")}
-                        value={editForm.name}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="h-8 text-xs"
+                        placeholder={t("settings.agentId")}
+                        value={editForm.id}
+                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
+                        className="h-8 text-xs! text-foreground/80 focus-visible:ring-0.5"
                       />
                       <div className="flex gap-2">
                         <Input
                           placeholder={t("settings.command")}
                           value={editForm.command}
                           onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                          className="h-8 text-xs font-mono flex-1"
+                          className="h-8 text-[11px]! font-mono flex-4 text-foreground/80 focus-visible:ring-0.5"
                         />
                         <Input
                           placeholder={t("settings.args")}
@@ -151,7 +172,7 @@ export function SettingsDialog({
                               args: e.target.value.split(/\s+/).filter(Boolean),
                             })
                           }
-                          className="h-8 text-xs font-mono flex-2"
+                          className="h-8 text-[11px]! font-mono flex-1 text-foreground/80 focus-visible:ring-0.5"
                         />
                       </div>
                       <Input
@@ -183,49 +204,49 @@ export function SettingsDialog({
                             // Let the user keep typing invalid JSON without throwing errors
                           }
                         }}
-                        className="h-8 text-xs font-mono"
+                        className="h-8 text-[11px]! font-mono text-foreground/80 focus-visible:ring-0.5"
                       />
                       <div className="flex justify-end gap-2 mt-1">
                         <Button
-                          variant="ghost"
                           size="sm"
+                          variant="outline"
                           onClick={handleCancelEdit}
-                          className="h-6 text-xs"
+                          className="h-7 text-xs text-foreground/70"
                         >
                           {t("settings.cancel")}
                         </Button>
-                        <Button size="sm" onClick={handleSaveEdit} className="h-6 text-xs">
+                        <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs text-foreground/70">
                           {t("settings.save")}
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <>
-                      <div className="flex flex-col min-w-0 gap-1 flex-1 pr-4">
-                        <span className="font-medium truncate">{agent.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono truncate">
-                          {[agent.command, ...(agent.args || [])].join(" ")}
-                        </span>
+                    <div className="flex w-full flex-row items-center gap-2">
+                      <div className="flex min-w-8 font-normal truncate">
+                        <span className="">{agent.id}</span>
+                      </div>
+                      <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
+                        {[agent.command, ...(agent.args || [])].join(" ")}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="size-7"
+                          size="icon-xs"
+                          className="size-6 text-foreground/80"
                           onClick={() => handleEdit(agent)}
                         >
                           <Pencil className="size-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
+                          size="icon-xs"
+                          className="size-6 text-destructive/80 hover:text-destructive"
                           onClick={() => handleDelete(agent.id)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               ))}
@@ -237,13 +258,6 @@ export function SettingsDialog({
             </div>
           </ScrollArea>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("settings.cancel")}
-          </Button>
-          <Button onClick={handleSave}>{t("settings.saveChanges")}</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

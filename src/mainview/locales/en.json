@@ -29,7 +29,7 @@
     "description": "Configure available AI agents and their launch commands.",
     "agents": "Agents",
     "addAgent": "Add Agent",
-    "agentName": "Agent Name (e.g. Kiro)",
+    "agentId": "Agent ID (e.g. Kiro)",
     "command": "Command (e.g. kiro-cli)",
     "args": "Args (e.g. acp)",
     "envJson": "Env JSON (e.g. {\"API_KEY\": \"...\"})",
@@ -37,7 +37,8 @@
     "save": "Save",
     "saveChanges": "Save Changes",
     "noAgents": "No agents configured.",
-    "errorNameCommand": "Name and Command are required.",
+    "errorIdCommand": "ID and Command are required.",
+    "errorDuplicateId": "An agent with this ID already exists.",
     "errorEnvJson": "Env must be a valid JSON object."
   },
   "chatHeader": {

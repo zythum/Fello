@@ -106,7 +106,6 @@ export interface ThemeConfig {
 
 export interface AgentConfig {
   id: string;
-  name: string;
   command: string;
   args: string[];
   env: Record<string, string>;

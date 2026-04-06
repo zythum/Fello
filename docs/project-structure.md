@@ -36,7 +36,7 @@ fello/
 │       │
 │       └── components/
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
-│           ├── settings-dialog.tsx   # 全局设置弹窗（配置 Agent 等）
+│           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
 │           ├── sidebar.tsx           # 项目分组侧边栏与项目/会话操作
 │           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
 │           ├── chat-area.tsx         # 消息渲染与滚动控制

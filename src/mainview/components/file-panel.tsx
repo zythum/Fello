@@ -627,12 +627,13 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
 
   const deleteNode = async (ids: string[]) => {
     if (ids.length === 0) return;
-    
+
     await confirm({
       title: t("filePanel.delete"),
-      content: ids.length === 1
-        ? t("filePanel.deleteConfirmSingle", { name: ids[0].split("/").pop() })
-        : t("filePanel.deleteConfirmMultiple", { count: ids.length }),
+      content:
+        ids.length === 1
+          ? t("filePanel.deleteConfirmSingle", { name: ids[0].split("/").pop() })
+          : t("filePanel.deleteConfirmMultiple", { count: ids.length }),
       buttons: [
         { text: t("filePanel.cancel"), value: "cancel", variant: "outline" },
         {
@@ -647,7 +648,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
             setSelectedIds(new Set());
             refresh();
             return "trashed";
-          }
+          },
         },
         {
           text: t("filePanel.delete"),
@@ -661,9 +662,9 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
             setSelectedIds(new Set());
             refresh();
             return "deleted";
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
   };
 

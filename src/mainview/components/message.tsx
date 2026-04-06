@@ -1,17 +1,32 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
-import { toast as sonnerToast } from 'sonner';
-import { Toaster } from '@/components/ui/sonner';
-import { useTranslation } from 'react-i18next';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { useTranslation } from "react-i18next";
 
 type MessageContextValue = {
   inputValue?: string;
 };
 
-type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 
 export type ButtonConfig = {
   text: React.ReactNode;
@@ -32,7 +47,7 @@ export type PromptOptions = DialogOptions & {
   validate?: (val: string) => string | boolean | undefined | Promise<string | boolean | undefined>;
 };
 
-type DialogType = 'alert' | 'confirm' | 'prompt';
+type DialogType = "alert" | "confirm" | "prompt";
 
 type ActiveDialogState = PromptOptions & {
   type: DialogType;
@@ -50,7 +65,7 @@ const MessageContext = createContext<MessageApi | null>(null);
 
 export const useMessage = () => {
   const ctx = useContext(MessageContext);
-  if (!ctx) throw new Error('useMessage must be used within a MessageProvider');
+  if (!ctx) throw new Error("useMessage must be used within a MessageProvider");
   return ctx;
 };
 
@@ -58,7 +73,7 @@ const DialogButton = ({
   btn,
   context,
   onResolve,
-  validate
+  validate,
 }: {
   btn: ButtonConfig;
   context: MessageContextValue;
@@ -78,7 +93,7 @@ const DialogButton = ({
   }, []);
 
   const handleClick = async () => {
-    const isCancel = btn.value === 'cancel';
+    const isCancel = btn.value === "cancel";
 
     // Manage delayed loading state
     const startLoading = () => {
@@ -100,26 +115,26 @@ const DialogButton = ({
     if (validate && !isCancel) {
       startLoading();
       try {
-        const err = await validate(context.inputValue || '');
-        if (err && typeof err === 'string') {
-           sonnerToast.error(err);
-           stopLoading();
-           return;
+        const err = await validate(context.inputValue || "");
+        if (err && typeof err === "string") {
+          sonnerToast.error(err);
+          stopLoading();
+          return;
         } else if (err === false) {
-           stopLoading();
-           return;
+          stopLoading();
+          return;
         }
       } catch (e: any) {
-        sonnerToast.error(e.message || t('message.validationFailed', 'Validation failed'));
+        sonnerToast.error(e.message || t("message.validationFailed", "Validation failed"));
         stopLoading();
         return;
       }
       // Do not stopLoading here if we are continuing to the next phase
     }
 
-    if (typeof btn.value === 'function') {
+    if (typeof btn.value === "function") {
       if (!loading && (!validate || isCancel)) {
-         startLoading();
+        startLoading();
       }
       try {
         const result = await btn.value(context);
@@ -141,7 +156,7 @@ const DialogButton = ({
   return (
     <Button
       size="xs"
-      variant={btn.variant || 'default'}
+      variant={btn.variant || "default"}
       onClick={handleClick}
       disabled={loading}
       className="h-8 text-xs"
@@ -156,7 +171,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
   const [dialogQueue, setDialogQueue] = useState<ActiveDialogState[]>([]);
   const [activeDialog, setActiveDialog] = useState<ActiveDialogState | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useTranslation();
 
@@ -173,68 +188,95 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
       const nextDialog = dialogQueue[0];
       setActiveDialog(nextDialog);
       setDialogQueue((prev) => prev.slice(1));
-      
-      if (nextDialog.type === 'prompt') {
-        setInputValue(nextDialog.defaultValue || '');
+
+      if (nextDialog.type === "prompt") {
+        setInputValue(nextDialog.defaultValue || "");
       } else {
-        setInputValue('');
+        setInputValue("");
       }
-      
+
       setIsOpen(true);
     }
   }, [dialogQueue, activeDialog]);
 
-  const handleClose = useCallback((open: boolean) => {
-    if (!open && activeDialog) {
-      activeDialog.resolve(null);
-      setIsOpen(false);
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
+  const handleClose = useCallback(
+    (open: boolean) => {
+      if (!open && activeDialog) {
+        activeDialog.resolve(null);
+        setIsOpen(false);
+        if (closeTimeoutRef.current) {
+          clearTimeout(closeTimeoutRef.current);
+        }
+        closeTimeoutRef.current = setTimeout(() => {
+          setActiveDialog(null);
+        }, 150);
       }
-      closeTimeoutRef.current = setTimeout(() => {
-        setActiveDialog(null);
-      }, 150);
-    }
-  }, [activeDialog]);
+    },
+    [activeDialog],
+  );
 
-  const alert = useCallback((options: DialogOptions) => {
-    return new Promise<string | null>((resolve) => {
-      setDialogQueue((prev) => [...prev, {
-        type: 'alert',
-        ...options,
-        buttons: options.buttons || [{ text: t('message.ok', 'OK'), value: 'ok', variant: 'default' }],
-        resolve
-      }]);
-    });
-  }, [t]);
+  const alert = useCallback(
+    (options: DialogOptions) => {
+      return new Promise<string | null>((resolve) => {
+        setDialogQueue((prev) => [
+          ...prev,
+          {
+            type: "alert",
+            ...options,
+            buttons: options.buttons || [
+              { text: t("message.ok", "OK"), value: "ok", variant: "default" },
+            ],
+            resolve,
+          },
+        ]);
+      });
+    },
+    [t],
+  );
 
-  const confirm = useCallback((options: DialogOptions) => {
-    return new Promise<string | null>((resolve) => {
-      setDialogQueue((prev) => [...prev, {
-        type: 'confirm',
-        ...options,
-        buttons: options.buttons || [
-          { text: t('message.cancel', 'Cancel'), value: 'cancel', variant: 'outline' },
-          { text: t('message.confirm', 'Confirm'), value: 'confirm', variant: 'default' }
-        ],
-        resolve
-      }]);
-    });
-  }, [t]);
+  const confirm = useCallback(
+    (options: DialogOptions) => {
+      return new Promise<string | null>((resolve) => {
+        setDialogQueue((prev) => [
+          ...prev,
+          {
+            type: "confirm",
+            ...options,
+            buttons: options.buttons || [
+              { text: t("message.cancel", "Cancel"), value: "cancel", variant: "outline" },
+              { text: t("message.confirm", "Confirm"), value: "confirm", variant: "default" },
+            ],
+            resolve,
+          },
+        ]);
+      });
+    },
+    [t],
+  );
 
-  const prompt = useCallback((options: PromptOptions) => {
-    return new Promise<string | null>((resolve) => {
-      setDialogQueue((prev) => [...prev, {
-        type: 'prompt',
-        ...options,
-        buttons: options.buttons || [
-          { text: t('message.cancel', 'Cancel'), value: 'cancel', variant: 'outline' },
-          { text: t('message.confirm', 'Confirm'), value: (ctx) => Promise.resolve(ctx.inputValue || ''), variant: 'default' }
-        ],
-        resolve
-      }]);
-    });
-  }, [t]);
+  const prompt = useCallback(
+    (options: PromptOptions) => {
+      return new Promise<string | null>((resolve) => {
+        setDialogQueue((prev) => [
+          ...prev,
+          {
+            type: "prompt",
+            ...options,
+            buttons: options.buttons || [
+              { text: t("message.cancel", "Cancel"), value: "cancel", variant: "outline" },
+              {
+                text: t("message.confirm", "Confirm"),
+                value: (ctx) => Promise.resolve(ctx.inputValue || ""),
+                variant: "default",
+              },
+            ],
+            resolve,
+          },
+        ]);
+      });
+    },
+    [t],
+  );
 
   const handleResolve = (val: string | null) => {
     if (activeDialog) {
@@ -264,28 +306,26 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
               </DialogTitle>
               {activeDialog?.content && (
                 <DialogDescription>
-                  <div className="text-sm text-foreground/50 pt-1">
-                    {activeDialog.content}
-                  </div>
+                  <div className="text-sm text-foreground/50 pt-1">{activeDialog.content}</div>
                 </DialogDescription>
               )}
             </DialogHeader>
           )}
 
-          <div className={activeDialog?.title ? '' : 'mb-2'}>
+          <div className={activeDialog?.title ? "" : "mb-2"}>
             {!activeDialog?.title && (
               <>
-                <DialogTitle className="sr-only">{t('message.dialogTitle', 'Message Dialog')}</DialogTitle>
+                <DialogTitle className="sr-only">
+                  {t("message.dialogTitle", "Message Dialog")}
+                </DialogTitle>
                 {activeDialog?.icon && <div className="mb-3 size-4">{activeDialog.icon}</div>}
                 {activeDialog?.content && (
-                  <div className="text-xs! text-foreground/80 mb-3">
-                    {activeDialog.content}
-                  </div>
+                  <div className="text-xs! text-foreground/80 mb-3">{activeDialog.content}</div>
                 )}
               </>
             )}
 
-            {activeDialog?.type === 'prompt' && (
+            {activeDialog?.type === "prompt" && (
               <div className="mt-0 mb-2">
                 <Input
                   autoFocus

@@ -75,7 +75,7 @@ function AppContent() {
 
   useEffect(() => {
     if (!currentGlobalError) return;
-    
+
     const showError = async () => {
       await alert({
         title: "Error",

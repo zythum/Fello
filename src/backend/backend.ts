@@ -71,7 +71,7 @@ function resolveAgentRuntime(agentId: string) {
   }
   const command = agent.command.trim();
   if (!command) {
-    throw new Error(`Agent "${agent.name}" has no command configured.`);
+    throw new Error(`Agent "${agent.id}" has no command configured.`);
   }
 
   const args = agent.args || [];
