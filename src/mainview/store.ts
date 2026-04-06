@@ -129,6 +129,7 @@ interface AppState {
   currentModeId: string | null;
   globalErrorMessages: string[];
   terminalLogs: Record<string, string>;
+  webUIStatus: { enabled: boolean; url: string | null };
 
   // Selectors
   getSessionState: (id?: string) => SessionState;
@@ -167,6 +168,7 @@ interface AppState {
   setCurrentModelId: (id: string | null) => void;
   setAvailableModes: (modes: ModeOption[]) => void;
   setCurrentModeId: (id: string | null) => void;
+  setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   pushGlobalErrorMessage: (message: string) => void;
   shiftGlobalErrorMessage: () => void;
   clearGlobalErrors: () => void;
@@ -189,6 +191,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentModeId: null,
   globalErrorMessages: [],
   terminalLogs: {},
+  webUIStatus: { enabled: false, url: null },
 
   getSessionState: (id) => {
     const sid = id ?? get().activeSessionId;
@@ -314,6 +317,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentModelId: (id) => set({ currentModelId: id }),
   setAvailableModes: (modes) => set({ availableModes: modes }),
   setCurrentModeId: (id) => set({ currentModeId: id }),
+  setWebUIStatus: (status) => set({ webUIStatus: status }),
   pushGlobalErrorMessage: (message) =>
     set((state) => ({ globalErrorMessages: [...state.globalErrorMessages, message] })),
   shiftGlobalErrorMessage: () =>

@@ -47,9 +47,17 @@ export interface SettingsMeta {
   language?: string;
 }
 
+export interface WebUIStatus {
+  enabled: boolean;
+  url: string | null;
+}
+
 export type FelloIPCRequests = {
   getSettings: { params: void; response: SettingsMeta };
   updateSettings: { params: SettingsMeta; response: void };
+  startWebUIServer: { params: { port?: number; token?: string }; response: WebUIStatus };
+  stopWebUIServer: { params: void; response: WebUIStatus };
+  getWebUIStatus: { params: void; response: WebUIStatus };
   listSessions: { params: void; response: SessionInfo[] };
   listProjects: { params: void; response: ProjectInfo[] };
   addProject: { params: string; response: { project: ProjectInfo; created: boolean } };
@@ -152,6 +160,7 @@ export type FelloIPCEvents = {
   "terminal-output": { terminalId: string; data: string };
   "terminal-exit": { terminalId: string; exitCode: number | null };
   "agent-terminal-output": { terminalId: string; data: string };
+  "webui-status-changed": WebUIStatus;
 };
 
 export type FelloIPCSchema = {

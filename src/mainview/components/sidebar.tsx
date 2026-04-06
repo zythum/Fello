@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SettingsAgentsDialog } from "./settings-agents-dialog";
+import { SettingsWebUIDialog } from "./settings-webui-dialog";
 import { useMessage } from "./message";
 import {
   FolderOpen,
@@ -44,6 +45,8 @@ function getErrorMessage(error: unknown): string {
   return "Failed to create a new chat.";
 }
 
+import { isWebUI } from "../backend";
+
 export function Sidebar() {
   const { t, i18n } = useTranslation();
   const {
@@ -63,12 +66,14 @@ export function Sidebar() {
     language,
     setLanguage,
     sessionStates,
+    webUIStatus,
   } = useAppStore();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [webUIOpen, setWebUIOpen] = useState(false);
   const { prompt, confirm } = useMessage();
 
   if (!sidebarOpen) return null;
@@ -111,8 +116,21 @@ export function Sidebar() {
 
   const handleAddProject = async () => {
     try {
-      const selectedPath = await request.showOpenDialog();
-      if (!selectedPath) return; // User canceled
+      let selectedPath = "";
+      if (isWebUI) {
+        const p = await prompt({
+          title: "Add Project",
+          content: "Enter absolute path to project on the server:",
+          validate: (val) => (val.trim() ? undefined : "Path cannot be empty"),
+        });
+        if (!p || p === "cancel") return;
+        selectedPath = p.trim();
+      } else {
+        const p = await request.showOpenDialog();
+        if (!p) return;
+        selectedPath = p;
+      }
+      
       const result = (await request.addProject(selectedPath)) as {
         project: ProjectInfo;
         created: boolean;
@@ -381,16 +399,18 @@ export function Sidebar() {
                       onClick={(e) => e.stopPropagation()}
                       className="w-28 py-1"
                     >
-                      <DropdownMenuItem
-                        className="text-xs rounded-1 text-muted-foreground/90"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleRevealProjectInFinder(project);
-                        }}
-                      >
-                        <FolderOpen className="size-3" />
-                        {t("sidebar.revealInFinder")}
-                      </DropdownMenuItem>
+                      {!isWebUI && (
+                        <DropdownMenuItem
+                          className="text-xs rounded-1 text-muted-foreground/90"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleRevealProjectInFinder(project);
+                          }}
+                        >
+                          <FolderOpen className="size-3" />
+                          {t("sidebar.revealInFinder")}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         className="text-xs rounded-1 text-muted-foreground/90"
                         onClick={(e) => {
@@ -564,21 +584,52 @@ export function Sidebar() {
           <DropdownMenuTrigger
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "flex w-full items-center justify-start gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none",
+              "flex w-full items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none",
             )}
           >
-            <Settings className="size-4" />
-            {t("sidebar.settings")}
+            <div className="flex items-center gap-2">
+              <Settings className="size-4" />
+              {t("sidebar.settings")}
+            </div>
+            {webUIStatus.enabled && (
+              <div title="WebUI Enabled">
+                <Globe className="size-3 text-green-500" />
+              </div>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="py-1">
-            <DropdownMenuItem
-              className="text-xs rounded-1 text-muted-foreground/90"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Bot className="size-3" />
-              {t("sidebar.agents")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {!isWebUI && (
+              <>
+                <DropdownMenuItem
+                  className="text-xs rounded-1 text-muted-foreground/90"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Bot className="size-3" />
+                  {t("sidebar.agents")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs rounded-1 text-muted-foreground/90"
+                  onClick={() => setWebUIOpen(true)}
+                >
+                  <Globe className="size-3" />
+                  WebUI
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            {isWebUI && (
+              <>
+                <DropdownMenuItem
+                  className="text-xs rounded-1 text-muted-foreground/90"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Bot className="size-3" />
+                  {t("sidebar.agents")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
                 <Palette className="size-3" />
@@ -653,6 +704,7 @@ export function Sidebar() {
       </div>
 
       <SettingsAgentsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsWebUIDialog open={webUIOpen} onOpenChange={setWebUIOpen} />
     </aside>
   );
 }

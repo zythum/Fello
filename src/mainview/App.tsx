@@ -26,14 +26,16 @@ function AppContent() {
 
   useEffect(() => {
     async function loadData() {
-      const [projects, sessions, settings] = await Promise.all([
+      const [projects, sessions, settings, webUIStatus] = await Promise.all([
         request.listProjects(),
         request.listSessions(),
         request.getSettings(),
+        request.getWebUIStatus(),
       ]);
       setProjects((projects as ProjectInfo[]) ?? []);
       setSessions((sessions as SessionInfo[]) ?? []);
       setConfiguredAgents(settings.agents);
+      useAppStore.getState().setWebUIStatus(webUIStatus);
       if (settings.theme) setTheme(settings.theme);
       if (settings.language) {
         setLanguage(settings.language);
@@ -65,13 +67,19 @@ function AppContent() {
       useAppStore.getState().appendTerminalLog(detail.terminalId, detail.data);
     };
 
+    const handleWebUIStatusChanged = (detail: any) => {
+      useAppStore.getState().setWebUIStatus(detail);
+    };
+
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
+    subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     return () => {
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
+      subscribe.off("webui-status-changed", handleWebUIStatusChanged);
     };
   }, [addPermissionRequest]);
 

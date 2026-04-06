@@ -23,6 +23,7 @@ import { createRequire } from "module";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
+import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 
 const execFileAsync = promisify(execFile);
 import type { FelloIPCSchema } from "./ipc-schema";
@@ -62,7 +63,10 @@ export function initBackend(
     payload: FelloIPCSchema["events"][K],
   ) => boolean,
 ) {
-  sendEvent = emitter;
+  sendEvent = (channel, payload) => {
+    broadcastWebUIEvent(channel, payload);
+    return emitter(channel, payload);
+  };
 }
 
 function resolveAgentRuntime(agentId: string) {
@@ -327,6 +331,24 @@ export const backendHandlers: {
     params: FelloIPCSchema["requests"][K]["params"],
   ) => Promise<FelloIPCSchema["requests"][K]["response"]>;
 } = {
+  async getWebUIStatus() {
+    return getWebUIStatus();
+  },
+
+  async startWebUIServer({ port, token }) {
+    const status = await startWebUI({ port, token });
+    const current = { enabled: true, url: status.url };
+    sendEvent("webui-status-changed", current);
+    return current;
+  },
+
+  async stopWebUIServer() {
+    stopWebUI();
+    const current = { enabled: false, url: null };
+    sendEvent("webui-status-changed", current);
+    return current;
+  },
+
   async getSettings() {
     return storageOps.getSettings();
   },
