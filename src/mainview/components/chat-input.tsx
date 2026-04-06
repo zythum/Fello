@@ -116,7 +116,7 @@ export function ChatInput() {
     }, STREAMING_TIMEOUT_MS);
 
     try {
-      await request.sendMessage(resolved);
+      await request.sendMessage({ sessionId: activeSessionId, text: resolved });
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
@@ -297,7 +297,7 @@ export function ChatInput() {
                     onValueChange={async (modeId) => {
                       setCurrentModeId(modeId as string);
                       try {
-                        await request.setMode(modeId as string);
+                        await request.setMode({ sessionId: activeSessionId!, modeId: modeId as string });
                       } catch (err) {
                         console.error("Failed to set mode:", err);
                       }
@@ -345,7 +345,7 @@ export function ChatInput() {
                   onValueChange={async (modelId) => {
                     setCurrentModelId(modelId as string);
                     try {
-                      await request.setModel(modelId as string);
+                      await request.setModel({ sessionId: activeSessionId!, modelId: modelId as string });
                     } catch (err) {
                       console.error("Failed to set model:", err);
                     }
@@ -380,7 +380,7 @@ export function ChatInput() {
                   variant="destructive"
                   size="icon"
                   className="size-7 cursor-default rounded-lg"
-                  onClick={() => request.cancelPrompt()}
+                  onClick={() => request.cancelPrompt({ sessionId: activeSessionId! })}
                   aria-label="Stop"
                 >
                   <Square className="size-3.5" />

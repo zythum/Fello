@@ -32,11 +32,13 @@ const require = createRequire(import.meta.url);
 
 type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
-const bridgeRefs = new Map<AgentType, ACPBridge>();
-let bridge: ACPBridge | null = null;
-let activeSessionId: string | null = null;
-let activeStorageSessionId: string | null = null;
-const pendingPermissions = new Map<string, (value: RequestPermissionResponse) => void>();
+const pendingPermissions = new Map<
+  string,
+  {
+    resolve: (value: RequestPermissionResponse) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }
+>();
 
 type ManagedTerminal = {
   write: (data: string) => void;
@@ -125,18 +127,14 @@ export function extractErrorMessage(error: unknown): string {
 }
 
 async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
-  const pooledBridgePromise = bridgePool.get(agent);
-  if (pooledBridgePromise) {
-    const pooledBridge = await pooledBridgePromise;
+  const connectPromise = bridgePool.get(agent);
+  if (connectPromise) {
+    const pooledBridge = await connectPromise;
     if (pooledBridge.isConnected) {
-      bridge = pooledBridge;
       return pooledBridge;
     }
-    if (bridgePool.get(agent) === pooledBridgePromise) {
+    if (bridgePool.get(agent) === connectPromise) {
       bridgePool.delete(agent);
-    }
-    if (bridgeRefs.get(agent) === pooledBridge) {
-      bridgeRefs.delete(agent);
     }
     await pooledBridge.disconnect().catch(() => {});
   }
@@ -156,76 +154,41 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
           outcome: { outcome: "selected", optionId: "deny" },
         } as RequestPermissionResponse);
       }
-      return new Promise<RequestPermissionResponse>((resolve) => {
-        pendingPermissions.set(toolCallId, resolve);
+      return new Promise<RequestPermissionResponse>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          pendingPermissions.delete(toolCallId);
+          reject(new Error("Request Permission Timeout"));
+        }, 30 * 60 * 1000);
+        pendingPermissions.set(toolCallId, { resolve, timeoutId });
       });
     },
     onAgentTerminalOutput: (terminalId: string, data: string) => {
       sendEvent("agent-terminal-output", { terminalId, data });
     },
   });
-  bridgeRefs.set(agent, nextBridge);
 
-  let connectPromise!: Promise<ACPBridge>;
-  connectPromise = nextBridge
+  let newConnectPromise!: Promise<ACPBridge>;
+  newConnectPromise = nextBridge
     .connect()
     .then(() => nextBridge)
     .catch(async (error) => {
-      if (bridgePool.get(agent) === connectPromise) {
+      if (bridgePool.get(agent) === newConnectPromise) {
         bridgePool.delete(agent);
       }
-      if (bridgeRefs.get(agent) === nextBridge) {
-        bridgeRefs.delete(agent);
-      }
-      await nextBridge.disconnect().catch(() => {});
+      nextBridge.killSync();
       throw error;
     });
-  bridgePool.set(agent, connectPromise);
 
-  const connectedBridge = await connectPromise;
-  if (!connectedBridge.isConnected) {
-    if (bridgePool.get(agent) === connectPromise) {
-      bridgePool.delete(agent);
-    }
-    if (bridgeRefs.get(agent) === connectedBridge) {
-      bridgeRefs.delete(agent);
-    }
-    await connectedBridge.disconnect().catch(() => {});
-    return ensureBridge(cwd, agent);
-  }
-  bridge = connectedBridge;
-  return connectedBridge;
-}
+  bridgePool.set(agent, newConnectPromise);
 
-export async function cleanupAll() {
-  const allBridges = new Set<ACPBridge>(bridgeRefs.values());
-  const settledBridges = await Promise.allSettled(bridgePool.values());
-  for (const result of settledBridges) {
-    if (result.status === "fulfilled") {
-      allBridges.add(result.value);
-    }
-  }
-  for (const pooledBridge of allBridges) {
-    await pooledBridge.disconnect().catch(() => {});
-  }
-  bridgeRefs.clear();
-  bridgePool.clear();
-  bridge = null;
-  for (const terminal of terminals.values()) {
-    terminal.kill();
-  }
-  terminals.clear();
+  return newConnectPromise;
 }
 
 export function killBridgeSync() {
-  const allBridges = new Set<ACPBridge>(bridgeRefs.values());
-  if (bridge) allBridges.add(bridge);
-  for (const pooledBridge of allBridges) {
-    pooledBridge.killSync();
+  for (const p of bridgePool.values()) {
+    p.then(b => b.killSync()).catch(() => {});
   }
-  bridgeRefs.clear();
   bridgePool.clear();
-  bridge = null;
   for (const terminal of terminals.values()) {
     terminal.kill();
   }
@@ -389,14 +352,7 @@ export const backendHandlers: {
   },
 
   async deleteProject(projectId: string) {
-    const activeSession = activeStorageSessionId
-      ? storageOps.getSession(activeStorageSessionId)
-      : null;
     storageOps.deleteProject(projectId);
-    if (activeSession?.project_id === projectId) {
-      activeStorageSessionId = null;
-      activeSessionId = null;
-    }
   },
 
   async newSession({ projectId, agentId }) {
@@ -411,8 +367,6 @@ export const backendHandlers: {
       runtime.commandLabel,
       agentId,
     );
-    activeSessionId = sessionId;
-    activeStorageSessionId = storageSessionId;
     return {
       sessionId: storageSessionId,
       agentInfo: b.agentInfo,
@@ -426,8 +380,6 @@ export const backendHandlers: {
     if (!session) throw new Error("Session does not exist");
     const b = await ensureBridge(session.cwd, session.agent);
     const { models, modes } = await b.loadSession(session.acp_session_id, session.cwd);
-    activeSessionId = session.acp_session_id;
-    activeStorageSessionId = session.id;
     return {
       sessionId: session.id,
       agentInfo: b.agentInfo,
@@ -436,20 +388,31 @@ export const backendHandlers: {
     };
   },
 
-  async sendMessage(text: string) {
-    if (!bridge || !activeSessionId) throw new Error("No active session");
-    if (activeStorageSessionId) storageOps.touchSession(activeStorageSessionId);
-    return await bridge.sendPrompt(activeSessionId, text);
+  async sendMessage({ sessionId, text }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const connectPromise = bridgePool.get(session.agent);
+    if (!connectPromise) throw new Error("Agent bridge not found for session");
+    const b = await connectPromise;
+    storageOps.touchSession(sessionId);
+    return await b.sendPrompt(session.acp_session_id, text);
   },
 
-  async cancelPrompt() {
-    if (bridge && activeSessionId) await bridge.cancel(activeSessionId);
+  async cancelPrompt({ sessionId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) return;
+    const connectPromise = bridgePool.get(session.agent);
+    if (connectPromise) {
+      const b = await connectPromise;
+      await b.cancel(session.acp_session_id);
+    }
   },
 
   async respondPermission({ toolCallId, optionId }) {
-    const resolve = pendingPermissions.get(toolCallId);
-    if (resolve && optionId) {
-      resolve({ outcome: { outcome: "selected", optionId } });
+    const pending = pendingPermissions.get(toolCallId);
+    if (pending && optionId) {
+      clearTimeout(pending.timeoutId);
+      pending.resolve({ outcome: { outcome: "selected", optionId } });
       pendingPermissions.delete(toolCallId);
     }
   },
@@ -464,40 +427,46 @@ export const backendHandlers: {
 
   async deleteSession(sessionId: string) {
     storageOps.deleteSession(sessionId);
-    if (activeStorageSessionId === sessionId) {
-      activeStorageSessionId = null;
-      activeSessionId = null;
-    }
-  },
-
-  async disconnect() {
-    await cleanupAll();
-    activeSessionId = null;
-    activeStorageSessionId = null;
   },
 
   async getCwd() {
     return process.cwd();
   },
 
-  async getModels() {
-    if (!bridge || !activeSessionId) return null;
-    return formatModels(bridge.getModelState(activeSessionId));
+  async getModels({ sessionId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) return null;
+    const connectPromise = bridgePool.get(session.agent);
+    if (!connectPromise) return null;
+    const b = await connectPromise;
+    return formatModels(b.getModelState(session.acp_session_id));
   },
 
-  async setModel(modelId: string) {
-    if (!bridge || !activeSessionId) throw new Error("No active session");
-    await bridge.setSessionModel(activeSessionId, modelId);
+  async setModel({ sessionId, modelId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const connectPromise = bridgePool.get(session.agent);
+    if (!connectPromise) throw new Error("Agent bridge not found for session");
+    const b = await connectPromise;
+    await b.setSessionModel(session.acp_session_id, modelId);
   },
 
-  async getModes() {
-    if (!bridge || !activeSessionId) return null;
-    return formatModes(bridge.getModeState(activeSessionId));
+  async getModes({ sessionId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) return null;
+    const connectPromise = bridgePool.get(session.agent);
+    if (!connectPromise) return null;
+    const b = await connectPromise;
+    return formatModes(b.getModeState(session.acp_session_id));
   },
 
-  async setMode(modeId: string) {
-    if (!bridge || !activeSessionId) throw new Error("No active session");
-    await bridge.setSessionMode(activeSessionId, modeId);
+  async setMode({ sessionId, modeId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const connectPromise = bridgePool.get(session.agent);
+    if (!connectPromise) throw new Error("Agent bridge not found for session");
+    const b = await connectPromise;
+    await b.setSessionMode(session.acp_session_id, modeId);
   },
 
   async searchFiles({ cwd, query }) {
@@ -530,6 +499,7 @@ export const backendHandlers: {
       return results;
     }
 
+    const fileScene = new Set<string>();
     const allFiles: Array<{ id: string; display: string }> = [];
 
     async function collect(dir: string) {
@@ -537,6 +507,8 @@ export const backendHandlers: {
       for (const name of entries) {
         if (ignore.has(name)) continue;
         const full = join(dir, name);
+        if (fileScene.has(full)) continue;
+        fileScene.add(full);
         const s = await stat(full).catch(() => null);
         if (!s) continue;
         allFiles.push({ id: full, display: relative(cwd, full) });
@@ -696,13 +668,16 @@ export const backendHandlers: {
   },
 
   async getAgentTerminalOutput(terminalId: string) {
-    if (!bridge) return "";
-    try {
-      const output = bridge.terminalManager.getOutput(terminalId);
-      return output?.output || "";
-    } catch {
-      return "";
+    for (const connectPromise of bridgePool.values()) {
+      try {
+        const b = await connectPromise;
+        const output = b.terminalManager.getOutput(terminalId);
+        if (output?.output) return output.output;
+      } catch {
+        continue;
+      }
     }
+    return "";
   },
 
   async getGitStatus({ cwd }) {

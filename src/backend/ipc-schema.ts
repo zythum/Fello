@@ -73,8 +73,8 @@ export type FelloIPCRequests = {
       modes: ModeState | null;
     };
   };
-  sendMessage: { params: string; response: { stopReason: string } };
-  cancelPrompt: { params: void; response: void };
+  sendMessage: { params: { sessionId: string; text: string }; response: { stopReason: string } };
+  cancelPrompt: { params: { sessionId: string }; response: void };
   respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
   updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
   changeWorkDir: {
@@ -82,18 +82,17 @@ export type FelloIPCRequests = {
     response: { ok: boolean; cwd: string | null };
   };
   deleteSession: { params: string; response: void };
-  disconnect: { params: void; response: void };
   getCwd: { params: void; response: string };
   getModels: {
-    params: void;
+    params: { sessionId: string };
     response: ModelState | null;
   };
-  setModel: { params: string; response: void };
+  setModel: { params: { sessionId: string; modelId: string }; response: void };
   getModes: {
-    params: void;
+    params: { sessionId: string };
     response: ModeState | null;
   };
-  setMode: { params: string; response: void };
+  setMode: { params: { sessionId: string; modeId: string }; response: void };
   searchFiles: {
     params: { cwd: string; query?: string };
     response: Array<{ id: string; display: string }>;
