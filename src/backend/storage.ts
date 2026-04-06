@@ -26,10 +26,7 @@ export interface SettingsMeta {
 }
 
 export const DEFAULT_SETTINGS: SettingsMeta = {
-  agents: [
-    { id: "kiro", name: "Kiro", command: "kiro-cli", args: ["acp"], env: {} },
-    { id: "kimi", name: "Kimi", command: "kimi", args: ["acp"], env: {} },
-  ],
+  agents: [],
   theme: { theme_mode: "system" },
   language: "en",
 };
