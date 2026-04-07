@@ -1,6 +1,5 @@
 import { memo } from "react";
 import type { ChatMessage, ToolStatus } from "../../store";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import {

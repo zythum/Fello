@@ -50,7 +50,7 @@ export function ChatInput() {
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
     (search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
-      const projectId = session?.project_id;
+      const projectId = session?.projectId;
       if (!projectId) {
         callback([]);
         return;
@@ -85,7 +85,7 @@ export function ChatInput() {
           useAppStore.getState().setIsStreaming(sid, false);
           useAppStore.getState().addMessage(sid, {
             role: "system",
-            content: "Agent stopped responding (timed out after 30s).",
+            content: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
           });
         }
       }, STREAMING_TIMEOUT_MS);
@@ -113,7 +113,7 @@ export function ChatInput() {
         useAppStore.getState().setIsStreaming(activeSessionId, false);
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system",
-          content: "Agent stopped responding (timed out after 30s).",
+          content: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
         });
       }
     }, STREAMING_TIMEOUT_MS);
@@ -133,7 +133,7 @@ export function ChatInput() {
       console.error("Prompt error:", err);
       addMessage(activeSessionId, {
         role: "system",
-        content: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        content: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
       });
     } finally {
       clearStreamingTimer();
@@ -234,7 +234,7 @@ export function ChatInput() {
             ? absPath.slice(session.cwd.length + 1)
             : absPath;
           const info = await request.getFileInfo({
-            projectId: session.project_id,
+            projectId: session.projectId,
             relativePath: relPath,
           });
           if (info) {
@@ -275,10 +275,10 @@ export function ChatInput() {
               disabled ? t("chatInput.placeholderDisabled") : t("chatInput.placeholderActive")
             }
             disabled={disabled}
-            aria-label="Message input"
+            aria-label={t("chatInput.messageInput", "Message input")}
             style={mentionsInputStyle}
             allowSuggestionsAboveCursor
-            a11ySuggestionsListLabel="Suggestions"
+            a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
             <Mention
               trigger="#"
@@ -319,7 +319,7 @@ export function ChatInput() {
                       size="sm"
                       className="h-6 w-auto bg-transparent text-xs text-muted-foreground hover:text-foreground"
                     >
-                      <SelectValue placeholder="Mode" />
+                      <SelectValue placeholder={t("chatInput.mode", "Mode")} />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} className="w-60 p-1">
                       {availableModes.map((mode) => (
@@ -345,10 +345,19 @@ export function ChatInput() {
               {usage && (
                 <span
                   className="flex items-center gap-1 text-[10px] text-muted-foreground"
-                  title={`In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`}
+                  title={t("chatInput.tokensUsage", {
+                    input: usage.inputTokens,
+                    output: usage.outputTokens,
+                    total: usage.totalTokens,
+                    thoughtStr: usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : "",
+                    defaultValue: `In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`,
+                  })}
                 >
                   <Zap className="size-3" />
-                  {((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens
+                  {t("chatInput.tokensTotal", {
+                    total: ((usage.totalTokens ?? 0) / 1000).toFixed(1),
+                    defaultValue: `${((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens`,
+                  })}
                 </span>
               )}
               {availableModels.length > 0 ? (
@@ -396,7 +405,7 @@ export function ChatInput() {
                   size="icon"
                   className="size-7 cursor-default rounded-lg"
                   onClick={() => request.cancelPrompt({ sessionId: activeSessionId! })}
-                  aria-label="Stop"
+                  aria-label={t("chatInput.stop", "Stop")}
                 >
                   <Square className="size-3.5" />
                 </Button>
@@ -407,7 +416,7 @@ export function ChatInput() {
                     className="size-7 rounded-lg"
                     onClick={handleSubmit}
                     disabled={disabled || !input.trim()}
-                    aria-label="Send"
+                    aria-label={t("chatInput.send", "Send")}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>

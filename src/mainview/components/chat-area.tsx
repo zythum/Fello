@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useActiveSessionState } from "../store";
 import { MessageBubble } from "./message-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
 
 export function ChatArea() {
+  const { t } = useTranslation();
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ export function ChatArea() {
 
           {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
             <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">
-              <span>Thinking...</span>
+              <span>{t("chatArea.thinking", "Thinking...")}</span>
             </div>
           )}
 
@@ -95,7 +97,7 @@ export function ChatArea() {
           size="icon-sm"
           className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-lg border border-border"
           onClick={scrollToBottom}
-          aria-label="Scroll to bottom"
+          aria-label={t("chatArea.scrollToBottom", "Scroll to bottom")}
         >
           <ArrowDown className="size-4" />
         </Button>

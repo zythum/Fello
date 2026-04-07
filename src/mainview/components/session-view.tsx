@@ -14,7 +14,7 @@ export function SessionView() {
   const { t } = useTranslation();
   const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting, sessions } = useAppStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const activeProjectId = activeSession?.project_id;
+  const activeProjectId = activeSession?.projectId;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
   const [rightPanel, setRightPanel] = useState<HTMLElement | null>(null);

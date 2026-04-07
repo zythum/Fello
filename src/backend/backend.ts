@@ -85,10 +85,9 @@ function resolveAgentRuntime(agentId: string) {
   }
 
   const args = agent.args || [];
-  const commandLabel = [command, ...args].join(" ");
   const env = agent.env || {};
 
-  return { command, args, commandLabel, env };
+  return { command, args, env };
 }
 
 export function extractErrorMessage(error: unknown): string {
@@ -134,29 +133,37 @@ export function extractErrorMessage(error: unknown): string {
   return "Unknown error";
 }
 
-async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
-  const connectPromise = bridgePool.get(agent);
+async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge> {
+  const connectPromise = bridgePool.get(agentId);
   if (connectPromise) {
     const pooledBridge = await connectPromise;
     if (pooledBridge.isConnected) {
       return pooledBridge;
     }
-    if (bridgePool.get(agent) === connectPromise) {
-      bridgePool.delete(agent);
+    if (bridgePool.get(agentId) === connectPromise) {
+      bridgePool.delete(agentId);
     }
     await pooledBridge.disconnect().catch(() => {});
   }
 
-  const runtime = resolveAgentRuntime(agent);
+  const runtime = resolveAgentRuntime(agentId);
   const nextBridge = new ACPBridge({
     command: runtime.command,
     args: runtime.args,
     env: runtime.env,
     cwd,
-    onSessionUpdate: (params: SessionNotification) => sendEvent("session-update", params),
-    onPermissionRequest: (params: RequestPermissionRequest) => {
-      const toolCallId = params.toolCall.toolCallId;
-      const sent = sendEvent("permission-request", params);
+    onSessionUpdate: (notification: SessionNotification) => {
+      sendEvent("session-update", {
+        sessionId: `${agentId}:${notification.sessionId}`,
+        notification,
+      })
+    },
+    onPermissionRequest: (request: RequestPermissionRequest) => {
+      const toolCallId = request.toolCall.toolCallId;
+      const sent = sendEvent("permission-request", {
+        sessionId: `${agentId}:${request.sessionId}`,
+        request
+      });
       if (!sent) {
         return Promise.resolve({
           outcome: { outcome: "selected", optionId: "deny" },
@@ -183,14 +190,14 @@ async function ensureBridge(cwd: string, agent: AgentType): Promise<ACPBridge> {
     .connect()
     .then(() => nextBridge)
     .catch(async (error) => {
-      if (bridgePool.get(agent) === newConnectPromise) {
-        bridgePool.delete(agent);
+      if (bridgePool.get(agentId) === newConnectPromise) {
+        bridgePool.delete(agentId);
       }
       nextBridge.killSync();
       throw error;
     });
 
-  bridgePool.set(agent, newConnectPromise);
+  bridgePool.set(agentId, newConnectPromise);
 
   return newConnectPromise;
 }
@@ -343,17 +350,17 @@ export const backendHandlers: {
   },
 
   async startWebUIServer({ port, token }) {
-    const status = await startWebUI({ port, token });
-    const current = { enabled: true, url: status.url };
-    sendEvent("webui-status-changed", current);
-    return current;
+    const { url } = await startWebUI({ port, token });
+    const status = { enabled: true, url: url };
+    sendEvent("webui-status-changed", { status });
+    return status;
   },
 
   async stopWebUIServer() {
     stopWebUI();
-    const current = { enabled: false, url: null };
-    sendEvent("webui-status-changed", current);
-    return current;
+    const status = { enabled: false, url: null };
+    sendEvent("webui-status-changed", { status });
+    return status;
   },
 
   async getSettings() {
@@ -390,17 +397,15 @@ export const backendHandlers: {
   async newSession({ projectId, agentId }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
-    const runtime = resolveAgentRuntime(agentId);
     const b = await ensureBridge(project.cwd, agentId);
-    const { sessionId, models, modes } = await b.newSession(project.cwd);
-    const storageSessionId = storageOps.createSession(
+    const { sessionId: resumeId, models, modes } = await b.newSession(project.cwd);
+    const sessionId = storageOps.createSession(
       project.id,
-      sessionId,
-      runtime.commandLabel,
+      resumeId,
       agentId,
     );
     return {
-      sessionId: storageSessionId,
+      sessionId: sessionId,
       agentInfo: b.agentInfo,
       models: formatModels(models),
       modes: formatModes(modes),
@@ -410,10 +415,10 @@ export const backendHandlers: {
   async loadSession({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const b = await ensureBridge(session.cwd, session.agent);
-    const { models, modes } = await b.loadSession(session.session_id, session.cwd);
+    const b = await ensureBridge(session.cwd, session.agentId);
+    const { models, modes } = await b.loadSession(session.resumeId, session.cwd);
     return {
-      sessionId: session.session_id,
+      sessionId: session.id,
       agentInfo: b.agentInfo,
       models: formatModels(models),
       modes: formatModes(modes),
@@ -423,14 +428,14 @@ export const backendHandlers: {
   async sendMessage({ sessionId, text, messageId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
 
     // Broadcast user message to other clients
     sendEvent("session-update", {
-      sessionId: session.session_id,
+      sessionId: session.id,
       update: {
         sessionUpdate: "user_message",
         messageId,
@@ -438,16 +443,16 @@ export const backendHandlers: {
       },
     } as any);
 
-    return await b.sendPrompt(session.session_id, text);
+    return await b.sendPrompt(session.resumeId, text);
   },
 
   async cancelPrompt({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) return;
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (connectPromise) {
       const b = await connectPromise;
-      await b.cancel(session.session_id);
+      await b.cancel(session.resumeId);
     }
   },
 
@@ -479,37 +484,37 @@ export const backendHandlers: {
   async getModels({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) return null;
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModels(b.getModelState(session.session_id));
+    return formatModels(b.getModelState(session.resumeId));
   },
 
   async setModel({ sessionId, modelId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionModel(session.session_id, modelId);
+    await b.setSessionModel(session.resumeId, modelId);
   },
 
   async getModes({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) return null;
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModes(b.getModeState(session.session_id));
+    return formatModes(b.getModeState(session.resumeId));
   },
 
   async setMode({ sessionId, modeId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const connectPromise = bridgePool.get(session.agent);
+    const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionMode(session.session_id, modeId);
+    await b.setSessionMode(session.resumeId, modeId);
   },
 
   async searchFiles({ projectId, query }) {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { SessionInfo, ProjectInfo } from "../backend/ipc-schema";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "tool" | "system" | "thinking";
@@ -18,25 +19,7 @@ export interface ChatMessage {
 
 export type ToolStatus = "pending" | "in_progress" | "completed" | "failed";
 
-export interface SessionInfo {
-  id: string;
-  title: string;
-  cwd: string;
-  project_id: string;
-  project_title: string;
-  agent: string;
-  acp_session_id: string;
-  agent_command: string;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface ProjectInfo {
-  id: string;
-  title: string;
-  cwd: string;
-  created_at: number;
-}
+export type { SessionInfo, ProjectInfo };
 
 export interface SessionUsage {
   /** Total context window size in tokens */
@@ -68,7 +51,7 @@ export interface ModeOption {
 }
 
 export interface PermissionRequest {
-  toolCall: { title: string; toolCallId: string };
+  toolCall: { title?: string | null | undefined; toolCallId: string };
   options: Array<{ optionId: string; name: string; kind: string }>;
 }
 

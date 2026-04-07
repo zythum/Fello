@@ -850,7 +850,8 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         pointer-events: none;
         z-index: 99999;
       `;
-      ghost.textContent = ids.length > 1 ? `${ids.length} items` : id.split("/").pop()!;
+      ghost.textContent =
+        ids.length > 1 ? t("filePanel.dragItems", { count: ids.length }) : id.split("/").pop()!;
       document.body.appendChild(ghost);
       ghost.getBoundingClientRect();
       e.dataTransfer.setDragImage(ghost, 0, 0);
@@ -860,7 +861,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       };
       e.target.addEventListener("dragend", cleanup);
     },
-    [selectedIds, data],
+    [selectedIds, data, t],
   );
 
   /** Read a File as base64 string */
@@ -1236,7 +1237,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             onClick={() => createIn(getSelectedFolder(), false)}
-            title="New File"
+            title={t("filePanel.newFile")}
           >
             <FilePlus className="size-3.5" />
           </Button>
@@ -1245,7 +1246,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             onClick={() => createIn(getSelectedFolder(), true)}
-            title="New Folder"
+            title={t("filePanel.newFolder")}
           >
             <FolderPlus className="size-3.5" />
           </Button>
@@ -1254,7 +1255,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             onClick={collapseAll}
-            title="Collapse Folders"
+            title={t("filePanel.collapseFolders")}
           >
             <ChevronsDownUp className="size-3.5" />
           </Button>
@@ -1263,7 +1264,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             onClick={refresh}
-            title="Refresh"
+            title={t("filePanel.refresh", "Refresh")}
           >
             <RefreshCw className="size-3.5" />
           </Button>

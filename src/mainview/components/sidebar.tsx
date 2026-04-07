@@ -106,8 +106,8 @@ export function Sidebar() {
       request.listProjects(),
       request.listSessions(),
     ]);
-    setProjects((nextProjects as ProjectInfo[]) ?? []);
-    setSessions((nextSessions as SessionInfo[]) ?? []);
+    setProjects(nextProjects ?? []);
+    setSessions(nextSessions ?? []);
     return {
       projects: (nextProjects as ProjectInfo[]) ?? [],
       sessions: (nextSessions as SessionInfo[]) ?? [],
@@ -256,7 +256,7 @@ export function Sidebar() {
             await request.deleteProject(project.id);
             const map = new Map(useAppStore.getState().sessionStates);
             for (const session of sessions) {
-              if (session.project_id === project.id) map.delete(session.id);
+              if (session.projectId === project.id) map.delete(session.id);
             }
             useAppStore.setState({ sessionStates: map });
 
@@ -311,8 +311,8 @@ export function Sidebar() {
   const sessionsByProject = useMemo(() => {
     const grouped: Record<string, SessionInfo[]> = {};
     for (const session of sessions) {
-      if (!grouped[session.project_id]) grouped[session.project_id] = [];
-      grouped[session.project_id].push(session);
+      if (!grouped[session.projectId]) grouped[session.projectId] = [];
+      grouped[session.projectId].push(session);
     }
     return grouped;
   }, [sessions]);
@@ -513,8 +513,8 @@ export function Sidebar() {
                           variant="outline"
                           className="px-1 -ml-1 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0"
                         >
-                          {configuredAgents.find((a) => a.id === session.agent)?.id ||
-                            session.agent}
+                          {configuredAgents.find((a) => a.id === session.agentId)?.id ||
+                            session.agentId}
                         </Badge>
                         <span className="min-w-0 flex-1 truncate leading-normal">
                           {session.title}

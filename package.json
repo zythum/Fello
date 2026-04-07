@@ -2,6 +2,10 @@
   "name": "fello",
   "version": "0.1.0",
   "description": "ACP Client desktop app powered by Electron",
+  "author": {
+    "name": "Zythum",
+    "email": "zythum02@gmail.com"
+  },
   "type": "module",
   "main": "out/main/main.js",
   "scripts": {

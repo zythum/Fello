@@ -2,7 +2,7 @@ import type { FelloIPCSchema } from "../backend/ipc-schema";
 
 // --- Typed event emitter ---
 
-type BackendEvents = FelloIPCSchema["events"];
+export type BackendEvents = FelloIPCSchema["events"];
 
 type Listener<T> = (data: T) => void;
 

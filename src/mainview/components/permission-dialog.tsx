@@ -1,6 +1,7 @@
 import type { PermissionRequest } from "../store";
 import * as backend from "../backend";
 import { useAppStore } from "../store";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function PermissionDialog({ request }: Props) {
+  const { t } = useTranslation();
   const removePermissionRequest = useAppStore((s) => s.removePermissionRequest);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
 
@@ -27,7 +29,7 @@ export function PermissionDialog({ request }: Props) {
             <ShieldAlert className="size-5 text-yellow-400" />
           </div>
           <div>
-            <h2 className="leading-none font-medium">Permission Required</h2>
+            <h2 className="leading-none font-medium">{t("permission.title", "Permission Required")}</h2>
             <p className="text-sm text-muted-foreground">{request.toolCall.title}</p>
           </div>
         </div>

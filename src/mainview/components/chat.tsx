@@ -74,13 +74,13 @@ export function Chat() {
           <div className="min-w-0 flex flex-1">
             <div className="flex flex-1 min-w-0 items-center gap-1.5">
               <Badge variant="outline" className="px-1 text-[10px] uppercase">
-                {session.agent}
+                {session.agentId}
               </Badge>
               <span className="truncate text-sm font-medium text-sidebar-foreground/85">
                 {session.title}
               </span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground/60 whitespace-nowrap">
-                {formatSessionTime(session.updated_at)}
+                {formatSessionTime(session.updatedAt)}
               </span>
             </div>
             <div className="ml-2 flex items-center shrink-0">

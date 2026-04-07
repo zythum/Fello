@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import { useTranslation } from "react-i18next";
 import { Plus, SquareTerminal, X, Circle } from "lucide-react";
 import { request, subscribe } from "../backend";
 import { useAppStore } from "../store";
@@ -20,6 +21,7 @@ interface TerminalPanelProps {
 }
 
 export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
+  const { t } = useTranslation();
   const [projectTerminals, setProjectTerminals] = useState<Record<string, TerminalItem[]>>({});
   const [activeTerminalByProject, setActiveTerminalByProject] = useState<
     Record<string, string | null>
@@ -347,7 +349,7 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
           size="icon"
           className="size-6 text-muted-foreground hover:text-foreground"
           onClick={() => void createTerminal()}
-          aria-label="Add terminal"
+          aria-label={t("terminalPanel.addTerminal", "Add terminal")}
         >
           <Plus className="size-3.5" />
         </Button>
@@ -375,7 +377,7 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <div className="flex items-center gap-2 text-sm">
               <SquareTerminal className="size-4" />
-              <span>No terminal selected</span>
+              <span>{t("terminalPanel.noTerminalSelected", "No terminal selected")}</span>
             </div>
           </div>
         )}

@@ -7,20 +7,19 @@ export interface ProjectInfo {
   id: string;
   title: string;
   cwd: string;
-  created_at: number;
+  createdAt: number;
 }
 
 export interface SessionInfo {
   id: string;
   title: string;
   cwd: string;
-  project_id: string;
-  project_title: string;
-  agent: string;
-  acp_session_id: string;
-  agent_command: string;
-  created_at: number;
-  updated_at: number;
+  projectId: string;
+  projectTitle: string;
+  agentId: string;
+  resumeId: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ModelState {
@@ -152,12 +151,13 @@ export type FelloIPCRequests = {
 };
 
 export type FelloIPCEvents = {
-  "session-update": SessionNotification;
-  "permission-request": RequestPermissionRequest;
+  "session-clear": { sessionId: string; };
+  "session-update": { sessionId: string; notification: SessionNotification};
+  "permission-request": { sessionId: string; request: RequestPermissionRequest};
   "terminal-output": { terminalId: string; data: string };
   "terminal-exit": { terminalId: string; exitCode: number | null };
   "agent-terminal-output": { terminalId: string; data: string };
-  "webui-status-changed": WebUIStatus;
+  "webui-status-changed": { status: WebUIStatus };
   "fs-changed": { projectId: string; changes: string[] };
 };
 

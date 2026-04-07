@@ -113,7 +113,7 @@ export async function startWebUI(options?: {
         "Content-Type": mimeTypes[ext || "html"] || "application/octet-stream",
       });
       res.end(content);
-    } catch (err) {
+    } catch (_err) {
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
     }

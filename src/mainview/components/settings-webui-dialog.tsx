@@ -51,7 +51,7 @@ export function SettingsWebUIDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={true} className="sm:max-w-md">
         <DialogHeader className="mb-2 gap-1">
-          <DialogTitle className="flex items-center gap-1 text-md">WebUI</DialogTitle>
+          <DialogTitle className="flex items-center gap-1 text-md">{t("settings.webui.title", "WebUI")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mb-2 pt-2 p-1">
           <div className="flex items-center justify-between">

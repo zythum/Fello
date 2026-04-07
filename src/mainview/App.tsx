@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
-import { request, subscribe } from "./backend";
+import { request, subscribe, BackendEvents } from "./backend";
 import { processEvent } from "./lib/process-event";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
@@ -20,7 +20,7 @@ function AppContent() {
     setTheme,
     setLanguage,
   } = useAppStore();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { alert } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
   const [isReady, setIsReady] = useState(false);
@@ -48,29 +48,29 @@ function AppContent() {
   }, [setProjects, setSessions, setConfiguredAgents, setTheme, setLanguage, i18n]);
 
   useEffect(() => {
-    const handleSessionUpdate = (detail: any) => {
+    const handleSessionUpdate = (detail: BackendEvents['session-update']) => {
       const sessions = useAppStore.getState().sessions;
-      const targetSession = sessions.find((s) => s.acp_session_id === detail.sessionId);
+      const targetSession = sessions.find((s) => s.id === detail.sessionId);
       const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
       if (!sid) return;
-      processEvent(sid, detail.update);
+      processEvent(sid, detail.notification.update);
     };
 
-    const handlePermissionRequest = (detail: any) => {
+    const handlePermissionRequest = (detail: BackendEvents['permission-request']) => {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
       addPermissionRequest(sid, {
-        toolCall: detail.toolCall,
-        options: detail.options,
+        toolCall: detail.request.toolCall,
+        options: detail.request.options,
       });
     };
 
-    const handleAgentTerminalOutput = (detail: any) => {
+    const handleAgentTerminalOutput = (detail: BackendEvents['agent-terminal-output']) => {
       useAppStore.getState().appendTerminalLog(detail.terminalId, detail.data);
     };
 
-    const handleWebUIStatusChanged = (detail: any) => {
-      useAppStore.getState().setWebUIStatus(detail);
+    const handleWebUIStatusChanged = (detail: BackendEvents['webui-status-changed']) => {
+      useAppStore.getState().setWebUIStatus(detail.status);
     };
 
     subscribe.on("session-update", handleSessionUpdate);
@@ -90,7 +90,7 @@ function AppContent() {
 
     const showError = async () => {
       await alert({
-        title: "Error",
+        title: t("message.errorTitle", "Error"),
         content: currentGlobalError,
       });
       shiftGlobalErrorMessage();
