@@ -8,6 +8,8 @@
 - Indentation: 2 spaces, no tabs.
 - UI: prefer existing shadcn/ui components over custom markup when possible.
 - Language & i18n: All user-facing UI text MUST be extracted to locale files (`src/mainview/locales/`) using `react-i18next` (`useTranslation`). Do not use hardcoded strings in components.
+- Backend: All backend code MUST be stateless.
+- Mainview: Code MUST be compatible with both Electron and Web UI environments.
 
 ## Repo Structure
 
@@ -18,3 +20,4 @@
 ## Documentation
 
 - Refer to the documentation in the `docs` directory to understand the project.
+- Rules Maintenance: When adding new rules to `project_rules.md`, maintain a consistent description style and language with the existing document.
