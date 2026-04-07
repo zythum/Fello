@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe } from "./backend";
@@ -23,6 +23,7 @@ function AppContent() {
   const { i18n } = useTranslation();
   const { alert } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -41,6 +42,7 @@ function AppContent() {
         setLanguage(settings.language);
         i18n.changeLanguage(settings.language);
       }
+      setIsReady(true);
     }
     void loadData();
   }, [setProjects, setSessions, setConfiguredAgents, setTheme, setLanguage, i18n]);
@@ -96,6 +98,10 @@ function AppContent() {
 
     void showError();
   }, [currentGlobalError, alert, shiftGlobalErrorMessage]);
+
+  if (!isReady) {
+    return null; // Don't render anything until initial data and theme are loaded
+  }
 
   return (
     <TooltipProvider>

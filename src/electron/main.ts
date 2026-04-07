@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, nativeTheme } from "electron";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -9,6 +9,7 @@ import {
   extractErrorMessage,
   type FelloIPCSchema,
 } from "../backend/backend";
+import { storageOps } from "../backend/storage";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
@@ -125,16 +126,27 @@ function setupMenu() {
 }
 
 function createMainWindow() {
+  const settings = storageOps.getSettings();
+  const themeMode = settings.theme?.theme_mode || "system";
+  const isDark = themeMode === "dark" || (themeMode === "system" && nativeTheme.shouldUseDarkColors);
+  const backgroundColor = isDark ? "#09090b" : "#ffffff";
+  console.log(backgroundColor);
   const win = new BrowserWindow({
     title: "Fello",
     width: 1100,
     height: 800,
+    backgroundColor,
+    show: false, // Don't show until ready-to-show
     webPreferences: {
       preload: join(__dirname, "../preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+
+  win.once("ready-to-show", () => {
+    win.show();
   });
 
   mainWindow = win;
