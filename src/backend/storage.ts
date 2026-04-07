@@ -1,34 +1,10 @@
 import { basename, join } from "path";
-import { homedir } from "os";
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 import { createHash } from "crypto";
+import { DATA_DIR, PROJECTS_DIR } from "./constants";
+import { DEFAULT_SETTINGS, type SettingsMeta } from "./interfaces";
 
-const DATA_DIR = join(homedir(), ".fello");
-const PROJECTS_DIR = join(DATA_DIR, "projects");
 mkdirSync(PROJECTS_DIR, { recursive: true });
-
-export interface AgentConfig {
-  id: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-}
-
-export interface ThemeConfig {
-  theme_mode: "light" | "dark" | "system";
-}
-
-export interface SettingsMeta {
-  agents: AgentConfig[];
-  theme?: ThemeConfig;
-  language?: string;
-}
-
-export const DEFAULT_SETTINGS: SettingsMeta = {
-  agents: [],
-  theme: { theme_mode: "system" },
-  language: "en",
-};
 
 function settingsPath() {
   return join(DATA_DIR, "settings.json");

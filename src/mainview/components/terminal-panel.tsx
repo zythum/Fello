@@ -16,15 +16,14 @@ interface TerminalItem {
 
 interface TerminalPanelProps {
   isActive: boolean;
+  projectId: string;
 }
 
-export function TerminalPanel({ isActive }: TerminalPanelProps) {
+export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
   const [projectTerminals, setProjectTerminals] = useState<Record<string, TerminalItem[]>>({});
   const [activeTerminalByProject, setActiveTerminalByProject] = useState<
     Record<string, string | null>
   >({});
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const sessions = useAppStore((s) => s.sessions);
   const projects = useAppStore((s) => s.projects);
   const projectTerminalsRef = useRef<Record<string, TerminalItem[]>>({});
   const previousProjectIdsRef = useRef(new Set<string>());
@@ -42,10 +41,7 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
   );
   const pendingOutputRef = useRef(new Map<string, string>());
 
-  const activeProjectId = useMemo(() => {
-    if (!activeSessionId) return null;
-    return sessions.find((session) => session.id === activeSessionId)?.project_id ?? null;
-  }, [activeSessionId, sessions]);
+  const activeProjectId = projectId;
 
   const terminals = useMemo(
     () => (activeProjectId ? (projectTerminals[activeProjectId] ?? []) : []),
@@ -116,16 +112,15 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
 
   useEffect(() => {
     if (!isActive) return;
-    if (!activeSessionId) return;
     if (!activeProjectId) return;
     if (!cwd) return;
     if (terminals.length > 0) return;
     if (creatingProjectRef.current.has(activeProjectId)) return;
     creatingProjectRef.current.add(activeProjectId);
-    void createTerminal(activeSessionId, activeProjectId, cwd).finally(() => {
+    void createTerminal(activeProjectId, "").finally(() => {
       creatingProjectRef.current.delete(activeProjectId);
     });
-  }, [isActive, activeSessionId, activeProjectId, cwd, terminals.length]);
+  }, [isActive, activeProjectId, cwd, terminals.length]);
 
   useEffect(() => {
     const terminalBackground =
@@ -260,12 +255,11 @@ export function TerminalPanel({ isActive }: TerminalPanelProps) {
     };
   }, []);
 
-  async function createTerminal(sessionIdArg?: string, projectIdArg?: string, cwdArg?: string) {
-    const sessionId = sessionIdArg ?? activeSessionId;
+  async function createTerminal(projectIdArg?: string, cwdArg?: string) {
     const projectId = projectIdArg ?? activeProjectId;
-    const targetCwd = cwdArg ?? cwd;
-    if (!sessionId || !projectId || !targetCwd) return;
-    const { terminalId } = await request.createTerminal({ sessionId, cwd: targetCwd });
+    const targetCwd = cwdArg ?? "";
+    if (!projectId) return;
+    const { terminalId } = await request.createTerminal({ projectId, cwd: targetCwd });
     setProjectTerminals((prev) => ({
       ...prev,
       [projectId]: [...(prev[projectId] ?? []), { id: terminalId, running: true, projectId }],

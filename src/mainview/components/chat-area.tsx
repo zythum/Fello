@@ -67,7 +67,7 @@ export function ChatArea() {
             })
             .map((msg, i, messages) => (
               <div
-                key={msg.id ?? msg.toolCallId ?? `msg-${i}`}
+                key={msg.messageId ?? msg.toolCallId ?? `msg-${i}`}
                 className="chat-message"
                 data-role={msg.role}
               >

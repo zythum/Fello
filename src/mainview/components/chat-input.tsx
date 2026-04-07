@@ -50,12 +50,13 @@ export function ChatInput() {
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
     (search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
-      if (!session) {
+      const projectId = session?.project_id;
+      if (!projectId) {
         callback([]);
         return;
       }
       request
-        .searchFiles({ cwd: session.cwd, query: search || undefined })
+        .searchFiles({ projectId, query: search || undefined })
         .then((results) => callback(results as Array<{ id: string; display: string }>))
         .catch(() => callback([]));
     },
@@ -229,7 +230,13 @@ export function ChatInput() {
           const isAbsolute = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
           const absPath = isAbsolute ? trimmed : `${session.cwd}/${trimmed}`;
 
-          const info = await request.getFileInfo({ path: absPath });
+          const relPath = absPath.startsWith(`${session.cwd}/`)
+            ? absPath.slice(session.cwd.length + 1)
+            : absPath;
+          const info = await request.getFileInfo({
+            projectId: session.project_id,
+            relativePath: relPath,
+          });
           if (info) {
             const name = absPath.replace(/\\/g, "/").split("/").pop() || absPath;
             insertText = `@[${name}](${absPath}) `;

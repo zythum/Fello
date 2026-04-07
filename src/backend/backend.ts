@@ -18,16 +18,19 @@ import {
   writeFile,
   open,
 } from "fs/promises";
-import { dirname, join, relative } from "path";
+import { dirname, join, relative, extname, basename } from "path";
 import { createRequire } from "module";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
+import { SEARCH_MAX_RESULTS, SEARCH_FUSE_THRESHOLD } from "./constants";
+import { isIgnorePath, resolveSafePath } from "./utils";
 
 const execFileAsync = promisify(execFile);
 import type { FelloIPCSchema } from "./ipc-schema";
 import { storageOps } from "./storage";
+import { initWatcher, syncWatchers } from "./watcher";
 
 const require = createRequire(import.meta.url);
 
@@ -67,6 +70,7 @@ export function initBackend(
     broadcastWebUIEvent(channel, payload);
     return emitter(channel, payload);
   };
+  initWatcher(sendEvent);
 }
 
 function resolveAgentRuntime(agentId: string) {
@@ -369,7 +373,9 @@ export const backendHandlers: {
   },
 
   async addProject(cwd: string) {
-    return storageOps.addProject(cwd);
+    const result = storageOps.addProject(cwd);
+    syncWatchers();
+    return result;
   },
 
   async renameProject({ projectId, title }) {
@@ -378,6 +384,7 @@ export const backendHandlers: {
 
   async deleteProject(projectId: string) {
     storageOps.deleteProject(projectId);
+    syncWatchers();
   },
 
   async newSession({ projectId, agentId }) {
@@ -505,49 +512,45 @@ export const backendHandlers: {
     await b.setSessionMode(session.session_id, modeId);
   },
 
-  async searchFiles({ cwd, query }) {
-    const ignore = new Set([
-      "node_modules",
-      ".git",
-      ".DS_Store",
-      "dist",
-      "build",
-      ".next",
-      ".cache",
-      "__pycache__",
-      ".vscode",
-      "out",
-    ]);
-    const maxResults = 10;
+  async searchFiles({ projectId, query }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const cwd = project.cwd;
+
+    const fileScene = new Set<string>();
 
     if (!query || query.trim() === "") {
       const entries = await readdir(cwd).catch(() => []);
       const results: Array<{ id: string; display: string }> = [];
       for (const name of entries) {
-        if (ignore.has(name)) continue;
         const full = join(cwd, name);
-        const s = await stat(full).catch(() => null);
-        if (!s) continue;
-        results.push({ id: full, display: name });
-        if (results.length >= maxResults) break;
+        if (isIgnorePath(full, cwd)) continue;
+
+        if (fileScene.has(full)) continue;
+        fileScene.add(full);
+        results.push({ id: relative(cwd, full), display: name });
+        if (results.length >= SEARCH_MAX_RESULTS) break;
       }
       results.sort((a, b) => a.display.localeCompare(b.display));
       return results;
     }
 
-    const fileScene = new Set<string>();
     const allFiles: Array<{ id: string; display: string }> = [];
 
     async function collect(dir: string) {
+      if (fileScene.has(dir)) return;
+      fileScene.add(dir);
+
       const entries = await readdir(dir).catch(() => []);
       for (const name of entries) {
-        if (ignore.has(name)) continue;
         const full = join(dir, name);
-        if (fileScene.has(full)) continue;
-        fileScene.add(full);
         const s = await stat(full).catch(() => null);
         if (!s) continue;
-        allFiles.push({ id: full, display: relative(cwd, full) });
+
+        if (isIgnorePath(full, cwd, s)) continue;
+
+        if (fileScene.has(full)) continue;
+        allFiles.push({ id: relative(cwd, full), display: relative(cwd, full) });
         if (s.isDirectory()) await collect(full);
       }
     }
@@ -556,39 +559,39 @@ export const backendHandlers: {
 
     const fuse = new Fuse(allFiles, {
       keys: ["display"],
-      threshold: 0.4,
+      threshold: SEARCH_FUSE_THRESHOLD,
     });
 
-    return fuse.search(query, { limit: maxResults }).map((result) => result.item);
+    return fuse.search(query, { limit: SEARCH_MAX_RESULTS }).map((result) => result.item);
   },
 
-  async readDir({ path: dirPath, depth = 1 }) {
-    const ignore = new Set([
-      "node_modules",
-      ".git",
-      ".DS_Store",
-      "dist",
-      "build",
-      ".next",
-      ".cache",
-      "__pycache__",
-      ".vscode",
-      "out",
-    ]);
+  async readDir({ projectId, relativePath = "", depth = 1 }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const cwd = project.cwd;
+
+    const fileScene = new Set<string>();
+    const startPath = resolveSafePath(cwd, relativePath);
 
     async function walk(path: string, currentDepth: number): Promise<unknown[]> {
+      if (fileScene.has(path)) return [];
+      fileScene.add(path);
+
       const entries = await readdir(path).catch(() => []);
       const results: unknown[] = [];
       for (const name of entries) {
-        if (ignore.has(name)) continue;
         const full = join(path, name);
         const s = await stat(full).catch(() => null);
         if (!s) continue;
+
+        if (isIgnorePath(full, cwd, s)) continue;
+
+        const relId = relative(cwd, full);
         if (s.isDirectory()) {
           const children = currentDepth > 1 ? await walk(full, currentDepth - 1) : undefined;
-          results.push({ id: full, name, isFolder: true, children });
+          results.push({ id: relId, name, isFolder: true, children });
         } else {
-          results.push({ id: full, name, isFolder: false });
+          results.push({ id: relId, name, isFolder: false });
         }
       }
       results.sort((a: any, b: any) => {
@@ -598,44 +601,66 @@ export const backendHandlers: {
       return results;
     }
 
-    return walk(dirPath, depth);
+    return walk(startPath, depth);
   },
 
-  async createFile({ path, isFolder }) {
+  async createFile({ projectId, relativePath, isFolder }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+
     if (isFolder) {
-      await mkdir(path, { recursive: true });
+      await mkdir(targetPath, { recursive: true });
     } else {
-      await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, "");
+      await mkdir(dirname(targetPath), { recursive: true });
+      await writeFile(targetPath, "");
     }
   },
 
-  async deleteFile({ path }) {
-    await rm(path, { recursive: true, force: true });
+  async deleteFile({ projectId, relativePath }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+    await rm(targetPath, { recursive: true, force: true });
   },
 
   async getPlatform() {
     return process.platform;
   },
 
-  async renameFile({ oldPath, newPath }) {
+  async renameFile({ projectId, oldRelativePath, newRelativePath }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const oldPath = resolveSafePath(project.cwd, oldRelativePath);
+    const newPath = resolveSafePath(project.cwd, newRelativePath);
     await rename(oldPath, newPath);
   },
 
-  async moveFile({ oldPath, newPath }) {
+  async moveFile({ projectId, oldRelativePath, newRelativePath }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const oldPath = resolveSafePath(project.cwd, oldRelativePath);
+    const newPath = resolveSafePath(project.cwd, newRelativePath);
     await rename(oldPath, newPath);
   },
 
-  async readFile({ path, encoding }) {
-    return fsReadFile(path, encoding ?? "utf8");
+  async readFile({ projectId, relativePath, encoding }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+    return fsReadFile(targetPath, encoding ?? "utf8");
   },
 
-  async getFileInfo({ path }) {
+  async getFileInfo({ projectId, relativePath }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+
     try {
-      const s = await stat(path);
+      const s = await stat(targetPath);
       let isBinary = false;
       if (s.isFile() && s.size > 0) {
-        const fd = await open(path, "r");
+        const fd = await open(targetPath, "r");
         try {
           const buffer = Buffer.alloc(512);
           const { bytesRead } = await fd.read(buffer, 0, 512, 0);
@@ -655,30 +680,39 @@ export const backendHandlers: {
     }
   },
 
-  async writeDroppedFile({ fileName, base64, destDir }) {
-    let dest = join(destDir, fileName);
-    const existing = await stat(dest).catch(() => null);
-    if (existing) {
-      const ext = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : "";
-      const base = ext ? fileName.slice(0, -ext.length) : fileName;
-      let index = 1;
-      while (await stat(join(destDir, `${base} (${index})${ext}`)).catch(() => null)) index++;
-      dest = join(destDir, `${base} (${index})${ext}`);
-    }
-    await writeFile(dest, Buffer.from(base64, "base64"));
-  },
+  async writeExternalFile({ projectId, fileName, base64, destRelativeDir }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const destDir = resolveSafePath(project.cwd, destRelativeDir || "");
 
-  async writeDroppedFolder({ destDir }) {
+    const ext = extname(fileName);
+    const base = basename(fileName, ext);
+    let counter = 0;
+    let currentDest = join(destDir, fileName);
+
+    while (true) {
+      const existing = await stat(currentDest).catch(() => null);
+      if (!existing) break; // Path is free
+
+      if (counter === 0 && existing.isDirectory()) {
+        throw new Error("Cannot overwrite a folder with a file");
+      }
+
+      counter++;
+      currentDest = join(destDir, `${base}(${counter})${ext}`);
+    }
+
+    const buffer = Buffer.from(base64, "base64");
     await mkdir(destDir, { recursive: true });
+    await writeFile(currentDest, buffer);
   },
 
-  async createTerminal({ sessionId, cwd: requestedCwd, cols, rows }) {
-    const session = storageOps.getSession(sessionId);
-    const cwd = requestedCwd?.trim() || session?.cwd?.trim() || "";
-    if (!cwd) {
-      throw new Error(`Failed to create terminal: missing cwd for session ${sessionId}`);
-    }
-    return { terminalId: await createTerminalProcess(cwd, { cols, rows }) };
+  async createTerminal({ projectId, cwd, cols, rows }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetCwd = cwd ? resolveSafePath(project.cwd, cwd) : project.cwd;
+
+    return { terminalId: await createTerminalProcess(targetCwd, { cols, rows }) };
   },
 
   async writeTerminal({ terminalId, data }) {
@@ -703,7 +737,7 @@ export const backendHandlers: {
     return { ok: true };
   },
 
-  async getAgentTerminalOutput(terminalId: string) {
+  async getAgentTerminalOutput({ terminalId }) {
     for (const connectPromise of bridgePool.values()) {
       try {
         const b = await connectPromise;
@@ -716,10 +750,14 @@ export const backendHandlers: {
     return "";
   },
 
-  async getGitStatus({ cwd }) {
+  async getGitStatus({ projectId, cwd }) {
     try {
+      const project = storageOps.getProject(projectId);
+      if (!project) throw new Error("Project not found");
+      const targetCwd = cwd ? resolveSafePath(project.cwd, cwd) : project.cwd;
+
       const { stdout } = await execFileAsync("git", ["status", "--porcelain", "-b", "-z"], {
-        cwd,
+        cwd: targetCwd,
         timeout: 2000,
       });
       const lines = stdout.split("\0").filter(Boolean);
@@ -754,10 +792,14 @@ export const backendHandlers: {
     }
   },
 
-  async readGitHeadFile({ path, encoding }) {
+  async readGitHeadFile({ projectId, relativePath, encoding }) {
     try {
-      const cwd = dirname(path);
-      const relPath = relative(cwd, path);
+      const project = storageOps.getProject(projectId);
+      if (!project) throw new Error("Project not found");
+      const targetPath = resolveSafePath(project.cwd, relativePath);
+
+      const cwd = dirname(targetPath);
+      const relPath = relative(cwd, targetPath);
       const { stdout } = await execFileAsync("git", ["show", `HEAD:./${relPath}`], {
         cwd,
         maxBuffer: 10 * 1024 * 1024,

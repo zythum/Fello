@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { request } from "../backend";
+import { request, subscribe } from "../backend";
 import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
@@ -55,7 +55,7 @@ interface Actions {
   dragEnd: () => void;
   revealInFinder: (id: string) => void;
   previewFile: (id: string) => void;
-  copyPath: (id: string, isRelative: boolean) => void;
+  copyPath: (id: string, isAbsolute: boolean) => void;
 }
 
 const GIT_FOLDER_STATUS = {
@@ -299,7 +299,7 @@ function TreeItem({
           <ContextMenuItem
             className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
-              actions.copyPath(node.id, false);
+              actions.copyPath(node.id, true);
             }}
           >
             <Copy className="size-3" />
@@ -308,7 +308,7 @@ function TreeItem({
           <ContextMenuItem
             className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
-              actions.copyPath(node.id, true);
+              actions.copyPath(node.id, false);
             }}
           >
             <Copy className="size-3" />
@@ -348,10 +348,11 @@ function TreeItem({
 }
 
 export interface FilePanelProps {
-  onPreviewFile?: (path: string) => void;
+  projectId: string;
+  onPreviewFile?: (file: { projectId: string; relativePath: string }) => void;
 }
 
-export function FilePanel({ onPreviewFile }: FilePanelProps) {
+export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -368,11 +369,13 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     files: Record<string, string>;
   } | null>(null);
   const refreshSeqRef = useRef(0);
-  const { activeSessionId, sessions } = useAppStore();
+  const { projects } = useAppStore();
   const { confirm } = useMessage();
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const cwd = activeSession?.cwd;
+  const activeProjectId = projectId;
+  const cwd = useMemo(() => {
+    return projects.find((p) => p.id === projectId)?.cwd ?? "";
+  }, [projectId, projects]);
   const cwdFolderName = cwd ? (cwd.split("/").pop() ?? cwd) : "";
 
   useEffect(() => {
@@ -384,10 +387,12 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     setGitStatus(null);
   }, [cwd]);
 
-  const loadTree = useCallback(async (path: string, seq: number) => {
+  const loadTree = useCallback(async (projectId: string, seq: number) => {
     setLoading(true);
     try {
-      const result = (await request.readDir({ path, depth: 3 })) as TreeNode[] | null;
+      const result = (await request.readDir({ projectId, relativePath: "", depth: 3 })) as
+        | TreeNode[]
+        | null;
       if (refreshSeqRef.current !== seq) return;
       setData(result ?? []);
     } catch (err) {
@@ -401,9 +406,9 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     }
   }, []);
 
-  const fetchGitStatus = useCallback(async (path: string, seq: number) => {
+  const fetchGitStatus = useCallback(async (projectId: string, seq: number) => {
     try {
-      const status = await request.getGitStatus({ cwd: path });
+      const status = await request.getGitStatus({ projectId });
       if (refreshSeqRef.current !== seq) return;
       setGitStatus(status);
     } catch {
@@ -413,15 +418,101 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
   }, []);
 
   const refresh = useCallback(() => {
-    if (!cwd) return;
+    if (!cwd || !activeProjectId) return;
+
     const seq = refreshSeqRef.current + 1;
     refreshSeqRef.current = seq;
-    loadTree(cwd, seq);
-    fetchGitStatus(cwd, seq);
-  }, [cwd, loadTree, fetchGitStatus]);
+    loadTree(activeProjectId, seq);
+    fetchGitStatus(activeProjectId, seq);
+  }, [cwd, activeProjectId, loadTree, fetchGitStatus]);
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!cwd || !activeProjectId) return;
+
+    const handleFsChanged = async (payload: { projectId: string; changes: string[] }) => {
+      if (payload.projectId !== activeProjectId) return;
+
+      const parentDirs = new Set<string>();
+
+      for (const change of payload.changes) {
+        const normalizedChange = change.replace(/\\/g, "/");
+        const lastSlash = normalizedChange.lastIndexOf("/");
+
+        if (lastSlash !== -1) {
+          parentDirs.add(normalizedChange.slice(0, lastSlash));
+        } else {
+          parentDirs.add("");
+        }
+      }
+
+      const dirsToFetch = Array.from(parentDirs).filter(
+        (dir) => dir === "" || openFolders.has(dir),
+      );
+
+      if (dirsToFetch.length > 0) {
+        try {
+          const results = await Promise.all(
+            dirsToFetch.map(async (dir) => {
+              const children = (await request.readDir({
+                projectId: activeProjectId,
+                relativePath: dir,
+                depth: 1,
+              })) as TreeNode[] | null;
+              return { dir, children: children ?? [] };
+            }),
+          );
+
+          setData((oldData) => {
+            const oldExpanded = new Map<string, TreeNode[]>();
+            function buildExpandedMap(nodes: TreeNode[]) {
+              for (const n of nodes) {
+                if (n.children) {
+                  oldExpanded.set(n.id, n.children);
+                  buildExpandedMap(n.children);
+                }
+              }
+            }
+            buildExpandedMap(oldData);
+
+            const rootFetch = results.find((r) => r.dir === "");
+            const nextData = rootFetch ? rootFetch.children : oldData;
+
+            function updateNodes(nodes: TreeNode[]): TreeNode[] {
+              return nodes.map((node) => {
+                const fetched = results.find((r) => r.dir === node.id);
+                let children = node.children;
+
+                if (!fetched && children === undefined && oldExpanded.has(node.id)) {
+                  children = oldExpanded.get(node.id);
+                }
+
+                if (fetched) {
+                  children = fetched.children;
+                }
+
+                if (children) {
+                  return { ...node, children: updateNodes(children) };
+                }
+                return node;
+              });
+            }
+
+            return updateNodes(nextData);
+          });
+        } catch (err) {
+          console.error("Partial update failed:", err);
+        }
+      }
+
+      fetchGitStatus(activeProjectId, refreshSeqRef.current);
+    };
+
+    subscribe.on("fs-changed", handleFsChanged);
+    return () => subscribe.off("fs-changed", handleFsChanged);
+  }, [cwd, activeProjectId, openFolders, fetchGitStatus]);
 
   // Flatten tree for shift-select range
   const flattenTree = useCallback(
@@ -438,48 +529,51 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     [openFolders],
   );
 
-  const toggle = useCallback((node: TreeNode) => {
-    const id = node.id;
-    setOpenFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+  const toggle = useCallback(
+    (node: TreeNode) => {
+      const id = node.id;
+      setOpenFolders((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
 
-    if (node.isFolder && node.children === undefined) {
-      request
-        .readDir({ path: id, depth: 1 })
-        .then((children) => {
-          setData((oldData) => {
-            function updateTree(tree: TreeNode[]): TreeNode[] {
-              return tree.map((n) => {
-                if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
-                if (n.children) return { ...n, children: updateTree(n.children) };
-                return n;
-              });
-            }
-            return updateTree(oldData);
+      if (node.isFolder && node.children === undefined && activeProjectId) {
+        request
+          .readDir({ projectId: activeProjectId, relativePath: id, depth: 1 })
+          .then((children) => {
+            setData((oldData) => {
+              function updateTree(tree: TreeNode[]): TreeNode[] {
+                return tree.map((n) => {
+                  if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
+                  if (n.children) return { ...n, children: updateTree(n.children) };
+                  return n;
+                });
+              }
+              return updateTree(oldData);
+            });
+          })
+          .catch((err) => {
+            console.error("Failed to load children for", id, err);
+            setData((oldData) => {
+              function updateTree(tree: TreeNode[]): TreeNode[] {
+                return tree.map((n) => {
+                  if (n.id === id) return { ...n, children: [] };
+                  if (n.children) return { ...n, children: updateTree(n.children) };
+                  return n;
+                });
+              }
+              return updateTree(oldData);
+            });
           });
-        })
-        .catch((err) => {
-          console.error("Failed to load children for", id, err);
-          setData((oldData) => {
-            function updateTree(tree: TreeNode[]): TreeNode[] {
-              return tree.map((n) => {
-                if (n.id === id) return { ...n, children: [] };
-                if (n.children) return { ...n, children: updateTree(n.children) };
-                return n;
-              });
-            }
-            return updateTree(oldData);
-          });
-        });
-    }
-  }, []);
+      }
+    },
+    [cwd],
+  );
 
   const collapseAll = useCallback(() => {
     setOpenFolders(new Set());
@@ -531,7 +625,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
   };
 
   const submitEdit = async () => {
-    if (!editingId) return;
+    if (!editingId || !activeProjectId) return;
     const name = editingValue.trim();
     setEditingId(null);
     if (!name) {
@@ -539,10 +633,14 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       return;
     }
     if (editingId.startsWith("__new_")) {
-      const parentPath = editingId.split("__parent__")[1] ?? cwd ?? "";
+      const parentPath = editingId.split("__parent__")[1] ?? "";
       const isFolder = editingId.includes("__folder__");
       try {
-        await request.createFile({ path: `${parentPath}/${name}`, isFolder });
+        await request.createFile({
+          projectId: activeProjectId,
+          relativePath: parentPath ? `${parentPath}/${name}` : name,
+          isFolder,
+        });
       } catch (err) {
         console.error("Create failed:", err);
       }
@@ -552,7 +650,11 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       const newPath = parts.join("/");
       if (editingId !== newPath) {
         try {
-          await request.renameFile({ oldPath: editingId, newPath });
+          await request.renameFile({
+            projectId: activeProjectId,
+            oldRelativePath: editingId,
+            newRelativePath: newPath,
+          });
         } catch (err) {
           console.error("Rename failed:", err);
         }
@@ -562,7 +664,8 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
   };
 
   const createIn = (parentId: string | null, isFolder: boolean) => {
-    const parentPath = parentId || cwd || "";
+    if (!activeProjectId) return;
+    const parentPath = parentId || "";
     const tempId = `__new_${isFolder ? "__folder__" : "__file__"}__parent__${parentPath}`;
     const tempNode: TreeNode = {
       id: tempId,
@@ -583,7 +686,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
 
       if (needsFetch) {
         request
-          .readDir({ path: parentId, depth: 1 })
+          .readDir({ projectId: activeProjectId, relativePath: parentId, depth: 1 })
           .then((children) => {
             setData((oldData) => {
               function updateTree(tree: TreeNode[]): TreeNode[] {
@@ -626,7 +729,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
         : t("filePanel.moveToTrash");
 
   const deleteNode = async (ids: string[]) => {
-    if (ids.length === 0) return;
+    if (ids.length === 0 || !activeProjectId) return;
 
     await confirm({
       title: t("filePanel.delete"),
@@ -641,7 +744,10 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
           variant: "outline",
           value: async () => {
             try {
-              await Promise.all(ids.map((id) => request.trashFile(id)));
+              // Trash uses absolute paths, so we must construct them if needed,
+              // or change `trashFile` API to accept projectId + relativePath.
+              // For now, assume it's okay to construct it since `cwd` is known to renderer.
+              await Promise.all(ids.map((id) => request.trashFile(`${cwd ? cwd + "/" : ""}${id}`)));
             } catch (err) {
               console.error("Delete failed:", err);
             }
@@ -655,7 +761,11 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
           variant: "destructive",
           value: async () => {
             try {
-              await Promise.all(ids.map((id) => request.deleteFile({ path: id })));
+              await Promise.all(
+                ids.map((id) =>
+                  request.deleteFile({ projectId: activeProjectId, relativePath: id }),
+                ),
+              );
             } catch (err) {
               console.error("Delete failed:", err);
             }
@@ -770,15 +880,25 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
   /** Recursively process a FileSystemEntry and write to destDir */
   const processEntry = useCallback(
     async (entry: FileSystemEntry, destDir: string) => {
+      if (!activeProjectId) return;
       if (entry.isFile) {
         const fileEntry = entry as FileSystemFileEntry;
         const file = await new Promise<File>((resolve, reject) => fileEntry.file(resolve, reject));
         const base64 = await readFileAsBase64(file);
-        await request.writeDroppedFile({ fileName: entry.name, base64, destDir });
+        await request.writeExternalFile({
+          projectId: activeProjectId,
+          fileName: entry.name,
+          base64,
+          destRelativeDir: destDir,
+        });
       } else if (entry.isDirectory) {
         const dirEntry = entry as FileSystemDirectoryEntry;
-        const subDir = `${destDir}/${entry.name}`;
-        await request.writeDroppedFolder({ destDir: subDir });
+        const subDir = destDir ? `${destDir}/${entry.name}` : entry.name;
+        await request.createFile({
+          projectId: activeProjectId,
+          relativePath: subDir,
+          isFolder: true,
+        });
         const reader = dirEntry.createReader();
         const entries = await new Promise<FileSystemEntry[]>((resolve, reject) =>
           reader.readEntries(resolve, reject),
@@ -788,7 +908,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
         }
       }
     },
-    [readFileAsBase64],
+    [readFileAsBase64, activeProjectId],
   );
 
   /** Handle external files/folders dropped into a target directory */
@@ -797,6 +917,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       e.preventDefault();
       e.stopPropagation();
       setDropTargetId(null);
+      if (!activeProjectId) return;
 
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
@@ -827,14 +948,19 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const base64 = await readFileAsBase64(file);
-          await request.writeDroppedFile({ fileName: file.name, base64, destDir });
+          await request.writeExternalFile({
+            projectId: activeProjectId,
+            fileName: file.name,
+            base64,
+            destRelativeDir: destDir,
+          });
         }
       } catch (err) {
         console.error("Drop files in failed:", err);
       }
       refresh();
     },
-    [refresh, processEntry, readFileAsBase64],
+    [refresh, processEntry, readFileAsBase64, activeProjectId],
   );
 
   const handleDrop = useCallback(
@@ -842,6 +968,7 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       e.preventDefault();
       e.stopPropagation();
       setDropTargetId(null);
+      if (!activeProjectId) return;
 
       // External file drop
       if (isExternalDrag(e)) {
@@ -855,9 +982,13 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
         await Promise.all(
           validIds.map((id) => {
             const srcName = id.split("/").pop()!;
-            const newPath = `${targetId}/${srcName}`;
+            const newPath = targetId ? `${targetId}/${srcName}` : srcName;
             if (id === newPath) return Promise.resolve();
-            return request.moveFile({ oldPath: id, newPath });
+            return request.moveFile({
+              projectId: activeProjectId,
+              oldRelativePath: id,
+              newRelativePath: newPath,
+            });
           }),
         );
       } catch (err) {
@@ -866,16 +997,16 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       setDragIds([]);
       refresh();
     },
-    [dragIds, refresh, isExternalDrag, handleExternalDrop],
+    [dragIds, refresh, isExternalDrag, handleExternalDrop, activeProjectId],
   );
 
-  const revealInFinder = async (id: string) => {
+  const revealInFinder = useCallback(async (path: string) => {
     try {
-      await request.revealInFinder(id);
+      await request.revealInFinder(path);
     } catch (err) {
-      console.error("Reveal in Finder failed:", err);
+      console.error("revealInFinder failed:", err);
     }
-  };
+  }, []);
 
   const actions: Actions = {
     select: handleSelect,
@@ -891,10 +1022,17 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
       setDragIds([]);
       setDropTargetId(null);
     },
-    revealInFinder,
-    previewFile: (id: string) => onPreviewFile?.(id),
-    copyPath: (id: string, isRelative: boolean) => {
-      const text = isRelative && cwd && id.startsWith(`${cwd}/`) ? id.replace(`${cwd}/`, "") : id;
+    revealInFinder: (id: string) => {
+      if (!activeProjectId) return;
+      request.revealInFinder(`${cwd}/${id}`); // TODO: Update revealInFinder API to use projectId/relativePath later
+    },
+    previewFile: (id: string) => {
+      if (!activeProjectId) return;
+      onPreviewFile?.({ projectId: activeProjectId, relativePath: id });
+    },
+    copyPath: (id: string, isAbsolute: boolean) => {
+      if (!cwd) return;
+      const text = isAbsolute ? `${cwd}/${id}` : id;
       navigator.clipboard.writeText(text);
     },
   };
@@ -1011,7 +1149,10 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
                     <DropdownMenuItem
                       key={relPath}
                       className="text-xs rounded-1 flex items-center justify-between cursor-pointer"
-                      onClick={() => cwd && onPreviewFile?.(`${cwd}/${relPath}`)}
+                      onClick={() =>
+                        activeProjectId &&
+                        onPreviewFile?.({ projectId: activeProjectId, relativePath: relPath })
+                      }
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span className={cn("truncate font-normal", statusColor)} title={fileName}>
@@ -1055,10 +1196,10 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
     return null;
   };
 
-  if (!activeSessionId) {
+  if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        {t("filePanel.noActiveSession")}
+        No project selected
       </div>
     );
   }
@@ -1150,19 +1291,23 @@ export function FilePanel({ onPreviewFile }: FilePanelProps) {
 
               // External file drop onto root
               if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
-                await handleExternalDrop(e as React.DragEvent, cwd);
+                await handleExternalDrop(e as React.DragEvent, "");
                 return;
               }
 
               // Internal move to root
-              if (dragIds.length === 0) return;
+              if (dragIds.length === 0 || !activeProjectId) return;
               try {
                 await Promise.all(
                   dragIds.map((id) => {
                     const srcName = id.split("/").pop()!;
-                    const newPath = `${cwd}/${srcName}`;
+                    const newPath = srcName;
                     if (id === newPath) return Promise.resolve();
-                    return request.moveFile({ oldPath: id, newPath });
+                    return request.moveFile({
+                      projectId: activeProjectId,
+                      oldRelativePath: id,
+                      newRelativePath: newPath,
+                    });
                   }),
                 );
               } catch (err) {

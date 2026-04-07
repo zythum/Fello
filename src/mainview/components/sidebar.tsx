@@ -613,7 +613,7 @@ export function Sidebar() {
                   className="text-xs rounded-1 text-muted-foreground/90"
                   onClick={() => setWebUIOpen(true)}
                 >
-                  <Globe className={cn("size-3", { 'text-green-500': webUIStatus.enabled })} />
+                  <Globe className={cn("size-3", { "text-green-500": webUIStatus.enabled })} />
                   WebUI
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

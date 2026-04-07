@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 export interface ChatMessage {
-  id?: number;
   role: "user" | "assistant" | "tool" | "system" | "thinking";
   content: string;
   messageId?: string | null;
@@ -270,7 +269,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const msgs = [...s.messages];
       const idx = msgs.findIndex((m) => m.toolCallId === id);
       const merged = { ...newMap.get(id)! };
-      const toolMsg: import("./store").ChatMessage = {
+      const toolMsg: ChatMessage = {
         role: "tool",
         content: merged.content,
         toolCallId: id,

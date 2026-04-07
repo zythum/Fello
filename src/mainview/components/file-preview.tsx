@@ -9,13 +9,19 @@ import { File, XIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTranslation } from "react-i18next";
 
-interface FilePreviewProps {
-  filePath: string | null;
+export interface FilePreviewSheetProps {
+  projectId: string | null;
+  relativePath: string | null;
   onClose: () => void;
-  panelWidth?: number;
+  panelWidth: number;
 }
 
-export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewProps) {
+export function FilePreviewSheet({
+  projectId,
+  relativePath,
+  onClose,
+  panelWidth = 300,
+}: FilePreviewSheetProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
@@ -28,10 +34,10 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
 
   useEffect(() => {
     setIsDiffMode(false);
-  }, [filePath]);
+  }, [relativePath]);
 
   useEffect(() => {
-    if (!filePath) return;
+    if (!projectId || !relativePath) return;
     let active = true;
 
     async function load() {
@@ -44,7 +50,12 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
       setHtml("");
       setIsDiffMode(false);
       try {
-        const info = await request.getFileInfo({ path: filePath! });
+        const safeProjectId = projectId!;
+        const safeRelativePath = relativePath!;
+        const info = await request.getFileInfo({
+          projectId: safeProjectId,
+          relativePath: safeRelativePath,
+        });
         if (!active) return;
         if (!info || !info.isFile) {
           setErrorMsg(t("filePreview.fileNotFound"));
@@ -58,12 +69,16 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
           return;
         }
 
-        const ext = filePath!.split(".").pop()?.toLowerCase() || "";
+        const ext = safeRelativePath.split(".").pop()?.toLowerCase() || "";
         const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
 
         if (imageExts.includes(ext)) {
           setIsImage(true);
-          const base64 = await request.readFile({ path: filePath!, encoding: "base64" });
+          const base64 = await request.readFile({
+            projectId: safeProjectId,
+            relativePath: safeRelativePath,
+            encoding: "base64",
+          });
           if (!active) return;
           let mimeType = ext;
           if (ext === "svg") mimeType = "svg+xml";
@@ -80,8 +95,8 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
         }
 
         const [current, git] = await Promise.all([
-          request.readFile({ path: filePath! }),
-          request.readGitHeadFile({ path: filePath! }),
+          request.readFile({ projectId: safeProjectId, relativePath: safeRelativePath }),
+          request.readGitHeadFile({ projectId: safeProjectId, relativePath: safeRelativePath }),
         ]);
         if (!active) return;
         setContent(current);
@@ -98,14 +113,14 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
     return () => {
       active = false;
     };
-  }, [filePath]);
+  }, [projectId, relativePath]);
 
   useEffect(() => {
     if (loading || !content) return;
     let active = true;
 
     async function renderCode() {
-      const ext = filePath?.split(".").pop() || "text";
+      const ext = relativePath?.split(".").pop() || "text";
       let lang = ext;
 
       const langMap: Record<string, string> = {
@@ -128,8 +143,8 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
 
         if (isDiffMode && gitContent !== null) {
           const patch = Diff.createTwoFilesPatch(
-            filePath || "file",
-            filePath || "file",
+            relativePath || "file",
+            relativePath || "file",
             gitContent,
             content,
             "HEAD",
@@ -168,13 +183,13 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
     return () => {
       active = false;
     };
-  }, [content, gitContent, isDiffMode, filePath, loading]);
+  }, [content, gitContent, isDiffMode, relativePath, loading]);
 
-  const fileName = filePath ? filePath.split("/").pop() : "";
+  const fileName = relativePath ? relativePath.split("/").pop() : "";
 
   return (
     <Sheet
-      open={!!filePath}
+      open={!!relativePath}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
@@ -191,7 +206,7 @@ export function FilePreviewSheet({ filePath, onClose, panelWidth }: FilePreviewP
         <SheetHeader className="h-12 border-b flex flex-row items-center justify-between px-4 py-0">
           <SheetTitle
             className="text-sm truncate leading-normal flex items-center gap-1.5 flex-1 mr-4"
-            title={filePath || ""}
+            title={relativePath || ""}
           >
             <File className="size-3.5 shrink-0 text-muted-foreground/75" />
             {fileName}

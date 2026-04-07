@@ -128,9 +128,10 @@ function setupMenu() {
 function createMainWindow() {
   const settings = storageOps.getSettings();
   const themeMode = settings.theme?.theme_mode || "system";
-  const isDark = themeMode === "dark" || (themeMode === "system" && nativeTheme.shouldUseDarkColors);
+  const isDark =
+    themeMode === "dark" || (themeMode === "system" && nativeTheme.shouldUseDarkColors);
   const backgroundColor = isDark ? "#09090b" : "#ffffff";
-  console.log(backgroundColor);
+
   const win = new BrowserWindow({
     title: "Fello",
     width: 1100,

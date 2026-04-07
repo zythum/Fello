@@ -1,4 +1,7 @@
 import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import type { SettingsMeta, AgentConfig, ThemeConfig } from "./interfaces";
+
+export type { AgentConfig, ThemeConfig, SettingsMeta };
 
 export interface ProjectInfo {
   id: string;
@@ -28,23 +31,6 @@ export interface ModelState {
 export interface ModeState {
   availableModes: Array<{ id: string; name: string; description?: string | null }>;
   currentModeId: string;
-}
-
-export interface AgentConfig {
-  id: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-}
-
-export interface ThemeConfig {
-  theme_mode: "light" | "dark" | "system";
-}
-
-export interface SettingsMeta {
-  agents: AgentConfig[];
-  theme?: ThemeConfig;
-  language?: string;
 }
 
 export interface WebUIStatus {
@@ -105,33 +91,41 @@ export type FelloIPCRequests = {
   };
   setMode: { params: { sessionId: string; modeId: string }; response: void };
   searchFiles: {
-    params: { cwd: string; query?: string };
+    params: { projectId: string; query?: string };
     response: Array<{ id: string; display: string }>;
   };
   readDir: {
-    params: { path: string; depth?: number };
+    params: { projectId: string; relativePath?: string; depth?: number };
     response: unknown;
   };
-  createFile: { params: { path: string; isFolder: boolean }; response: void };
-  deleteFile: { params: { path: string }; response: void };
-  getPlatform: { params: void; response: string };
-  renameFile: { params: { oldPath: string; newPath: string }; response: void };
-  moveFile: { params: { oldPath: string; newPath: string }; response: void };
-  readFile: { params: { path: string; encoding?: "utf8" | "base64" }; response: string };
-  getFileInfo: {
-    params: { path: string };
-    response: { size: number; isFile: boolean; isBinary: boolean } | null;
-  };
-  writeDroppedFile: {
-    params: { fileName: string; base64: string; destDir: string };
+  createFile: {
+    params: { projectId: string; relativePath: string; isFolder: boolean };
     response: void;
   };
-  writeDroppedFolder: {
-    params: { destDir: string };
+  deleteFile: { params: { projectId: string; relativePath: string }; response: void };
+  getPlatform: { params: void; response: string };
+  renameFile: {
+    params: { projectId: string; oldRelativePath: string; newRelativePath: string };
+    response: void;
+  };
+  moveFile: {
+    params: { projectId: string; oldRelativePath: string; newRelativePath: string };
+    response: void;
+  };
+  readFile: {
+    params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
+    response: string;
+  };
+  getFileInfo: {
+    params: { projectId: string; relativePath: string };
+    response: { size: number; isFile: boolean; isBinary: boolean } | null;
+  };
+  writeExternalFile: {
+    params: { projectId: string; fileName: string; base64: string; destRelativeDir?: string };
     response: void;
   };
   createTerminal: {
-    params: { sessionId: string; cwd?: string; cols?: number; rows?: number };
+    params: { projectId: string; cwd?: string; cols?: number; rows?: number };
     response: { terminalId: string };
   };
   writeTerminal: {
@@ -146,13 +140,13 @@ export type FelloIPCRequests = {
     params: { terminalId: string; cols: number; rows: number };
     response: { ok: boolean };
   };
-  getAgentTerminalOutput: { params: string; response: string };
+  getAgentTerminalOutput: { params: { terminalId: string }; response: string };
   getGitStatus: {
-    params: { cwd: string };
+    params: { projectId: string; cwd?: string };
     response: { branch: string; files: Record<string, string> } | null;
   };
   readGitHeadFile: {
-    params: { path: string; encoding?: "utf8" | "base64" };
+    params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
     response: string;
   };
 };
@@ -164,6 +158,7 @@ export type FelloIPCEvents = {
   "terminal-exit": { terminalId: string; exitCode: number | null };
   "agent-terminal-output": { terminalId: string; data: string };
   "webui-status-changed": WebUIStatus;
+  "fs-changed": { projectId: string; changes: string[] };
 };
 
 export type FelloIPCSchema = {

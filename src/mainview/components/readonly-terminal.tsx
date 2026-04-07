@@ -14,7 +14,7 @@ export function ReadonlyTerminal({ terminalId }: { terminalId: string }) {
     if (hasFetched) return;
     setHasFetched(true);
     request
-      .getAgentTerminalOutput(terminalId)
+      .getAgentTerminalOutput({ terminalId })
       .then((fullLog) => {
         if (fullLog) {
           setTerminalLog(terminalId, fullLog);

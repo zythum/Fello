@@ -12,15 +12,20 @@ import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { t } = useTranslation();
-  const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting } = useAppStore();
+  const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting, sessions } = useAppStore();
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeProjectId = activeSession?.project_id;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
   const [rightPanel, setRightPanel] = useState<HTMLElement | null>(null);
   const [rightPanelWidth, setRightPanelWidth] = useState<number>(0);
-  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{
+    projectId: string;
+    relativePath: string;
+  } | null>(null);
 
   useEffect(() => {
-    setPreviewFilePath(null);
+    setPreviewFile(null);
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -105,12 +110,20 @@ export function SessionView() {
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <div className={cn("h-full min-h-0", rightTab === "files" ? "block" : "hidden")}>
-                    <FilePanel onPreviewFile={setPreviewFilePath} />
+                    {activeProjectId && (
+                      <FilePanel
+                        projectId={activeProjectId}
+                        onPreviewFile={(file) => setPreviewFile(file)}
+                      />
+                    )}
                   </div>
                   <div
-                    className={cn("h-full min-h-0", rightTab === "terminal" ? "block" : "hidden")}
+                    className={cn(
+                      "h-full min-h-0",
+                      rightTab === "terminal" ? "block" : "hidden",
+                    )}
                   >
-                    <TerminalPanel isActive={rightTab === "terminal"} />
+                    {activeProjectId && <TerminalPanel isActive={rightTab === "terminal"} projectId={activeProjectId} />}
                   </div>
                 </div>
               </aside>
@@ -134,11 +147,14 @@ export function SessionView() {
         )}
       </main>
 
-      <FilePreviewSheet
-        filePath={previewFilePath}
-        onClose={() => setPreviewFilePath(null)}
-        panelWidth={rightPanelWidth}
-      />
+      {previewFile && (
+        <FilePreviewSheet
+          projectId={previewFile.projectId}
+          relativePath={previewFile.relativePath}
+          onClose={() => setPreviewFile(null)}
+          panelWidth={rightPanelWidth}
+        />
+      )}
     </>
   );
 }
