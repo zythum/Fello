@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import type { ChatMessage } from "../../store";
-import { request } from "../../backend";
+import { electron } from "../../electron";
+import { isWebUI } from "../../backend";
 import { ABSOLUTE_PATH_REGEX } from "@/lib/regexp";
 
 interface Props {
@@ -15,6 +16,14 @@ interface PathLinkProps {
 }
 
 const PathLink = memo(function PathLink({ path, children }: PathLinkProps) {
+  if (isWebUI) {
+    return (
+      <span className="rounded bg-secondary/50 mx-1 px-1 text-muted-foreground ring-1 ring-border">
+        #{children}
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -22,7 +31,7 @@ const PathLink = memo(function PathLink({ path, children }: PathLinkProps) {
       className="cursor-pointer rounded bg-secondary/50 mx-1 px-1 text-muted-foreground ring-1 ring-border"
       onClick={(e) => {
         e.preventDefault();
-        request.revealInFinder(path);
+        electron.revealInFinder(path);
       }}
     >
       #{children}

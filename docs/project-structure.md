@@ -25,6 +25,7 @@ fello/
 │       ├── index.css                 # 全局样式与主题变量
 │       ├── index.html                # renderer HTML 模板
 │       ├── backend.ts                # request + subscribe 封装，并处理 WebUI 的 WebSocket 降级
+│       ├── electron.ts               # 纯客户端专属原生系统交互 API 封装，屏蔽 WebUI 的调用
 │       ├── global.d.ts               # window.fello 类型声明
 │       ├── store.ts                  # Zustand store（按 session 分桶）
 │       ├── i18n.ts                   # i18next 多语言配置初始化
@@ -106,6 +107,7 @@ fello/
 
 - 纯前端视图与状态管理，依赖 `window.fello` 调用主进程能力
 - 事件订阅统一在 `backend.ts`，避免组件直接绑定 Electron API
+- 对于只存在于 Electron 桌面端的原生交互功能（如使用访达打开、移动至废纸篓），需要封装在 `electron.ts` 中，并且组件中需要通过 `isWebUI` 变量对对应的触发 UI 元素进行隐藏，以兼容 WebUI 远端协作模式
 - 页面逻辑围绕“项目 + 会话”展开，聊天状态仍以 sessionId 隔离
 
 ## 数据目录（运行时）

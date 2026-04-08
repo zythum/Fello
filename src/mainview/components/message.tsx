@@ -31,6 +31,7 @@ type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghos
 export type ButtonConfig = {
   text: React.ReactNode;
   variant?: ButtonVariant;
+  hidden?: boolean;
   value: string | ((context: MessageContextValue) => Promise<string>);
 };
 
@@ -152,6 +153,10 @@ const DialogButton = ({
       onResolve(btn.value);
     }
   };
+
+  if (btn.hidden) {
+    return null;
+  }
 
   return (
     <Button

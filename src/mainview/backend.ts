@@ -25,19 +25,8 @@ function emit<K extends keyof BackendEvents>(event: K, data: BackendEvents[K]) {
 
 type Requests = FelloIPCSchema["requests"];
 
-type ElectronRequests = {
-  showOpenDialog: { params: void; response: string | null };
-  revealInFinder: { params: string; response: void };
-  openInBrowser: { params: string; response: void };
-  trashFile: { params: string; response: void };
-};
-
-type AllRequests = Requests & ElectronRequests;
-
 type RequestClient = {
-  [K in keyof AllRequests]: (
-    params: AllRequests[K]["params"],
-  ) => Promise<AllRequests[K]["response"]>;
+  [K in keyof Requests]: (params: Requests[K]["params"]) => Promise<Requests[K]["response"]>;
 };
 
 const fallbackBridge = {
@@ -92,21 +81,23 @@ if (isWebUI) {
   }
 }
 
+async function invokeIPC(channel: string | symbol, params?: unknown): Promise<any> {
+  if (isWebUI && ws) {
+    await wsReadyPromise;
+    return new Promise((resolve, reject) => {
+      const id = ++msgId;
+      wsCallbacks.set(id, { resolve, reject });
+      ws!.send(JSON.stringify({ type: "request", id, channel, params }));
+    });
+  }
+  return bridge.invoke(channel as any, params as never);
+}
+
 export const request = new Proxy(
   {},
   {
     get(_target, prop) {
-      return async (params: unknown) => {
-        if (isWebUI && ws) {
-          await wsReadyPromise;
-          return new Promise((resolve, reject) => {
-            const id = ++msgId;
-            wsCallbacks.set(id, { resolve, reject });
-            ws!.send(JSON.stringify({ type: "request", id, channel: prop, params }));
-          });
-        }
-        return bridge.invoke(prop as any, params as never);
-      };
+      return (params: unknown) => invokeIPC(prop, params);
     },
   },
 ) as RequestClient;

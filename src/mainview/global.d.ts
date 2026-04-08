@@ -1,12 +1,21 @@
 import type { FelloIPCSchema } from "../shared/schema";
 
+export type ElectronIPCRequests = {
+  showOpenDialog: { params: void; response: string | null };
+  revealInFinder: { params: string; response: void };
+  openInBrowser: { params: string; response: void };
+  trashFile: { params: string; response: void };
+};
+
+export type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
+
 declare global {
   interface Window {
     fello: {
-      invoke<K extends keyof FelloIPCSchema["requests"]>(
+      invoke<K extends keyof AllIPCRequests>(
         channel: K,
-        params: FelloIPCSchema["requests"][K]["params"],
-      ): Promise<FelloIPCSchema["requests"][K]["response"]>;
+        params?: AllIPCRequests[K]["params"],
+      ): Promise<AllIPCRequests[K]["response"]>;
       on<K extends keyof FelloIPCSchema["events"]>(
         channel: K,
         listener: (payload: FelloIPCSchema["events"][K]) => void,
@@ -18,5 +27,3 @@ declare global {
     };
   }
 }
-
-export {};

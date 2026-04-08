@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore, type ProjectInfo, type SessionInfo } from "../store";
-import { request } from "../backend";
+import { request, isWebUI } from "../backend";
+import { electron } from "../electron";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,8 +45,6 @@ function getErrorMessage(error: unknown): string {
   if (typeof error === "string" && error.trim()) return error.trim();
   return "Failed to create a new chat.";
 }
-
-import { isWebUI } from "../backend";
 
 export function Sidebar() {
   const { t, i18n: _i18n } = useTranslation();
@@ -127,7 +126,7 @@ export function Sidebar() {
         if (!p || p === "cancel") return;
         selectedPath = p.trim();
       } else {
-        const p = await request.showOpenDialog();
+        const p = await electron.showOpenDialog();
         if (!p) return;
         selectedPath = p;
       }
@@ -274,7 +273,7 @@ export function Sidebar() {
 
   const handleRevealProjectInFinder = async (project: ProjectInfo) => {
     try {
-      await request.revealInFinder(project.cwd);
+      await electron.revealInFinder(project.cwd);
     } catch (err) {
       pushGlobalErrorMessage(getErrorMessage(err));
     }

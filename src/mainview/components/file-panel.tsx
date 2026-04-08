@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { request, subscribe } from "../backend";
+import { request, subscribe, isWebUI } from "../backend";
+import { electron } from "../electron";
 import { useAppStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
@@ -314,28 +315,30 @@ function TreeItem({
             <Copy className="size-3" />
             {t("filePanel.copyRelativePath")}
           </ContextMenuItem>
-          <ContextMenuItem
-            className="text-xs rounded-1 text-muted-foreground/90"
-            onClick={() => {
-              actions.revealInFinder(node.id);
-            }}
-          >
-            <FolderOpen className="size-3" />
-            {t("filePanel.revealInFinder")}
-          </ContextMenuItem>
+          {!isWebUI && (
+            <ContextMenuItem
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => {
+                actions.revealInFinder(node.id);
+              }}
+            >
+              <FolderOpen className="size-3" />
+              {t("filePanel.revealInFinder")}
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
-          <ContextMenuItem
-            variant="destructive"
-            className="text-xs rounded-1 text-muted-foreground/90"
-            onClick={() => {
-              const ids =
-                selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
-              actions.deleteNode(ids);
-            }}
-          >
-            <Trash2 className="size-3" />
-            {t("filePanel.delete")}
-          </ContextMenuItem>
+            <ContextMenuItem
+              variant="destructive"
+              className="text-xs rounded-1 text-muted-foreground/90"
+              onClick={() => {
+                const ids =
+                  selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
+                actions.deleteNode(ids);
+              }}
+            >
+              <Trash2 className="size-3" />
+              {t("filePanel.delete")}
+            </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       {node.isFolder &&
@@ -741,6 +744,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         {
           text: trashLabel,
           variant: "outline",
+          hidden: isWebUI,
           value: async () => {
             try {
               if (activeProjectId) {
@@ -751,7 +755,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                       path: id,
                       isAbsolute: true,
                     });
-                    return request.trashFile(absPath);
+                    return electron.trashFile(absPath);
                   }),
                 );
               }
@@ -1010,7 +1014,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
 
   const revealInFinder = useCallback(async (path: string) => {
     try {
-      await request.revealInFinder(path);
+      await electron.revealInFinder(path);
     } catch (err) {
       console.error("revealInFinder failed:", err);
     }
@@ -1037,7 +1041,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         path: id,
         isAbsolute: true,
       });
-      request.revealInFinder(absPath); // TODO: Update revealInFinder API to use projectId/relativePath later
+      electron.revealInFinder(absPath); // TODO: Update revealInFinder API to use projectId/relativePath later
     },
     previewFile: (id: string) => {
       if (!activeProjectId) return;
@@ -1358,13 +1362,15 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
               {t("filePanel.newFolder")}
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem
-              className="text-xs rounded-1 text-muted-foreground/90"
-              onClick={() => revealInFinder(cwd ?? "")}
-            >
-              <FolderOpen className="size-3" />
-              {t("filePanel.revealInFinder")}
-            </ContextMenuItem>
+            {!isWebUI && (
+              <ContextMenuItem
+                className="text-xs rounded-1 text-muted-foreground/90"
+                onClick={() => revealInFinder(cwd ?? "")}
+              >
+                <FolderOpen className="size-3" />
+                {t("filePanel.revealInFinder")}
+              </ContextMenuItem>
+            )}
           </ContextMenuContent>
         </ContextMenu>
       </ScrollArea>

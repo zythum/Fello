@@ -1,6 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { FelloIPCSchema } from "../shared/schema";
 
+type ElectronIPCRequests = {
+  showOpenDialog: { params: void; response: string | null };
+  revealInFinder: { params: string; response: void };
+  openInBrowser: { params: string; response: void };
+  trashFile: { params: string; response: void };
+};
+
+type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
+
 type EventName = keyof FelloIPCSchema["events"];
 type EventPayload<K extends EventName> = FelloIPCSchema["events"][K];
 type EventListener<K extends EventName> = (payload: EventPayload<K>) => void;
@@ -11,13 +20,8 @@ const wrappedListeners = new Map<
 >();
 
 contextBridge.exposeInMainWorld("fello", {
-  invoke<K extends keyof FelloIPCSchema["requests"]>(
-    channel: K,
-    params: FelloIPCSchema["requests"][K]["params"],
-  ) {
-    return ipcRenderer.invoke(channel, params) as Promise<
-      FelloIPCSchema["requests"][K]["response"]
-    >;
+  invoke<K extends keyof AllIPCRequests>(channel: K, params?: AllIPCRequests[K]["params"]) {
+    return ipcRenderer.invoke(channel, params) as Promise<AllIPCRequests[K]["response"]>;
   },
   on<K extends EventName>(channel: K, listener: EventListener<K>) {
     if (!wrappedListeners.has(channel)) wrappedListeners.set(channel, new WeakMap());

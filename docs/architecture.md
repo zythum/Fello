@@ -39,6 +39,7 @@
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
 - `lib/process-event.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
+- `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
   - `chat.tsx`：聊天区容器 + 权限对话框
