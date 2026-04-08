@@ -24,15 +24,28 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
-import { SEARCH_MAX_RESULTS, SEARCH_FUSE_THRESHOLD } from "./constants";
 import { isIgnorePath, resolveSafePath } from "./utils";
-
-const execFileAsync = promisify(execFile);
-import type { FelloIPCSchema } from "./ipc-schema";
+import type { FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
 
 const require = createRequire(import.meta.url);
+const execFileAsync = promisify(execFile);
+
+export const SEARCH_MAX_RESULTS = 10;
+export const SEARCH_FUSE_THRESHOLD = 0.4;
+const SEARCH_CACHE_TTL_MS = 60_000;
+
+type SearchFileItem = { id: string; display: string };
+type SearchCacheEntry = {
+  version: number;
+  builtAt: number;
+  files: SearchFileItem[];
+  fuse: Fuse<SearchFileItem>;
+};
+
+const projectFsVersions = new Map<string, number>();
+const searchFileCache = new Map<string, SearchCacheEntry>();
 
 type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
@@ -60,6 +73,45 @@ let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
   payload: FelloIPCSchema["events"][K],
 ) => boolean = () => false;
 
+function markProjectFsDirty(projectId: string) {
+  const nextVersion = (projectFsVersions.get(projectId) ?? 0) + 1;
+  projectFsVersions.set(projectId, nextVersion);
+  searchFileCache.delete(projectId);
+}
+
+function getProjectFsVersion(projectId: string) {
+  return projectFsVersions.get(projectId) ?? 0;
+}
+
+function clearProjectSearchState(projectId: string) {
+  projectFsVersions.delete(projectId);
+  searchFileCache.delete(projectId);
+}
+
+async function buildSearchIndex(cwd: string): Promise<SearchFileItem[]> {
+  const fileScene = new Set<string>();
+  const allFiles: SearchFileItem[] = [];
+
+  async function collect(dir: string) {
+    if (fileScene.has(dir)) return;
+    fileScene.add(dir);
+    const entries = await readdir(dir).catch(() => []);
+    for (const name of entries) {
+      const full = join(dir, name);
+      const s = await stat(full).catch(() => null);
+      if (!s) continue;
+      if (isIgnorePath(full, cwd)) continue;
+      if (fileScene.has(full)) continue;
+      const rel = relative(cwd, full);
+      allFiles.push({ id: rel, display: rel });
+      if (s.isDirectory()) await collect(full);
+    }
+  }
+
+  await collect(cwd);
+  return allFiles;
+}
+
 export function initBackend(
   emitter: <K extends keyof FelloIPCSchema["events"]>(
     channel: K,
@@ -67,6 +119,9 @@ export function initBackend(
   ) => boolean,
 ) {
   sendEvent = (channel, payload) => {
+    if (channel === "fs-changed") {
+      markProjectFsDirty((payload as FelloIPCSchema["events"]["fs-changed"]).projectId);
+    }
     broadcastWebUIEvent(channel, payload);
     return emitter(channel, payload);
   };
@@ -156,13 +211,13 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
       sendEvent("session-update", {
         sessionId: `${agentId}:${notification.sessionId}`,
         notification,
-      })
+      });
     },
     onPermissionRequest: (request: RequestPermissionRequest) => {
       const toolCallId = request.toolCall.toolCallId;
       const sent = sendEvent("permission-request", {
         sessionId: `${agentId}:${request.sessionId}`,
-        request
+        request,
       });
       if (!sent) {
         return Promise.resolve({
@@ -381,6 +436,9 @@ export const backendHandlers: {
 
   async addProject(cwd: string) {
     const result = storageOps.addProject(cwd);
+    if (!projectFsVersions.has(result.project.id)) {
+      projectFsVersions.set(result.project.id, 0);
+    }
     syncWatchers();
     return result;
   },
@@ -391,6 +449,7 @@ export const backendHandlers: {
 
   async deleteProject(projectId: string) {
     storageOps.deleteProject(projectId);
+    clearProjectSearchState(projectId);
     syncWatchers();
   },
 
@@ -399,11 +458,7 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(project.cwd, agentId);
     const { sessionId: resumeId, models, modes } = await b.newSession(project.cwd);
-    const sessionId = storageOps.createSession(
-      project.id,
-      resumeId,
-      agentId,
-    );
+    const sessionId = storageOps.createSession(project.id, resumeId, agentId);
     return {
       sessionId: sessionId,
       agentInfo: b.agentInfo,
@@ -540,34 +595,30 @@ export const backendHandlers: {
       return results;
     }
 
-    const allFiles: Array<{ id: string; display: string }> = [];
-
-    async function collect(dir: string) {
-      if (fileScene.has(dir)) return;
-      fileScene.add(dir);
-
-      const entries = await readdir(dir).catch(() => []);
-      for (const name of entries) {
-        const full = join(dir, name);
-        const s = await stat(full).catch(() => null);
-        if (!s) continue;
-
-        if (isIgnorePath(full, cwd, s)) continue;
-
-        if (fileScene.has(full)) continue;
-        allFiles.push({ id: relative(cwd, full), display: relative(cwd, full) });
-        if (s.isDirectory()) await collect(full);
-      }
+    const currentVersion = getProjectFsVersion(projectId);
+    const cached = searchFileCache.get(projectId);
+    let entry: SearchCacheEntry;
+    if (
+      cached &&
+      cached.version === currentVersion &&
+      Date.now() - cached.builtAt <= SEARCH_CACHE_TTL_MS
+    ) {
+      entry = cached;
+    } else {
+      const files = await buildSearchIndex(cwd);
+      entry = {
+        version: currentVersion,
+        builtAt: Date.now(),
+        files,
+        fuse: new Fuse(files, {
+          keys: ["display"],
+          threshold: SEARCH_FUSE_THRESHOLD,
+        }),
+      };
+      searchFileCache.set(projectId, entry);
     }
 
-    await collect(cwd);
-
-    const fuse = new Fuse(allFiles, {
-      keys: ["display"],
-      threshold: SEARCH_FUSE_THRESHOLD,
-    });
-
-    return fuse.search(query, { limit: SEARCH_MAX_RESULTS }).map((result) => result.item);
+    return entry.fuse.search(query, { limit: SEARCH_MAX_RESULTS }).map((result) => result.item);
   },
 
   async readDir({ projectId, relativePath = "", depth = 1 }) {
@@ -589,7 +640,7 @@ export const backendHandlers: {
         const s = await stat(full).catch(() => null);
         if (!s) continue;
 
-        if (isIgnorePath(full, cwd, s)) continue;
+        if (isIgnorePath(full, cwd)) continue;
 
         const relId = relative(cwd, full);
         if (s.isDirectory()) {
@@ -620,6 +671,7 @@ export const backendHandlers: {
       await mkdir(dirname(targetPath), { recursive: true });
       await writeFile(targetPath, "");
     }
+    markProjectFsDirty(projectId);
   },
 
   async deleteFile({ projectId, relativePath }) {
@@ -627,6 +679,7 @@ export const backendHandlers: {
     if (!project) throw new Error("Project not found");
     const targetPath = resolveSafePath(project.cwd, relativePath);
     await rm(targetPath, { recursive: true, force: true });
+    markProjectFsDirty(projectId);
   },
 
   async getPlatform() {
@@ -639,6 +692,7 @@ export const backendHandlers: {
     const oldPath = resolveSafePath(project.cwd, oldRelativePath);
     const newPath = resolveSafePath(project.cwd, newRelativePath);
     await rename(oldPath, newPath);
+    markProjectFsDirty(projectId);
   },
 
   async moveFile({ projectId, oldRelativePath, newRelativePath }) {
@@ -647,6 +701,7 @@ export const backendHandlers: {
     const oldPath = resolveSafePath(project.cwd, oldRelativePath);
     const newPath = resolveSafePath(project.cwd, newRelativePath);
     await rename(oldPath, newPath);
+    markProjectFsDirty(projectId);
   },
 
   async readFile({ projectId, relativePath, encoding }) {
@@ -710,6 +765,7 @@ export const backendHandlers: {
     const buffer = Buffer.from(base64, "base64");
     await mkdir(destDir, { recursive: true });
     await writeFile(currentDest, buffer);
+    markProjectFsDirty(projectId);
   },
 
   async createTerminal({ projectId, cwd, cols, rows }) {

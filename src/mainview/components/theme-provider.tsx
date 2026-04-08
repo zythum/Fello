@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAppStore } from "../store";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const themeMode = useAppStore((state) => state.theme.theme_mode);
+  const themeMode = useAppStore((state) => state.theme.themeMode);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -17,7 +17,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Listen for system theme changes
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       const handler = (e: MediaQueryListEvent) => {
-        if (useAppStore.getState().theme.theme_mode === "system") {
+        if (useAppStore.getState().theme.themeMode === "system") {
           root.classList.remove("light", "dark");
           root.classList.add(e.matches ? "dark" : "light");
         }

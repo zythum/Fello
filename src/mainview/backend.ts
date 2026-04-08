@@ -1,4 +1,4 @@
-import type { FelloIPCSchema } from "../backend/ipc-schema";
+import type { FelloIPCSchema } from "../shared/schema";
 
 // --- Typed event emitter ---
 

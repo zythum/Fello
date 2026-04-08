@@ -18,7 +18,7 @@ function AppContent() {
     shiftGlobalErrorMessage,
     setConfiguredAgents,
     setTheme,
-    setLanguage,
+    setI18n,
   } = useAppStore();
   const { t, i18n } = useTranslation();
   const { alert } = useMessage();
@@ -38,17 +38,17 @@ function AppContent() {
       setConfiguredAgents(settings.agents);
       useAppStore.getState().setWebUIStatus(webUIStatus);
       if (settings.theme) setTheme(settings.theme);
-      if (settings.language) {
-        setLanguage(settings.language);
-        i18n.changeLanguage(settings.language);
+      if (settings.i18n) {
+        setI18n(settings.i18n);
+        i18n.changeLanguage(settings.i18n.language);
       }
       setIsReady(true);
     }
     void loadData();
-  }, [setProjects, setSessions, setConfiguredAgents, setTheme, setLanguage, i18n]);
+  }, [setProjects, setSessions, setConfiguredAgents, setTheme, setI18n, i18n]);
 
   useEffect(() => {
-    const handleSessionUpdate = (detail: BackendEvents['session-update']) => {
+    const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sessions = useAppStore.getState().sessions;
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
       const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
@@ -56,7 +56,7 @@ function AppContent() {
       processEvent(sid, detail.notification.update);
     };
 
-    const handlePermissionRequest = (detail: BackendEvents['permission-request']) => {
+    const handlePermissionRequest = (detail: BackendEvents["permission-request"]) => {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
       addPermissionRequest(sid, {
@@ -65,11 +65,11 @@ function AppContent() {
       });
     };
 
-    const handleAgentTerminalOutput = (detail: BackendEvents['agent-terminal-output']) => {
+    const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
       useAppStore.getState().appendTerminalLog(detail.terminalId, detail.data);
     };
 
-    const handleWebUIStatusChanged = (detail: BackendEvents['webui-status-changed']) => {
+    const handleWebUIStatusChanged = (detail: BackendEvents["webui-status-changed"]) => {
       useAppStore.getState().setWebUIStatus(detail.status);
     };
 

@@ -88,7 +88,7 @@ export function Chat() {
                 <DropdownMenuTrigger className="flex size-6 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors">
                   <MoreHorizontal className="size-3.5" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32 py-1">
+                <DropdownMenuContent align="end" className="w-32 py-1.5 space-y-0.5">
                   <DropdownMenuItem
                     className="text-xs rounded-1 text-muted-foreground/90"
                     onClick={handleRefreshSession}

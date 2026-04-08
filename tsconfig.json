@@ -20,6 +20,6 @@
       "@/*": ["./src/mainview/*"]
     }
   },
-  "include": ["src/mainview", "src/electron/**/*.ts", "src/backend/ipc-schema.ts", "src/backend/backend.ts", "src/backend/acp-bridge.ts", "src/electron/preload.ts", "src/backend/storage.ts"],
+  "include": ["src/mainview", "src/electron", "src/shared", "src/backend"],
   "exclude": ["node_modules", "build", "out"]
 }

@@ -1,7 +1,27 @@
 import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
-import type { SettingsMeta, AgentConfig, ThemeConfig } from "./interfaces";
 
-export type { AgentConfig, ThemeConfig, SettingsMeta };
+export { RequestPermissionRequest, SessionNotification };
+
+export interface SettingAgentInfo {
+  id: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+export interface SettingThemeInfo {
+  themeMode: "light" | "dark" | "system";
+}
+
+export interface SettingI18nInfo {
+  language: string;
+}
+
+export interface SettingsInfo {
+  agents: SettingAgentInfo[];
+  theme: SettingThemeInfo;
+  i18n: SettingI18nInfo;
+}
 
 export interface ProjectInfo {
   id: string;
@@ -38,8 +58,8 @@ export interface WebUIStatus {
 }
 
 export type FelloIPCRequests = {
-  getSettings: { params: void; response: SettingsMeta };
-  updateSettings: { params: SettingsMeta; response: void };
+  getSettings: { params: void; response: SettingsInfo };
+  updateSettings: { params: Partial<SettingsInfo>; response: void };
   startWebUIServer: { params: { port?: number; token?: string }; response: WebUIStatus };
   stopWebUIServer: { params: void; response: WebUIStatus };
   getWebUIStatus: { params: void; response: WebUIStatus };
@@ -151,9 +171,9 @@ export type FelloIPCRequests = {
 };
 
 export type FelloIPCEvents = {
-  "session-clear": { sessionId: string; };
-  "session-update": { sessionId: string; notification: SessionNotification};
-  "permission-request": { sessionId: string; request: RequestPermissionRequest};
+  "session-clear": { sessionId: string };
+  "session-update": { sessionId: string; notification: SessionNotification };
+  "permission-request": { sessionId: string; request: RequestPermissionRequest };
   "terminal-output": { terminalId: string; data: string };
   "terminal-exit": { terminalId: string; exitCode: number | null };
   "agent-terminal-output": { terminalId: string; data: string };

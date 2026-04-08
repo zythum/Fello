@@ -1,12 +1,11 @@
 import chokidar, { type FSWatcher } from "chokidar";
 import { storageOps } from "./storage";
-import type { FelloIPCSchema } from "./ipc-schema";
-import { IGNORE_REGEX } from "./constants";
-import { Stats } from "fs";
+import type { FelloIPCSchema } from "../shared/schema";
 import { relative } from "path";
 import { isIgnorePath } from "./utils";
 
 const watchers = new Map<string, FSWatcher>();
+const MAX_BATCH_CHANGES = 1000;
 
 let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
   channel: K,
@@ -44,11 +43,9 @@ export function syncWatchers() {
 }
 
 function createWatcher(projectId: string, cwd: string) {
-  if (!IGNORE_REGEX) return;
-
   const watcher = chokidar.watch(cwd, {
-    ignored: (fullPath: string, stats?: Stats) => {
-      return isIgnorePath(fullPath, cwd, stats);
+    ignored: (fullPath: string) => {
+      return isIgnorePath(fullPath, cwd);
     },
     followSymlinks: false,
     ignoreInitial: true,
@@ -56,15 +53,25 @@ function createWatcher(projectId: string, cwd: string) {
   });
 
   const changes = new Set<string>();
+  let overflowed = false;
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
   const onChange = (path: string) => {
-    changes.add(path);
+    if (!overflowed) {
+      if (changes.size < MAX_BATCH_CHANGES) {
+        changes.add(path);
+      } else {
+        overflowed = true;
+        changes.clear();
+        changes.add(".");
+      }
+    }
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
       if (changes.size > 0) {
         sendEvent("fs-changed", { projectId, changes: Array.from(changes) });
         changes.clear();
+        overflowed = false;
       }
     }, 500);
   };

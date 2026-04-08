@@ -21,7 +21,7 @@
     "cancel": "取消",
     "save": "保存",
     "settings": "设置",
-    "agents": "智能体 (Agents)",
+    "agents": "Agents",
     "theme": "主题",
     "light": "浅色",
     "dark": "深色",
@@ -32,9 +32,9 @@
   },
   "settings": {
     "title": "设置",
-    "description": "配置可用的 AI 智能体 (Agents) 及其启动命令。",
+    "description": "配置可用的 AI Agents 及其启动命令。",
     "agents": {
-      "title": "智能体 (Agents)",
+      "title": "Agents",
       "addAgent": "添加",
       "agentId": "ID (例如 Kiro)",
       "command": "命令 (例如 kiro-cli)",

@@ -51,7 +51,9 @@ export function SettingsWebUIDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={true} className="sm:max-w-md">
         <DialogHeader className="mb-2 gap-1">
-          <DialogTitle className="flex items-center gap-1 text-md">{t("settings.webui.title", "WebUI")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-1 text-md">
+            {t("settings.webui.title", "WebUI")}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mb-2 pt-2 p-1">
           <div className="flex items-center justify-between">
@@ -120,7 +122,7 @@ export function SettingsWebUIDialog({
               </div>
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             {t(
               "settings.webui.note",
               "Note: This URL contains a temporary token. The WebUI will be disabled when you restart the application.",

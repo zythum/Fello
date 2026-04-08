@@ -127,7 +127,7 @@ function setupMenu() {
 
 function createMainWindow() {
   const settings = storageOps.getSettings();
-  const themeMode = settings.theme?.theme_mode || "system";
+  const themeMode = settings.theme?.themeMode || "system";
   const isDark =
     themeMode === "dark" || (themeMode === "system" && nativeTheme.shouldUseDarkColors);
   const backgroundColor = isDark ? "#09090b" : "#ffffff";

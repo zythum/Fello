@@ -48,7 +48,7 @@ function getErrorMessage(error: unknown): string {
 import { isWebUI } from "../backend";
 
 export function Sidebar() {
-  const { t, i18n } = useTranslation();
+  const { t, i18n: _i18n } = useTranslation();
   const {
     projects,
     sessions,
@@ -63,8 +63,8 @@ export function Sidebar() {
     configuredAgents,
     theme,
     setTheme,
-    language,
-    setLanguage,
+    i18n,
+    setI18n,
     sessionStates,
     webUIStatus,
   } = useAppStore();
@@ -281,13 +281,11 @@ export function Sidebar() {
   };
 
   const handleThemeChange = async (mode: "light" | "dark" | "system") => {
-    const newTheme = { theme_mode: mode };
+    const newTheme = { themeMode: mode };
     setTheme(newTheme);
     try {
       await request.updateSettings({
-        agents: configuredAgents,
         theme: newTheme,
-        language,
       });
     } catch {
       pushGlobalErrorMessage("Failed to save theme setting.");
@@ -295,13 +293,13 @@ export function Sidebar() {
   };
 
   const handleLanguageChange = async (lang: string) => {
-    setLanguage(lang);
-    i18n.changeLanguage(lang);
+    setI18n({ language: lang });
+    _i18n.changeLanguage(lang);
     try {
       await request.updateSettings({
-        agents: configuredAgents,
-        theme,
-        language: lang,
+        i18n: {
+          language: lang,
+        },
       });
     } catch {
       pushGlobalErrorMessage("Failed to save language setting.");
@@ -398,7 +396,7 @@ export function Sidebar() {
                       side="right"
                       align="start"
                       onClick={(e) => e.stopPropagation()}
-                      className="w-28 py-1"
+                      className="w-28 py-1.5 space-y-0.5"
                     >
                       {!isWebUI && (
                         <DropdownMenuItem
@@ -458,7 +456,7 @@ export function Sidebar() {
                         side="right"
                         align="start"
                         onClick={(e) => e.stopPropagation()}
-                        className="w-28 py-1"
+                        className="w-28 py-1.5 space-y-0.5"
                       >
                         {configuredAgents.map((agent) => (
                           <DropdownMenuItem
@@ -542,7 +540,7 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           onClick={(e) => e.stopPropagation()}
-                          className="w-28 py-1"
+                          className="w-28 py-1.5 space-y-0.5"
                         >
                           <DropdownMenuItem
                             className="text-xs rounded-1 text-muted-foreground/90"
@@ -598,7 +596,7 @@ export function Sidebar() {
               </div>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="py-1">
+          <DropdownMenuContent align="start" className="py-1.5 space-y-0.5">
             {!isWebUI && (
               <>
                 <DropdownMenuItem
@@ -637,14 +635,14 @@ export function Sidebar() {
                 {t("sidebar.theme")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32 py-1">
+                <DropdownMenuSubContent className="w-32 py-1.5 space-y-0.5">
                   <DropdownMenuItem
                     className="text-xs rounded-1 text-muted-foreground/90"
                     onClick={() => void handleThemeChange("light")}
                   >
                     <Sun className="size-3" />
                     {t("sidebar.light")}
-                    {theme.theme_mode === "light" && (
+                    {theme.themeMode === "light" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
@@ -654,7 +652,7 @@ export function Sidebar() {
                   >
                     <Moon className="size-3" />
                     {t("sidebar.dark")}
-                    {theme.theme_mode === "dark" && (
+                    {theme.themeMode === "dark" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
@@ -664,7 +662,7 @@ export function Sidebar() {
                   >
                     <Monitor className="size-3" />
                     {t("sidebar.system")}
-                    {theme.theme_mode === "system" && (
+                    {theme.themeMode === "system" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
@@ -678,13 +676,13 @@ export function Sidebar() {
                 {t("sidebar.language")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32 py-1">
+                <DropdownMenuSubContent className="w-32 py-1.5 space-y-0.5">
                   <DropdownMenuItem
                     className="text-xs rounded-1 text-muted-foreground/90"
                     onClick={() => void handleLanguageChange("en")}
                   >
                     {t("sidebar.english")}
-                    {language === "en" && (
+                    {i18n.language === "en" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
@@ -693,7 +691,7 @@ export function Sidebar() {
                     onClick={() => void handleLanguageChange("zh-CN")}
                   >
                     {t("sidebar.chinese")}
-                    {language === "zh-CN" && (
+                    {i18n.language === "zh-CN" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>

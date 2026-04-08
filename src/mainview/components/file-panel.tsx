@@ -249,7 +249,7 @@ function TreeItem({
             </>
           )}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48 py-1">
+        <ContextMenuContent className="w-48 py-1.5 space-y-0.5">
           {node.isFolder ? (
             <>
               <ContextMenuItem
@@ -1109,7 +1109,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           <DropdownMenuContent
             align="center"
             side="top"
-            className="w-[calc(var(--anchor-width)-8px)] max-h-64 p-0"
+            className="w-[calc(var(--anchor-width)-8px)] max-h-64 py-1.5 space-y-0.5"
           >
             <ScrollArea className="max-h-64">
               <div className="p-1">
@@ -1327,7 +1327,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
               </div>
             )}
           </ContextMenuTrigger>
-          <ContextMenuContent className="w-48 py-1">
+          <ContextMenuContent className="w-48 py-1.5 space-y-0.5">
             <ContextMenuItem
               className="text-xs rounded-1 text-muted-foreground/90"
               onClick={() => createIn(null, false)}

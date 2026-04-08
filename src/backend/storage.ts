@@ -1,9 +1,51 @@
 import { basename, join } from "path";
+import { homedir } from "os";
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 import { createHash } from "crypto";
-import { DATA_DIR, PROJECTS_DIR } from "./constants";
-import { DEFAULT_SETTINGS, type SettingsMeta } from "./interfaces";
-import type { ProjectInfo, SessionInfo } from "./ipc-schema";
+import type { ProjectInfo, SessionInfo, SettingsInfo } from "../shared/schema";
+
+const DATA_DIR = join(homedir(), ".fello");
+const PROJECTS_DIR = join(DATA_DIR, "projects");
+
+interface SettingsMeta {
+  agents: {
+    id: string;
+    command: string;
+    args: string[];
+    env: Record<string, string>;
+  }[];
+  theme: {
+    theme_mode: "light" | "dark" | "system";
+  };
+  i18n: {
+    language: string;
+  };
+}
+
+const DEFAULT_SETTINGS: SettingsMeta = {
+  agents: [],
+  theme: { theme_mode: "system" },
+  i18n: {
+    language: "en",
+  },
+};
+
+interface ProjectMeta {
+  id: string;
+  title: string;
+  cwd: string;
+  created_at: number;
+}
+
+interface SessionMeta {
+  id: string;
+  title: string;
+  agent_id: string;
+  resume_id: string;
+  project_id: string;
+  created_at: number;
+  updated_at: number;
+}
 
 mkdirSync(PROJECTS_DIR, { recursive: true });
 
@@ -38,32 +80,15 @@ function readSettings(): SettingsMeta {
     const theme = raw.theme?.theme_mode
       ? { theme_mode: raw.theme.theme_mode }
       : DEFAULT_SETTINGS.theme;
-    const language = typeof raw.language === "string" ? raw.language : DEFAULT_SETTINGS.language;
-    return { agents, theme, language };
+    const i18n = raw.i18n?.language ? { language: raw.i18n.language } : DEFAULT_SETTINGS.i18n;
+    return { agents, theme, i18n };
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
 
-function writeSettings(settings: SettingsMeta) {
-  writeFileSync(settingsPath(), JSON.stringify(settings, null, 2));
-}
-
-interface ProjectMeta {
-  id: string;
-  title: string;
-  cwd: string;
-  created_at: number;
-}
-
-interface SessionMeta {
-  id: string;
-  title: string;
-  agent_id: string;
-  resume_id: string;
-  project_id: string;
-  created_at: number;
-  updated_at: number;
+function writeSettings(meta: SettingsMeta) {
+  writeFileSync(settingsPath(), JSON.stringify(meta, null, 2));
 }
 
 function hashCwd(cwd: string) {
@@ -168,12 +193,60 @@ function listSessionMetasByProject(projectId: string) {
 }
 
 export const storageOps = {
-  getSettings() {
-    return readSettings();
+  getSettings(): SettingsInfo {
+    const meta = readSettings();
+    return {
+      agents: meta.agents.map((agentMeta) => {
+        return {
+          id: agentMeta.id,
+          command: agentMeta.command,
+          env: Object.assign({}, agentMeta.env),
+          args: agentMeta.args.slice(),
+        };
+      }),
+      i18n: {
+        language: meta.i18n.language,
+      },
+      theme: {
+        themeMode: meta.theme.theme_mode,
+      },
+    };
   },
 
-  updateSettings(settings: SettingsMeta) {
-    writeSettings(settings);
+  updateSettings(settings: Partial<SettingsInfo>): void {
+    const prevMeta = readSettings();
+    const meta: SettingsMeta = {
+      agents: (() => {
+        if (!settings.agents) {
+          return prevMeta.agents;
+        }
+        return settings.agents.map((agent) => {
+          return {
+            id: agent.id,
+            command: agent.command,
+            env: Object.assign({}, agent.env),
+            args: agent.args.slice(),
+          };
+        });
+      })(),
+      i18n: (() => {
+        if (!settings.i18n) {
+          return prevMeta.i18n;
+        }
+        return {
+          language: settings.i18n.language,
+        };
+      })(),
+      theme: (() => {
+        if (!settings.theme) {
+          return prevMeta.theme;
+        }
+        return {
+          theme_mode: settings.theme.themeMode,
+        };
+      })(),
+    };
+    writeSettings(meta);
   },
 
   listProjects(): ProjectInfo[] {

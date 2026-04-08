@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { SessionInfo, ProjectInfo } from "../backend/ipc-schema";
+import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "tool" | "system" | "thinking";
@@ -82,17 +82,6 @@ const emptySessionState = (): SessionState => ({
   activeToolCalls: new Map(),
 });
 
-export interface ThemeConfig {
-  theme_mode: "light" | "dark" | "system";
-}
-
-export interface AgentConfig {
-  id: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-}
-
 interface AppState {
   projects: ProjectInfo[];
   sessions: SessionInfo[];
@@ -102,9 +91,9 @@ interface AppState {
   // Global (not per-session)
   isConnecting: boolean;
   sidebarOpen: boolean;
-  configuredAgents: AgentConfig[];
-  theme: ThemeConfig;
-  language: string;
+  configuredAgents: SettingsInfo["agents"];
+  theme: SettingsInfo["theme"];
+  i18n: SettingsInfo["i18n"];
   availableModels: ModelOption[];
   currentModelId: string | null;
   availableModes: ModeOption[];
@@ -143,9 +132,9 @@ interface AppState {
   // Global mutators
   setIsConnecting: (v: boolean) => void;
   setSidebarOpen: (v: boolean) => void;
-  setConfiguredAgents: (agents: AgentConfig[]) => void;
-  setTheme: (theme: ThemeConfig) => void;
-  setLanguage: (lang: string) => void;
+  setConfiguredAgents: (agents: SettingsInfo["agents"]) => void;
+  setTheme: (theme: SettingsInfo["theme"]) => void;
+  setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setAvailableModels: (models: ModelOption[]) => void;
   setCurrentModelId: (id: string | null) => void;
   setAvailableModes: (modes: ModeOption[]) => void;
@@ -165,8 +154,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   isConnecting: false,
   sidebarOpen: true,
   configuredAgents: [],
-  theme: { theme_mode: "system" },
-  language: "en",
+  theme: { themeMode: "system" },
+  i18n: { language: "en" },
   availableModels: [],
   currentModelId: null,
   availableModes: [],
@@ -294,7 +283,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
   setTheme: (theme) => set({ theme }),
-  setLanguage: (language) => set({ language }),
+  setI18n: (i18n) => set({ i18n }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setCurrentModelId: (id) => set({ currentModelId: id }),
   setAvailableModes: (modes) => set({ availableModes: modes }),

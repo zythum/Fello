@@ -14,6 +14,6 @@
     "noUnusedParameters": false,
     "types": ["node"]
   },
-  "include": ["src/electron/**/*.ts"],
+  "include": ["src/electron", "src/backend", "src/shared"],
   "exclude": ["node_modules", "build", "out"]
 }

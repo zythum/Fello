@@ -1,35 +1,31 @@
 import { relative, resolve, isAbsolute } from "path";
-import { statSync, Stats } from "fs";
-import { IGNORE_REGEX } from "./constants";
+
+const IGNORE_NAME_SET = new Set([
+  ".git",
+  ".svn",
+  ".hg",
+  "node_modules",
+  "vendor",
+  "__pycache__",
+]);
 
 /**
  * Checks if a given path should be ignored based on the global ignore rules.
  * @param fullPath The absolute path of the file or directory to check.
  * @param cwd The absolute path of the project root directory.
- * @param stats Optional fs stats; when provided, avoids an extra stat call.
- * @returns true if the path matches the ignore regex, false otherwise.
+ * @returns true if the path should be ignored, false otherwise.
  */
-export function isIgnorePath(
-  fullPath: string,
-  cwd: string,
-  stats?: Stats | null,
-): boolean {
+export function isIgnorePath(fullPath: string, cwd: string): boolean {
   if (fullPath === cwd) return false;
-
-  const isDir =
-    stats?.isDirectory() ??
-    (() => {
-      try {
-        return statSync(fullPath).isDirectory();
-      } catch {
-        return false;
-      }
-    })();
-
-  // Append a trailing slash if it's a directory to accurately match hidden folders (e.g. `.git/`)
-  // without accidentally matching hidden files (e.g. `.gitignore`).
-  const relPath = relative(cwd, fullPath) + (isDir ? "/" : "");
-  return IGNORE_REGEX.test(relPath);
+  const relPath = relative(cwd, fullPath);
+  if (!relPath) return false;
+  const segments = relPath.split(/[\\/]+/);
+  for (let i = 0; i < segments.length; i++) {
+    const name = segments[i];
+    if (!name || name === ".") continue;
+    if (IGNORE_NAME_SET.has(name)) return true;
+  }
+  return false;
 }
 
 /**

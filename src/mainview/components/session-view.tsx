@@ -118,12 +118,14 @@ export function SessionView() {
                     )}
                   </div>
                   <div
-                    className={cn(
-                      "h-full min-h-0",
-                      rightTab === "terminal" ? "block" : "hidden",
-                    )}
+                    className={cn("h-full min-h-0", rightTab === "terminal" ? "block" : "hidden")}
                   >
-                    {activeProjectId && <TerminalPanel isActive={rightTab === "terminal"} projectId={activeProjectId} />}
+                    {activeProjectId && (
+                      <TerminalPanel
+                        isActive={rightTab === "terminal"}
+                        projectId={activeProjectId}
+                      />
+                    )}
                   </div>
                 </div>
               </aside>

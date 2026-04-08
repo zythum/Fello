@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { FelloIPCSchema } from "../backend/ipc-schema";
+import type { FelloIPCSchema } from "../shared/schema";
 
 type EventName = keyof FelloIPCSchema["events"];
 type EventPayload<K extends EventName> = FelloIPCSchema["events"][K];

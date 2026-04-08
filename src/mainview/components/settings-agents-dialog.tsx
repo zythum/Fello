@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import type { SettingsInfo } from "../../shared/schema";
 import { useAppStore } from "../store";
 import { request } from "../backend";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
-import type { AgentConfig } from "../store";
 
 export function SettingsAgentsDialog({
   open,
@@ -18,9 +18,9 @@ export function SettingsAgentsDialog({
 }) {
   const { t } = useTranslation();
   const { configuredAgents, setConfiguredAgents, pushGlobalErrorMessage } = useAppStore();
-  const [agents, setAgents] = useState<AgentConfig[]>(configuredAgents);
+  const [agents, setAgents] = useState<SettingsInfo["agents"]>(configuredAgents);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<AgentConfig | null>(null);
+  const [editForm, setEditForm] = useState<SettingsInfo["agents"][number] | null>(null);
 
   const [envRaw, setEnvRaw] = useState<string>("");
 
@@ -33,7 +33,7 @@ export function SettingsAgentsDialog({
     }
   }, [open, configuredAgents]);
 
-  const handleSave = async (updatedAgents: AgentConfig[]) => {
+  const handleSave = async (updatedAgents: SettingsInfo["agents"]) => {
     try {
       const { theme } = useAppStore.getState();
       await request.updateSettings({ agents: updatedAgents, theme });
@@ -57,7 +57,7 @@ export function SettingsAgentsDialog({
     setEnvRaw("");
   };
 
-  const handleEdit = (agent: AgentConfig) => {
+  const handleEdit = (agent: SettingsInfo["agents"][number]) => {
     setEditingId(agent.id);
     setEditForm({ ...agent });
     setEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");

@@ -6,7 +6,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
-import type { FelloIPCSchema } from "./ipc-schema";
+import type { FelloIPCSchema } from "../shared/schema";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -113,7 +113,8 @@ export async function startWebUI(options?: {
         "Content-Type": mimeTypes[ext || "html"] || "application/octet-stream",
       });
       res.end(content);
-    } catch (_err) {
+    } catch (err) {
+      console.error("WebUI request error:", err);
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
     }
