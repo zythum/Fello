@@ -10,6 +10,7 @@
 - Language & i18n: All user-facing UI text MUST be extracted to locale files (`src/mainview/locales/`) using `react-i18next` (`useTranslation`). Do not use hardcoded strings in components.
 - Backend: All backend code MUST be stateless.
 - Mainview: Code MUST be compatible with both Electron and Web UI environments.
+- ACP Integration: When interacting with the underlying ACP service (Agent process), you MUST use `session.resumeId` instead of `session.id`. The ACP interface declaration often names its parameter `sessionId`, which can easily be confused with Fello's own `session.id`. Remember: ACP side's `sessionId` === Fello side's `session.resumeId`.
 
 ## Repo Structure
 

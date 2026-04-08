@@ -2,72 +2,189 @@ import type { RequestPermissionRequest, SessionNotification } from "@agentclient
 
 export { RequestPermissionRequest, SessionNotification };
 
+/**
+ * 代理（Agent）的配置信息
+ * 描述了如何启动或连接到一个特定的代理
+ */
 export interface SettingAgentInfo {
+  /** 
+   * 代理的唯一标识符 
+   * 数据来源：用户在全局设置（Settings -> Agents）中手动输入（例如："kiro"）。
+   */
   id: string;
+  /** 启动该代理的命令（例如：'kiro-cli' 等命令行工具，或 'node', 'python' 等执行器） */
   command: string;
+  /** 传递给启动命令的参数列表（例如：['acp'] 或 ['--port', '8080'] 等） */
   args: string[];
+  /** 运行该代理时需要的环境变量字典 */
   env: Record<string, string>;
 }
 
+/**
+ * 应用的主题配置信息
+ */
 export interface SettingThemeInfo {
+  /** 主题模式：'light'（浅色）、'dark'（深色）或 'system'（跟随系统） */
   themeMode: "light" | "dark" | "system";
 }
 
+/**
+ * 应用的国际化（i18n）配置信息
+ */
 export interface SettingI18nInfo {
+  /** 当前使用的语言代码（例如：'en', 'zh-CN'） */
   language: string;
 }
 
+/**
+ * 应用的全局设置信息
+ */
 export interface SettingsInfo {
+  /** 已配置的代理列表 */
   agents: SettingAgentInfo[];
+  /** 主题设置 */
   theme: SettingThemeInfo;
+  /** 国际化（语言）设置 */
   i18n: SettingI18nInfo;
 }
 
+/**
+ * 项目信息
+ * 代表用户在应用中管理的一个代码项目或工作区
+ */
 export interface ProjectInfo {
+  /** 
+   * 项目的唯一标识符
+   * 数据来源：项目工作目录的 SHA1 哈希值（`createHash("sha1").update(cwd).digest("hex")`）
+   */
   id: string;
+  /** 项目的显示名称（默认取 cwd 的 basename） */
   title: string;
+  /** 项目的当前工作目录（绝对路径） */
   cwd: string;
+  /** 项目的创建时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
   createdAt: number;
 }
 
+/**
+ * 会话信息
+ * 代表用户与代理之间的一次交互会话
+ */
 export interface SessionInfo {
+  /** 
+   * 会话的唯一标识符 
+   * 数据来源：`${agentId}:${resumeId}`
+   * 主要用于前端 UI 路由和列表区分
+   */
   id: string;
+  /** 会话的显示标题（默认：'New Chat'） */
   title: string;
+  /** 会话当前的工作目录 */
   cwd: string;
+  /** 关联的项目 ID（对应 ProjectInfo.id） */
   projectId: string;
+  /** 关联的项目名称 */
   projectTitle: string;
+  /** 
+   * 该会话使用的代理 ID
+   * 数据来源：来自 settings.json 中用户配置的 SettingAgentInfo.id
+   */
   agentId: string;
+  /**
+   * 用于恢复历史会话的 ID
+   * 数据来源：来自底层的 ACP 服务进程，由 `newSession` 接口返回。
+   * ⚠️ 关键警告：在与底层 ACP 服务（Agent 进程）交互时，必须传入此 `resumeId`！
+   * 因为 ACP 接口声明中的参数通常命名为 `sessionId`，很容易与 Fello 自身的 `session.id` 混淆。
+   * 切记：ACP 侧的 sessionId === Fello 侧的 session.resumeId
+   */
   resumeId: string;
+  /** 会话的创建时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
   createdAt: number;
+  /** 会话的最后更新时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
   updatedAt: number;
 }
 
+/**
+ * 模型状态信息
+ * 描述当前代理支持的模型列表以及当前选中的模型
+ */
 export interface ModelState {
-  availableModels: Array<{ modelId: string; name: string; description?: string | null }>;
+  /** 可用的模型列表 */
+  availableModels: Array<{ 
+    /** 
+     * 模型的唯一标识符
+     * 数据来源：底层 ACP 服务的 `getModelState` 接口返回 
+     */
+    modelId: string; 
+    /** 模型的显示名称 */
+    name: string; 
+    /** 模型的描述信息（可选） */
+    description?: string | null 
+  }>;
+  /** 当前选中的模型 ID */
   currentModelId: string;
 }
 
+/**
+ * 模式状态信息
+ * 描述当前代理支持的工作模式（如：代码生成模式、问答模式等）及当前选中的模式
+ */
 export interface ModeState {
-  availableModes: Array<{ id: string; name: string; description?: string | null }>;
+  /** 可用的模式列表 */
+  availableModes: Array<{ 
+    /** 
+     * 模式的唯一标识符
+     * 数据来源：底层 ACP 服务的 `getModeState` 接口返回 
+     */
+    id: string; 
+    /** 模式的显示名称 */
+    name: string; 
+    /** 模式的描述信息（可选） */
+    description?: string | null 
+  }>;
+  /** 当前选中的模式 ID */
   currentModeId: string;
 }
 
+/**
+ * Web UI 的运行状态
+ */
 export interface WebUIStatus {
+  /** Web UI 服务是否已启用/正在运行 */
   enabled: boolean;
+  /** Web UI 的访问地址（如果已启动） */
   url: string | null;
 }
 
+/**
+ * 进程间通信（IPC）的请求定义
+ * 包含从前端（Renderer/Web）发送到后端（Main）的所有方法及其参数和返回值类型
+ */
 export type FelloIPCRequests = {
+  /** 获取全局设置 */
   getSettings: { params: void; response: SettingsInfo };
+  /** 更新全局设置 */
   updateSettings: { params: Partial<SettingsInfo>; response: void };
+  
+  /** 启动 Web UI 服务 */
   startWebUIServer: { params: { port?: number; token?: string }; response: WebUIStatus };
+  /** 停止 Web UI 服务 */
   stopWebUIServer: { params: void; response: WebUIStatus };
+  /** 获取当前 Web UI 服务的状态 */
   getWebUIStatus: { params: void; response: WebUIStatus };
+  
+  /** 获取所有会话列表 */
   listSessions: { params: void; response: SessionInfo[] };
+  /** 获取所有项目列表 */
   listProjects: { params: void; response: ProjectInfo[] };
+  /** 添加新项目（通常通过选择目录） */
   addProject: { params: string; response: { project: ProjectInfo; created: boolean } };
+  /** 重命名项目 */
   renameProject: { params: { projectId: string; title: string }; response: void };
+  /** 删除项目 */
   deleteProject: { params: string; response: void };
+  
+  /** 创建新会话 */
   newSession: {
     params: { projectId: string; agentId: string };
     response: {
@@ -77,6 +194,7 @@ export type FelloIPCRequests = {
       modes: ModeState | null;
     };
   };
+  /** 加载已有会话 */
   loadSession: {
     params: { sessionId: string };
     response: {
@@ -86,102 +204,154 @@ export type FelloIPCRequests = {
       modes: ModeState | null;
     };
   };
+  /** 向会话发送用户消息 */
   sendMessage: {
     params: { sessionId: string; text: string; messageId?: string };
     response: { stopReason: string };
   };
+  /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };
+  /** 响应代理的权限请求（如允许执行命令、修改文件等） */
   respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
+  /** 更新会话的标题 */
   updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
+  /** 更改会话的工作目录 */
   changeWorkDir: {
     params: { sessionId: string };
     response: { ok: boolean; cwd: string | null };
   };
+  /** 删除会话 */
   deleteSession: { params: string; response: void };
+  
+  /** 获取应用当前的主工作目录 */
   getCwd: { params: void; response: string };
+  
+  /** 获取当前会话可用的模型状态 */
   getModels: {
     params: { sessionId: string };
     response: ModelState | null;
   };
+  /** 设置当前会话使用的模型 */
   setModel: { params: { sessionId: string; modelId: string }; response: void };
+  
+  /** 获取当前会话可用的模式状态 */
   getModes: {
     params: { sessionId: string };
     response: ModeState | null;
   };
+  /** 设置当前会话使用的工作模式 */
   setMode: { params: { sessionId: string; modeId: string }; response: void };
+  
+  /** 搜索项目中的文件 */
   searchFiles: {
     params: { projectId: string; query?: string };
     response: Array<{ id: string; display: string }>;
   };
+  /** 读取目录内容 */
   readDir: {
     params: { projectId: string; relativePath?: string; depth?: number };
     response: unknown;
   };
+  /** 创建新文件或文件夹 */
   createFile: {
     params: { projectId: string; relativePath: string; isFolder: boolean };
     response: void;
   };
+  /** 删除文件或文件夹 */
   deleteFile: { params: { projectId: string; relativePath: string }; response: void };
+  /** 获取当前操作系统平台（如 'win32', 'darwin', 'linux'） */
   getPlatform: { params: void; response: string };
+  /** 重命名文件或文件夹 */
   renameFile: {
     params: { projectId: string; oldRelativePath: string; newRelativePath: string };
     response: void;
   };
+  /** 移动文件或文件夹 */
   moveFile: {
     params: { projectId: string; oldRelativePath: string; newRelativePath: string };
     response: void;
   };
+  /** 读取文件内容 */
   readFile: {
     params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
     response: string;
   };
+  /** 获取文件元信息（大小、是否为文件、是否为二进制等） */
   getFileInfo: {
     params: { projectId: string; relativePath: string };
     response: { size: number; isFile: boolean; isBinary: boolean } | null;
   };
+  /** 写入外部文件到项目中 */
   writeExternalFile: {
     params: { projectId: string; fileName: string; base64: string; destRelativeDir?: string };
     response: void;
   };
+  
+  /** 创建终端实例 */
   createTerminal: {
     params: { projectId: string; cwd?: string; cols?: number; rows?: number };
     response: { terminalId: string };
   };
+  /** 向终端写入数据（如用户输入） */
   writeTerminal: {
     params: { terminalId: string; data: string };
     response: { ok: boolean };
   };
+  /** 终止并销毁终端 */
   killTerminal: {
     params: { terminalId: string };
     response: { ok: boolean };
   };
+  /** 调整终端尺寸 */
   resizeTerminal: {
     params: { terminalId: string; cols: number; rows: number };
     response: { ok: boolean };
   };
+  /** 获取代理专属终端的输出内容 */
   getAgentTerminalOutput: { params: { terminalId: string }; response: string };
+  
+  /** 获取项目目录下的 Git 状态（当前分支、文件变更等） */
   getGitStatus: {
     params: { projectId: string; cwd?: string };
     response: { branch: string; files: Record<string, string> } | null;
   };
+  /** 读取 Git HEAD 指针下的文件内容（用于对比差异） */
   readGitHeadFile: {
     params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
     response: string;
   };
 };
 
+/**
+ * 进程间通信（IPC）的事件定义
+ * 包含从后端（Main）推送到前端（Renderer/Web）的所有事件及其载荷类型
+ */
 export type FelloIPCEvents = {
+  /** 会话被清理的事件 */
   "session-clear": { sessionId: string };
+  /** 会话状态更新的事件（如消息流、状态变更等） */
   "session-update": { sessionId: string; notification: SessionNotification };
+  /** 代理发出权限请求的事件 */
   "permission-request": { sessionId: string; request: RequestPermissionRequest };
+  /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
+  /** 终端退出的事件 */
   "terminal-exit": { terminalId: string; exitCode: number | null };
+  /** 代理专属终端输出数据的事件 */
   "agent-terminal-output": { terminalId: string; data: string };
+  /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
+  /** 文件系统发生变更的事件（如文件被增删改） */
   "fs-changed": { projectId: string; changes: string[] };
 };
 
+/**
+ * 完整的 Fello IPC 协议 Schema
+ * 组合了所有的请求和事件定义，用于前后端类型约束和接口生成
+ */
 export type FelloIPCSchema = {
+  /** 所有的请求-响应定义 */
   requests: FelloIPCRequests;
+  /** 所有的推送事件定义 */
   events: FelloIPCEvents;
 };
