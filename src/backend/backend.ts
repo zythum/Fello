@@ -24,7 +24,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
-import { isIgnorePath, resolveSafePath } from "./utils";
+import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
@@ -103,7 +103,8 @@ async function buildSearchIndex(cwd: string): Promise<SearchFileItem[]> {
       if (isIgnorePath(full, cwd)) continue;
       if (fileScene.has(full)) continue;
       const rel = relative(cwd, full);
-      allFiles.push({ id: rel, display: rel });
+      const posixRel = toPosixPath(rel);
+      allFiles.push({ id: posixRel, display: rel });
       if (s.isDirectory()) await collect(full);
     }
   }
@@ -532,8 +533,14 @@ export const backendHandlers: {
     storageOps.deleteSession(sessionId);
   },
 
-  async getCwd() {
-    return process.cwd();
+  async getSystemFilePath({ projectId, path: inputPath, isAbsolute }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+
+    if (isAbsolute) {
+      return resolveSafePath(project.cwd, inputPath);
+    }
+    return relative(project.cwd, resolveSafePath(project.cwd, inputPath));
   },
 
   async getModels({ sessionId }) {
@@ -588,13 +595,15 @@ export const backendHandlers: {
 
         if (fileScene.has(full)) continue;
         fileScene.add(full);
-        results.push({ id: relative(cwd, full), display: name });
+        const rel = relative(cwd, full);
+        results.push({ id: toPosixPath(rel), display: rel });
         if (results.length >= SEARCH_MAX_RESULTS) break;
       }
       results.sort((a, b) => a.display.localeCompare(b.display));
       return results;
     }
 
+    const normalizedQuery = toPosixPath(query);
     const currentVersion = getProjectFsVersion(projectId);
     const cached = searchFileCache.get(projectId);
     let entry: SearchCacheEntry;
@@ -618,7 +627,9 @@ export const backendHandlers: {
       searchFileCache.set(projectId, entry);
     }
 
-    return entry.fuse.search(query, { limit: SEARCH_MAX_RESULTS }).map((result) => result.item);
+    return entry.fuse
+      .search(normalizedQuery, { limit: SEARCH_MAX_RESULTS })
+      .map((result) => result.item);
   },
 
   async readDir({ projectId, relativePath = "", depth = 1 }) {
@@ -642,7 +653,7 @@ export const backendHandlers: {
 
         if (isIgnorePath(full, cwd)) continue;
 
-        const relId = relative(cwd, full);
+        const relId = toPosixPath(relative(cwd, full));
         if (s.isDirectory()) {
           const children = currentDepth > 1 ? await walk(full, currentDepth - 1) : undefined;
           results.push({ id: relId, name, isFolder: true, children });
@@ -845,7 +856,7 @@ export const backendHandlers: {
           path = lines[i + 1];
           i++;
         }
-        files[path] = status;
+        files[toPosixPath(path)] = status;
       }
       return { branch, files };
     } catch {

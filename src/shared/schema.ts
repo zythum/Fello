@@ -7,8 +7,8 @@ export { RequestPermissionRequest, SessionNotification };
  * 描述了如何启动或连接到一个特定的代理
  */
 export interface SettingAgentInfo {
-  /** 
-   * 代理的唯一标识符 
+  /**
+   * 代理的唯一标识符
    * 数据来源：用户在全局设置（Settings -> Agents）中手动输入（例如："kiro"）。
    */
   id: string;
@@ -53,7 +53,7 @@ export interface SettingsInfo {
  * 代表用户在应用中管理的一个代码项目或工作区
  */
 export interface ProjectInfo {
-  /** 
+  /**
    * 项目的唯一标识符
    * 数据来源：项目工作目录的 SHA1 哈希值（`createHash("sha1").update(cwd).digest("hex")`）
    */
@@ -71,8 +71,8 @@ export interface ProjectInfo {
  * 代表用户与代理之间的一次交互会话
  */
 export interface SessionInfo {
-  /** 
-   * 会话的唯一标识符 
+  /**
+   * 会话的唯一标识符
    * 数据来源：`${agentId}:${resumeId}`
    * 主要用于前端 UI 路由和列表区分
    */
@@ -85,7 +85,7 @@ export interface SessionInfo {
   projectId: string;
   /** 关联的项目名称 */
   projectTitle: string;
-  /** 
+  /**
    * 该会话使用的代理 ID
    * 数据来源：来自 settings.json 中用户配置的 SettingAgentInfo.id
    */
@@ -110,16 +110,16 @@ export interface SessionInfo {
  */
 export interface ModelState {
   /** 可用的模型列表 */
-  availableModels: Array<{ 
-    /** 
+  availableModels: Array<{
+    /**
      * 模型的唯一标识符
-     * 数据来源：底层 ACP 服务的 `getModelState` 接口返回 
+     * 数据来源：底层 ACP 服务的 `getModelState` 接口返回
      */
-    modelId: string; 
+    modelId: string;
     /** 模型的显示名称 */
-    name: string; 
+    name: string;
     /** 模型的描述信息（可选） */
-    description?: string | null 
+    description?: string | null;
   }>;
   /** 当前选中的模型 ID */
   currentModelId: string;
@@ -131,16 +131,16 @@ export interface ModelState {
  */
 export interface ModeState {
   /** 可用的模式列表 */
-  availableModes: Array<{ 
-    /** 
+  availableModes: Array<{
+    /**
      * 模式的唯一标识符
-     * 数据来源：底层 ACP 服务的 `getModeState` 接口返回 
+     * 数据来源：底层 ACP 服务的 `getModeState` 接口返回
      */
-    id: string; 
+    id: string;
     /** 模式的显示名称 */
-    name: string; 
+    name: string;
     /** 模式的描述信息（可选） */
-    description?: string | null 
+    description?: string | null;
   }>;
   /** 当前选中的模式 ID */
   currentModeId: string;
@@ -165,14 +165,14 @@ export type FelloIPCRequests = {
   getSettings: { params: void; response: SettingsInfo };
   /** 更新全局设置 */
   updateSettings: { params: Partial<SettingsInfo>; response: void };
-  
+
   /** 启动 Web UI 服务 */
   startWebUIServer: { params: { port?: number; token?: string }; response: WebUIStatus };
   /** 停止 Web UI 服务 */
   stopWebUIServer: { params: void; response: WebUIStatus };
   /** 获取当前 Web UI 服务的状态 */
   getWebUIStatus: { params: void; response: WebUIStatus };
-  
+
   /** 获取所有会话列表 */
   listSessions: { params: void; response: SessionInfo[] };
   /** 获取所有项目列表 */
@@ -183,7 +183,7 @@ export type FelloIPCRequests = {
   renameProject: { params: { projectId: string; title: string }; response: void };
   /** 删除项目 */
   deleteProject: { params: string; response: void };
-  
+
   /** 创建新会话 */
   newSession: {
     params: { projectId: string; agentId: string };
@@ -222,10 +222,17 @@ export type FelloIPCRequests = {
   };
   /** 删除会话 */
   deleteSession: { params: string; response: void };
-  
-  /** 获取应用当前的主工作目录 */
-  getCwd: { params: void; response: string };
-  
+
+  /**
+   * 获取系统文件路径
+   * 该接口专门用于获取底层操作系统真实的路径（包含原生路径分隔符如 `\` 或 `/`）。
+   * 其他涉及项目内文件的相对路径接口（如 searchFiles, readDir 等）均统一返回 POSIX 风格路径（`/`）。
+   */
+  getSystemFilePath: {
+    params: { projectId: string; path: string; isAbsolute?: boolean };
+    response: string;
+  };
+
   /** 获取当前会话可用的模型状态 */
   getModels: {
     params: { sessionId: string };
@@ -233,7 +240,7 @@ export type FelloIPCRequests = {
   };
   /** 设置当前会话使用的模型 */
   setModel: { params: { sessionId: string; modelId: string }; response: void };
-  
+
   /** 获取当前会话可用的模式状态 */
   getModes: {
     params: { sessionId: string };
@@ -241,13 +248,21 @@ export type FelloIPCRequests = {
   };
   /** 设置当前会话使用的工作模式 */
   setMode: { params: { sessionId: string; modeId: string }; response: void };
-  
-  /** 搜索项目中的文件 */
+
+  /**
+   * 搜索项目中的文件
+   * 注意：为了保证跨平台的稳定匹配，前端发送的 `query` 在底层会被标准化为 POSIX 路径（`/` 分隔）。
+   * 返回的 `id` 统一为 POSIX 相对路径，用于组件间传递及 API 调用。
+   * 返回的 `display` 保持原生操作系统的相对路径分隔符，专门用于 UI 展示。
+   */
   searchFiles: {
     params: { projectId: string; query?: string };
     response: Array<{ id: string; display: string }>;
   };
-  /** 读取目录内容 */
+  /**
+   * 读取目录内容
+   * 返回的节点 `id` 统一为 POSIX 风格的相对路径，用于保证多平台的一致性。
+   */
   readDir: {
     params: { projectId: string; relativePath?: string; depth?: number };
     response: unknown;
@@ -286,7 +301,7 @@ export type FelloIPCRequests = {
     params: { projectId: string; fileName: string; base64: string; destRelativeDir?: string };
     response: void;
   };
-  
+
   /** 创建终端实例 */
   createTerminal: {
     params: { projectId: string; cwd?: string; cols?: number; rows?: number };
@@ -309,8 +324,11 @@ export type FelloIPCRequests = {
   };
   /** 获取代理专属终端的输出内容 */
   getAgentTerminalOutput: { params: { terminalId: string }; response: string };
-  
-  /** 获取项目目录下的 Git 状态（当前分支、文件变更等） */
+
+  /**
+   * 获取项目目录下的 Git 状态（当前分支、文件变更等）
+   * 返回的 `files` 对象的 key 均为统一转换为 POSIX 风格的相对路径。
+   */
   getGitStatus: {
     params: { projectId: string; cwd?: string };
     response: { branch: string; files: Record<string, string> } | null;
@@ -341,7 +359,10 @@ export type FelloIPCEvents = {
   "agent-terminal-output": { terminalId: string; data: string };
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
-  /** 文件系统发生变更的事件（如文件被增删改） */
+  /**
+   * 文件系统发生变更的事件（如文件被增删改）
+   * 载荷中的 `changes` 列表，在从后端发送到前端前，已被统一转换为 POSIX 风格的相对路径。
+   */
   "fs-changed": { projectId: string; changes: string[] };
 };
 

@@ -227,18 +227,26 @@ export function ChatInput() {
         let insertText = text;
         try {
           // Attempt to resolve as absolute or relative path
-          const isAbsolute = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
-          const absPath = isAbsolute ? trimmed : `${session.cwd}/${trimmed}`;
+          const isAbsolutePath = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
+          const absPath = isAbsolutePath
+            ? trimmed
+            : await request.getSystemFilePath({
+                projectId: session.projectId,
+                path: trimmed,
+                isAbsolute: true,
+              });
 
-          const relPath = absPath.startsWith(`${session.cwd}/`)
-            ? absPath.slice(session.cwd.length + 1)
-            : absPath;
+          const relPath = await request.getSystemFilePath({
+            projectId: session.projectId,
+            path: trimmed,
+            isAbsolute: false,
+          });
           const info = await request.getFileInfo({
             projectId: session.projectId,
             relativePath: relPath,
           });
           if (info) {
-            const name = absPath.replace(/\\/g, "/").split("/").pop() || absPath;
+            const name = relPath.replace(/\\/g, "/").split("/").pop() || relPath;
             insertText = `@[${name}](${absPath}) `;
           }
         } catch {

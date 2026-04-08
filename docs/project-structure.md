@@ -8,12 +8,16 @@ fello/
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
 │   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现、WebUI WebSocket 服务
 │   │   ├── acp-bridge.ts             # ACP 连接封装（spawn/initialize/session/model）
-│   │   ├── ipc-schema.ts             # 主渲染通信协议（请求/事件类型）
+│   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
+│   │   ├── watcher.ts                # 文件系统监控（chokidar 封装）
 │   │   └── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │
 │   ├── electron/                     # Electron 主进程 + preload
 │   │   ├── main.ts                   # 应用入口、窗口生命周期、系统菜单
 │   │   └── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
+│   │
+│   ├── shared/                       # 前后端共享类型与常量
+│   │   └── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
 │   │
 │   └── mainview/                     # Renderer（React SPA）
 │       ├── App.tsx                   # 根组件，订阅全局事件，挂载 MessageProvider
@@ -88,7 +92,7 @@ fello/
 
 - 面向系统能力的底层实现：文件系统、终端 PTY
 - 负责 ACP 子进程与会话生命周期管理 (`acp-bridge.ts`)
-- 通过 `ipc-schema.ts` 保持主渲染层 API 契约稳定
+- 通过 `src/shared/schema.ts` 保持主渲染层 API 契约稳定，并负责路径标准化 (`toPosixPath`)
 - 管理项目与会话的本地持久化 (`storage.ts`)
 
 ### `src/electron`

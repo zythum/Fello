@@ -2,7 +2,7 @@ import chokidar, { type FSWatcher } from "chokidar";
 import { storageOps } from "./storage";
 import type { FelloIPCSchema } from "../shared/schema";
 import { relative } from "path";
-import { isIgnorePath } from "./utils";
+import { isIgnorePath, toPosixPath } from "./utils";
 
 const watchers = new Map<string, FSWatcher>();
 const MAX_BATCH_CHANGES = 1000;
@@ -85,7 +85,9 @@ function createWatcher(projectId: string, cwd: string) {
       event === "unlinkDir"
     ) {
       // Map the absolute path to a relative path before emitting
-      onChange(relative(cwd, path));
+      // File watcher paths are emitted using the native OS separator.
+      // We normalize them to POSIX paths (using forward slashes) before sending to the frontend.
+      onChange(toPosixPath(relative(cwd, path)));
     }
   });
 

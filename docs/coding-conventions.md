@@ -36,7 +36,8 @@
 
 ## IPC 约定
 
-- 所有主渲染请求/事件类型定义集中在 `src/backend/ipc-schema.ts`
+- 所有主渲染请求/事件类型定义集中在 `src/shared/schema.ts`
+- 路径处理：为了保证跨平台（特别是 Windows）的一致性，除 `getSystemFilePath` 接口专门用于返回操作系统原生路径格式外，其他所有 IPC 接口的输入和输出（如 `searchFiles`, `readDir`, `fs-changed` 等）涉及的项目内相对路径，均必须统一使用 POSIX 风格路径（即正斜杠 `/` 分隔）。
 - 主进程通过 `ipcMain.handle` 注册由 `src/backend` 提供的请求式 API
 - 渲染层只通过 `window.fello.invoke/on/off` 与主进程交互
 - 渲染业务组件应使用 `src/mainview/backend.ts` 的 `request/subscribe`，不直接触达 `window.fello`

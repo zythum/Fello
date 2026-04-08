@@ -1,13 +1,14 @@
 import { relative, resolve, isAbsolute } from "path";
 
-const IGNORE_NAME_SET = new Set([
-  ".git",
-  ".svn",
-  ".hg",
-  "node_modules",
-  "vendor",
-  "__pycache__",
-]);
+/**
+ * Converts a path to a POSIX style path (using forward slashes).
+ * Useful for normalizing paths before sending them to the frontend.
+ */
+export function toPosixPath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+const IGNORE_NAME_SET = new Set([".git", ".svn", ".hg", "node_modules", "vendor", "__pycache__"]);
 
 /**
  * Checks if a given path should be ignored based on the global ignore rules.

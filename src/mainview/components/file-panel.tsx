@@ -376,7 +376,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
   const cwd = useMemo(() => {
     return projects.find((p) => p.id === projectId)?.cwd ?? "";
   }, [projectId, projects]);
-  const cwdFolderName = cwd ? (cwd.split("/").pop() ?? cwd) : "";
+  const cwdFolderName = cwd ? (cwd.split(/[/\\]/).pop() ?? cwd) : "";
 
   useEffect(() => {
     refreshSeqRef.current += 1;
@@ -438,11 +438,10 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       const parentDirs = new Set<string>();
 
       for (const change of payload.changes) {
-        const normalizedChange = change.replace(/\\/g, "/");
-        const lastSlash = normalizedChange.lastIndexOf("/");
+        const lastSlash = change.lastIndexOf("/");
 
         if (lastSlash !== -1) {
-          parentDirs.add(normalizedChange.slice(0, lastSlash));
+          parentDirs.add(change.slice(0, lastSlash));
         } else {
           parentDirs.add("");
         }
@@ -744,10 +743,18 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           variant: "outline",
           value: async () => {
             try {
-              // Trash uses absolute paths, so we must construct them if needed,
-              // or change `trashFile` API to accept projectId + relativePath.
-              // For now, assume it's okay to construct it since `cwd` is known to renderer.
-              await Promise.all(ids.map((id) => request.trashFile(`${cwd ? cwd + "/" : ""}${id}`)));
+              if (activeProjectId) {
+                await Promise.all(
+                  ids.map(async (id) => {
+                    const absPath = await request.getSystemFilePath({
+                      projectId: activeProjectId,
+                      path: id,
+                      isAbsolute: true,
+                    });
+                    return request.trashFile(absPath);
+                  }),
+                );
+              }
             } catch (err) {
               console.error("Delete failed:", err);
             }
@@ -1023,17 +1030,26 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       setDragIds([]);
       setDropTargetId(null);
     },
-    revealInFinder: (id: string) => {
+    revealInFinder: async (id: string) => {
       if (!activeProjectId) return;
-      request.revealInFinder(`${cwd}/${id}`); // TODO: Update revealInFinder API to use projectId/relativePath later
+      const absPath = await request.getSystemFilePath({
+        projectId: activeProjectId,
+        path: id,
+        isAbsolute: true,
+      });
+      request.revealInFinder(absPath); // TODO: Update revealInFinder API to use projectId/relativePath later
     },
     previewFile: (id: string) => {
       if (!activeProjectId) return;
       onPreviewFile?.({ projectId: activeProjectId, relativePath: id });
     },
-    copyPath: (id: string, isAbsolute: boolean) => {
-      if (!cwd) return;
-      const text = isAbsolute ? `${cwd}/${id}` : id;
+    copyPath: async (id: string, isAbsolute: boolean) => {
+      if (!activeProjectId) return;
+      const text = await request.getSystemFilePath({
+        projectId: activeProjectId,
+        path: id,
+        isAbsolute,
+      });
       navigator.clipboard.writeText(text);
     },
   };
@@ -1042,13 +1058,12 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
     const map = new Map<string, string>();
     if (!gitStatus || !cwd) return map;
     for (const [rel, status] of Object.entries(gitStatus.files)) {
-      const fullPath = `${cwd}/${rel}`;
-      map.set(fullPath, status);
+      map.set(rel, status);
 
-      let parent = fullPath;
+      let parent = rel;
       while (true) {
         const slashIdx = parent.lastIndexOf("/");
-        if (slashIdx <= cwd.length) break;
+        if (slashIdx === -1) break;
         parent = parent.slice(0, slashIdx);
         if (!map.has(parent)) {
           map.set(parent, "•");

@@ -30,7 +30,7 @@
 - **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、WebUI WebSocket 服务端
 - **`src/backend/acp-bridge.ts`**：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
-- **`src/backend/ipc-schema.ts`**：主进程与渲染进程请求/事件的统一契约
+- **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
 - **`src/backend/storage.ts`**：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据（详见 [数据存储设计与结构](./storage.md)）
 
 ### Renderer（`src/mainview/`）
