@@ -1,6 +1,4 @@
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
-
-export { RequestPermissionRequest, SessionNotification };
+import type { RequestPermissionRequest, SessionNotification, InitializeResponse } from "@agentclientprotocol/sdk";
 
 /**
  * 代理（Agent）的配置信息
@@ -189,7 +187,7 @@ export type FelloIPCRequests = {
     params: { projectId: string; agentId: string };
     response: {
       sessionId: string;
-      agentInfo: unknown;
+      agentInfo: InitializeResponse | null;
       models: ModelState | null;
       modes: ModeState | null;
     };
@@ -199,7 +197,7 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: {
       sessionId: string;
-      agentInfo: unknown;
+      agentInfo: InitializeResponse | null;
       models: ModelState | null;
       modes: ModeState | null;
     };
@@ -264,8 +262,8 @@ export type FelloIPCRequests = {
    * 返回的节点 `id` 统一为 POSIX 风格的相对路径，用于保证多平台的一致性。
    */
   readDir: {
-    params: { projectId: string; relativePath?: string; depth?: number };
-    response: unknown;
+    params: { projectId: string; relativePath?: string };
+    response: { id: string; name: string; isFolder: boolean; }[];
   };
   /** 创建新文件或文件夹 */
   createFile: {

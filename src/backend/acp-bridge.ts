@@ -1,6 +1,11 @@
 import { spawn, type ChildProcess } from "child_process";
 import { Writable, Readable } from "stream";
-import * as acp from "@agentclientprotocol/sdk";
+import {
+  ndJsonStream,
+  Client,
+  ClientSideConnection,
+  PROTOCOL_VERSION,
+} from "@agentclientprotocol/sdk";
 import type {
   SessionNotification,
   RequestPermissionRequest,
@@ -19,6 +24,20 @@ import type {
   KillTerminalResponse,
   ReleaseTerminalRequest,
   ReleaseTerminalResponse,
+  InitializeResponse,
+  SessionModelState,
+  SessionModeState,
+  NewSessionRequest,
+  NewSessionResponse,
+  SetSessionModelRequest,
+  SetSessionModelResponse,
+  LoadSessionRequest,
+  LoadSessionResponse,
+  SetSessionModeRequest,
+  SetSessionModeResponse,
+  PromptRequest,
+  PromptResponse,
+  CancelNotification,
 } from "@agentclientprotocol/sdk";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 
@@ -38,15 +57,26 @@ export interface ACPBridgeOptions {
   onAgentTerminalOutput: AgentTerminalOutputCallback;
 }
 
+/**
+ * ACPBridge
+ * 该类是对 Agent Client Protocol (ACP) SDK 及其底层子进程的纯粹封装。
+ * 
+ * ⚠️ 关键警告：
+ * 在 ACPBridge 的所有 API（如 newSession、loadSession、sendPrompt 等）中，
+ * 它们所接收或返回的 `sessionId` 参数，在业务语义上均对应于
+ * `src/shared/schema.ts` 中定义的 `SessionInfo.resumeId`。
+ *
+ * 绝对不要混淆传入 Fello 自身的 `SessionInfo.id`，否则会导致底层 Agent 无法识别会话。
+ */
 export class ACPBridge {
   private process: ChildProcess | null = null;
-  private connection: acp.ClientSideConnection | null = null;
+  private connection: ClientSideConnection | null = null;
   private onSessionUpdate: SessionUpdateCallback;
   private onPermissionRequest: PermissionRequestCallback;
   private _isConnected = false;
-  private _agentInfo: acp.InitializeResponse | null = null;
-  private _modelStates = new Map<string, acp.SessionModelState>();
-  private _modeStates = new Map<string, acp.SessionModeState>();
+  private _agentInfo: InitializeResponse | null = null;
+  private _modelStates = new Map<string, SessionModelState>();
+  private _modeStates = new Map<string, SessionModeState>();
   public terminalManager: AgentTerminalManager;
 
   constructor(private options: ACPBridgeOptions) {
@@ -63,15 +93,23 @@ export class ACPBridge {
     return this._agentInfo;
   }
 
-  getModelState(sessionId: string): acp.SessionModelState | null {
+  /**
+   * ⚠️ 获取指定会话的模型状态
+   * @param sessionId ACP 侧的会话标识（即 Fello 业务中的 SessionInfo.resumeId）
+   */
+  getModelState(sessionId: string): SessionModelState | null {
     return this._modelStates.get(sessionId) ?? null;
   }
 
-  getModeState(sessionId: string): acp.SessionModeState | null {
+  /**
+   * ⚠️ 获取指定会话的模式状态
+   * @param sessionId ACP 侧的会话标识（即 Fello 业务中的 SessionInfo.resumeId）
+   */
+  getModeState(sessionId: string): SessionModeState | null {
     return this._modeStates.get(sessionId) ?? null;
   }
 
-  async connect(): Promise<acp.InitializeResponse> {
+  async connect(): Promise<InitializeResponse> {
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
       cwd: this.options.cwd,
@@ -83,38 +121,44 @@ export class ACPBridge {
 
     const input = Writable.toWeb(proc.stdin!);
     const output = Readable.toWeb(proc.stdout!);
-    const rawStream = acp.ndJsonStream(input, output as any);
+    const rawStream = ndJsonStream(input, output as ReadableStream<Uint8Array>);
 
-    const logReadable = rawStream.readable.pipeThrough(
-      new TransformStream({
-        transform(msg, controller) {
-          console.log("[ACP ←]", JSON.stringify(msg));
-          controller.enqueue(msg);
+    let stream: { readable: ReadableStream; writable: WritableStream };
+
+    if (process.env.NODE_ENV === "development") {
+      const logReadable = rawStream.readable.pipeThrough(
+        new TransformStream({
+          transform(msg, controller) {
+            console.log("[ACP ←]", JSON.stringify(msg));
+            controller.enqueue(msg);
+          },
+        }),
+      );
+      const rawWriter = rawStream.writable.getWriter();
+      const logWritable = new WritableStream({
+        async write(msg) {
+          console.log("[ACP →]", JSON.stringify(msg));
+          try {
+            await rawWriter.write(msg);
+          } catch {}
         },
-      }),
-    );
-    const rawWriter = rawStream.writable.getWriter();
-    const logWritable = new WritableStream({
-      async write(msg) {
-        console.log("[ACP →]", JSON.stringify(msg));
-        try {
-          await rawWriter.write(msg);
-        } catch {}
-      },
-      async close() {
-        try {
-          rawWriter.releaseLock();
-        } catch {}
-      },
-    });
-    const stream = { readable: logReadable, writable: logWritable };
+        async close() {
+          try {
+            rawWriter.releaseLock();
+          } catch {}
+        },
+      });
+      stream = { readable: logReadable, writable: logWritable };
+    } else {
+      stream = rawStream;
+    }
 
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
     const modeStates = this._modeStates;
     const terminalManager = this.terminalManager;
     const defaultCwd = this.options.cwd;
-    const client: acp.Client = {
+    const client: Client = {
       async requestPermission(
         params: RequestPermissionRequest,
       ): Promise<RequestPermissionResponse> {
@@ -154,7 +198,7 @@ export class ACPBridge {
         // SDK doesn't define exitStatus if it hasn't exited, so we shouldn't add it unless finished
         // We'll leave it out for now as AgentTerminalManager doesn't return exitStatus in getOutput yet
         // Wait, let's fix getOutput in AgentTerminalManager to return exitStatus if finished.
-        const term = (terminalManager as any).terminals.get(params.terminalId);
+        const term = terminalManager.getTerminal(params.terminalId);
         return {
           output,
           truncated,
@@ -180,9 +224,9 @@ export class ACPBridge {
       async extNotification(_method: string, _params: unknown): Promise<void> {},
     };
 
-    this.connection = new acp.ClientSideConnection((_agent) => client, stream);
+    this.connection = new ClientSideConnection((_agent) => client, stream);
     const initResult = await this.connection.initialize({
-      protocolVersion: acp.PROTOCOL_VERSION,
+      protocolVersion: PROTOCOL_VERSION,
       clientInfo: { name: "Fello", version: "0.1.0" },
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
@@ -191,81 +235,65 @@ export class ACPBridge {
     });
     this._isConnected = true;
     this._agentInfo = initResult;
-    console.log("[ACP] agent capabilities:", JSON.stringify(initResult, null, 2));
     return initResult;
   }
 
-  async newSession(cwd: string): Promise<{
-    sessionId: string;
-    models: acp.SessionModelState | null;
-    modes: acp.SessionModeState | null;
-  }> {
+  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.newSession({
-      cwd,
-      mcpServers: [],
-    });
+    const result = await this.connection.newSession(params);
     const models = result.models ?? null;
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
-    return { sessionId: result.sessionId, models, modes };
+    return result;
   }
 
-  async setSessionModel(sessionId: string, modelId: string): Promise<void> {
+  async setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
     if (!this.connection) throw new Error("Not connected");
-    await this.connection.unstable_setSessionModel({ sessionId, modelId });
-    const state = this._modelStates.get(sessionId);
+    const result = await this.connection.unstable_setSessionModel(params);
+    const state = this._modelStates.get(params.sessionId);
     if (state) {
-      state.currentModelId = modelId;
+      state.currentModelId = params.modelId;
     }
+    return result;
   }
 
-  async loadSession(
-    sessionId: string,
-    cwd: string,
-  ): Promise<{ models: acp.SessionModelState | null; modes: acp.SessionModeState | null }> {
+  async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.loadSession({
-      sessionId,
-      cwd,
-      mcpServers: [],
-    });
+    const result = await this.connection.loadSession(params);
     const models = result.models ?? null;
     const modes = result.modes ?? null;
-    if (models) this._modelStates.set(sessionId, models);
-    if (modes) this._modeStates.set(sessionId, modes);
-    return { models, modes };
+    if (models) this._modelStates.set(params.sessionId, models);
+    if (modes) this._modeStates.set(params.sessionId, modes);
+    return result;
   }
 
-  async setSessionMode(sessionId: string, modeId: string): Promise<void> {
+  async setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse> {
     if (!this.connection) throw new Error("Not connected");
-    await this.connection.setSessionMode({ sessionId, modeId });
-    const state = this._modeStates.get(sessionId);
+    const result = await this.connection.setSessionMode(params);
+    const state = this._modeStates.get(params.sessionId);
     if (state) {
-      state.currentModeId = modeId;
+      state.currentModeId = params.modeId;
     }
+    return result;
   }
 
-  async sendPrompt(sessionId: string, text: string): Promise<acp.PromptResponse> {
+  async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
     if (!this.connection) throw new Error("Not connected");
-    return this.connection.prompt({
-      sessionId,
-      prompt: [{ type: "text", text }],
-    });
+    return this.connection.prompt(params);
   }
 
-  async cancel(sessionId: string): Promise<void> {
+  async cancel(params: CancelNotification): Promise<void> {
     if (!this.connection) return;
-    await this.connection.cancel({ sessionId });
+    await this.connection.cancel(params);
   }
 
-  async disconnect(): Promise<void> {
+  async kill(): Promise<void> {
     if (this.connection && this._isConnected) {
       const sessionIds = new Set([...this._modelStates.keys(), ...this._modeStates.keys()]);
       for (const sid of sessionIds) {
         try {
-          await this.connection.unstable_closeSession({ sessionId: sid });
+          await this.connection.unstable_closeSession({ sessionId: sid }).catch(() => {});
         } catch {}
       }
     }
@@ -286,30 +314,24 @@ export class ACPBridge {
           resolve();
           return;
         }
-        proc.on("exit", () => resolve());
-        setTimeout(() => {
+        const onExit = () => {
+          clearTimeout(termTimer);
+          if (killTimer) {
+            clearTimeout(killTimer);
+          }
+          resolve();
+        };
+        let killTimer: NodeJS.Timeout | null = null;
+        proc.once("exit", onExit);
+        const termTimer = setTimeout(() => {
           this.killProcessGroup(proc, "SIGTERM");
-          setTimeout(() => {
+          killTimer = setTimeout(() => {
             this.killProcessGroup(proc, "SIGKILL");
+            proc.removeListener("exit", onExit);
             resolve();
           }, 2000);
         }, 3000);
       });
-    }
-  }
-
-  killSync(): void {
-    this._isConnected = false;
-    this._modelStates.clear();
-    this._modeStates.clear();
-    this.connection = null;
-    if (this.process) {
-      const proc = this.process;
-      this.process = null;
-      try {
-        proc.stdin?.end();
-      } catch {}
-      this.killProcessGroup(proc, "SIGTERM");
     }
   }
 

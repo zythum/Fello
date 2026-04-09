@@ -199,7 +199,7 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
     if (bridgePool.get(agentId) === connectPromise) {
       bridgePool.delete(agentId);
     }
-    await pooledBridge.disconnect().catch(() => {});
+    await pooledBridge.kill();
   }
 
   const runtime = resolveAgentRuntime(agentId);
@@ -249,7 +249,7 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
       if (bridgePool.get(agentId) === newConnectPromise) {
         bridgePool.delete(agentId);
       }
-      nextBridge.killSync();
+      await nextBridge.kill();
       throw error;
     });
 
@@ -258,9 +258,9 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
   return newConnectPromise;
 }
 
-export function killBridgeSync() {
+export function killBridge() {
   for (const p of bridgePool.values()) {
-    p.then((b) => b.killSync()).catch(() => {});
+    p.then((b) => b.kill()).catch(() => {});
   }
   bridgePool.clear();
   for (const terminal of terminals.values()) {
@@ -458,7 +458,7 @@ export const backendHandlers: {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(project.cwd, agentId);
-    const { sessionId: resumeId, models, modes } = await b.newSession(project.cwd);
+    const { sessionId: resumeId, models, modes } = await b.newSession({ cwd: project.cwd, mcpServers: [] });
     const sessionId = storageOps.createSession(project.id, resumeId, agentId);
     return {
       sessionId: sessionId,
@@ -472,7 +472,11 @@ export const backendHandlers: {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const b = await ensureBridge(session.cwd, session.agentId);
-    const { models, modes } = await b.loadSession(session.resumeId, session.cwd);
+    const { models, modes } = await b.loadSession({
+      sessionId: session.resumeId,
+      cwd: session.cwd,
+      mcpServers: [],
+    });
     return {
       sessionId: session.id,
       agentInfo: b.agentInfo,
@@ -499,7 +503,7 @@ export const backendHandlers: {
       },
     } as any);
 
-    return await b.sendPrompt(session.resumeId, text);
+    return await b.sendPrompt({ sessionId: session.resumeId, prompt: [{ type: "text", text }] });
   },
 
   async cancelPrompt({ sessionId }) {
@@ -508,7 +512,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agentId);
     if (connectPromise) {
       const b = await connectPromise;
-      await b.cancel(session.resumeId);
+      await b.cancel({ sessionId: session.resumeId });
     }
   },
 
@@ -558,7 +562,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionModel(session.resumeId, modelId);
+    await b.setSessionModel({ sessionId: session.resumeId, modelId });
   },
 
   async getModes({ sessionId }) {
@@ -576,7 +580,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
-    await b.setSessionMode(session.resumeId, modeId);
+    await b.setSessionMode({ sessionId: session.resumeId, modeId });
   },
 
   async searchFiles({ projectId, query }) {
@@ -632,43 +636,36 @@ export const backendHandlers: {
       .map((result) => result.item);
   },
 
-  async readDir({ projectId, relativePath = "", depth = 1 }) {
+  async readDir({ projectId, relativePath = "" }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project not found");
     const cwd = project.cwd;
 
-    const fileScene = new Set<string>();
     const startPath = resolveSafePath(cwd, relativePath);
 
-    async function walk(path: string, currentDepth: number): Promise<unknown[]> {
-      if (fileScene.has(path)) return [];
-      fileScene.add(path);
+    const entries = await readdir(startPath).catch(() => []);
+    const results:  { id: string; name: string; isFolder: boolean; }[] = [];
+    for (const name of entries) {
+      const full = join(startPath, name);
+      const s = await stat(full).catch(() => null);
+      if (!s) continue;
 
-      const entries = await readdir(path).catch(() => []);
-      const results: unknown[] = [];
-      for (const name of entries) {
-        const full = join(path, name);
-        const s = await stat(full).catch(() => null);
-        if (!s) continue;
+      if (isIgnorePath(full, cwd)) continue;
 
-        if (isIgnorePath(full, cwd)) continue;
-
-        const relId = toPosixPath(relative(cwd, full));
-        if (s.isDirectory()) {
-          const children = currentDepth > 1 ? await walk(full, currentDepth - 1) : undefined;
-          results.push({ id: relId, name, isFolder: true, children });
-        } else {
-          results.push({ id: relId, name, isFolder: false });
-        }
+      const relId = toPosixPath(relative(cwd, full));
+      if (s.isDirectory()) {
+        results.push({ id: relId, name, isFolder: true });
+      } else {
+        results.push({ id: relId, name, isFolder: false });
       }
-      results.sort((a: any, b: any) => {
-        if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-      return results;
     }
 
-    return walk(startPath, depth);
+    results.sort((a: any, b: any) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return results;
   },
 
   async createFile({ projectId, relativePath, isFolder }) {

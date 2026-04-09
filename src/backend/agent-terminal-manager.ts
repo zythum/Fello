@@ -14,6 +14,7 @@ export interface AgentTerminalProcess {
 }
 
 export class AgentTerminalManager {
+
   private terminals = new Map<string, AgentTerminalProcess>();
 
   constructor(private emitOutput: (terminalId: string, data: string) => void) {}
@@ -84,6 +85,10 @@ export class AgentTerminalManager {
       output: terminal.outputBuffer.toString("utf-8"),
       truncated: false, // Simplification
     };
+  }
+
+  getTerminal(terminalId: string): AgentTerminalProcess | undefined {
+    return this.terminals.get(terminalId);
   }
 
   async waitForExit(id: string): Promise<{ exitCode: number | null; signal: string | null }> {

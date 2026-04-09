@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import {
   backendHandlers,
   initBackend,
-  killBridgeSync,
+  killBridge,
   extractErrorMessage,
   type FelloIPCSchema,
 } from "../backend/backend";
@@ -216,7 +216,7 @@ function createMainWindow() {
 }
 
 app.on("before-quit", () => {
-  killBridgeSync();
+  killBridge();
 });
 
 app.whenReady().then(() => {
