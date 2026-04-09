@@ -12,7 +12,6 @@ export interface ChatMessage {
   terminalId?: string | null;
   rawInput?: unknown;
   locations?: Array<{ path: string; line?: number | null }> | null;
-  createdAt?: number;
   /** True while this message is still being streamed */
   streaming?: boolean;
 }
