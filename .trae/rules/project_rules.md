@@ -11,6 +11,7 @@
 - Backend: All backend code MUST be stateless.
 - Mainview: Code MUST be compatible with both Electron and Web UI environments. Any UI element that invokes Electron-specific native APIs (i.e., `electron.xxx` methods like `revealInFinder` or `trashFile`) MUST be hidden when running in Web UI mode (`isWebUI === true`).
 - Path Handling: To ensure cross-platform compatibility (especially on Windows), all IPC interfaces must accept and return POSIX-style paths (`/`) for relative project paths. The only exception is `getSystemFilePath`, which is specifically designed to return the native OS path format (e.g., `\` on Windows).
+- ACP Protocol Adherence: This project is an ACP (`https://agentclientprotocol.com/`) client, using `@agentclientprotocol/sdk` as the protocol specification. All feature development MUST adhere to the ACP protocol. If a proposed feature conflicts with the ACP protocol, you MUST raise concerns and initiate a discussion before proceeding.
 - ACP Integration: When interacting with the underlying ACP service (Agent process), you MUST use `session.resumeId` instead of `session.id`. The ACP interface declaration often names its parameter `sessionId`, which can easily be confused with Fello's own `session.id`. Remember: ACP side's `sessionId` === Fello side's `session.resumeId`.
 
 ## Repo Structure
