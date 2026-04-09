@@ -157,6 +157,15 @@ function createMainWindow() {
 
   // 1. 处理当前窗口内的跳转（如 <a href="...">）
   win.webContents.on("will-navigate", (event, url) => {
+    // 排除开发环境下的 Vite Dev Server URL
+    if (
+      isDev &&
+      process.env.ELECTRON_RENDERER_URL &&
+      url.startsWith(process.env.ELECTRON_RENDERER_URL)
+    ) {
+      return;
+    }
+
     // 如果是外部链接（根据你的业务逻辑判断，比如不是 localhost）
     if (url.startsWith("http:") || url.startsWith("https:")) {
       event.preventDefault(); // 阻止 Electron 内部跳转
@@ -166,6 +175,15 @@ function createMainWindow() {
 
   // 2. 处理 target="_blank" 或 window.open 打开的新窗口
   win.webContents.setWindowOpenHandler(({ url }) => {
+    // 排除开发环境下的 Vite Dev Server URL
+    if (
+      isDev &&
+      process.env.ELECTRON_RENDERER_URL &&
+      url.startsWith(process.env.ELECTRON_RENDERER_URL)
+    ) {
+      return { action: "allow" };
+    }
+
     if (url.startsWith("http:") || url.startsWith("https:")) {
       shell.openExternal(url);
       return { action: "deny" }; // 阻止 Electron 创建新窗口

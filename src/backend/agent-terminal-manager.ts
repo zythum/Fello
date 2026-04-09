@@ -14,7 +14,6 @@ export interface AgentTerminalProcess {
 }
 
 export class AgentTerminalManager {
-
   private terminals = new Map<string, AgentTerminalProcess>();
 
   constructor(private emitOutput: (terminalId: string, data: string) => void) {}

@@ -1,4 +1,8 @@
-import type { RequestPermissionRequest, SessionNotification, InitializeResponse } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  SessionNotification,
+  InitializeResponse,
+} from "@agentclientprotocol/sdk";
 
 /**
  * 代理（Agent）的配置信息
@@ -263,7 +267,7 @@ export type FelloIPCRequests = {
    */
   readDir: {
     params: { projectId: string; relativePath?: string };
-    response: { id: string; name: string; isFolder: boolean; }[];
+    response: { id: string; name: string; isFolder: boolean }[];
   };
   /** 创建新文件或文件夹 */
   createFile: {

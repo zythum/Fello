@@ -458,7 +458,11 @@ export const backendHandlers: {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(project.cwd, agentId);
-    const { sessionId: resumeId, models, modes } = await b.newSession({ cwd: project.cwd, mcpServers: [] });
+    const {
+      sessionId: resumeId,
+      models,
+      modes,
+    } = await b.newSession({ cwd: project.cwd, mcpServers: [] });
     const sessionId = storageOps.createSession(project.id, resumeId, agentId);
     return {
       sessionId: sessionId,
@@ -644,7 +648,7 @@ export const backendHandlers: {
     const startPath = resolveSafePath(cwd, relativePath);
 
     const entries = await readdir(startPath).catch(() => []);
-    const results:  { id: string; name: string; isFolder: boolean; }[] = [];
+    const results: { id: string; name: string; isFolder: boolean }[] = [];
     for (const name of entries) {
       const full = join(startPath, name);
       const s = await stat(full).catch(() => null);

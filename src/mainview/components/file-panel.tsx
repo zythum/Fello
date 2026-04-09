@@ -327,18 +327,18 @@ function TreeItem({
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
-            <ContextMenuItem
-              variant="destructive"
-              className="text-xs rounded-1 text-muted-foreground/90"
-              onClick={() => {
-                const ids =
-                  selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
-                actions.deleteNode(ids);
-              }}
-            >
-              <Trash2 className="size-3" />
-              {t("filePanel.delete")}
-            </ContextMenuItem>
+          <ContextMenuItem
+            variant="destructive"
+            className="text-xs rounded-1 text-muted-foreground/90"
+            onClick={() => {
+              const ids =
+                selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
+              actions.deleteNode(ids);
+            }}
+          >
+            <Trash2 className="size-3" />
+            {t("filePanel.delete")}
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       {node.isFolder &&
@@ -456,12 +456,12 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         try {
           const results = await Promise.all(
             dirsToFetch.map(async (dir) => {
-                const children = (await request.readDir({
-                  projectId: activeProjectId,
-                  relativePath: dir,
-                })) as TreeNode[];
-                return { dir, children: children ?? [] };
-              }),
+              const children = (await request.readDir({
+                projectId: activeProjectId,
+                relativePath: dir,
+              })) as TreeNode[];
+              return { dir, children: children ?? [] };
+            }),
           );
 
           setData((oldData) => {
@@ -543,12 +543,12 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
 
       if (node.isFolder && node.children === undefined && activeProjectId) {
         request
-            .readDir({ projectId: activeProjectId, relativePath: id })
-            .then((children) => {
-              setData((oldData) => {
-                function updateTree(tree: TreeNode[]): TreeNode[] {
-                  return tree.map((n) => {
-                    if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
+          .readDir({ projectId: activeProjectId, relativePath: id })
+          .then((children) => {
+            setData((oldData) => {
+              function updateTree(tree: TreeNode[]): TreeNode[] {
+                return tree.map((n) => {
+                  if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });
@@ -685,13 +685,13 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
 
       if (needsFetch) {
         request
-        .readDir({ projectId: activeProjectId, relativePath: parentId })
-        .then((children) => {
-          setData((oldData) => {
-            function updateTree(tree: TreeNode[]): TreeNode[] {
-              return tree.map((n) => {
-                if (n.id === parentId)
-                  return { ...n, children: [tempNode, ...((children as TreeNode[]) ?? [])] };
+          .readDir({ projectId: activeProjectId, relativePath: parentId })
+          .then((children) => {
+            setData((oldData) => {
+              function updateTree(tree: TreeNode[]): TreeNode[] {
+                return tree.map((n) => {
+                  if (n.id === parentId)
+                    return { ...n, children: [tempNode, ...((children as TreeNode[]) ?? [])] };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });

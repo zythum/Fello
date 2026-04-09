@@ -60,7 +60,7 @@ export interface ACPBridgeOptions {
 /**
  * ACPBridge
  * 该类是对 Agent Client Protocol (ACP) SDK 及其底层子进程的纯粹封装。
- * 
+ *
  * ⚠️ 关键警告：
  * 在 ACPBridge 的所有 API（如 newSession、loadSession、sendPrompt 等）中，
  * 它们所接收或返回的 `sessionId` 参数，在业务语义上均对应于
