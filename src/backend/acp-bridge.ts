@@ -79,7 +79,10 @@ export class ACPBridge {
   private _modeStates = new Map<string, SessionModeState>();
   public terminalManager: AgentTerminalManager;
 
-  constructor(public id: string, private options: ACPBridgeOptions) {
+  constructor(
+    public id: string,
+    private options: ACPBridgeOptions,
+  ) {
     this.onSessionUpdate = options.onSessionUpdate;
     this.onPermissionRequest = options.onPermissionRequest;
     this.terminalManager = new AgentTerminalManager(options.onAgentTerminalOutput);

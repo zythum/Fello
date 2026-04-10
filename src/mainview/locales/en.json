@@ -28,7 +28,16 @@
     "system": "System",
     "language": "Language",
     "english": "English",
-    "chinese": "简体中文"
+    "chinese": "简体中文",
+    "addProjectFailed": "Failed to add project.",
+    "newChatFailed": "Failed to create a new chat.",
+    "loadSessionFailed": "Failed to load session.",
+    "revealInFinderFailed": "Failed to reveal in Finder.",
+    "saveThemeFailed": "Failed to save theme setting.",
+    "saveLanguageFailed": "Failed to save language setting.",
+    "projectExists": "Project already exists.",
+    "projectNameEmpty": "Project name cannot be empty.",
+    "chatNameEmpty": "Chat name cannot be empty."
   },
   "settings": {
     "title": "Settings",
@@ -46,7 +55,8 @@
       "noAgents": "No agents configured.",
       "errorIdCommand": "ID and Command are required.",
       "errorDuplicateId": "An agent with this ID already exists.",
-      "errorEnvJson": "Env must be a valid JSON object."
+      "errorEnvJson": "Env must be a valid JSON object.",
+      "updateFailed": "Failed to update configuration."
     },
     "webui": {
       "enableAccess": "Enable WebUI Access",
@@ -56,8 +66,12 @@
       "accessUrl": "Access URL:",
       "copy": "Copy",
       "note": "Note: This URL contains a temporary token. The WebUI will be disabled when you restart the application.",
-      "title": "WebUI"
+      "title": "WebUI",
+      "updateFailed": "Failed to update configuration."
     }
+  },
+  "chat": {
+    "failedToLoadSession": "Failed to load session."
   },
   "chatHeader": {
     "refresh": "Refresh"
@@ -80,7 +94,8 @@
     "send": "Send",
     "tokensUsage": "In: {{input}} Out: {{output}} Total: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "timeoutError": "Agent stopped responding (timed out after 30s)."
+    "timeoutError": "Agent stopped responding (timed out after 30s).",
+    "generationFailed": "Generation failed."
   },
   "filePreview": {
     "fileNotFound": "File not found",

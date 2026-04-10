@@ -9,6 +9,7 @@
 - UI: prefer existing shadcn/ui components over custom markup when possible.
 - Language & i18n: All user-facing UI text MUST be extracted to locale files (`src/mainview/locales/`) using `react-i18next` (`useTranslation`). Do not use hardcoded strings in components.
 - Backend: All backend code MUST be stateless.
+- TypeScript Types: Prefer `unknown` over `any` for untyped variables to enforce type checking before use. Prefer the `satisfies` operator over type assertions (`as`) to preserve exact type inference while ensuring type compatibility.
 - Mainview: Code MUST be compatible with both Electron and Web UI environments. Any UI element that invokes Electron-specific native APIs (i.e., `electron.xxx` methods like `revealInFinder` or `trashFile`) MUST be hidden when running in Web UI mode (`isWebUI === true`).
 - Path Handling: To ensure cross-platform compatibility (especially on Windows), all IPC interfaces must accept and return POSIX-style paths (`/`) for relative project paths. The only exception is `getSystemFilePath`, which is specifically designed to return the native OS path format (e.g., `\` on Windows).
 - ACP Protocol Adherence: This project is an ACP (`https://agentclientprotocol.com/`) client, using `@agentclientprotocol/sdk` as the protocol specification. All feature development MUST adhere to the ACP protocol. If a proposed feature conflicts with the ACP protocol, you MUST raise concerns and initiate a discussion before proceeding.

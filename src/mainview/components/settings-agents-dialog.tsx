@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
+import { extractErrorMessage } from "@/lib/utils";
 
 export function SettingsAgentsDialog({
   open,
@@ -39,7 +40,10 @@ export function SettingsAgentsDialog({
       await request.updateSettings({ agents: updatedAgents, theme });
       setConfiguredAgents(updatedAgents);
     } catch (err) {
-      pushGlobalErrorMessage(err instanceof Error ? err.message : String(err));
+      pushGlobalErrorMessage(
+        extractErrorMessage(err) ||
+          t("settings.agents.updateFailed", "Failed to update configuration."),
+      );
     }
   };
 

@@ -34,7 +34,7 @@ import {
   GitBranch,
   Copy,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 
 interface TreeNode {
   id: string;
@@ -398,7 +398,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       setData(result ?? []);
     } catch (err) {
       if (refreshSeqRef.current !== seq) return;
-      console.error("Failed to load file tree:", err);
+      console.error("Failed to load file tree:", extractErrorMessage(err));
       setData([]);
     } finally {
       if (refreshSeqRef.current === seq) {
@@ -502,7 +502,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             return updateNodes(nextData);
           });
         } catch (err) {
-          console.error("Partial update failed:", err);
+          console.error("Partial update failed:", extractErrorMessage(err));
         }
       }
 
@@ -641,7 +641,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           isFolder,
         });
       } catch (err) {
-        console.error("Create failed:", err);
+        console.error("Create failed:", extractErrorMessage(err));
       }
     } else {
       const parts = editingId.split("/");
@@ -655,7 +655,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             newRelativePath: newPath,
           });
         } catch (err) {
-          console.error("Rename failed:", err);
+          console.error("Rename failed:", extractErrorMessage(err));
         }
       }
     }
@@ -700,7 +700,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             });
           })
           .catch((err) => {
-            console.error("Failed to load children for create:", err);
+            console.error("Failed to load children for create:", extractErrorMessage(err));
             setData((prev) => insertTemp(prev, parentId, tempNode));
           });
       } else {
@@ -757,7 +757,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                 );
               }
             } catch (err) {
-              console.error("Delete failed:", err);
+              console.error("Delete failed:", extractErrorMessage(err));
             }
             setSelectedIds(new Set());
             refresh();
@@ -775,7 +775,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                 ),
               );
             } catch (err) {
-              console.error("Delete failed:", err);
+              console.error("Delete failed:", extractErrorMessage(err));
             }
             setSelectedIds(new Set());
             refresh();
@@ -944,7 +944,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             await processEntry(entry, destDir);
           }
         } catch (err) {
-          console.error("Drop files in failed:", err);
+          console.error("Drop files in failed:", extractErrorMessage(err));
         }
         refresh();
         return;
@@ -965,7 +965,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           });
         }
       } catch (err) {
-        console.error("Drop files in failed:", err);
+        console.error("Drop files in failed:", extractErrorMessage(err));
       }
       refresh();
     },
@@ -1001,7 +1001,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           }),
         );
       } catch (err) {
-        console.error("Move failed:", err);
+        console.error("Move failed:", extractErrorMessage(err));
       }
       setDragIds([]);
       refresh();
@@ -1013,7 +1013,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
     try {
       await electron.revealInFinder(path);
     } catch (err) {
-      console.error("revealInFinder failed:", err);
+      console.error("revealInFinder failed:", extractErrorMessage(err));
     }
   }, []);
 
@@ -1328,7 +1328,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                   }),
                 );
               } catch (err) {
-                console.error("Move failed:", err);
+                console.error("Move failed:", extractErrorMessage(err));
               }
               setDragIds([]);
               refresh();

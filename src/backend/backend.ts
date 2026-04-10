@@ -146,49 +146,6 @@ function resolveAgentRuntime(agentId: string) {
   return { command, args, env };
 }
 
-export function extractErrorMessage(error: unknown): string {
-  const visited = new Set<unknown>();
-
-  const walk = (value: unknown, depth: number): string | null => {
-    if (depth > 4) return null;
-    if (typeof value === "string") {
-      const text = value.trim();
-      return text.length > 0 ? text : null;
-    }
-    if (value instanceof Error) {
-      const text = value.message?.trim();
-      return text?.length ? text : null;
-    }
-    if (!value || typeof value !== "object") return null;
-    if (visited.has(value)) return null;
-    visited.add(value);
-
-    const record = value as Record<string, unknown>;
-    const candidates = [
-      record.message,
-      record.error,
-      record.data,
-      typeof record.data === "object" && record.data
-        ? (record.data as Record<string, unknown>).message
-        : null,
-      typeof record.data === "object" && record.data
-        ? (record.data as Record<string, unknown>).error
-        : null,
-    ];
-    for (const candidate of candidates) {
-      const message = walk(candidate, depth + 1);
-      if (message) return message;
-    }
-    return null;
-  };
-
-  const message = walk(error, 0);
-  if (message) return message;
-  const fallback = String(error).trim();
-  if (fallback && fallback !== "[object Object]") return fallback;
-  return "Unknown error";
-}
-
 async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge> {
   const connectPromise = bridgePool.get(agentId);
   if (connectPromise) {

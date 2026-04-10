@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
 import type { FelloIPCSchema } from "../shared/schema";
+import { extractErrorMessage } from "./utils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -146,8 +147,8 @@ export async function startWebUI(options?: {
             }
             const response = await handler(params);
             ws.send(JSON.stringify({ type: "response", id, response }));
-          } catch (err: any) {
-            ws.send(JSON.stringify({ type: "response", id, error: err.message || String(err) }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: "response", id, error: extractErrorMessage(err) }));
           }
         }
       } catch (err) {

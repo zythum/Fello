@@ -28,7 +28,16 @@
     "system": "跟随系统",
     "language": "语言",
     "english": "English",
-    "chinese": "简体中文"
+    "chinese": "简体中文",
+    "addProjectFailed": "添加项目失败。",
+    "newChatFailed": "创建新会话失败。",
+    "loadSessionFailed": "加载会话失败。",
+    "revealInFinderFailed": "在访达中显示失败。",
+    "saveThemeFailed": "保存主题设置失败。",
+    "saveLanguageFailed": "保存语言设置失败。",
+    "projectExists": "项目已存在。",
+    "projectNameEmpty": "项目名称不能为空。",
+    "chatNameEmpty": "会话名称不能为空。"
   },
   "settings": {
     "title": "设置",
@@ -46,7 +55,8 @@
       "noAgents": "暂无配置的智能体。",
       "errorIdCommand": "ID 和命令不能为空。",
       "errorDuplicateId": "已存在具有该 ID 的智能体。",
-      "errorEnvJson": "环境变量必须是有效的 JSON 对象。"
+      "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
+      "updateFailed": "更新配置失败。"
     },
     "webui": {
       "enableAccess": "启用 WebUI 访问",
@@ -56,8 +66,12 @@
       "accessUrl": "访问地址:",
       "copy": "复制",
       "note": "注意：此 URL 包含临时令牌。重启应用程序时将禁用 WebUI。",
-      "title": "WebUI"
+      "title": "WebUI",
+      "updateFailed": "更新配置失败。"
     }
+  },
+  "chat": {
+    "failedToLoadSession": "加载会话失败。"
   },
   "chatHeader": {
     "refresh": "刷新"
@@ -80,7 +94,8 @@
     "send": "发送",
     "tokensUsage": "输入: {{input}} 输出: {{output}} 总计: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "timeoutError": "智能体无响应（30秒后超时）。"
+    "timeoutError": "智能体无响应（30秒后超时）。",
+    "generationFailed": "生成失败。"
   },
   "filePreview": {
     "fileNotFound": "文件不存在",

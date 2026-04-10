@@ -1,10 +1,10 @@
-import { ModelInfo, SessionMode } from '@agentclientprotocol/sdk';
+import { ModelInfo, SessionMode } from "@agentclientprotocol/sdk";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { PermissionDialog } from "./permission-dialog";
 import { useActiveSessionState, useAppStore } from "../store";
 import { Badge } from "@/components/ui/badge";
-import { formatSessionTime } from "@/lib/utils";
+import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { request } from "../backend";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
@@ -24,7 +24,8 @@ export function Chat() {
 
   const handleRefreshSession = async () => {
     if (!session) return;
-    const { resetSessionState, pushGlobalErrorMessage, updateSessionState } = useAppStore.getState();
+    const { resetSessionState, pushGlobalErrorMessage, updateSessionState } =
+      useAppStore.getState();
 
     try {
       resetSessionState(session.id);
@@ -42,11 +43,10 @@ export function Chat() {
         availableModes: result.modes?.availableModes ?? [],
         currentModeId: result.modes?.currentModeId ?? null,
       }));
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Failed to load session:", err);
-      let message = "Failed to load session.";
-      if (err instanceof Error && err.message.trim()) message = err.message.trim();
-      else if (typeof err === "string" && err.trim()) message = err.trim();
+      const message =
+        extractErrorMessage(err) || t("chat.failedToLoadSession", "Failed to load session.");
       pushGlobalErrorMessage(message);
     } finally {
       updateSessionState(session.id, () => ({ isLoading: false }));

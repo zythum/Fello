@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUp, Square } from "lucide-react";
+import { extractErrorMessage } from "@/lib/utils";
 
 /** Markup format used by react-mentions: @[display](id) */
 const MENTION_MARKUP = "@[__display__](__id__)";
@@ -34,19 +35,9 @@ export function ChatInput() {
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const {
-    sessions,
-    activeSessionId,
-    addMessage,
-    setIsStreaming,
-  } = useAppStore();
-  const {
-    isStreaming,
-    availableModels,
-    currentModelId,
-    availableModes,
-    currentModeId,
-  } = useActiveSessionState();
+  const { sessions, activeSessionId, addMessage, setIsStreaming } = useAppStore();
+  const { isStreaming, availableModels, currentModelId, availableModes, currentModeId } =
+    useActiveSessionState();
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
@@ -135,7 +126,9 @@ export function ChatInput() {
     streamingTimer.current = setTimeout(() => {
       if (useAppStore.getState().getSessionState(activeSessionId).isStreaming) {
         const currentState = useAppStore.getState().getSessionState(activeSessionId);
-        useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
+        useAppStore
+          .getState()
+          .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system_message",
           contents: [
@@ -161,7 +154,7 @@ export function ChatInput() {
       // If it was echoed, the optimistic flag was stripped by the reducer, and it's a real message now.
       const currentState = useAppStore.getState().getSessionState(activeSessionId);
       const isStillOptimistic = currentState.messages.some(
-        (m) => m._meta?.optimistic_id === optimisticId
+        (m) => m._meta?.optimistic_id === optimisticId,
       );
 
       if (isStillOptimistic) {
@@ -169,9 +162,11 @@ export function ChatInput() {
 
         // Remove the optimistically added message
         const newMessages = currentState.messages.filter(
-          (m) => m._meta?.optimistic_id !== optimisticId
+          (m) => m._meta?.optimistic_id !== optimisticId,
         );
-        useAppStore.getState().updateSessionState(activeSessionId, () => ({ messages: newMessages }));
+        useAppStore
+          .getState()
+          .updateSessionState(activeSessionId, () => ({ messages: newMessages }));
       } else {
         // Backend received the user message, but Agent failed to generate a response.
         console.error("Prompt error (generation failure):", err);
@@ -180,7 +175,7 @@ export function ChatInput() {
           contents: [
             {
               type: "text",
-              text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
+              text: `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
             },
           ],
         } satisfies ChatMessage);
@@ -192,28 +187,25 @@ export function ChatInput() {
 
       // Force finalize streaming if we were in a streaming state
       if (currentState.isStreaming) {
-        useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
+        useAppStore
+          .getState()
+          .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
       }
 
       // 5. Update Title if it's the first message
       // We check this in finally to ensure it runs even if stream is interrupted
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
       if (messages.filter((m: ChatMessage) => m.role === "user_message").length === 1) {
-        await request.updateSessionTitle({
-          sessionId: activeSessionId,
-          title: getSummaryTitle(resolved),
-        }).catch(e => console.error("Failed to update title", e));
+        await request
+          .updateSessionTitle({
+            sessionId: activeSessionId,
+            title: getSummaryTitle(resolved),
+          })
+          .catch((e) => console.error("Failed to update title", e));
         loadHistorySessions();
       }
     }
-  }, [
-    input,
-    activeSessionId,
-    isStreaming,
-    addMessage,
-    setIsStreaming,
-    clearStreamingTimer,
-  ]);
+  }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearStreamingTimer]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -381,7 +373,9 @@ export function ChatInput() {
                     onValueChange={async (modeId) => {
                       const sid = useAppStore.getState().activeSessionId;
                       if (!sid) return;
-                      useAppStore.getState().updateSessionState(sid, () => ({ currentModeId: modeId as string }));
+                      useAppStore
+                        .getState()
+                        .updateSessionState(sid, () => ({ currentModeId: modeId as string }));
                       try {
                         await request.setMode({
                           sessionId: sid,
@@ -425,7 +419,9 @@ export function ChatInput() {
                   onValueChange={async (modelId) => {
                     const sid = useAppStore.getState().activeSessionId;
                     if (!sid) return;
-                    useAppStore.getState().updateSessionState(sid, () => ({ currentModelId: modelId as string }));
+                    useAppStore
+                      .getState()
+                      .updateSessionState(sid, () => ({ currentModelId: modelId as string }));
                     try {
                       await request.setModel({
                         sessionId: sid,

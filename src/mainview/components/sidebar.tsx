@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ModelInfo, SessionMode } from '@agentclientprotocol/sdk';
+import type { ModelInfo, SessionMode } from "@agentclientprotocol/sdk";
 import { useAppStore } from "../store";
 import type { ProjectInfo, SessionInfo } from "../../shared/schema";
 import { request, isWebUI } from "../backend";
@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SettingsAgentsDialog } from "./settings-agents-dialog";
 import { SettingsWebUIDialog } from "./settings-webui-dialog";
 import { useMessage } from "./message";
+import { extractErrorMessage } from "@/lib/utils";
 import {
   FolderOpen,
   FolderClosed,
@@ -42,10 +43,8 @@ import {
   Globe,
 } from "lucide-react";
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message.trim();
-  if (typeof error === "string" && error.trim()) return error.trim();
-  return "Failed to create a new chat.";
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  return extractErrorMessage(error) || fallbackMessage;
 }
 
 export function Sidebar() {
@@ -131,13 +130,13 @@ export function Sidebar() {
         created: boolean;
       };
       if (!result.created) {
-        pushGlobalErrorMessage("Project already exists.");
+        pushGlobalErrorMessage(t("sidebar.projectExists", "Project already exists."));
         return;
       }
       await refreshData();
       setExpandedProjects((prev) => ({ ...prev, [result.project.id]: true }));
     } catch (err) {
-      const message = getErrorMessage(err);
+      const message = getErrorMessage(err, t("sidebar.addProjectFailed", "Failed to add project."));
       if (message === "Project selection was canceled") return;
       pushGlobalErrorMessage(message);
     }
@@ -158,7 +157,9 @@ export function Sidebar() {
       await refreshData();
     } catch (err) {
       console.error("Failed to create new chat:", err);
-      pushGlobalErrorMessage(getErrorMessage(err));
+      pushGlobalErrorMessage(
+        getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")),
+      );
     }
   };
 
@@ -175,7 +176,9 @@ export function Sidebar() {
       });
     } catch (err) {
       console.error("Failed to load session", err);
-      pushGlobalErrorMessage(getErrorMessage(err));
+      pushGlobalErrorMessage(
+        getErrorMessage(err, t("sidebar.loadSessionFailed", "Failed to load session.")),
+      );
     } finally {
       useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: false }));
     }
@@ -212,7 +215,8 @@ export function Sidebar() {
       title: t("sidebar.renameProject"),
       content: t("sidebar.enterNewProjectName"),
       defaultValue: project.title,
-      validate: (val) => (val.trim() ? undefined : "Project name cannot be empty"),
+      validate: (val) =>
+        val.trim() ? undefined : t("sidebar.projectNameEmpty", "Project name cannot be empty"),
     });
 
     if (newName && newName !== "cancel") {
@@ -226,7 +230,8 @@ export function Sidebar() {
       title: t("sidebar.renameChat"),
       content: t("sidebar.enterNewChatName"),
       defaultValue: session.title,
-      validate: (val) => (val.trim() ? undefined : "Chat name cannot be empty"),
+      validate: (val) =>
+        val.trim() ? undefined : t("sidebar.chatNameEmpty", "Chat name cannot be empty"),
     });
 
     if (newName && newName !== "cancel") {
@@ -267,7 +272,9 @@ export function Sidebar() {
     try {
       await electron.revealInFinder(project.cwd);
     } catch (err) {
-      pushGlobalErrorMessage(getErrorMessage(err));
+      pushGlobalErrorMessage(
+        getErrorMessage(err, t("sidebar.revealInFinderFailed", "Failed to reveal in Finder.")),
+      );
     }
   };
 
@@ -279,7 +286,7 @@ export function Sidebar() {
         theme: newTheme,
       });
     } catch {
-      pushGlobalErrorMessage("Failed to save theme setting.");
+      pushGlobalErrorMessage(t("sidebar.saveThemeFailed", "Failed to save theme setting."));
     }
   };
 
@@ -293,7 +300,7 @@ export function Sidebar() {
         },
       });
     } catch {
-      pushGlobalErrorMessage("Failed to save language setting.");
+      pushGlobalErrorMessage(t("sidebar.saveLanguageFailed", "Failed to save language setting."));
     }
   };
 

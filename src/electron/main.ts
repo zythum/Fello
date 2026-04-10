@@ -1,14 +1,18 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, nativeTheme } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  shell,
+  nativeTheme,
+  MenuItemConstructorOptions,
+} from "electron";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import {
-  backendHandlers,
-  initBackend,
-  killBridge,
-  extractErrorMessage,
-  type FelloIPCSchema,
-} from "../backend/backend";
+import { backendHandlers, initBackend, killBridge, type FelloIPCSchema } from "../backend/backend";
+import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -86,14 +90,18 @@ ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
 });
 
 function setupMenu() {
-  const template = [
+  const template: MenuItemConstructorOptions[] = [
     ...(process.platform === "darwin"
-      ? [
+      ? ([
           {
             label: app.name,
-            submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }],
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "quit" },
+            ] satisfies MenuItemConstructorOptions[],
           },
-        ]
+        ] satisfies MenuItemConstructorOptions[])
       : []),
     {
       label: "Edit",
@@ -106,23 +114,27 @@ function setupMenu() {
         { role: "paste" },
         { role: "delete" },
         { role: "selectAll" },
-      ],
+      ] satisfies MenuItemConstructorOptions[],
     },
     ...(isDev
-      ? [
+      ? ([
           {
             label: "View",
-            submenu: [{ role: "toggleDevTools" }],
+            submenu: [{ role: "toggleDevTools" }] satisfies MenuItemConstructorOptions[],
           },
-        ]
+        ] satisfies MenuItemConstructorOptions[])
       : []),
     {
       label: "Window",
-      submenu: [{ role: "close" }, { role: "minimize" }, { role: "zoom" }],
+      submenu: [
+        { role: "close" },
+        { role: "minimize" },
+        { role: "zoom" },
+      ] satisfies MenuItemConstructorOptions[],
     },
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template as any));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function createMainWindow() {

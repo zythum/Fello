@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Check, Copy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { extractErrorMessage } from "@/lib/utils";
 
 export function SettingsWebUIDialog({
   open,
@@ -35,7 +36,10 @@ export function SettingsWebUIDialog({
         useAppStore.getState().setWebUIStatus(status);
       }
     } catch (err) {
-      pushGlobalErrorMessage(err instanceof Error ? err.message : String(err));
+      pushGlobalErrorMessage(
+        extractErrorMessage(err) ||
+          t("settings.webui.updateFailed", "Failed to update configuration."),
+      );
     }
   };
 

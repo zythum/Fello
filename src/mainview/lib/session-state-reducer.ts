@@ -13,7 +13,7 @@ type UpdatePayload<T extends SessionNotification["update"]["sessionUpdate"]> = E
 
 function calculateUserMessageChunk(
   state: SessionState,
-  update: UpdatePayload<"user_message_chunk">
+  update: UpdatePayload<"user_message_chunk">,
 ): SessionState {
   const content = update.content;
   const msgs = state.messages;
@@ -52,7 +52,7 @@ function calculateUserMessageChunk(
 function calculateAgentChunk(
   state: SessionState,
   role: "agent_message" | "agent_thought",
-  block: ContentBlock
+  block: ContentBlock,
 ): SessionState {
   const msgs = [...state.messages];
   const last = msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
@@ -86,7 +86,7 @@ function calculateAgentChunk(
 
 function calculateToolCall(
   state: SessionState,
-  update: UpdatePayload<"tool_call" | "tool_call_update">
+  update: UpdatePayload<"tool_call" | "tool_call_update">,
 ): SessionState {
   let terminalId: string | null = null;
   if (Array.isArray(update.content)) {
@@ -98,14 +98,16 @@ function calculateToolCall(
   }
 
   const newMap = new Map(state.activeToolCalls);
-  const existing = newMap.get(update.toolCallId) || {
-    role: "tool_call",
-    toolCallId: update.toolCallId,
-    title: "",
-    status: "completed",
-    content: [],
-    locations: [],
-  } satisfies ToolCallMessage;
+  const existing =
+    newMap.get(update.toolCallId) ||
+    ({
+      role: "tool_call",
+      toolCallId: update.toolCallId,
+      title: "",
+      status: "completed",
+      content: [],
+      locations: [],
+    } satisfies ToolCallMessage);
 
   const data: Partial<ToolCallMessage> = {
     title: update.title ?? "",
@@ -141,7 +143,7 @@ function calculateToolCall(
 
 function calculateUsageUpdate(
   state: SessionState,
-  update: UpdatePayload<"usage_update">
+  update: UpdatePayload<"usage_update">,
 ): SessionState {
   return {
     ...state,
@@ -160,7 +162,7 @@ function calculateUsageUpdate(
 
 export function reduceSessionUpdate(
   currentState: SessionState,
-  update: SessionNotification["update"]
+  update: SessionNotification["update"],
 ): SessionState {
   let nextState: SessionState = currentState;
 
@@ -176,7 +178,7 @@ export function reduceSessionUpdate(
         nextState = calculateAgentChunk(
           currentState,
           "agent_message",
-          update.content as ContentBlock
+          update.content as ContentBlock,
         );
       }
       break;
@@ -186,7 +188,7 @@ export function reduceSessionUpdate(
         nextState = calculateAgentChunk(
           currentState,
           "agent_thought",
-          update.content as ContentBlock
+          update.content as ContentBlock,
         );
       }
       break;
@@ -229,7 +231,7 @@ export function reduceFlushStreaming(currentState: SessionState): SessionState {
 
   // Finalize streaming messages
   newMessages = newMessages.map((m: ChatMessage) =>
-    "streaming" in m && m.streaming ? { ...m, streaming: false } : m
+    "streaming" in m && m.streaming ? { ...m, streaming: false } : m,
   );
 
   return {

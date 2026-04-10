@@ -21,6 +21,7 @@ import { Loader2 } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useTranslation } from "react-i18next";
+import { extractErrorMessage } from "@/lib/utils";
 
 type MessageContextValue = {
   inputValue?: string;
@@ -125,8 +126,10 @@ const DialogButton = ({
           stopLoading();
           return;
         }
-      } catch (e: any) {
-        sonnerToast.error(e.message || t("message.validationFailed", "Validation failed"));
+      } catch (e) {
+        sonnerToast.error(
+          extractErrorMessage(e) || t("message.validationFailed", "Validation failed"),
+        );
         stopLoading();
         return;
       }
@@ -140,10 +143,11 @@ const DialogButton = ({
       try {
         const result = await btn.value(context);
         onResolve(result);
-      } catch (e: any) {
+      } catch (e) {
         console.error(e);
-        if (e && e.message) {
-          sonnerToast.error(e.message);
+        const errorMsg = extractErrorMessage(e);
+        if (errorMsg) {
+          sonnerToast.error(errorMsg);
         }
       } finally {
         stopLoading();

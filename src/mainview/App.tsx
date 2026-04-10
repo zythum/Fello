@@ -54,7 +54,7 @@ function AppContent() {
       if (!sid) return;
       const currentState = useAppStore.getState().getSessionState(sid);
       const nextState = reduceSessionUpdate(currentState, detail.notification.update);
-      
+
       if (nextState !== currentState) {
         useAppStore.getState().updateSessionState(sid, () => nextState);
       }

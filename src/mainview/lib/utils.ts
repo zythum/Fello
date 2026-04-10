@@ -31,3 +31,37 @@ export function formatSessionTime(updatedAtSeconds: number): string {
   const year = date.getFullYear();
   return `${year}-${month}-${day} ${timeStr}`;
 }
+
+export function extractErrorMessage(error: unknown): string {
+  if (error === null || error === undefined) return "";
+  if (typeof error === "string") return error;
+
+  if (error instanceof Error) {
+    return error.message || error.name || String(error);
+  }
+
+  if (typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+
+    if (typeof obj.message === "string" && obj.message.trim() !== "") {
+      return obj.message;
+    }
+
+    if (typeof obj.error === "string" && obj.error.trim() !== "") {
+      return obj.error;
+    }
+
+    if (obj.error instanceof Error) {
+      return obj.error.message || String(obj.error);
+    }
+
+    try {
+      const str = JSON.stringify(error);
+      return str === "{}" ? String(error) : str;
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
