@@ -122,15 +122,13 @@ function calculateToolCall(
   const filtered = Object.fromEntries(
     Object.entries(data).filter(([, v]) => v != null && v !== ""),
   );
-  const merged: ToolCallMessage = { ...existing, ...filtered } as ToolCallMessage;
+  const merged: ToolCallMessage = { ...existing, ...filtered };
 
   newMap.set(update.toolCallId, merged);
 
   // Also upsert into messages so tools appear interleaved with other roles
   const msgs = [...state.messages];
-  const idx = msgs.findIndex(
-    (m) => m.role === "tool_call" && (m as ToolCallMessage).toolCallId === update.toolCallId,
-  );
+  const idx = msgs.findIndex((m) => m.role === "tool_call" && m.toolCallId === update.toolCallId);
 
   if (idx !== -1) {
     msgs[idx] = merged;
@@ -175,21 +173,13 @@ export function reduceSessionUpdate(
 
     case "agent_message_chunk":
       if (update.content) {
-        nextState = calculateAgentChunk(
-          currentState,
-          "agent_message",
-          update.content as ContentBlock,
-        );
+        nextState = calculateAgentChunk(currentState, "agent_message", update.content);
       }
       break;
 
     case "agent_thought_chunk":
       if (update.content) {
-        nextState = calculateAgentChunk(
-          currentState,
-          "agent_thought",
-          update.content as ContentBlock,
-        );
+        nextState = calculateAgentChunk(currentState, "agent_thought", update.content);
       }
       break;
 

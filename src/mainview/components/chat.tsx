@@ -1,4 +1,3 @@
-import { ModelInfo, SessionMode } from "@agentclientprotocol/sdk";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { PermissionDialog } from "./permission-dialog";
@@ -30,11 +29,7 @@ export function Chat() {
     try {
       resetSessionState(session.id);
       updateSessionState(session.id, () => ({ isLoading: true }));
-      const result = (await request.loadSession({ sessionId: session.id })) as {
-        sessionId: string;
-        models: { availableModels: ModelInfo[]; currentModelId: string } | null;
-        modes: { availableModes: SessionMode[]; currentModeId: string } | null;
-      } | null;
+      const result = await request.loadSession({ sessionId: session.id });
       if (!result) return;
       updateSessionState(session.id, (prev) => ({
         ...prev,

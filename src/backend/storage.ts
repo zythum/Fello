@@ -117,10 +117,7 @@ function sessionMetaPath(projectId: string, sessionId: string) {
 
 function readProjectMeta(projectId: string): ProjectMeta | null {
   try {
-    const raw = JSON.parse(readFileSync(projectMetaPath(projectId), "utf-8")) as Record<
-      string,
-      unknown
-    > | null;
+    const raw: ProjectMeta = JSON.parse(readFileSync(projectMetaPath(projectId), "utf-8"));
     if (!raw) return null;
     const id = String(raw.id || "");
     const title = String(raw.title || "");
@@ -142,10 +139,9 @@ function writeProjectMeta(meta: ProjectMeta) {
 
 function readSessionMeta(projectId: string, sessionId: string): SessionMeta | null {
   try {
-    const raw = JSON.parse(readFileSync(sessionMetaPath(projectId, sessionId), "utf-8")) as Record<
-      string,
-      unknown
-    > | null;
+    const raw: SessionMeta = JSON.parse(
+      readFileSync(sessionMetaPath(projectId, sessionId), "utf-8"),
+    );
     if (!raw) return null;
     const id = String(raw.id);
     const title = String(raw.title || "");

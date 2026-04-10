@@ -6,7 +6,6 @@ import { reduceSessionUpdate } from "./lib/session-state-reducer";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { ProjectInfo, SessionInfo } from "../shared/schema";
 import { MessageProvider, useMessage } from "@/components/message";
 
 function AppContent() {
@@ -32,8 +31,8 @@ function AppContent() {
         request.getSettings(),
         request.getWebUIStatus(),
       ]);
-      setProjects((projects as ProjectInfo[]) ?? []);
-      setSessions((sessions as SessionInfo[]) ?? []);
+      setProjects(projects ?? []);
+      setSessions(sessions ?? []);
       setConfiguredAgents(settings.agents);
       useAppStore.getState().setWebUIStatus(webUIStatus);
       if (settings.theme) setTheme(settings.theme);

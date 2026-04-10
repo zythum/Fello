@@ -393,7 +393,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
   const loadTree = useCallback(async (projectId: string, seq: number) => {
     setLoading(true);
     try {
-      const result = (await request.readDir({ projectId, relativePath: "" })) as TreeNode[];
+      const result = await request.readDir({ projectId, relativePath: "" });
       if (refreshSeqRef.current !== seq) return;
       setData(result ?? []);
     } catch (err) {
@@ -456,10 +456,10 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         try {
           const results = await Promise.all(
             dirsToFetch.map(async (dir) => {
-              const children = (await request.readDir({
+              const children = await request.readDir({
                 projectId: activeProjectId,
                 relativePath: dir,
-              })) as TreeNode[];
+              });
               return { dir, children: children ?? [] };
             }),
           );
@@ -548,7 +548,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             setData((oldData) => {
               function updateTree(tree: TreeNode[]): TreeNode[] {
                 return tree.map((n) => {
-                  if (n.id === id) return { ...n, children: (children as TreeNode[]) ?? [] };
+                  if (n.id === id) return { ...n, children: children ?? [] };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });
@@ -690,8 +690,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             setData((oldData) => {
               function updateTree(tree: TreeNode[]): TreeNode[] {
                 return tree.map((n) => {
-                  if (n.id === parentId)
-                    return { ...n, children: [tempNode, ...((children as TreeNode[]) ?? [])] };
+                  if (n.id === parentId) return { ...n, children: [tempNode, ...(children ?? [])] };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });
@@ -717,7 +716,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
   const [osPlatform, setOsPlatform] = useState<string>("darwin");
 
   useEffect(() => {
-    request.getPlatform().then((p: unknown) => setOsPlatform(p as string));
+    request.getPlatform().then((p) => setOsPlatform(p));
   }, []);
 
   const trashLabel =
@@ -1308,7 +1307,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
 
               // External file drop onto root
               if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
-                await handleExternalDrop(e as React.DragEvent, "");
+                await handleExternalDrop(e, "");
                 return;
               }
 

@@ -51,7 +51,7 @@ export function ChatInput() {
       }
       request
         .searchFiles({ projectId, query: search || undefined })
-        .then((results) => callback(results as Array<{ id: string; display: string }>))
+        .then((results) => callback(results))
         .catch(() => callback([]));
     },
     [session],
@@ -99,7 +99,7 @@ export function ChatInput() {
   const loadHistorySessions = async () => {
     try {
       const result = await request.listSessions();
-      useAppStore.getState().setSessions((result as never[]) ?? []);
+      useAppStore.getState().setSessions(result ?? []);
     } catch (error) {
       console.error("Failed to load sessions", error);
     }
@@ -371,15 +371,18 @@ export function ChatInput() {
                   <Select
                     value={currentModeId ?? ""}
                     onValueChange={async (modeId) => {
+                      if (modeId === null) {
+                        return;
+                      }
                       const sid = useAppStore.getState().activeSessionId;
                       if (!sid) return;
                       useAppStore
                         .getState()
-                        .updateSessionState(sid, () => ({ currentModeId: modeId as string }));
+                        .updateSessionState(sid, () => ({ currentModeId: modeId }));
                       try {
                         await request.setMode({
                           sessionId: sid,
-                          modeId: modeId as string,
+                          modeId: modeId,
                         });
                       } catch (err) {
                         console.error("Failed to set mode:", err);
@@ -417,15 +420,18 @@ export function ChatInput() {
                 <Select
                   value={currentModelId ?? ""}
                   onValueChange={async (modelId) => {
+                    if (modelId === null) {
+                      return;
+                    }
                     const sid = useAppStore.getState().activeSessionId;
                     if (!sid) return;
                     useAppStore
                       .getState()
-                      .updateSessionState(sid, () => ({ currentModelId: modelId as string }));
+                      .updateSessionState(sid, () => ({ currentModelId: modelId }));
                     try {
                       await request.setModel({
                         sessionId: sid,
-                        modelId: modelId as string,
+                        modelId: modelId,
                       });
                     } catch (err) {
                       console.error("Failed to set model:", err);

@@ -102,8 +102,8 @@ export function Sidebar() {
     setProjects(nextProjects ?? []);
     setSessions(nextSessions ?? []);
     return {
-      projects: (nextProjects as ProjectInfo[]) ?? [],
-      sessions: (nextSessions as SessionInfo[]) ?? [],
+      projects: nextProjects ?? [],
+      sessions: nextSessions ?? [],
     };
   };
 
@@ -125,10 +125,7 @@ export function Sidebar() {
         selectedPath = p;
       }
 
-      const result = (await request.addProject(selectedPath)) as {
-        project: ProjectInfo;
-        created: boolean;
-      };
+      const result = await request.addProject(selectedPath);
       if (!result.created) {
         pushGlobalErrorMessage(t("sidebar.projectExists", "Project already exists."));
         return;
@@ -146,12 +143,7 @@ export function Sidebar() {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       // Add a temporary loading state locally or push a dummy session
-      const result = (await request.newSession({ projectId, agentId })) as {
-        sessionId: string;
-        models: { availableModels: ModelInfo[]; currentModelId: string } | null;
-        modes: { availableModes: SessionMode[]; currentModeId: string } | null;
-      } | null;
-      if (!result) return;
+      const result = await request.newSession({ projectId, agentId });
       setActiveSessionId(result.sessionId);
       applySessionState(result);
       await refreshData();

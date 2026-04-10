@@ -180,7 +180,7 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
       if (!sent) {
         return Promise.resolve({
           outcome: { outcome: "selected", optionId: "deny" },
-        } as RequestPermissionResponse);
+        } satisfies RequestPermissionResponse);
       }
       return new Promise<RequestPermissionResponse>((resolve, reject) => {
         const timeoutId = setTimeout(
