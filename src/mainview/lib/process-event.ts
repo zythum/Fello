@@ -1,78 +1,82 @@
+import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { useAppStore } from "../store";
 
 // Process a single ACP session update event.
-export function processEvent(sessionId: string, event: Record<string, any>) {
+export function processEvent(sessionId: string, { update }: SessionNotification) {
   const store = useAppStore.getState();
-  const type = event.sessionUpdate;
+
+  const type = update.sessionUpdate;
 
   switch (type) {
     case "user_message_chunk":
-      if (event.content) {
-        store.addMessage(sessionId, { role: "user_message", contents: [event.content] });
+      if (update.content) {
+        store.addMessage(sessionId, { role: "user_message", contents: [update.content] });
       }
       break;
 
     case "agent_message_chunk":
-      if (event.content) {
-        store.appendToLastMessage(sessionId, "agent_message", event.content);
+      if (update.content) {
+        store.appendToLastMessage(sessionId, "agent_message", update.content);
       }
       break;
 
     case "agent_thought_chunk":
-      if (event.content) {
-        store.appendToLastMessage(sessionId, "agent_thought", event.content);
+      if (update.content) {
+        store.appendToLastMessage(sessionId, "agent_thought", update.content);
       }
       break;
 
     case "tool_call": {
       let terminalId: string | null = null;
-      if (Array.isArray(event.content)) {
-        const termContent = event.content.find((c: any) => c.type === "terminal");
-        if (termContent) terminalId = termContent.terminalId;
+      if (Array.isArray(update.content)) {
+        for (const content of update.content) {
+          if (content.type === "terminal") {
+            terminalId = content.terminalId;
+          }
+        }
       }
-      store.updateToolCall(sessionId, event.toolCallId, {
-        title: event.title,
-        status: event.status || "completed",
-        content: event.content || [],
-        kind: event.kind,
+      store.updateToolCall(sessionId, update.toolCallId, {
+        title: update.title,
+        status: update.status || "completed",
+        content: update.content || [],
+        kind: update.kind,
         terminalId,
-        rawInput: event.rawInput,
-        locations: event.locations,
+        rawInput: update.rawInput,
+        locations: update.locations,
       });
       break;
     }
 
     case "tool_call_update": {
       let terminalId: string | null = null;
-      if (Array.isArray(event.content)) {
-        const termContent = event.content.find((c: any) => c.type === "terminal");
-        if (termContent) terminalId = termContent.terminalId;
+      if (Array.isArray(update.content)) {
+        for (const content of update.content) {
+          if (content.type === "terminal") {
+            terminalId = content.terminalId;
+          }
+        }
       }
       const updateData: any = {
-        title: event.title,
-        status: event.status || "completed",
-        content: event.content || [],
-        locations: event.locations,
+        title: update.title,
+        status: update.status || "completed",
+        content: update.content || [],
+        locations: update.locations,
       };
       if (terminalId) updateData.terminalId = terminalId;
-      store.updateToolCall(sessionId, event.toolCallId, updateData);
+      store.updateToolCall(sessionId, update.toolCallId, updateData);
       break;
     }
 
     case "usage_update":
       store.setUsage(sessionId, {
-        size: event.size ?? 0,
-        used: event.used ?? 0,
-        cost: event.cost ?? null,
-        inputTokens: event.inputTokens ?? 0,
-        outputTokens: event.outputTokens ?? 0,
-        totalTokens: event.totalTokens ?? 0,
-        thoughtTokens: event.thoughtTokens ?? 0,
+        size: update.size ?? 0,
+        used: update.used ?? 0,
+        cost: update.cost ?? null,
       });
       break;
 
     case "current_mode_update":
-      store.setCurrentModeId(event.currentModeId ?? null);
+      store.setCurrentModeId(update.currentModeId ?? null);
       break;
 
     default:
@@ -91,11 +95,9 @@ export function flushStreaming(sessionId: string) {
     const activeIds = new Set(ss.activeToolCalls.keys());
     store.updateSessionState(sessionId, (s) => ({
       messages: s.messages.map((m: any) => {
-        if (m.role === 'tool_call' && m.toolCallId && activeIds.has(m.toolCallId)) {
+        if (m.role === "tool_call" && m.toolCallId && activeIds.has(m.toolCallId)) {
           const status =
-            m.status === "in_progress" || m.status === "pending"
-              ? "completed"
-              : m.status;
+            m.status === "in_progress" || m.status === "pending" ? "completed" : m.status;
           return { ...m, status };
         }
         return m;

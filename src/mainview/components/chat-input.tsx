@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Zap } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 
 /** Markup format used by react-mentions: @[display](id) */
 const MENTION_MARKUP = "@[__display__](__id__)";
@@ -43,7 +43,7 @@ export function ChatInput() {
     currentModeId,
     setCurrentModeId,
   } = useAppStore();
-  const { isStreaming, usage } = useActiveSessionState();
+  const { isStreaming } = useActiveSessionState();
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
@@ -85,7 +85,15 @@ export function ChatInput() {
           useAppStore.getState().setIsStreaming(sid, false);
           useAppStore.getState().addMessage(sid, {
             role: "system_message",
-            contents: [{ type: "text", text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s).") }],
+            contents: [
+              {
+                type: "text",
+                text: t(
+                  "chatInput.timeoutError",
+                  "Agent stopped responding (timed out after 30s).",
+                ),
+              },
+            ],
           });
         }
       }, STREAMING_TIMEOUT_MS);
@@ -109,17 +117,22 @@ export function ChatInput() {
         useAppStore.getState().setIsStreaming(activeSessionId, false);
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system_message",
-          contents: [{ type: "text", text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s).") }],
+          contents: [
+            {
+              type: "text",
+              text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
+            },
+          ],
         });
       }
     }, STREAMING_TIMEOUT_MS);
 
     try {
       await request.sendMessage({ sessionId: activeSessionId, text: resolved });
-      
+
       // Clear input only after successful send
       setInput("");
-      
+
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
@@ -133,7 +146,12 @@ export function ChatInput() {
       console.error("Prompt error:", err);
       addMessage(activeSessionId, {
         role: "system_message",
-        contents: [{ type: "text", text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}` }],
+        contents: [
+          {
+            type: "text",
+            text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
       });
     } finally {
       clearStreamingTimer();
@@ -350,24 +368,6 @@ export function ChatInput() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {usage && (
-                <span
-                  className="flex items-center gap-1 text-[10px] text-muted-foreground"
-                  title={t("chatInput.tokensUsage", {
-                    input: usage.inputTokens,
-                    output: usage.outputTokens,
-                    total: usage.totalTokens,
-                    thoughtStr: usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : "",
-                    defaultValue: `In: ${usage.inputTokens} Out: ${usage.outputTokens} Total: ${usage.totalTokens}${usage.thoughtTokens ? ` Think: ${usage.thoughtTokens}` : ""}`,
-                  })}
-                >
-                  <Zap className="size-3" />
-                  {t("chatInput.tokensTotal", {
-                    total: ((usage.totalTokens ?? 0) / 1000).toFixed(1),
-                    defaultValue: `${((usage.totalTokens ?? 0) / 1000).toFixed(1)}k tokens`,
-                  })}
-                </span>
-              )}
               {availableModels.length > 0 ? (
                 <Select
                   value={currentModelId ?? ""}

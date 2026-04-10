@@ -79,7 +79,7 @@ export class ACPBridge {
   private _modeStates = new Map<string, SessionModeState>();
   public terminalManager: AgentTerminalManager;
 
-  constructor(private options: ACPBridgeOptions) {
+  constructor(public id: string, private options: ACPBridgeOptions) {
     this.onSessionUpdate = options.onSessionUpdate;
     this.onPermissionRequest = options.onPermissionRequest;
     this.terminalManager = new AgentTerminalManager(options.onAgentTerminalOutput);
@@ -110,6 +110,7 @@ export class ACPBridge {
   }
 
   async connect(): Promise<InitializeResponse> {
+    const acpId = this.id;
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
       cwd: this.options.cwd,
@@ -129,7 +130,7 @@ export class ACPBridge {
       const logReadable = rawStream.readable.pipeThrough(
         new TransformStream({
           transform(msg, controller) {
-            console.log("[ACP ←]", JSON.stringify(msg));
+            console.log(`[ACP:${acpId} ←]`, JSON.stringify(msg));
             controller.enqueue(msg);
           },
         }),
@@ -137,7 +138,7 @@ export class ACPBridge {
       const rawWriter = rawStream.writable.getWriter();
       const logWritable = new WritableStream({
         async write(msg) {
-          console.log("[ACP →]", JSON.stringify(msg));
+          console.log(`[ACP:${acpId} →]`, JSON.stringify(msg));
           try {
             await rawWriter.write(msg);
           } catch {}
@@ -314,24 +315,24 @@ export class ACPBridge {
           resolve();
           return;
         }
+        let killTimer: NodeJS.Timeout | null = null;
         const onExit = () => {
-          clearTimeout(termTimer);
           if (killTimer) {
             clearTimeout(killTimer);
           }
           resolve();
         };
-        let killTimer: NodeJS.Timeout | null = null;
         proc.once("exit", onExit);
-        const termTimer = setTimeout(() => {
-          this.killProcessGroup(proc, "SIGTERM");
-          killTimer = setTimeout(() => {
-            this.killProcessGroup(proc, "SIGKILL");
-            proc.removeListener("exit", onExit);
-            resolve();
-          }, 2000);
-        }, 3000);
+        this.killProcessGroup(proc, "SIGTERM");
+        killTimer = setTimeout(() => {
+          this.killProcessGroup(proc, "SIGKILL");
+          resolve();
+        }, 2000);
       });
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[ACP:${this.id} x]`);
     }
   }
 

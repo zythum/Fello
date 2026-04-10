@@ -81,7 +81,7 @@ if (isWebUI) {
   }
 }
 
-async function invokeIPC(channel: string | symbol, params?: unknown): Promise<any> {
+async function invokeIPC(channel: unknown, params?: unknown): Promise<unknown> {
   if (isWebUI && ws) {
     await wsReadyPromise;
     return new Promise((resolve, reject) => {
@@ -90,7 +90,8 @@ async function invokeIPC(channel: string | symbol, params?: unknown): Promise<an
       ws!.send(JSON.stringify({ type: "request", id, channel, params }));
     });
   }
-  return bridge.invoke(channel as any, params as never);
+  // @ts-ignore
+  return bridge.invoke(channel, params);
 }
 
 export const request = new Proxy(

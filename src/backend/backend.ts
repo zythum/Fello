@@ -203,7 +203,7 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
   }
 
   const runtime = resolveAgentRuntime(agentId);
-  const nextBridge = new ACPBridge({
+  const nextBridge = new ACPBridge(agentId, {
     command: runtime.command,
     args: runtime.args,
     env: runtime.env,
@@ -489,7 +489,7 @@ export const backendHandlers: {
     };
   },
 
-  async sendMessage({ sessionId, text, messageId }) {
+  async sendMessage({ sessionId, text }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgePool.get(session.agentId);
@@ -497,15 +497,19 @@ export const backendHandlers: {
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
 
-    // Broadcast user message to other clients
-    sendEvent("session-update", {
-      sessionId: session.id,
+    // Broadcast user message to clients
+    const notification: SessionNotification = {
+      sessionId: session.resumeId,
       update: {
-        sessionUpdate: "user_message",
-        messageId,
+        sessionUpdate: "user_message_chunk",
         content: { type: "text", text },
       },
-    } as any);
+      _meta: {},
+    };
+    sendEvent("session-update", {
+      sessionId: session.id,
+      notification: notification,
+    });
 
     return await b.sendPrompt({ sessionId: session.resumeId, prompt: [{ type: "text", text }] });
   },

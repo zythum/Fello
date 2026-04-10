@@ -1,3 +1,4 @@
+import type { AddressInfo } from "net";
 import { createServer, type Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { randomBytes } from "crypto";
@@ -48,7 +49,7 @@ export async function startWebUI(options?: {
   token?: string;
 }): Promise<{ url: string }> {
   if (isEnabled && httpServer) {
-    return { url: getWebUIUrl(httpServer.address() as any) };
+    return { url: getWebUIUrl(httpServer.address()) };
   }
 
   stopWebUI();
@@ -139,7 +140,7 @@ export async function startWebUI(options?: {
         if (msg.type === "request") {
           const { id, channel, params } = msg;
           try {
-            const handler = (backendHandlers as any)[channel];
+            const handler = (backendHandlers as Record<string, unknown>)[channel];
             if (typeof handler !== "function") {
               throw new Error(`Handler for ${channel} not found`);
             }
@@ -163,7 +164,7 @@ export async function startWebUI(options?: {
     const listenPort = options?.port && options.port > 0 ? options.port : 0;
     httpServer!.listen(listenPort, "0.0.0.0", () => {
       isEnabled = true;
-      resolve({ url: getWebUIUrl(httpServer!.address() as any) });
+      resolve({ url: getWebUIUrl(httpServer!.address()) });
     });
     httpServer!.on("error", reject);
   });
@@ -189,11 +190,18 @@ export function stopWebUI() {
 
 export function getWebUIStatus() {
   if (!isEnabled || !httpServer) return { enabled: false, url: null };
-  return { enabled: true, url: getWebUIUrl(httpServer.address() as any) };
+  return { enabled: true, url: getWebUIUrl(httpServer.address()) };
 }
 
-function getWebUIUrl(addressInfo: { port: number }) {
+function getWebUIUrl(addressInfo: string | AddressInfo | null) {
   const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
+  if (!addressInfo) {
+    return "";
+  }
+  // For a server listening on a pipe or Unix domain socket, the name is returned as a string.
+  if (typeof addressInfo === "string") {
+    return `file:///${addressInfo}?token=${currentToken}`;
+  }
   if (isDev) {
     const renderUrl = new URL(process.env.ELECTRON_RENDERER_URL!);
     renderUrl.searchParams.set("token", currentToken!);

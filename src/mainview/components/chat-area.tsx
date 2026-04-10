@@ -50,7 +50,8 @@ export function ChatArea() {
   }, [getViewport]);
 
   const lastMsg = messages[messages.length - 1];
-  const hasStreamingContent = lastMsg && 'streaming' in lastMsg && lastMsg.streaming && lastMsg.role === "agent_message";
+  const hasStreamingContent =
+    lastMsg && "streaming" in lastMsg && lastMsg.streaming && lastMsg.role === "agent_message";
 
   useEffect(() => {
     scrollToBottom();
@@ -62,17 +63,16 @@ export function ChatArea() {
         <div className="py-4 max-w-3xl mx-auto">
           {messages
             .filter((message) => {
-              if (message.role === "agent_message" && (!message.contents || message.contents.length === 0)) {
+              if (
+                message.role === "agent_message" &&
+                (!message.contents || message.contents.length === 0)
+              ) {
                 return false;
               }
               return true;
             })
             .map((msg, i, messages) => (
-              <div
-                key={(msg as any).toolCallId ?? `msg-${i}`}
-                className="chat-message"
-                data-role={msg.role}
-              >
+              <div key={`msg-${i}`} className="chat-message" data-role={msg.role}>
                 <MessageBubble
                   message={msg}
                   prevBubbleRole={messages[i - 1]?.role}

@@ -53,7 +53,7 @@ function AppContent() {
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
       const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
       if (!sid) return;
-      processEvent(sid, detail.notification.update);
+      processEvent(sid, detail.notification);
     };
 
     const handlePermissionRequest = (detail: BackendEvents["permission-request"]) => {

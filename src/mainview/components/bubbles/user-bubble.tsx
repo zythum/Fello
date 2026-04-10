@@ -57,9 +57,7 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
           const path = match[0];
 
           if (index > lastIndex) {
-            parts.push(
-              <span key={`text-${lastIndex}`}>{text.slice(lastIndex, index)}</span>,
-            );
+            parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, index)}</span>);
           }
 
           const fileName = path.split(/[/\\]/).pop() || path;
@@ -76,11 +74,7 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
           parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
         }
 
-        return (
-          <span key={blockIndex}>
-            {parts.length > 0 ? parts : <>{text}</>}
-          </span>
-        );
+        return <span key={blockIndex}>{parts.length > 0 ? parts : <>{text}</>}</span>;
       }
 
       if (block.type === "image") {

@@ -208,7 +208,7 @@ export type FelloIPCRequests = {
   };
   /** 向会话发送用户消息 */
   sendMessage: {
-    params: { sessionId: string; text: string; messageId?: string };
+    params: { sessionId: string; text: string };
     response: { stopReason: string };
   };
   /** 取消当前正在生成的回答/任务 */

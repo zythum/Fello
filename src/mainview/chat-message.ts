@@ -1,5 +1,4 @@
-import { ContentBlock, ToolCall, Plan, ToolCallStatus } from '@agentclientprotocol/sdk';
-
+import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotocol/sdk";
 
 /**
  * 所有聊天消息的基础接口。
@@ -23,23 +22,23 @@ export interface StreamableMessage {
 /**
  * 表示用户发送的消息。
  */
-export interface UserMessage extends BaseMessage<'user_message'>, StreamableMessage {}
+export interface UserMessage extends BaseMessage<"user_message">, StreamableMessage {}
 
 /**
  * 表示 Agent 返回的标准响应消息。
  */
-export interface AgentMessage extends BaseMessage<'agent_message'>, StreamableMessage {}
+export interface AgentMessage extends BaseMessage<"agent_message">, StreamableMessage {}
 
 /**
  * 表示 Agent 在生成响应之前的内部推理或思考过程。
  */
-export interface AgentThoughtMessage extends BaseMessage<'agent_thought'>, StreamableMessage {}
+export interface AgentThoughtMessage extends BaseMessage<"agent_thought">, StreamableMessage {}
 
 /**
  * 表示 Agent 发起的工具调用请求。
  * 这是一个完整的数据载荷，不支持增量流式传输。
  */
-export interface ToolCallMessage extends BaseMessage<'tool_call'>, ToolCall {
+export interface ToolCallMessage extends BaseMessage<"tool_call">, ToolCall {
   /** 在 UI 中展示的工具标题 */
   title: string;
   /** 工具的执行状态 */
@@ -52,13 +51,13 @@ export interface ToolCallMessage extends BaseMessage<'tool_call'>, ToolCall {
  * 表示 Agent 生成的多步执行计划。
  * 协议要求在更新时全量替换，因此它不可进行流式传输。
  */
-export interface PlanMessage extends BaseMessage<'plan'>, Plan {}
+export interface PlanMessage extends BaseMessage<"plan">, Plan {}
 
 /**
  * 表示系统生成的消息（例如网络错误、超时提示）。
  * 由客户端本地创建，不从服务器流式传输。
  */
-export interface SystemMessage extends BaseMessage<'system_message'> {
+export interface SystemMessage extends BaseMessage<"system_message"> {
   contents: ContentBlock[];
 }
 
@@ -77,4 +76,4 @@ export type ChatMessage =
  * 提取所有消息类型中可能出现的 role。
  * 方便在 Reducer 或 Switch/Case 判断中使用。
  */
-export type ChatRole = ChatMessage['role'];
+export type ChatRole = ChatMessage["role"];

@@ -51,7 +51,10 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
 
   return (
-    <details className="text-xs min-w-0 overflow-hidden" open={isLive || message.terminalId != null}>
+    <details
+      className="text-xs min-w-0 overflow-hidden"
+      open={isLive || message.terminalId != null}
+    >
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
         {kindIcon}
         <span className="flex-1 font-medium text-foreground">
@@ -86,12 +89,15 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
             <ReadonlyTerminal terminalId={message.terminalId} />
           </div>
         )}
-        {message.content && message.content.length > 0 && !message.rawInput && !message.terminalId && (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
-            {JSON.stringify(message.content, null, 2).slice(0, 500)}
-            {JSON.stringify(message.content).length > 500 && "..."}
-          </pre>
-        )}
+        {message.content &&
+          message.content.length > 0 &&
+          !message.rawInput &&
+          !message.terminalId && (
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
+              {JSON.stringify(message.content, null, 2).slice(0, 500)}
+              {JSON.stringify(message.content).length > 500 && "..."}
+            </pre>
+          )}
       </div>
     </details>
   );

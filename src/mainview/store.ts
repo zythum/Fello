@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
 import type { ChatMessage, ChatRole, ToolCallMessage } from "./chat-message";
-import type { ContentBlock, ToolCallStatus, ToolKind, ToolCallLocation, ToolCallContent } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  ToolCallStatus,
+  ToolKind,
+  ToolCallLocation,
+  ToolCallContent,
+} from "@agentclientprotocol/sdk";
 
 export type { SessionInfo, ProjectInfo, ChatMessage };
 
@@ -12,14 +18,6 @@ export interface SessionUsage {
   used: number;
   /** Cumulative session cost (optional) */
   cost?: { amount: number; currency: string } | null;
-  /** Input tokens */
-  inputTokens?: number;
-  /** Output tokens */
-  outputTokens?: number;
-  /** Total tokens */
-  totalTokens?: number;
-  /** Thinking/reasoning tokens */
-  thoughtTokens?: number;
 }
 
 export interface ModelOption {
@@ -237,7 +235,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Also upsert into messages so tools appear interleaved with other roles
       const msgs = [...s.messages];
-      const idx = msgs.findIndex((m) => m.role === "tool_call" && (m as ToolCallMessage).toolCallId === id);
+      const idx = msgs.findIndex(
+        (m) => m.role === "tool_call" && (m as ToolCallMessage).toolCallId === id,
+      );
       const toolMsg: ToolCallMessage = {
         role: "tool_call",
         toolCallId: id,
