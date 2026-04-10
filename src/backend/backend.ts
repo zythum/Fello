@@ -215,15 +215,17 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
   return newConnectPromise;
 }
 
-export function killBridge() {
+export async function killBridge() {
+  const killPromises: Promise<void>[] = [];
   for (const p of bridgePool.values()) {
-    p.then((b) => b.kill()).catch(() => {});
+    killPromises.push(p.then((b) => b.kill()).catch(() => {}));
   }
   bridgePool.clear();
   for (const terminal of terminals.values()) {
     terminal.kill();
   }
   terminals.clear();
+  await Promise.all(killPromises);
 }
 
 async function resolveTerminalCwd(preferredCwd: string) {

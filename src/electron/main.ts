@@ -245,8 +245,14 @@ function createMainWindow() {
   return win;
 }
 
-app.on("before-quit", () => {
-  killBridge();
+let isQuitting = false;
+app.on("before-quit", (event) => {
+  if (isQuitting) return;
+  event.preventDefault();
+  isQuitting = true;
+  killBridge().finally(() => {
+    app.quit();
+  });
 });
 
 app.whenReady().then(() => {
