@@ -17,6 +17,8 @@ export interface BaseMessage {
 export interface StreamableMessage extends BaseMessage {
   /** 当消息仍在增量接收/流式传输时为 true */
   streaming?: boolean;
+  /** 消息内容块数组 */
+  contents: ContentBlock[];
 }
 
 /**
@@ -24,7 +26,6 @@ export interface StreamableMessage extends BaseMessage {
  */
 export interface UserMessage extends StreamableMessage {
   role: 'user_message';
-  content: ContentBlock[];
 }
 
 /**
@@ -32,7 +33,6 @@ export interface UserMessage extends StreamableMessage {
  */
 export interface AgentMessage extends StreamableMessage {
   role: 'agent_message';
-  content: ContentBlock[];
 }
 
 /**
@@ -40,7 +40,6 @@ export interface AgentMessage extends StreamableMessage {
  */
 export interface AgentThoughtMessage extends StreamableMessage {
   role: 'agent_thought';
-  content: ContentBlock[];
 }
 
 /**
@@ -67,7 +66,7 @@ export interface PlanMessage extends Plan, BaseMessage {
  */
 export interface SystemMessage extends BaseMessage {
   role: 'system_message';
-  content: ContentBlock[];
+  contents: ContentBlock[];
 }
 
 /**
@@ -80,3 +79,9 @@ export type ChatMessage =
   | ToolCallMessage
   | PlanMessage
   | SystemMessage;
+
+/**
+ * 提取所有消息类型中可能出现的 role。
+ * 方便在 Reducer 或 Switch/Case 判断中使用。
+ */
+export type ChatRole = ChatMessage['role'];
