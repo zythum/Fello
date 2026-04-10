@@ -79,14 +79,16 @@ ACP sessionUpdate
 
 这种设计保证了实时流式更新与历史重放的处理逻辑一致。
 
-### 3) 会话隔离与全局状态
+### 3) 会话隔离与全局多态状态
 
 `store.ts` 使用 `Map<sessionId, SessionState>` 管理每个会话隔离的：
 
-- messages
+- messages (`ChatMessage[]` 多态数组)
 - usage token 统计
 - permission 请求队列
 - activeToolCalls
+
+所有的消息通过 `src/mainview/chat-message.ts` 中的 `StreamableMessage` 等接口实现了多态结构（基于 `ContentBlock` 数组），并且依靠 Zustand 的 Immutable 更新保证 React 流式渲染性能。
 - isStreaming
 
 全局共享状态则直接挂载于 store 根层级：

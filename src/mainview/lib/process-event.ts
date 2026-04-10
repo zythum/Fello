@@ -6,9 +6,8 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
   const type = event.sessionUpdate;
 
   switch (type) {
-    case "user_message":
     case "user_message_chunk":
-      if (event.content?.type === "text" && event.content.text) {
+      if (event.content) {
         const messageId = event.messageId;
         if (messageId) {
           const messages = store.getSessionState(sessionId).messages;
@@ -16,19 +15,19 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
             break; // Already added optimistically
           }
         }
-        store.addMessage(sessionId, { role: "user", content: event.content.text, messageId });
+        store.addMessage(sessionId, { role: "user_message", contents: [event.content], messageId });
       }
       break;
 
     case "agent_message_chunk":
-      if (event.content?.type === "text") {
-        store.appendToLastMessage(sessionId, "assistant", event.content.text);
+      if (event.content) {
+        store.appendToLastMessage(sessionId, "agent_message", event.content);
       }
       break;
 
     case "agent_thought_chunk":
-      if (event.content?.type === "text") {
-        store.appendToLastMessage(sessionId, "thinking", event.content.text);
+      if (event.content) {
+        store.appendToLastMessage(sessionId, "agent_thought", event.content);
       }
       break;
 
@@ -41,7 +40,7 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
       store.updateToolCall(sessionId, event.toolCallId, {
         title: event.title,
         status: event.status || "completed",
-        content: "",
+        content: event.content || [],
         kind: event.kind,
         terminalId,
         rawInput: event.rawInput,
@@ -59,7 +58,7 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
       const updateData: any = {
         title: event.title,
         status: event.status || "completed",
-        content: "",
+        content: event.content || [],
         locations: event.locations,
       };
       if (terminalId) updateData.terminalId = terminalId;
@@ -98,13 +97,13 @@ export function flushStreaming(sessionId: string) {
   if (ss.activeToolCalls.size > 0) {
     const activeIds = new Set(ss.activeToolCalls.keys());
     store.updateSessionState(sessionId, (s) => ({
-      messages: s.messages.map((m) => {
-        if (m.toolCallId && activeIds.has(m.toolCallId)) {
+      messages: s.messages.map((m: any) => {
+        if (m.role === 'tool_call' && m.toolCallId && activeIds.has(m.toolCallId)) {
           const status =
-            m.toolStatus === "in_progress" || m.toolStatus === "pending"
+            m.status === "in_progress" || m.status === "pending"
               ? "completed"
-              : m.toolStatus;
-          return { ...m, toolStatus: status };
+              : m.status;
+          return { ...m, status };
         }
         return m;
       }),

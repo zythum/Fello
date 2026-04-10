@@ -1,24 +1,9 @@
 import { create } from "zustand";
 import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
+import type { ChatMessage, ChatRole, ToolCallMessage } from "./chat-message";
+import type { ContentBlock, ToolCallStatus, ToolKind, ToolCallLocation, ToolCallContent } from "@agentclientprotocol/sdk";
 
-export interface ChatMessage {
-  role: "user" | "assistant" | "tool" | "system" | "thinking";
-  content: string;
-  messageId?: string | null;
-  toolCallId?: string | null;
-  toolTitle?: string | null;
-  toolStatus?: ToolStatus | null;
-  toolKind?: string | null;
-  terminalId?: string | null;
-  rawInput?: unknown;
-  locations?: Array<{ path: string; line?: number | null }> | null;
-  /** True while this message is still being streamed */
-  streaming?: boolean;
-}
-
-export type ToolStatus = "pending" | "in_progress" | "completed" | "failed";
-
-export type { SessionInfo, ProjectInfo };
+export type { SessionInfo, ProjectInfo, ChatMessage };
 
 export interface SessionUsage {
   /** Total context window size in tokens */
@@ -56,12 +41,12 @@ export interface PermissionRequest {
 
 interface ActiveToolCall {
   title: string;
-  status: ToolStatus;
-  content: string;
-  kind?: string | null;
+  status: ToolCallStatus;
+  content?: Array<ToolCallContent> | null;
+  kind?: ToolKind | null;
   terminalId?: string | null;
   rawInput?: unknown;
-  locations?: Array<{ path: string; line?: number | null }> | null;
+  locations?: Array<ToolCallLocation> | null;
 }
 
 // Per-session state bucket
@@ -116,7 +101,7 @@ interface AppState {
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setUsage: (sessionId: string, usage: SessionUsage | null) => void;
   setIsStreaming: (sessionId: string, v: boolean) => void;
-  appendToLastMessage: (sessionId: string, role: ChatMessage["role"], chunk: string) => void;
+  appendToLastMessage: (sessionId: string, role: ChatRole, block: ContentBlock) => void;
   finalizeStreamingMessages: (sessionId: string) => void;
   setPermissionRequest: (sessionId: string, req: PermissionRequest | null) => void;
   addPermissionRequest: (sessionId: string, req: PermissionRequest) => void;
@@ -194,26 +179,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),
   setUsage: (sessionId, usage) => get().updateSessionState(sessionId, () => ({ usage })),
   setIsStreaming: (sessionId, v) => get().updateSessionState(sessionId, () => ({ isStreaming: v })),
-  appendToLastMessage: (sessionId, role, chunk) =>
+  appendToLastMessage: (sessionId, role, block) =>
     get().updateSessionState(sessionId, (s) => {
       const msgs = [...s.messages];
-      const last = msgs[msgs.length - 1];
+      const last = msgs[msgs.length - 1] as any;
       if (last && last.role === role && last.streaming) {
-        msgs[msgs.length - 1] = { ...last, content: last.content + chunk };
+        const oldContents = last.contents || [];
+        const lastBlock = oldContents[oldContents.length - 1];
+
+        if (lastBlock && lastBlock.type === "text" && block.type === "text") {
+          const newContents = [...oldContents];
+          newContents[newContents.length - 1] = {
+            ...lastBlock,
+            text: lastBlock.text + block.text,
+          };
+          msgs[msgs.length - 1] = { ...last, contents: newContents };
+        } else {
+          msgs[msgs.length - 1] = { ...last, contents: [...oldContents, block] };
+        }
       } else {
         // Finalize any prior streaming messages when starting a new one
         for (let i = 0; i < msgs.length; i++) {
-          if (msgs[i].streaming) {
-            msgs[i] = { ...msgs[i], streaming: false };
+          const m = msgs[i] as any;
+          if (m.streaming) {
+            msgs[i] = { ...m, streaming: false };
           }
         }
-        msgs.push({ role, content: chunk, streaming: true });
+        msgs.push({ role, contents: [block], streaming: true } as any);
       }
       return { messages: msgs };
     }),
   finalizeStreamingMessages: (sessionId) =>
     get().updateSessionState(sessionId, (s) => ({
-      messages: s.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+      messages: s.messages.map((m: any) => (m.streaming ? { ...m, streaming: false } : m)),
     })),
   setPermissionRequest: (sessionId, req) =>
     get().updateSessionState(sessionId, () => ({
@@ -234,22 +232,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       const filtered = Object.fromEntries(
         Object.entries(data).filter(([, v]) => v != null && v !== ""),
       );
-      newMap.set(id, { title: "", status: "completed", content: "", ...existing, ...filtered });
+      const merged = { title: "", status: "completed" as ToolCallStatus, ...existing, ...filtered };
+      newMap.set(id, merged);
 
       // Also upsert into messages so tools appear interleaved with other roles
       const msgs = [...s.messages];
-      const idx = msgs.findIndex((m) => m.toolCallId === id);
-      const merged = { ...newMap.get(id)! };
-      const toolMsg: ChatMessage = {
-        role: "tool",
-        content: merged.content,
+      const idx = msgs.findIndex((m) => m.role === "tool_call" && (m as ToolCallMessage).toolCallId === id);
+      const toolMsg: ToolCallMessage = {
+        role: "tool_call",
         toolCallId: id,
-        toolTitle: merged.title,
-        toolStatus: merged.status,
-        toolKind: merged.kind,
+        title: merged.title,
+        status: merged.status,
+        content: merged.content || [],
+        kind: merged.kind || undefined,
         terminalId: merged.terminalId,
         rawInput: merged.rawInput,
-        locations: merged.locations,
+        locations: merged.locations || [],
       };
       if (idx !== -1) {
         msgs[idx] = toolMsg;

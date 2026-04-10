@@ -84,8 +84,8 @@ export function ChatInput() {
           flushStreaming(sid);
           useAppStore.getState().setIsStreaming(sid, false);
           useAppStore.getState().addMessage(sid, {
-            role: "system",
-            content: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
+            role: "system_message",
+            contents: [{ type: "text", text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s).") }],
           });
         }
       }, STREAMING_TIMEOUT_MS);
@@ -101,7 +101,7 @@ export function ChatInput() {
     const messageId = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
     setInput("");
-    addMessage(activeSessionId, { role: "user", content: resolved, messageId });
+    addMessage(activeSessionId, { role: "user_message", contents: [{ type: "text", text: resolved }], messageId });
     setIsStreaming(activeSessionId, true);
     clearToolCalls(activeSessionId);
 
@@ -112,8 +112,8 @@ export function ChatInput() {
         flushStreaming(activeSessionId);
         useAppStore.getState().setIsStreaming(activeSessionId, false);
         useAppStore.getState().addMessage(activeSessionId, {
-          role: "system",
-          content: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
+          role: "system_message",
+          contents: [{ type: "text", text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s).") }],
         });
       }
     }, STREAMING_TIMEOUT_MS);
@@ -123,7 +123,7 @@ export function ChatInput() {
       flushStreaming(activeSessionId);
 
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
-      if (messages.filter((m: ChatMessage) => m.role === "user").length === 1) {
+      if (messages.filter((m: ChatMessage) => m.role === "user_message").length === 1) {
         const title = resolved.length > 40 ? resolved.slice(0, 40) + "..." : resolved;
         await request.updateSessionTitle({ sessionId: activeSessionId, title });
         const sessions = await request.listSessions();
@@ -132,8 +132,8 @@ export function ChatInput() {
     } catch (err) {
       console.error("Prompt error:", err);
       addMessage(activeSessionId, {
-        role: "system",
-        content: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
+        role: "system_message",
+        contents: [{ type: "text", text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}` }],
       });
     } finally {
       clearStreamingTimer();

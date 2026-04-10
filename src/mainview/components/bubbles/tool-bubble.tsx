@@ -1,5 +1,6 @@
 import { memo } from "react";
-import type { ChatMessage, ToolStatus } from "../../store";
+import type { ToolCallMessage } from "../../chat-message";
+import type { ToolCallStatus } from "@agentclientprotocol/sdk";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,7 +33,7 @@ const kindIcons: Record<string, React.ReactNode> = {
   other: <Wrench className="size-3 text-muted-foreground" />,
 };
 
-const statusIcons: Record<ToolStatus, React.ReactNode> = {
+const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
   pending: <Loader2 className="size-3 text-muted-foreground" />,
   in_progress: <Loader2 className="size-3 animate-spin text-primary" />,
   completed: <Check className="size-3 text-green-400" />,
@@ -40,28 +41,28 @@ const statusIcons: Record<ToolStatus, React.ReactNode> = {
 };
 
 interface ToolItemProps {
-  message: ChatMessage;
+  message: ToolCallMessage;
 }
 
 export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
   const { t } = useTranslation();
-  const status: ToolStatus = message.toolStatus ?? "completed";
+  const status: ToolCallStatus = message.status ?? "completed";
   const isLive = status === "in_progress" || status === "pending";
-  const kindIcon = message.toolKind ? kindIcons[message.toolKind] : null;
+  const kindIcon = message.kind ? kindIcons[message.kind] : null;
 
   return (
-    <details className="text-xs min-w-0 overflow-hidden" open={isLive}>
+    <details className="text-xs min-w-0 overflow-hidden" open={isLive || message.terminalId != null}>
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
         {kindIcon}
         <span className="flex-1 font-medium text-foreground">
-          {message.toolTitle || t("toolBubble.tool")}
+          {message.title || t("toolBubble.tool")}
         </span>
         {statusIcons[status]}
       </summary>
       <div className="border-t border-border overflow-hidden">
         {message.locations && message.locations.length > 0 && (
           <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
-            {message.locations.map((loc, i) => (
+            {message.locations.map((loc: any, i: number) => (
               <span
                 key={i}
                 className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
@@ -85,10 +86,10 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
             <ReadonlyTerminal terminalId={message.terminalId} />
           </div>
         )}
-        {message.content && !message.rawInput && !message.terminalId && (
+        {message.content && message.content.length > 0 && !message.rawInput && !message.terminalId && (
           <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
-            {message.content.slice(0, 500)}
-            {message.content.length > 500 && "..."}
+            {JSON.stringify(message.content, null, 2).slice(0, 500)}
+            {JSON.stringify(message.content).length > 500 && "..."}
           </pre>
         )}
       </div>
@@ -97,9 +98,9 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
 });
 
 interface ToolBubbleProps {
-  message: ChatMessage;
-  prevBubbleRole?: ChatMessage["role"];
-  nextBubbleRole?: ChatMessage["role"];
+  message: ToolCallMessage;
+  prevBubbleRole?: string;
+  nextBubbleRole?: string;
 }
 
 export const ToolBubble = memo(function ToolBubble({
@@ -107,8 +108,8 @@ export const ToolBubble = memo(function ToolBubble({
   prevBubbleRole,
   nextBubbleRole,
 }: ToolBubbleProps) {
-  const isGroupedWithPrev = prevBubbleRole === "tool";
-  const isGroupedWithNext = nextBubbleRole === "tool";
+  const isGroupedWithPrev = prevBubbleRole === "tool_call";
+  const isGroupedWithNext = nextBubbleRole === "tool_call";
   const hasPrevBubble = prevBubbleRole != null;
 
   return (

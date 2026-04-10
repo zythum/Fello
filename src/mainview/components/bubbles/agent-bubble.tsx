@@ -1,16 +1,16 @@
 import { memo } from "react";
-import type { ChatMessage } from "../../store";
+import type { AgentMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { StreamMarkdown } from "./stream-markdown";
+import { ContentBlocks } from "./content-blocks";
 
 interface Props {
-  message: ChatMessage;
-  prevBubbleRole?: ChatMessage["role"];
-  nextBubbleRole?: ChatMessage["role"];
+  message: AgentMessage;
+  prevBubbleRole?: string;
+  nextBubbleRole?: string;
 }
 
 export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRole }: Props) {
-  if (!message.content) {
+  if (!message.contents || message.contents.length === 0) {
     return null;
   }
   return (
@@ -20,7 +20,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
         prevBubbleRole != null && "mt-4",
       )}
     >
-      <StreamMarkdown streaming={message.streaming}>{message.content}</StreamMarkdown>
+      <ContentBlocks blocks={message.contents} streaming={message.streaming} />
     </div>
   );
 });

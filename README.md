@@ -32,10 +32,11 @@ Main/preload changes typically require restarting the dev process.
 
 ```
 ├── src/
+│   ├── shared/
+│   │   └── schema.ts       # Typed IPC contracts & Storage schemas
 │   ├── backend/
 │   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal, WebUI server
 │   │   ├── acp-bridge.ts   # ACP connection wrapper
-│   │   ├── ipc-schema.ts   # Typed IPC contracts
 │   │   └── storage.ts      # Persistent storage & settings (JSON)
 │   ├── electron/
 │   │   ├── main.ts         # Electron main process
@@ -44,6 +45,9 @@ Main/preload changes typically require restarting the dev process.
 │       ├── App.tsx         # React app component (with MessageProvider & ThemeProvider)
 │       ├── main.tsx        # React entry point
 │       ├── components/     # UI components (shadcn/ui, dialogs, etc.)
+│       ├── store.ts        # Zustand state management
+│       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
+│       ├── lib/            # Utilities (process-event.ts, etc.)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)
@@ -64,7 +68,7 @@ Main/preload changes typically require restarting the dev process.
 - **i18n Translation**: Edit `src/mainview/locales/*.json` and configure languages in `src/mainview/i18n.ts`
 - **Window / app lifecycle**: Edit `src/electron/main.ts`
 - **Backend logic**: Edit `src/backend/backend.ts` and `src/backend/acp-bridge.ts`
-- **Renderer ↔ main bridge**: Edit `src/electron/preload.ts` and `src/mainview/backend.ts`
-- **IPC types**: Edit `src/backend/ipc-schema.ts`
-- **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `src/backend/ipc-schema.ts`
+- **Renderer ↔ main bridge**: Edit `src/electron/preload.ts`, `src/mainview/backend.ts` and `src/mainview/electron.ts`
+- **IPC types**: Edit `src/shared/schema.ts`
+- **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `src/shared/schema.ts`
 - **Build settings**: Edit `electron.vite.config.ts`

@@ -28,6 +28,7 @@ fello/
 │       ├── electron.ts               # 纯客户端专属原生系统交互 API 封装，屏蔽 WebUI 的调用
 │       ├── global.d.ts               # window.fello 类型声明
 │       ├── store.ts                  # Zustand store（按 session 分桶）
+│       ├── chat-message.ts           # 多态消息类型定义与 ContentBlock 鉴别器
 │       ├── i18n.ts                   # i18next 多语言配置初始化
 │       │
 │       ├── locales/                  # 多语言 JSON 字典文件
@@ -35,11 +36,15 @@ fello/
 │       │   └── zh-CN.json
 │       │
 │       ├── lib/
-│       │   ├── process-event.ts      # ACP 事件解析与流式收尾
+│       │   ├── process-event.ts      # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
 │       │   ├── remark-filepath.ts    # Markdown 文件路径转换为可点击链接的 remark 插件
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
 │       └── components/
+│           ├── bubbles/              # 各类消息的具体渲染组件 (agent-bubble, user-bubble, tool-bubble 等)
+│           │   └── content-blocks.tsx # ContentBlock 多模态内容路由与渲染器
+│           ├── message-bubble.tsx    # 消息多态分发器
+│           └── ...
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
 │           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
 │           ├── settings-webui-dialog.tsx # WebUI 设置弹窗

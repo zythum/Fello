@@ -7,13 +7,16 @@ Runtime
 - Renderer (React + Vite): src/mainview/
 
 IPC
-- Typed contracts: src/backend/ipc-schema.ts
-- Renderer API wrapper: src/mainview/backend.ts (uses window.fello from preload)
+- Typed contracts: src/shared/schema.ts
+- Renderer API wrapper: src/mainview/backend.ts (uses window.fello or WebSocket fallback for WebUI)
+- Electron-only native API: src/mainview/electron.ts (safely wraps window.fello calls)
 
 Sessions & Persistence
 - Session metadata persistence: src/backend/storage.ts
 - Message history is replayed from the ACP server when resuming a session
 - Renderer state store: src/mainview/store.ts
+- ChatMessage polymorphic interface: src/mainview/chat-message.ts
+- ACP events handling: src/mainview/lib/process-event.ts
 
 Dev / Build Commands
 - npm run dev (electron-vite dev; Vite server on http://localhost:5173)

@@ -17,7 +17,7 @@ export const MessageBubble = memo(function MessageBubble({
   nextBubbleRole,
 }: Props) {
   switch (message.role) {
-    case "tool":
+    case "tool_call":
       return (
         <ToolBubble
           message={message}
@@ -25,7 +25,7 @@ export const MessageBubble = memo(function MessageBubble({
           nextBubbleRole={nextBubbleRole}
         />
       );
-    case "thinking":
+    case "agent_thought":
       return (
         <ThinkingBubble
           message={message}
@@ -33,7 +33,7 @@ export const MessageBubble = memo(function MessageBubble({
           nextBubbleRole={nextBubbleRole}
         />
       );
-    case "user":
+    case "user_message":
       return (
         <UserBubble
           message={message}
@@ -41,7 +41,7 @@ export const MessageBubble = memo(function MessageBubble({
           nextBubbleRole={nextBubbleRole}
         />
       );
-    case "assistant":
+    case "agent_message":
       return (
         <AgentBubble
           message={message}
@@ -49,6 +49,12 @@ export const MessageBubble = memo(function MessageBubble({
           nextBubbleRole={nextBubbleRole}
         />
       );
+    case "system_message":
+      // TODO: 实现 SystemMessage 的专属渲染气泡 (SystemBubble)
+      return null;
+    case "plan":
+      // TODO: 实现 PlanMessage 的专属渲染面板 (PlanBubble)
+      return null;
     default:
       return null;
   }

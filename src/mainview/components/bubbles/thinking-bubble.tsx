@@ -1,13 +1,13 @@
 import { memo } from "react";
 import { Lightbulb } from "lucide-react";
-import type { ChatMessage } from "../../store";
+import type { AgentThoughtMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { StreamMarkdown } from "./stream-markdown";
+import { ContentBlocks } from "./content-blocks";
 
 interface Props {
-  message: ChatMessage;
-  prevBubbleRole?: ChatMessage["role"];
-  nextBubbleRole?: ChatMessage["role"];
+  message: AgentThoughtMessage;
+  prevBubbleRole?: string;
+  nextBubbleRole?: string;
 }
 
 export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubbleRole }: Props) {
@@ -22,7 +22,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
       </summary>
       <div className="mt-1 pl-5 text-[11px] italic text-muted-foreground/60">
         <div className="max-w-none">
-          <StreamMarkdown streaming={message.streaming}>{message.content}</StreamMarkdown>
+          <ContentBlocks blocks={message.contents} streaming={message.streaming} />
         </div>
       </div>
     </details>
