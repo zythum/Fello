@@ -8,14 +8,7 @@ export function processEvent(sessionId: string, event: Record<string, any>) {
   switch (type) {
     case "user_message_chunk":
       if (event.content) {
-        const messageId = event.messageId;
-        if (messageId) {
-          const messages = store.getSessionState(sessionId).messages;
-          if (messages.some((m) => m.messageId === messageId)) {
-            break; // Already added optimistically
-          }
-        }
-        store.addMessage(sessionId, { role: "user_message", contents: [event.content], messageId });
+        store.addMessage(sessionId, { role: "user_message", contents: [event.content] });
       }
       break;
 

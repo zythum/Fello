@@ -7,8 +7,6 @@ import { ContentBlock, ToolCall, Plan, ToolCallStatus } from '@agentclientprotoc
  */
 export interface BaseMessage<T extends string> {
   role: T;
-  /** 消息的唯一标识符 */
-  messageId?: string | null;
 }
 
 /**
