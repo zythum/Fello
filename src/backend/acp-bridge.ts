@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execFileSync, type ChildProcess } from "child_process";
 import { Writable, Readable } from "stream";
 import {
   ndJsonStream,
@@ -111,13 +111,16 @@ export class ACPBridge {
 
   async connect(): Promise<InitializeResponse> {
     const acpId = this.id;
+    const shouldDetach = process.platform !== "win32";
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
       cwd: this.options.cwd,
       env: { ...process.env, ...this.options.env },
-      detached: true,
+      detached: shouldDetach,
     });
-    proc.unref();
+    if (shouldDetach) {
+      proc.unref();
+    }
     this.process = proc;
 
     const input = Writable.toWeb(proc.stdin!);
@@ -339,6 +342,20 @@ export class ACPBridge {
   private killProcessGroup(proc: ChildProcess, signal: NodeJS.Signals): void {
     const pid = proc.pid;
     if (pid == null) return;
+    if (process.platform === "win32") {
+      try {
+        execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        return;
+      } catch {
+        try {
+          proc.kill(signal);
+          return;
+        } catch {}
+      }
+    }
     try {
       process.kill(-pid, signal);
     } catch {
