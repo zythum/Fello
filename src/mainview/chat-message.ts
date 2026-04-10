@@ -6,6 +6,7 @@ import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotoc
  */
 export interface BaseMessage<T extends string> {
   role: T;
+  _meta?: { [key: string]: unknown } | null;
 }
 
 /**

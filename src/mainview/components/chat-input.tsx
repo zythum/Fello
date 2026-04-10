@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { MentionsInput, Mention } from "react-mentions";
-import { useAppStore, useActiveSessionState, type ChatMessage } from "../store";
+import { useAppStore, useActiveSessionState } from "../store";
+import type { ChatMessage } from "../chat-message";
 import { request, subscribe } from "../backend";
-import { flushStreaming } from "../lib/process-event";
+import { reduceFlushStreaming } from "../lib/session-state-reducer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,6 +24,10 @@ function resolveMentions(value: string): string {
   return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
 }
 
+const getSummaryTitle = (text: string) => {
+  return text.length > 40 ? text.slice(0, 40) + "..." : text;
+};
+
 export function ChatInput() {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -32,18 +37,16 @@ export function ChatInput() {
   const {
     sessions,
     activeSessionId,
-    isConnecting,
     addMessage,
     setIsStreaming,
-    clearToolCalls,
+  } = useAppStore();
+  const {
+    isStreaming,
     availableModels,
     currentModelId,
-    setCurrentModelId,
     availableModes,
     currentModeId,
-    setCurrentModeId,
-  } = useAppStore();
-  const { isStreaming } = useActiveSessionState();
+  } = useActiveSessionState();
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
@@ -81,8 +84,8 @@ export function ChatInput() {
       streamingTimer.current = setTimeout(() => {
         const sid = useAppStore.getState().activeSessionId;
         if (sid && useAppStore.getState().getSessionState(sid).isStreaming) {
-          flushStreaming(sid);
-          useAppStore.getState().setIsStreaming(sid, false);
+          const currentState = useAppStore.getState().getSessionState(sid);
+          useAppStore.getState().updateSessionState(sid, () => reduceFlushStreaming(currentState));
           useAppStore.getState().addMessage(sid, {
             role: "system_message",
             contents: [
@@ -102,19 +105,37 @@ export function ChatInput() {
     return () => subscribe.off("session-update", handleUpdate);
   }, [clearStreamingTimer]);
 
+  const loadHistorySessions = async () => {
+    try {
+      const result = await request.listSessions();
+      useAppStore.getState().setSessions((result as never[]) ?? []);
+    } catch (error) {
+      console.error("Failed to load sessions", error);
+    }
+  };
+
   const handleSubmit = useCallback(async () => {
     const resolved = resolveMentions(input).trim();
     if (!resolved || !activeSessionId || isStreaming) return;
 
+    const optimisticId = crypto.randomUUID();
+    const userMessage = {
+      role: "user_message",
+      contents: [{ type: "text", text: resolved }],
+      _meta: { optimistic_id: optimisticId },
+    } satisfies ChatMessage;
+
+    // 1. Optimistic Update: clear input and add message to screen instantly
+    setInput("");
+    addMessage(activeSessionId, userMessage);
     setIsStreaming(activeSessionId, true);
-    clearToolCalls(activeSessionId);
 
     // Start the streaming inactivity timeout
     clearStreamingTimer();
     streamingTimer.current = setTimeout(() => {
       if (useAppStore.getState().getSessionState(activeSessionId).isStreaming) {
-        flushStreaming(activeSessionId);
-        useAppStore.getState().setIsStreaming(activeSessionId, false);
+        const currentState = useAppStore.getState().getSessionState(activeSessionId);
+        useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system_message",
           contents: [
@@ -128,34 +149,62 @@ export function ChatInput() {
     }, STREAMING_TIMEOUT_MS);
 
     try {
-      await request.sendMessage({ sessionId: activeSessionId, text: resolved });
+      // 2. Fire and Forget (wait for network only, UI is already updated)
+      await request.sendMessage({
+        sessionId: activeSessionId,
+        text: resolved,
+        _meta: { optimistic_id: optimisticId },
+      });
+    } catch (err) {
+      // 3. Rollback on Network Failure
+      // Only rollback if the message is STILL optimistic (meaning backend never echoed it back).
+      // If it was echoed, the optimistic flag was stripped by the reducer, and it's a real message now.
+      const currentState = useAppStore.getState().getSessionState(activeSessionId);
+      const isStillOptimistic = currentState.messages.some(
+        (m) => m._meta?.optimistic_id === optimisticId
+      );
 
-      // Clear input only after successful send
-      setInput("");
+      if (isStillOptimistic) {
+        console.error("Prompt error (network failure):", err);
 
-      flushStreaming(activeSessionId);
+        // Remove the optimistically added message
+        const newMessages = currentState.messages.filter(
+          (m) => m._meta?.optimistic_id !== optimisticId
+        );
+        useAppStore.getState().updateSessionState(activeSessionId, () => ({ messages: newMessages }));
+      } else {
+        // Backend received the user message, but Agent failed to generate a response.
+        console.error("Prompt error (generation failure):", err);
+        useAppStore.getState().addMessage(activeSessionId, {
+          role: "system_message",
+          contents: [
+            {
+              type: "text",
+              text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+        } satisfies ChatMessage);
+      }
+    } finally {
+      // 4. Final cleanup
+      clearStreamingTimer();
+      const currentState = useAppStore.getState().getSessionState(activeSessionId);
 
+      // Force finalize streaming if we were in a streaming state
+      if (currentState.isStreaming) {
+        useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
+      }
+
+      // 5. Update Title if it's the first message
+      // We check this in finally to ensure it runs even if stream is interrupted
       const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
       if (messages.filter((m: ChatMessage) => m.role === "user_message").length === 1) {
-        const title = resolved.length > 40 ? resolved.slice(0, 40) + "..." : resolved;
-        await request.updateSessionTitle({ sessionId: activeSessionId, title });
-        const sessions = await request.listSessions();
-        useAppStore.getState().setSessions((sessions as never[]) ?? []);
+        await request.updateSessionTitle({
+          sessionId: activeSessionId,
+          title: getSummaryTitle(resolved),
+        }).catch(e => console.error("Failed to update title", e));
+        loadHistorySessions();
       }
-    } catch (err) {
-      console.error("Prompt error:", err);
-      addMessage(activeSessionId, {
-        role: "system_message",
-        contents: [
-          {
-            type: "text",
-            text: `${t("message.errorTitle", "Error")}: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
-      });
-    } finally {
-      clearStreamingTimer();
-      setIsStreaming(activeSessionId, false);
     }
   }, [
     input,
@@ -163,7 +212,6 @@ export function ChatInput() {
     isStreaming,
     addMessage,
     setIsStreaming,
-    clearToolCalls,
     clearStreamingTimer,
   ]);
 
@@ -219,7 +267,8 @@ export function ChatInput() {
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
   }, []);
 
-  const disabled = !activeSessionId || isConnecting;
+  const { isLoading } = useActiveSessionState();
+  const disabled = !activeSessionId || isLoading;
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -330,10 +379,12 @@ export function ChatInput() {
                   <Select
                     value={currentModeId ?? ""}
                     onValueChange={async (modeId) => {
-                      setCurrentModeId(modeId as string);
+                      const sid = useAppStore.getState().activeSessionId;
+                      if (!sid) return;
+                      useAppStore.getState().updateSessionState(sid, () => ({ currentModeId: modeId as string }));
                       try {
                         await request.setMode({
-                          sessionId: activeSessionId!,
+                          sessionId: sid,
                           modeId: modeId as string,
                         });
                       } catch (err) {
@@ -372,10 +423,12 @@ export function ChatInput() {
                 <Select
                   value={currentModelId ?? ""}
                   onValueChange={async (modelId) => {
-                    setCurrentModelId(modelId as string);
+                    const sid = useAppStore.getState().activeSessionId;
+                    if (!sid) return;
+                    useAppStore.getState().updateSessionState(sid, () => ({ currentModelId: modelId as string }));
                     try {
                       await request.setModel({
-                        sessionId: activeSessionId!,
+                        sessionId: sid,
                         modelId: modelId as string,
                       });
                     } catch (err) {

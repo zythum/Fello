@@ -16,7 +16,7 @@ Sessions & Persistence
 - Message history is replayed from the ACP server when resuming a session
 - Renderer state store: src/mainview/store.ts
 - ChatMessage polymorphic interface: src/mainview/chat-message.ts
-- ACP events handling: src/mainview/lib/process-event.ts
+- ACP events handling: src/mainview/lib/session-state-reducer.ts
 
 Dev / Build Commands
 - npm run dev (electron-vite dev; Vite server on http://localhost:5173)

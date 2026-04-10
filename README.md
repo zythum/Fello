@@ -47,7 +47,7 @@ Main/preload changes typically require restarting the dev process.
 │       ├── components/     # UI components (shadcn/ui, dialogs, etc.)
 │       ├── store.ts        # Zustand state management
 │       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
-│       ├── lib/            # Utilities (process-event.ts, etc.)
+│       ├── lib/            # Utilities (session-state-reducer.ts, etc.)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)

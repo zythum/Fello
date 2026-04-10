@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore, type ProjectInfo, type SessionInfo } from "../store";
+import type { ModelInfo, SessionMode } from '@agentclientprotocol/sdk';
+import { useAppStore } from "../store";
+import type { ProjectInfo, SessionInfo } from "../../shared/schema";
 import { request, isWebUI } from "../backend";
 import { electron } from "../electron";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -55,7 +57,6 @@ export function Sidebar() {
     setActiveSessionId,
     setProjects,
     setSessions,
-    setIsConnecting,
     pushGlobalErrorMessage,
     sidebarOpen,
     resetSessionState,
@@ -79,25 +80,19 @@ export function Sidebar() {
 
   const applySessionState = (
     payload: {
-      models: { availableModels: any[]; currentModelId: string } | null;
-      modes: { availableModes: any[]; currentModeId: string } | null;
+      sessionId: string;
+      models: { availableModels: ModelInfo[]; currentModelId: string } | null;
+      modes: { availableModes: SessionMode[]; currentModeId: string } | null;
     } | null,
   ) => {
     if (!payload) return;
-    if (payload.models) {
-      useAppStore.getState().setAvailableModels(payload.models.availableModels);
-      useAppStore.getState().setCurrentModelId(payload.models.currentModelId);
-    } else {
-      useAppStore.getState().setAvailableModels([]);
-      useAppStore.getState().setCurrentModelId(null);
-    }
-    if (payload.modes) {
-      useAppStore.getState().setAvailableModes(payload.modes.availableModes);
-      useAppStore.getState().setCurrentModeId(payload.modes.currentModeId);
-    } else {
-      useAppStore.getState().setAvailableModes([]);
-      useAppStore.getState().setCurrentModeId(null);
-    }
+    useAppStore.getState().updateSessionState(payload.sessionId, (prev) => ({
+      ...prev,
+      availableModels: payload.models?.availableModels ?? [],
+      currentModelId: payload.models?.currentModelId ?? null,
+      availableModes: payload.modes?.availableModes ?? [],
+      currentModeId: payload.modes?.currentModeId ?? null,
+    }));
   };
 
   const refreshData = async () => {
@@ -151,11 +146,11 @@ export function Sidebar() {
   const handleNewChat = async (projectId: string, agentId: string) => {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
-      setIsConnecting(true);
+      // Add a temporary loading state locally or push a dummy session
       const result = (await request.newSession({ projectId, agentId })) as {
         sessionId: string;
-        models: { availableModels: any[]; currentModelId: string } | null;
-        modes: { availableModes: any[]; currentModeId: string } | null;
+        models: { availableModels: ModelInfo[]; currentModelId: string } | null;
+        modes: { availableModes: SessionMode[]; currentModeId: string } | null;
       } | null;
       if (!result) return;
       setActiveSessionId(result.sessionId);
@@ -164,28 +159,25 @@ export function Sidebar() {
     } catch (err) {
       console.error("Failed to create new chat:", err);
       pushGlobalErrorMessage(getErrorMessage(err));
-    } finally {
-      setIsConnecting(false);
     }
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
     resetSessionState(session.id);
     setActiveSessionId(session.id);
-    setIsConnecting(true);
+    useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: true }));
     try {
-      const result = (await request.loadSession({ sessionId: session.id })) as {
-        sessionId: string;
-        models: { availableModels: any[]; currentModelId: string } | null;
-        modes: { availableModes: any[]; currentModeId: string } | null;
-      } | null;
-      if (!result) return;
-      applySessionState(result);
+      const result = await request.loadSession({ sessionId: session.id });
+      applySessionState({
+        sessionId: session.id,
+        models: result.models,
+        modes: result.modes,
+      });
     } catch (err) {
-      console.error("Failed to load session:", err);
+      console.error("Failed to load session", err);
       pushGlobalErrorMessage(getErrorMessage(err));
     } finally {
-      setIsConnecting(false);
+      useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: false }));
     }
   };
 

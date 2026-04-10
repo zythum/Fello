@@ -65,7 +65,7 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
       <div className="border-t border-border overflow-hidden">
         {message.locations && message.locations.length > 0 && (
           <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
-            {message.locations.map((loc: any, i: number) => (
+            {message.locations.map((loc, i) => (
               <span
                 key={i}
                 className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"

@@ -36,7 +36,7 @@ fello/
 │       │   └── zh-CN.json
 │       │
 │       ├── lib/
-│       │   ├── process-event.ts      # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
+│       │   ├── session-state-reducer.ts      # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
 │       │   ├── remark-filepath.ts    # Markdown 文件路径转换为可点击链接的 remark 插件
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │

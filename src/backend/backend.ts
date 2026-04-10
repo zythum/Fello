@@ -372,30 +372,6 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
   return terminalId;
 }
 
-function formatModels(models: any) {
-  if (!models) return null;
-  return {
-    availableModels: models.availableModels.map((m: any) => ({
-      modelId: m.modelId,
-      name: m.name,
-      description: m.description ?? null,
-    })),
-    currentModelId: models.currentModelId,
-  };
-}
-
-function formatModes(modes: any) {
-  if (!modes) return null;
-  return {
-    availableModes: modes.availableModes.map((mode: any) => ({
-      id: mode.id,
-      name: mode.name,
-      description: mode.description ?? null,
-    })),
-    currentModeId: modes.currentModeId,
-  };
-}
-
 export const backendHandlers: {
   [K in keyof FelloIPCSchema["requests"]]: (
     params: FelloIPCSchema["requests"][K]["params"],
@@ -467,8 +443,8 @@ export const backendHandlers: {
     return {
       sessionId: sessionId,
       agentInfo: b.agentInfo,
-      models: formatModels(models),
-      modes: formatModes(modes),
+      models: models ?? null,
+      modes: modes ?? null,
     };
   },
 
@@ -484,12 +460,12 @@ export const backendHandlers: {
     return {
       sessionId: session.id,
       agentInfo: b.agentInfo,
-      models: formatModels(models),
-      modes: formatModes(modes),
+      models: models ?? null,
+      modes: modes ?? null,
     };
   },
 
-  async sendMessage({ sessionId, text }) {
+  async sendMessage({ sessionId, text, _meta }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgePool.get(session.agentId);
@@ -503,6 +479,7 @@ export const backendHandlers: {
       update: {
         sessionUpdate: "user_message_chunk",
         content: { type: "text", text },
+        _meta: _meta ?? {},
       },
       _meta: {},
     };
@@ -511,7 +488,7 @@ export const backendHandlers: {
       notification: notification,
     });
 
-    return await b.sendPrompt({ sessionId: session.resumeId, prompt: [{ type: "text", text }] });
+    return b.sendPrompt({ sessionId: session.resumeId, prompt: [{ type: "text", text }] });
   },
 
   async cancelPrompt({ sessionId }) {
@@ -561,7 +538,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModels(b.getModelState(session.resumeId));
+    return b.getModelState(session.resumeId);
   },
 
   async setModel({ sessionId, modelId }) {
@@ -579,7 +556,7 @@ export const backendHandlers: {
     const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) return null;
     const b = await connectPromise;
-    return formatModes(b.getModeState(session.resumeId));
+    return b.getModeState(session.resumeId);
   },
 
   async setMode({ sessionId, modeId }) {
@@ -668,7 +645,7 @@ export const backendHandlers: {
       }
     }
 
-    results.sort((a: any, b: any) => {
+    results.sort((a, b) => {
       if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
       return a.name.localeCompare(b.name);
     });

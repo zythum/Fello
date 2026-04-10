@@ -37,7 +37,7 @@
 
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 队列管理)、主布局
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
-- `lib/process-event.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
+- `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
@@ -72,7 +72,7 @@
 ACP sessionUpdate
   → main.safeSend("session-update")
   → renderer/backend.emit()
-  → processEvent(sessionId, update)
+  → reduceSessionUpdate(currentState, update)
   → useAppStore(sessionStates)
   → ChatArea / Bubble 组件更新
 ```
@@ -134,7 +134,7 @@ Renderer: resetSessionState(sessionId)
   → Main: resumeChat(sessionId, cwd)
   → ACP: loadSession (服务端重放历史)
   → session-update 持续推送
-  → processEvent 重建消息/工具/usage 状态
+  → reduceSessionUpdate 重建消息/工具/usage 状态
 ```
 
 ### C. 发送消息（流式）
@@ -145,7 +145,7 @@ ChatInput submit
   → Main: sendMessage
   → ACP: prompt
   → session-update chunk 持续到达
-  → processEvent appendToLastMessage / updateToolCall
+  → reduceSessionUpdate / calculateToolCall
   → flushStreaming 收尾，结束 streaming 状态
 ```
 

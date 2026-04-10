@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { ChatMessage } from "../store";
+import type { ChatMessage } from "../chat-message";
 import { ToolBubble } from "./bubbles/tool-bubble";
 import { ThinkingBubble } from "./bubbles/thinking-bubble";
 import { UserBubble } from "./bubbles/user-bubble";

@@ -2,16 +2,15 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
-import { processEvent } from "./lib/process-event";
+import { reduceSessionUpdate } from "./lib/session-state-reducer";
 import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { ProjectInfo, SessionInfo } from "./store";
+import type { ProjectInfo, SessionInfo } from "../shared/schema";
 import { MessageProvider, useMessage } from "@/components/message";
 
 function AppContent() {
   const {
-    addPermissionRequest,
     setSessions,
     setProjects,
     globalErrorMessages,
@@ -53,16 +52,18 @@ function AppContent() {
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
       const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
       if (!sid) return;
-      processEvent(sid, detail.notification);
+      const currentState = useAppStore.getState().getSessionState(sid);
+      const nextState = reduceSessionUpdate(currentState, detail.notification.update);
+      
+      if (nextState !== currentState) {
+        useAppStore.getState().updateSessionState(sid, () => nextState);
+      }
     };
 
     const handlePermissionRequest = (detail: BackendEvents["permission-request"]) => {
       const sid = useAppStore.getState().activeSessionId;
       if (!sid) return;
-      addPermissionRequest(sid, {
-        toolCall: detail.request.toolCall,
-        options: detail.request.options,
-      });
+      useAppStore.getState().addPermissionRequest(sid, detail.request);
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
@@ -83,7 +84,7 @@ function AppContent() {
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
     };
-  }, [addPermissionRequest]);
+  }, []);
 
   useEffect(() => {
     if (!currentGlobalError) return;

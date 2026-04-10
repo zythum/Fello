@@ -56,9 +56,9 @@ function settingsPath() {
 function readSettings(): SettingsMeta {
   try {
     if (!existsSync(settingsPath())) return DEFAULT_SETTINGS;
-    const raw = JSON.parse(readFileSync(settingsPath(), "utf-8"));
+    const raw: SettingsMeta = JSON.parse(readFileSync(settingsPath(), "utf-8"));
     const agents = Array.isArray(raw.agents)
-      ? raw.agents.map((a: any) => {
+      ? raw.agents.map((a) => {
           // migration from old format
           if (typeof a.command === "string" && !a.args) {
             const parts = a.command.trim().split(/\s+/);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "../store";
+import { useAppStore, useActiveSessionState } from "../store";
 import { Chat } from "./chat";
 import { FilePanel } from "./file-panel";
 import { TerminalPanel } from "./terminal-panel";
@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { t } = useTranslation();
-  const { activeSessionId, sidebarOpen, setSidebarOpen, isConnecting, sessions } = useAppStore();
+  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions } = useAppStore();
+  const { isLoading } = useActiveSessionState();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeProjectId = activeSession?.projectId;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
@@ -55,7 +56,7 @@ export function SessionView() {
           </div>
         )}
 
-        {!activeSessionId && isConnecting ? (
+        {!activeSessionId && isLoading ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="text-sm font-normal text-muted-foreground/50">
@@ -67,7 +68,7 @@ export function SessionView() {
             <ResizablePanel defaultSize={70} minSize={30}>
               <div className="relative flex h-full flex-col">
                 <Chat />
-                {isConnecting && (
+                {isLoading && (
                   <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/10">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">

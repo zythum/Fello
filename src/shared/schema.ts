@@ -2,6 +2,8 @@ import type {
   RequestPermissionRequest,
   SessionNotification,
   InitializeResponse,
+  SessionModeState,
+  SessionModelState,
 } from "@agentclientprotocol/sdk";
 
 /**
@@ -107,48 +109,6 @@ export interface SessionInfo {
 }
 
 /**
- * 模型状态信息
- * 描述当前代理支持的模型列表以及当前选中的模型
- */
-export interface ModelState {
-  /** 可用的模型列表 */
-  availableModels: Array<{
-    /**
-     * 模型的唯一标识符
-     * 数据来源：底层 ACP 服务的 `getModelState` 接口返回
-     */
-    modelId: string;
-    /** 模型的显示名称 */
-    name: string;
-    /** 模型的描述信息（可选） */
-    description?: string | null;
-  }>;
-  /** 当前选中的模型 ID */
-  currentModelId: string;
-}
-
-/**
- * 模式状态信息
- * 描述当前代理支持的工作模式（如：代码生成模式、问答模式等）及当前选中的模式
- */
-export interface ModeState {
-  /** 可用的模式列表 */
-  availableModes: Array<{
-    /**
-     * 模式的唯一标识符
-     * 数据来源：底层 ACP 服务的 `getModeState` 接口返回
-     */
-    id: string;
-    /** 模式的显示名称 */
-    name: string;
-    /** 模式的描述信息（可选） */
-    description?: string | null;
-  }>;
-  /** 当前选中的模式 ID */
-  currentModeId: string;
-}
-
-/**
  * Web UI 的运行状态
  */
 export interface WebUIStatus {
@@ -192,8 +152,8 @@ export type FelloIPCRequests = {
     response: {
       sessionId: string;
       agentInfo: InitializeResponse | null;
-      models: ModelState | null;
-      modes: ModeState | null;
+      models: SessionModelState | null;
+      modes: SessionModeState | null;
     };
   };
   /** 加载已有会话 */
@@ -202,13 +162,13 @@ export type FelloIPCRequests = {
     response: {
       sessionId: string;
       agentInfo: InitializeResponse | null;
-      models: ModelState | null;
-      modes: ModeState | null;
+      models: SessionModelState | null;
+      modes: SessionModeState | null;
     };
   };
   /** 向会话发送用户消息 */
   sendMessage: {
-    params: { sessionId: string; text: string };
+    params: { sessionId: string; text: string; _meta?: { [key: string]: unknown } };
     response: { stopReason: string };
   };
   /** 取消当前正在生成的回答/任务 */
@@ -238,7 +198,7 @@ export type FelloIPCRequests = {
   /** 获取当前会话可用的模型状态 */
   getModels: {
     params: { sessionId: string };
-    response: ModelState | null;
+    response: SessionModelState | null;
   };
   /** 设置当前会话使用的模型 */
   setModel: { params: { sessionId: string; modelId: string }; response: void };
@@ -246,7 +206,7 @@ export type FelloIPCRequests = {
   /** 获取当前会话可用的模式状态 */
   getModes: {
     params: { sessionId: string };
-    response: ModeState | null;
+    response: SessionModeState | null;
   };
   /** 设置当前会话使用的工作模式 */
   setMode: { params: { sessionId: string; modeId: string }; response: void };

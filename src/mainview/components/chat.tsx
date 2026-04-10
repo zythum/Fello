@@ -1,3 +1,4 @@
+import { ModelInfo, SessionMode } from '@agentclientprotocol/sdk';
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { PermissionDialog } from "./permission-dialog";
@@ -23,39 +24,24 @@ export function Chat() {
 
   const handleRefreshSession = async () => {
     if (!session) return;
-    const {
-      resetSessionState,
-      setIsConnecting,
-      pushGlobalErrorMessage,
-      setAvailableModels,
-      setCurrentModelId,
-      setAvailableModes,
-      setCurrentModeId,
-    } = useAppStore.getState();
+    const { resetSessionState, pushGlobalErrorMessage, updateSessionState } = useAppStore.getState();
 
-    resetSessionState(session.id);
-    setIsConnecting(true);
     try {
+      resetSessionState(session.id);
+      updateSessionState(session.id, () => ({ isLoading: true }));
       const result = (await request.loadSession({ sessionId: session.id })) as {
         sessionId: string;
-        models: { availableModels: any[]; currentModelId: string } | null;
-        modes: { availableModes: any[]; currentModeId: string } | null;
+        models: { availableModels: ModelInfo[]; currentModelId: string } | null;
+        modes: { availableModes: SessionMode[]; currentModeId: string } | null;
       } | null;
       if (!result) return;
-      if (result.models) {
-        setAvailableModels(result.models.availableModels);
-        setCurrentModelId(result.models.currentModelId);
-      } else {
-        setAvailableModels([]);
-        setCurrentModelId(null);
-      }
-      if (result.modes) {
-        setAvailableModes(result.modes.availableModes);
-        setCurrentModeId(result.modes.currentModeId);
-      } else {
-        setAvailableModes([]);
-        setCurrentModeId(null);
-      }
+      updateSessionState(session.id, (prev) => ({
+        ...prev,
+        availableModels: result.models?.availableModels ?? [],
+        currentModelId: result.models?.currentModelId ?? null,
+        availableModes: result.modes?.availableModes ?? [],
+        currentModeId: result.modes?.currentModeId ?? null,
+      }));
     } catch (err: unknown) {
       console.error("Failed to load session:", err);
       let message = "Failed to load session.";
@@ -63,7 +49,7 @@ export function Chat() {
       else if (typeof err === "string" && err.trim()) message = err.trim();
       pushGlobalErrorMessage(message);
     } finally {
-      setIsConnecting(false);
+      updateSessionState(session.id, () => ({ isLoading: false }));
     }
   };
 
