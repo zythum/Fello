@@ -59,7 +59,7 @@ export function SessionView() {
         {!activeSessionId && isLoading ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
             <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="text-sm font-normal text-muted-foreground/50">
+            <p className="text-sm font-normal text-muted-foreground/60">
               {t("sessionView.connecting")}
             </p>
           </div>
@@ -78,7 +78,7 @@ export function SessionView() {
                 )}
               </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle className="bg-sidebar-border"/>
             <ResizablePanel defaultSize={30} minSize={15}>
               <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col bg-sidebar">
                 <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">

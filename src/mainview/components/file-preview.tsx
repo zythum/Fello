@@ -208,7 +208,7 @@ export function FilePreviewSheet({
             className="text-sm truncate leading-normal flex items-center gap-1.5 flex-1 mr-4"
             title={relativePath || ""}
           >
-            <File className="size-3.5 shrink-0 text-muted-foreground/75" />
+            <File className="size-3.5 shrink-0 text-muted-foreground/90" />
             {fileName}
           </SheetTitle>
           <div className="flex items-center gap-1">
@@ -253,7 +253,7 @@ export function FilePreviewSheet({
           ) : (
             <div
               dangerouslySetInnerHTML={{ __html: html }}
-              className="[&_pre]:bg-transparent [&_pre]:p-4 [&_pre]:m-0 [&_code]:block [&_code]:w-max [&_code]:[counter-reset:step] [&_code]:[counter-increment:step_0] [&_.line::before]:content-[counter(step)] [&_.line::before]:[counter-increment:step] [&_.line::before]:w-6 [&_.line::before]:mr-4 [&_.line::before]:inline-block [&_.line::before]:text-right [&_.line::before]:text-muted-foreground/40 [&_.line::before]:select-none"
+              className="[&_pre]:bg-transparent [&_pre]:p-4 [&_pre]:m-0 [&_code]:block [&_code]:w-max [&_code]:[counter-reset:step] [&_code]:[counter-increment:step_0] [&_.line::before]:content-[counter(step)] [&_.line::before]:[counter-increment:step] [&_.line::before]:w-6 [&_.line::before]:mr-4 [&_.line::before]:inline-block [&_.line::before]:text-right [&_.line::before]:text-muted-foreground/60 [&_.line::before]:select-none"
             />
           )}
         </ScrollArea>

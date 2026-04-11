@@ -397,7 +397,7 @@ export function ChatInput() {
                         <SelectItem key={mode.id} value={mode.id}>
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span>{mode.name}</span>
-                            <span className="wrap-break-word text-[10px] text-muted-foreground/50 line-clamp-2">
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
                               {mode.description}
                             </span>
                           </div>
@@ -439,7 +439,7 @@ export function ChatInput() {
                       <SelectItem key={m.modelId} value={m.modelId}>
                         <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                           <span>{m.name}</span>
-                          <span className="wrap-break-word text-[10px] text-muted-foreground/45 line-clamp-2">
+                          <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
                             {m.modelId}
                           </span>
                         </div>
@@ -502,6 +502,7 @@ const mentionsInputStyle = {
       color: "var(--foreground)",
       fontSize: 12,
       lineHeight: "1.5",
+      opacity: 0.8,
     },
   },
   suggestions: {

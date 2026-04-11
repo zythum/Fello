@@ -61,7 +61,7 @@ interface Actions {
 
 const GIT_FOLDER_STATUS = {
   text: "•",
-  color: "text-muted-foreground/50",
+  color: "text-muted-foreground/60",
 } as const;
 
 const GIT_SUMMARY_BADGES = [
@@ -153,7 +153,7 @@ function TreeItem({
       statusColor = GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
     } else {
       statusText = status.trim();
-      statusColor = "text-muted-foreground/80";
+      statusColor = "text-muted-foreground/90";
     }
   }
 
@@ -210,9 +210,9 @@ function TreeItem({
             <span className="w-3.5 shrink-0" />
           )}
           {node.isFolder ? (
-            <Folder className="size-4 shrink-0 text-muted-foreground/60" />
+            <Folder className="size-4 shrink-0 text-muted-foreground/90" />
           ) : (
-            <File className="size-4 shrink-0 text-muted-foreground/60" />
+            <File className="size-4 shrink-0 text-muted-foreground/90" />
           )}
           {isEditing ? (
             <input
@@ -240,7 +240,7 @@ function TreeItem({
               {statusText && (
                 <span
                   className={cn(
-                    "mx-1 shrink-0 text-[10px] font-normal tracking-tighter",
+                    "mx-1 shrink-0 text-[10px] font-medium tracking-tighter",
                     statusColor,
                   )}
                 >
@@ -1081,7 +1081,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-[10px] text-muted-foreground/80 outline-none",
+            "flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-xs text-foreground/70 outline-none",
             hasChanges && "hover:bg-accent/50 cursor-pointer",
           )}
           disabled={!hasChanges}
@@ -1159,7 +1159,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                         </span>
                         {folderPath && (
                           <span
-                            className="truncate flex-1 text-[10px] text-muted-foreground/60"
+                            className="truncate flex-1 text-xs text-muted-foreground/90"
                             title={folderPath}
                           >
                             {folderPath}
@@ -1228,7 +1228,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
     <div ref={containerRef} className="flex h-full min-h-0 flex-col text-xs">
       {/* Header: folder name left, buttons right */}
       <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
-        <span className="truncate text-xs text-foreground/80 uppercase">{cwdFolderName}</span>
+        <span className="truncate text-xs text-foreground/70 uppercase">{cwdFolderName}</span>
         <div className="ml-auto flex items-center gap-0.5">
           <Button
             variant="ghost"

@@ -157,14 +157,14 @@ export function SettingsAgentsDialog({
                         placeholder={t("settings.agents.agentId")}
                         value={editForm.id}
                         onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                        className="h-8 text-xs! text-foreground/80 focus-visible:ring-0.5"
+                        className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                       />
                       <div className="flex gap-2">
                         <Input
                           placeholder={t("settings.agents.command")}
                           value={editForm.command}
                           onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                          className="h-8 text-[11px]! font-mono flex-4 text-foreground/80 focus-visible:ring-0.5"
+                          className="h-8 text-[11px]! font-mono flex-4 text-foreground/70 focus-visible:ring-0.5"
                         />
                         <Input
                           placeholder={t("settings.agents.args")}
@@ -175,7 +175,7 @@ export function SettingsAgentsDialog({
                               args: e.target.value.split(/\s+/).filter(Boolean),
                             })
                           }
-                          className="h-8 text-[11px]! font-mono flex-1 text-foreground/80 focus-visible:ring-0.5"
+                          className="h-8 text-[11px]! font-mono flex-1 text-foreground/70 focus-visible:ring-0.5"
                         />
                       </div>
                       <Input
@@ -207,7 +207,7 @@ export function SettingsAgentsDialog({
                             // Let the user keep typing invalid JSON without throwing errors
                           }
                         }}
-                        className="h-8 text-[11px]! font-mono text-foreground/80 focus-visible:ring-0.5"
+                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                       />
                       <div className="flex justify-end gap-2 mt-1">
                         <Button
@@ -239,7 +239,7 @@ export function SettingsAgentsDialog({
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          className="size-6 text-foreground/80"
+                          className="size-6 text-foreground/70"
                           onClick={() => handleEdit(agent)}
                         >
                           <Pencil className="size-3.5" />

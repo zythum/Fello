@@ -329,7 +329,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
                 </DialogTitle>
                 {activeDialog?.icon && <div className="mb-3 size-4">{activeDialog.icon}</div>}
                 {activeDialog?.content && (
-                  <div className="text-xs! text-foreground/80 mb-3">{activeDialog.content}</div>
+                  <div className="text-xs! text-foreground/70 mb-3">{activeDialog.content}</div>
                 )}
               </>
             )}
@@ -338,7 +338,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
               <div className="mt-0 mb-2">
                 <Input
                   autoFocus
-                  className="h-8 text-xs! text-foreground/95 focus-visible:ring-0.5"
+                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={activeDialog.placeholder}

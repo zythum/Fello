@@ -61,7 +61,7 @@ export function SettingsWebUIDialog({
         </DialogHeader>
         <div className="space-y-4 mb-2 pt-2 p-1">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm text-foreground/80">
+            <h3 className="text-sm text-foreground/70">
               {t("settings.webui.enableAccess", "Enable WebUI Access")}
             </h3>
             <Switch checked={webUIStatus.enabled} onCheckedChange={handleToggle} />
@@ -108,7 +108,7 @@ export function SettingsWebUIDialog({
                   type="text"
                   readOnly
                   value={webUIStatus.url}
-                  className="h-8 text-xs! font-mono text-foreground/80 focus-visible:ring-0.5 bg-background"
+                  className="h-8 text-xs! font-mono text-foreground/70 focus-visible:ring-0.5 bg-background"
                 />
                 <Button
                   variant="outline"
