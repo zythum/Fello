@@ -18,13 +18,13 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
     return null;
   }
   return (
-    <div
-      className={cn(
-        "w-full px-4 text-[13px] leading-relaxed font-normal text-foreground/70",
-        prevBubbleRole != null && "mt-4",
-      )}
-    >
-      <ContentBlocks blocks={message.contents} session={session} streaming={message.streaming} />
+    <div className={cn("w-full px-4", prevBubbleRole != null && "mt-4")}>
+      <ContentBlocks
+        blocks={message.contents}
+        role={message.role}
+        session={session}
+        streaming={message.streaming}
+      />
     </div>
   );
 });

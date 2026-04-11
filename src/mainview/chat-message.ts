@@ -85,7 +85,26 @@ export type ChatRole = ChatMessage["role"];
  * 过滤掉刚创建但还没开始生成内容块的 agent_message。
  */
 export function isValidMessageToDisplay(message: ChatMessage): boolean {
-  if (message.role === "agent_message" && (!message.contents || message.contents.length === 0)) {
+  if (message.role === "agent_message") {
+    for (const content of message.contents) {
+      if (content.type === 'text') {
+        if (content.text.length > 0) {
+          return true;
+        }
+      }
+      if (content.type === 'audio') {
+        return true;
+      }
+      if (content.type === 'image') {
+        return true;
+      }
+      if (content.type === 'resource') {
+        return true;
+      }
+      if (content.type === 'resource_link') {
+        return true;
+      }
+    }
     return false;
   }
   return true;

@@ -6,15 +6,18 @@ import { Card } from "@/components/ui/card";
 import { downloadDataUrl } from "../../lib/utils";
 import { SessionInfo } from "../../../shared/schema";
 import type { AudioContent } from "@agentclientprotocol/sdk";
+import type { ChatMessage } from "../../chat-message";
 
 interface AudioBlockProps {
   block: AudioContent;
+  role: ChatMessage["role"];
   session?: SessionInfo;
   isStreaming?: boolean;
 }
 
 export const AudioBlock = memo(function AudioBlock({
   block,
+  role: _role,
   session: _session,
   isStreaming: _isStreaming,
 }: AudioBlockProps) {

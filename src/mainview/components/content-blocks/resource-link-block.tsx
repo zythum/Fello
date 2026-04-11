@@ -9,15 +9,18 @@ import { electron } from "../../electron";
 import { toast } from "sonner";
 import { SessionInfo } from "../../../shared/schema";
 import type { ResourceLink } from "@agentclientprotocol/sdk";
+import type { ChatMessage } from "../../chat-message";
 
 interface ResourceLinkBlockProps {
   block: ResourceLink;
+  role: ChatMessage["role"];
   session?: SessionInfo;
   isStreaming?: boolean;
 }
 
 export const ResourceLinkBlock = memo(function ResourceLinkBlock({
   block,
+  role: _role,
   session,
   isStreaming: _isStreaming,
 }: ResourceLinkBlockProps) {

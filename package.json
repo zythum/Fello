@@ -94,6 +94,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/diff": "^7.0.2",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^24.6.1",

@@ -10,15 +10,18 @@ import { toast } from "sonner";
 
 import { SessionInfo } from "../../../shared/schema";
 import type { ImageContent } from "@agentclientprotocol/sdk";
+import type { ChatMessage } from "../../chat-message";
 
 interface ImageBlockProps {
   block: ImageContent;
+  role: ChatMessage["role"];
   session?: SessionInfo;
   isStreaming?: boolean;
 }
 
 export const ImageBlock = memo(function ImageBlock({
   block,
+  role: _role,
   session: _session,
   isStreaming: _isStreaming,
 }: ImageBlockProps) {

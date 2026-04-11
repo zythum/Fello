@@ -24,10 +24,11 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
         <Lightbulb className={`size-3.5 ${message.streaming ? "animate-pulse" : ""}`} />
         <span>{message.streaming ? "Thinking..." : "Thought"}</span>
       </summary>
-      <div className="mt-1 pl-5 text-[11px] italic text-muted-foreground/60">
+      <div className="mt-1 pl-5">
         <div className="max-w-none">
           <ContentBlocks
             blocks={message.contents}
+            role={message.role}
             session={session}
             streaming={message.streaming}
           />

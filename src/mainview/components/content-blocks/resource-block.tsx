@@ -9,9 +9,11 @@ import { request } from "../../backend";
 import { toast } from "sonner";
 import { SessionInfo } from "../../../shared/schema";
 import type { EmbeddedResource, TextResourceContents, BlobResourceContents } from "@agentclientprotocol/sdk";
+import type { ChatMessage } from "../../chat-message";
 
 interface ResourceBlockProps {
   block: EmbeddedResource;
+  role: ChatMessage["role"];
   session?: SessionInfo;
   isStreaming?: boolean;
 }
@@ -132,6 +134,7 @@ const FallbackResourceBlock = memo(function FallbackResourceBlock({
 
 export const ResourceBlock = memo(function ResourceBlock({
   block,
+  role: _role,
   session: _session,
   isStreaming: _isStreaming,
 }: ResourceBlockProps) {

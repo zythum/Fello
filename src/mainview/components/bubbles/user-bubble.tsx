@@ -1,8 +1,5 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import type { UserMessage } from "../../chat-message";
-import { electron } from "../../electron";
-import { isWebUI } from "../../backend";
-import { ABSOLUTE_PATH_REGEX } from "@/lib/regexp";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import { useAppStore } from "../../store";
 
@@ -12,91 +9,21 @@ interface Props {
   nextBubbleRole?: string;
 }
 
-interface PathLinkProps {
-  path: string;
-  children: React.ReactNode;
-}
-
-const PathLink = memo(function PathLink({ path, children }: PathLinkProps) {
-  if (isWebUI) {
-    return (
-      <span className="rounded bg-secondary/50 mx-1 px-1 text-muted-foreground ring-1 ring-border">
-        #{children}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      title={`Reveal in Finder: ${path}`}
-      className="cursor-pointer rounded bg-secondary/50 mx-1 px-1 text-muted-foreground ring-1 ring-border"
-      onClick={(e) => {
-        e.preventDefault();
-        electron.revealInFinder(path);
-      }}
-    >
-      #{children}
-    </button>
-  );
-});
-
 export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
-
-  const contentNodes = useMemo(() => {
-    if (!message.contents || message.contents.length === 0) return null;
-
-    return message.contents.map((block, blockIndex) => {
-      if (block.type === "text") {
-        const text = block.text;
-        const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
-
-        const matches = [...text.matchAll(ABSOLUTE_PATH_REGEX)];
-        const validMatches = matches.filter((m) => m[0].length >= 3 && m[0] !== "/");
-
-        for (const match of validMatches) {
-          const index = match.index!;
-          const path = match[0];
-
-          if (index > lastIndex) {
-            parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, index)}</span>);
-          }
-
-          const fileName = path.split(/[/\\]/).pop() || path;
-          parts.push(
-            <PathLink key={`path-${index}`} path={path}>
-              {fileName}
-            </PathLink>,
-          );
-
-          lastIndex = index + path.length;
-        }
-
-        if (lastIndex < text.length) {
-          parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
-        }
-
-        return <span key={blockIndex}>{parts.length > 0 ? parts : <>{text}</>}</span>;
-      }
-
-      // Delegate rendering of non-text blocks to ContentBlocks
-      return (
-        <div key={blockIndex} className="my-2">
-          <ContentBlocks blocks={[block]} session={session} streaming={message.streaming} />
-        </div>
-      );
-    });
-  }, [message.contents, message.streaming, session]);
 
   return (
     <div className="px-4 flex flex-col">
       {prevBubbleRole != null && <div className="my-14 h-px bg-border" />}
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl border border-border bg-secondary px-4 py-3 text-[13px] leading-relaxed font-normal text-card-foreground/75">
-          <p className="whitespace-pre-wrap wrap-break-word font-normal">{contentNodes}</p>
+        <div className="max-w-[80%] rounded-2xl border border-border bg-secondary px-4 py-3 text-[13px] leading-snug font-normal text-card-foreground/75">
+          <ContentBlocks
+            blocks={message.contents}
+            role={message.role}
+            session={session}
+            streaming={message.streaming}
+          />
         </div>
       </div>
     </div>

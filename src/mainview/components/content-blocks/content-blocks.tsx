@@ -1,5 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../shared/schema";
+import type { ChatMessage } from "../../chat-message";
 import { TextBlock } from "./text-block";
 import { ImageBlock } from "./image-block";
 import { AudioBlock } from "./audio-block";
@@ -9,11 +10,12 @@ import { UnsupportedBlock } from "./unsupported-block";
 
 interface Props {
   blocks: ContentBlock[];
+  role: ChatMessage["role"];
   session?: SessionInfo;
   streaming?: boolean;
 }
 
-export function ContentBlocks({ blocks, session, streaming }: Props) {
+export function ContentBlocks({ blocks, role, session, streaming }: Props) {
   if (!blocks || blocks.length === 0) return null;
 
   return (
@@ -25,17 +27,35 @@ export function ContentBlocks({ blocks, session, streaming }: Props) {
         switch (block.type) {
           case "text":
             return (
-              <TextBlock key={index} block={block} session={session} isStreaming={isStreaming} />
+              <TextBlock
+                key={index}
+                block={block}
+                role={role}
+                session={session}
+                isStreaming={isStreaming}
+              />
             );
 
           case "image":
             return (
-              <ImageBlock key={index} block={block} session={session} isStreaming={isStreaming} />
+              <ImageBlock
+                key={index}
+                block={block}
+                role={role}
+                session={session}
+                isStreaming={isStreaming}
+              />
             );
 
           case "audio":
             return (
-              <AudioBlock key={index} block={block} session={session} isStreaming={isStreaming} />
+              <AudioBlock
+                key={index}
+                block={block}
+                role={role}
+                session={session}
+                isStreaming={isStreaming}
+              />
             );
 
           case "resource":
@@ -43,6 +63,7 @@ export function ContentBlocks({ blocks, session, streaming }: Props) {
               <ResourceBlock
                 key={index}
                 block={block}
+                role={role}
                 session={session}
                 isStreaming={isStreaming}
               />
@@ -53,6 +74,7 @@ export function ContentBlocks({ blocks, session, streaming }: Props) {
               <ResourceLinkBlock
                 key={index}
                 block={block}
+                role={role}
                 session={session}
                 isStreaming={isStreaming}
               />
@@ -64,6 +86,7 @@ export function ContentBlocks({ blocks, session, streaming }: Props) {
               <UnsupportedBlock
                 key={index}
                 block={block}
+                role={role}
                 session={session}
                 isStreaming={isStreaming}
               />

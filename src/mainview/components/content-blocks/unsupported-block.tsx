@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import type { SessionInfo } from "../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type { ChatMessage } from "../../chat-message";
 
 interface UnsupportedBlockProps {
   block?: ContentBlock;
+  role: ChatMessage["role"];
   type?: string;
   session?: SessionInfo;
   isStreaming?: boolean;
@@ -13,6 +15,7 @@ interface UnsupportedBlockProps {
 
 export const UnsupportedBlock = memo(function UnsupportedBlock({
   block,
+  role: _role,
   type,
   session: _session,
   isStreaming: _isStreaming,

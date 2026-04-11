@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/noto-sans";
 
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 @source "../../node_modules/streamdown/dist/*.js";
@@ -100,9 +102,9 @@ body,
 
 /* Streamdown code block styling */
 [data-streamdown="code-block"] {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 !important;
   gap: 0;
-  padding: 0;
+  padding: 0 !important;
   border-radius: 0.5rem;
   min-width: 0;
   contain-intrinsic-size: auto none;
@@ -110,21 +112,36 @@ body,
 
 [data-streamdown="code-block-header"] {
   height: 2.5rem;
-  padding-left: 0.75rem;
 }
-
+[data-streamdown="code-block-header"] span {
+  margin-top: -0.5rem;
+  margin-left: 0.75rem;
+}
 [data-streamdown="code-block-body"] {
-  padding: 0.5rem 0.75rem;
-  border: none;
-  font-size: 0.75rem;
+  padding: 0 !important;
+  border: none !important;
   line-height: 1.45;
   font-weight: 400;
   border-radius: 0;
   min-width: 0;
+  background-color: transparent !important;
+}
+
+[data-streamdown="code-block-body"] code {
+  padding: 0.4rem 0 !important;
+  display: block !important;
+  border-radius: 0 !important;
 }
 
 [data-streamdown="code-block-body"] pre {
   min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+}
+[data-streamdown="table"] {
+  margin: 0 !important;
 }
 
 /* Inline code */
@@ -178,6 +195,15 @@ body,
   }
   html {
     @apply font-sans;
+  }
+  /* Disable typography plugin's default quotes and backticks */
+  .prose code::before,
+  .prose code::after {
+    content: none !important;
+  }
+  .prose blockquote::before,
+  .prose blockquote::after {
+    content: none !important;
   }
 }
 
