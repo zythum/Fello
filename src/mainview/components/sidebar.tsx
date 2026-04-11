@@ -25,22 +25,22 @@ import { SettingsWebUIDialog } from "./settings-webui-dialog";
 import { useMessage } from "./message";
 import { extractErrorMessage } from "@/lib/utils";
 import {
-  FolderOpen,
+  Bot,
   FolderClosed,
-  MessageCirclePlus,
+  FolderOpen,
   FolderPlus,
+  Globe,
+  Home,
+  LoaderCircle,
+  MessageCirclePlus,
+  Monitor,
+  Moon,
   MoreHorizontal,
+  Palette,
   Pencil,
-  Trash2,
   Settings,
   Sun,
-  Moon,
-  Monitor,
-  Bot,
-  Palette,
-  LoaderCircle,
-  Home,
-  Globe,
+  Trash2,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -386,11 +386,10 @@ export function Sidebar() {
                       side="right"
                       align="start"
                       onClick={(e) => e.stopPropagation()}
-                      className="w-28 py-1.5 space-y-0.5"
+                      className="w-28"
                     >
                       {!isWebUI && (
                         <DropdownMenuItem
-                          className="text-xs rounded-1 text-muted-foreground/90"
                           onClick={(e) => {
                             e.stopPropagation();
                             void handleRevealProjectInFinder(project);
@@ -401,7 +400,6 @@ export function Sidebar() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        className="text-xs rounded-1 text-muted-foreground/90"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRenameProject(project);
@@ -412,7 +410,6 @@ export function Sidebar() {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
-                        className="text-xs rounded-1 text-muted-foreground/90"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteProject(project);
@@ -446,17 +443,18 @@ export function Sidebar() {
                         side="right"
                         align="start"
                         onClick={(e) => e.stopPropagation()}
-                        className="w-28 py-1.5 space-y-0.5"
+                        className="w-28"
                       >
                         {configuredAgents.map((agent) => (
                           <DropdownMenuItem
                             key={agent.id}
-                            className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={() => {
                               void handleNewChat(project.id, agent.id);
                             }}
                           >
-                            {agent.id}
+                            <div className="flex items-center justify-between w-full">
+                              <span>{agent.id}</span>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -530,10 +528,9 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           onClick={(e) => e.stopPropagation()}
-                          className="w-28 py-1.5 space-y-0.5"
+                          className="w-28"
                         >
                           <DropdownMenuItem
-                            className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRenameSession(session);
@@ -544,7 +541,6 @@ export function Sidebar() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            className="text-xs rounded-1 text-muted-foreground/90"
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleDeleteSession(session);
@@ -586,21 +582,15 @@ export function Sidebar() {
               </div>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="py-1.5 space-y-0.5">
+          <DropdownMenuContent align="start" className="w-56">
             {!isWebUI && (
               <>
-                <DropdownMenuItem
-                  className="text-xs rounded-1 text-muted-foreground/90"
-                  onClick={() => setSettingsOpen(true)}
-                >
+                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                   <Bot className="size-3" />
                   {t("sidebar.agents")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-xs rounded-1 text-muted-foreground/90"
-                  onClick={() => setWebUIOpen(true)}
-                >
+                <DropdownMenuItem onClick={() => setWebUIOpen(true)}>
                   <Globe className={cn("size-3", { "text-green-500": webUIStatus.enabled })} />
                   WebUI
                 </DropdownMenuItem>
@@ -609,10 +599,7 @@ export function Sidebar() {
             )}
             {isWebUI && (
               <>
-                <DropdownMenuItem
-                  className="text-xs rounded-1 text-muted-foreground/90"
-                  onClick={() => setSettingsOpen(true)}
-                >
+                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                   <Bot className="size-3" />
                   {t("sidebar.agents")}
                 </DropdownMenuItem>
@@ -620,36 +607,27 @@ export function Sidebar() {
               </>
             )}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
+              <DropdownMenuSubTrigger>
                 <Palette className="size-3" />
                 {t("sidebar.theme")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32 py-1.5 space-y-0.5">
-                  <DropdownMenuItem
-                    className="text-xs rounded-1 text-muted-foreground/90"
-                    onClick={() => void handleThemeChange("light")}
-                  >
+                <DropdownMenuSubContent className="w-32">
+                  <DropdownMenuItem onClick={() => void handleThemeChange("light")}>
                     <Sun className="size-3" />
                     {t("sidebar.light")}
                     {theme.themeMode === "light" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-xs rounded-1 text-muted-foreground/90"
-                    onClick={() => void handleThemeChange("dark")}
-                  >
+                  <DropdownMenuItem onClick={() => void handleThemeChange("dark")}>
                     <Moon className="size-3" />
                     {t("sidebar.dark")}
                     {theme.themeMode === "dark" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-xs rounded-1 text-muted-foreground/90"
-                    onClick={() => void handleThemeChange("system")}
-                  >
+                  <DropdownMenuItem onClick={() => void handleThemeChange("system")}>
                     <Monitor className="size-3" />
                     {t("sidebar.system")}
                     {theme.themeMode === "system" && (
@@ -661,25 +639,19 @@ export function Sidebar() {
             </DropdownMenuSub>
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-xs rounded-1 text-muted-foreground/90">
+              <DropdownMenuSubTrigger>
                 <Globe className="size-3" />
                 {t("sidebar.language")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32 py-1.5 space-y-0.5">
-                  <DropdownMenuItem
-                    className="text-xs rounded-1 text-muted-foreground/90"
-                    onClick={() => void handleLanguageChange("en")}
-                  >
+                <DropdownMenuSubContent className="w-32">
+                  <DropdownMenuItem onClick={() => void handleLanguageChange("en")}>
                     {t("sidebar.english")}
                     {i18n.language === "en" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />
                     )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-xs rounded-1 text-muted-foreground/90"
-                    onClick={() => void handleLanguageChange("zh-CN")}
-                  >
+                  <DropdownMenuItem onClick={() => void handleLanguageChange("zh-CN")}>
                     {t("sidebar.chinese")}
                     {i18n.language === "zh-CN" && (
                       <div className="ml-auto size-1.5 rounded-full bg-primary" />

@@ -250,20 +250,14 @@ function TreeItem({
             </>
           )}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48 py-1.5 space-y-0.5">
+        <ContextMenuContent className="w-48">
           {node.isFolder ? (
             <>
-              <ContextMenuItem
-                className="text-xs rounded-1 text-muted-foreground/90"
-                onClick={() => actions.createIn(node.id, false)}
-              >
+              <ContextMenuItem onClick={() => actions.createIn(node.id, false)}>
                 <FilePlus className="size-3" />
                 {t("filePanel.newFile")}
               </ContextMenuItem>
-              <ContextMenuItem
-                className="text-xs rounded-1 text-muted-foreground/90"
-                onClick={() => actions.createIn(node.id, true)}
-              >
+              <ContextMenuItem onClick={() => actions.createIn(node.id, true)}>
                 <FolderPlus className="size-3" />
                 {t("filePanel.newFolder")}
               </ContextMenuItem>
@@ -271,17 +265,11 @@ function TreeItem({
             </>
           ) : (
             <>
-              <ContextMenuItem
-                className="text-xs rounded-1 text-muted-foreground/90"
-                onClick={() => actions.createIn(null, false)}
-              >
+              <ContextMenuItem onClick={() => actions.createIn(null, false)}>
                 <FilePlus className="size-3" />
                 {t("filePanel.newFile")}
               </ContextMenuItem>
-              <ContextMenuItem
-                className="text-xs rounded-1 text-muted-foreground/90"
-                onClick={() => actions.createIn(null, true)}
-              >
+              <ContextMenuItem onClick={() => actions.createIn(null, true)}>
                 <FolderPlus className="size-3" />
                 {t("filePanel.newFolder")}
               </ContextMenuItem>
@@ -289,7 +277,6 @@ function TreeItem({
             </>
           )}
           <ContextMenuItem
-            className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
               actions.startRename(node);
             }}
@@ -298,7 +285,6 @@ function TreeItem({
             {t("filePanel.rename")}
           </ContextMenuItem>
           <ContextMenuItem
-            className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
               actions.copyPath(node.id, true);
             }}
@@ -307,7 +293,6 @@ function TreeItem({
             {t("filePanel.copyPath")}
           </ContextMenuItem>
           <ContextMenuItem
-            className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
               actions.copyPath(node.id, false);
             }}
@@ -317,7 +302,6 @@ function TreeItem({
           </ContextMenuItem>
           {!isWebUI && (
             <ContextMenuItem
-              className="text-xs rounded-1 text-muted-foreground/90"
               onClick={() => {
                 actions.revealInFinder(node.id);
               }}
@@ -329,7 +313,6 @@ function TreeItem({
           <ContextMenuSeparator />
           <ContextMenuItem
             variant="destructive"
-            className="text-xs rounded-1 text-muted-foreground/90"
             onClick={() => {
               const ids =
                 selectedIds.has(node.id) && selectedIds.size > 1 ? [...selectedIds] : [node.id];
@@ -1342,27 +1325,18 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
               </div>
             )}
           </ContextMenuTrigger>
-          <ContextMenuContent className="w-48 py-1.5 space-y-0.5">
-            <ContextMenuItem
-              className="text-xs rounded-1 text-muted-foreground/90"
-              onClick={() => createIn(null, false)}
-            >
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem onClick={() => createIn(null, false)}>
               <FilePlus className="size-3" />
               {t("filePanel.newFile")}
             </ContextMenuItem>
-            <ContextMenuItem
-              className="text-xs rounded-1 text-muted-foreground/90"
-              onClick={() => createIn(null, true)}
-            >
+            <ContextMenuItem onClick={() => createIn(null, true)}>
               <FolderPlus className="size-3" />
               {t("filePanel.newFolder")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             {!isWebUI && (
-              <ContextMenuItem
-                className="text-xs rounded-1 text-muted-foreground/90"
-                onClick={() => revealInFinder(cwd ?? "")}
-              >
+              <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
                 <FolderOpen className="size-3" />
                 {t("filePanel.revealInFinder")}
               </ContextMenuItem>

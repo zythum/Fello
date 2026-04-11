@@ -389,19 +389,12 @@ export function ChatInput() {
                       }
                     }}
                   >
-                    <SelectTrigger
-                      size="sm"
-                      className="h-6 w-auto bg-transparent text-xs text-muted-foreground hover:text-foreground"
-                    >
+                    <SelectTrigger size="sm">
                       <SelectValue placeholder={t("chatInput.mode", "Mode")} />
                     </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} className="w-60 p-1">
+                    <SelectContent alignItemWithTrigger={false} className="w-60">
                       {availableModes.map((mode) => (
-                        <SelectItem
-                          className="rounded-1 text-xs text-muted-foreground/90"
-                          key={mode.id}
-                          value={mode.id}
-                        >
+                        <SelectItem key={mode.id} value={mode.id}>
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span>{mode.name}</span>
                             <span className="wrap-break-word text-[10px] text-muted-foreground/50 line-clamp-2">
@@ -438,23 +431,16 @@ export function ChatInput() {
                     }
                   }}
                 >
-                  <SelectTrigger
-                    size="sm"
-                    className="h-6 w-auto bg-transparent text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <SelectValue />
+                  <SelectTrigger size="sm">
+                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")} />
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} className="w-60 p-1">
+                  <SelectContent alignItemWithTrigger={false} className="w-60">
                     {availableModels.map((m) => (
-                      <SelectItem
-                        className="rounded-1 text-xs text-muted-foreground/90"
-                        key={m.modelId}
-                        value={m.modelId}
-                      >
+                      <SelectItem key={m.modelId} value={m.modelId}>
                         <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                           <span>{m.name}</span>
                           <span className="wrap-break-word text-[10px] text-muted-foreground/45 line-clamp-2">
-                            {m.description}
+                            {m.modelId}
                           </span>
                         </div>
                       </SelectItem>
