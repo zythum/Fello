@@ -57,7 +57,7 @@ export function Chat() {
               <Badge variant="outline" className="px-1 text-[10px] uppercase">
                 {session.agentId}
               </Badge>
-              <span className="truncate text-sm font-medium text-sidebar-foreground/85">
+              <span className="truncate text-sm font-normal text-sidebar-foreground/85">
                 {session.title}
               </span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground/60 whitespace-nowrap">
