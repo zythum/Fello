@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useActiveSessionState } from "../store";
+import { isValidMessageToDisplay } from "../chat-message";
 import { MessageBubble } from "./message-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -62,17 +63,9 @@ export function ChatArea() {
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="py-4 max-w-3xl mx-auto">
           {messages
-            .filter((message) => {
-              if (
-                message.role === "agent_message" &&
-                (!message.contents || message.contents.length === 0)
-              ) {
-                return false;
-              }
-              return true;
-            })
+            .filter(isValidMessageToDisplay)
             .map((msg, i, messages) => (
-              <div key={`msg-${i}`} className="chat-message" data-role={msg.role}>
+              <div key={msg.displayId} className="chat-message" data-role={msg.role}>
                 <MessageBubble
                   message={msg}
                   prevBubbleRole={messages[i - 1]?.role}

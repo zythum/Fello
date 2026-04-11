@@ -6,6 +6,7 @@ import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotoc
  */
 export interface BaseMessage<T extends string> {
   role: T;
+  readonly displayId: string;
   _meta?: { [key: string]: unknown } | null;
 }
 
@@ -78,3 +79,17 @@ export type ChatMessage =
  * 方便在 Reducer 或 Switch/Case 判断中使用。
  */
 export type ChatRole = ChatMessage["role"];
+
+/**
+ * 判断一条消息是否包含有效内容（不为空）并应该在界面中展示。
+ * 过滤掉刚创建但还没开始生成内容块的 agent_message。
+ */
+export function isValidMessageToDisplay(message: ChatMessage): boolean {
+  if (
+    message.role === "agent_message" &&
+    (!message.contents || message.contents.length === 0)
+  ) {
+    return false;
+  }
+  return true;
+}

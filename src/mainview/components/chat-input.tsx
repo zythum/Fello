@@ -88,6 +88,7 @@ export function ChatInput() {
                 ),
               },
             ],
+            displayId: crypto.randomUUID(),
           });
         }
       }, STREAMING_TIMEOUT_MS);
@@ -114,6 +115,7 @@ export function ChatInput() {
       role: "user_message",
       contents: [{ type: "text", text: resolved }],
       _meta: { optimistic_id: optimisticId },
+      displayId: crypto.randomUUID(),
     } satisfies ChatMessage;
 
     // 1. Optimistic Update: clear input and add message to screen instantly
@@ -137,6 +139,7 @@ export function ChatInput() {
               text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
             },
           ],
+          displayId: crypto.randomUUID(),
         });
       }
     }, STREAMING_TIMEOUT_MS);
@@ -178,6 +181,7 @@ export function ChatInput() {
               text: `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
             },
           ],
+          displayId: crypto.randomUUID(),
         } satisfies ChatMessage);
       }
     } finally {
