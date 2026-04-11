@@ -1091,7 +1091,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             <span className="truncate">{gitStatus.branch}</span>
           </div>
           {hasChanges && (
-            <div className="ml-2 flex shrink-0 gap-1.5 font-normal tracking-tighter">
+            <div className="ml-2 flex shrink-0 gap-1.5 text-[10px] font-normal tracking-tighter">
               {GIT_SUMMARY_BADGES.map(({ key, color }) =>
                 counts[key] > 0 ? (
                   <span key={key} className={color}>
@@ -1147,7 +1147,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                   return (
                     <DropdownMenuItem
                       key={relPath}
-                      className="text-xs rounded-1 flex items-center justify-between cursor-pointer"
+                      className="text-xs rounded-xs flex items-center justify-between cursor-pointer"
                       onClick={() =>
                         activeProjectId &&
                         onPreviewFile?.({ projectId: activeProjectId, relativePath: relPath })

@@ -49,7 +49,7 @@ export function Chat() {
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-sidebar">
+    <div className="relative flex h-full min-h-0 flex-col bg-background">
       {session && (
         <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
           <div className="min-w-0 flex flex-1">

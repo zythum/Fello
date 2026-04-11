@@ -80,7 +80,7 @@ export function SessionView() {
             </ResizablePanel>
             <ResizableHandle className="bg-sidebar-border" />
             <ResizablePanel defaultSize={30} minSize={15}>
-              <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col bg-sidebar">
+              <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col">
                 <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
                   <button
                     type="button"
@@ -133,7 +133,7 @@ export function SessionView() {
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          <div className="flex flex-1 flex-col items-center bg-sidebar justify-center gap-6 px-8">
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
               <MessageSquare className="size-8 text-primary" />
             </div>
