@@ -13,8 +13,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Square, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
+import type { ContentBlock } from "@agentclientprotocol/sdk";
+
+// Define an interface for the staged file
+interface StagedAttachment {
+  id: string;
+  file: File;
+  type: "image" | "file";
+  previewUrl?: string; // object URL for images
+}
+
+async function processAttachments(staged: StagedAttachment[]): Promise<ContentBlock[]> {
+  const blocks: ContentBlock[] = [];
+  for (const att of staged) {
+    if (att.type === "image") {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Format: data:image/png;base64,...
+          const b64 = result.split(",")[1];
+          resolve(b64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(att.file);
+      });
+      blocks.push({
+        type: "image",
+        mimeType: att.file.type,
+        data: base64,
+      });
+    } else {
+      // For text files, read as text and send as embedded resource
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsText(att.file);
+      });
+      blocks.push({
+        type: "resource",
+        resource: {
+          uri: `file://${att.file.name}`,
+          text,
+        },
+      });
+    }
+  }
+  return blocks;
+}
 
 /** Markup format used by react-mentions: @[display](id) */
 const MENTION_MARKUP = "@[__display__](__id__)";
@@ -36,8 +86,50 @@ export function ChatInput() {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { sessions, activeSessionId, addMessage, setIsStreaming } = useAppStore();
-  const { isStreaming, availableModels, currentModelId, availableModes, currentModeId } =
+  const { isStreaming, availableModels, currentModelId, availableModes, currentModeId, agentInfo } =
     useActiveSessionState();
+
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cleanup object URLs to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      attachments.forEach((att) => {
+        if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
+      });
+    };
+  }, [attachments]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments = files.map((file) => {
+      const isImage = file.type.startsWith("image/");
+
+      let type: "image" | "file" = "file";
+      if (isImage && agentInfo?.agentCapabilities?.promptCapabilities?.image) {
+        type = "image";
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        file,
+        type,
+        previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
+      } as StagedAttachment;
+    });
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((a) => a.id !== id);
+    });
+  };
 
   const session = sessions.find((s) => s.id === activeSessionId) ?? null;
 
@@ -107,19 +199,50 @@ export function ChatInput() {
   };
 
   const handleSubmit = useCallback(async () => {
+    const displayId = crypto.randomUUID();
     const resolved = resolveMentions(input).trim();
-    if (!resolved || !activeSessionId || isStreaming) return;
+    if ((!resolved && attachments.length === 0) || !activeSessionId || isStreaming) return;
 
-    const optimisticId = crypto.randomUUID();
+    // Process attachments before sending
+    let attachmentBlocks: ContentBlock[] = [];
+    if (attachments.length > 0) {
+      try {
+        attachmentBlocks = await processAttachments(attachments);
+      } catch (err) {
+        console.error("Failed to process attachments", err);
+        return; // Handle error appropriately
+      }
+    }
+
+    const contents: ContentBlock[] = [];
+    if (resolved) {
+      contents.push({
+        type: "text",
+        text: resolved,
+        _meta: {
+          display_id: displayId,
+          optimistic_id: crypto.randomUUID(),
+        }
+      })
+    };
+    contents.push(...attachmentBlocks.map(block => {
+      return Object.assign({
+        _meta: {
+          display_id: displayId,
+          optimistic_id: crypto.randomUUID(),
+        }
+      }, block);
+    }));
+
     const userMessage = {
       role: "user_message",
-      contents: [{ type: "text", text: resolved }],
-      _meta: { optimistic_id: optimisticId },
-      displayId: crypto.randomUUID(),
+      contents,
+      displayId: displayId,
     } satisfies ChatMessage;
 
     // 1. Optimistic Update: clear input and add message to screen instantly
     setInput("");
+    setAttachments([]);
     addMessage(activeSessionId, userMessage);
     setIsStreaming(activeSessionId, true);
 
@@ -148,8 +271,7 @@ export function ChatInput() {
       // 2. Fire and Forget (wait for network only, UI is already updated)
       await request.sendMessage({
         sessionId: activeSessionId,
-        text: resolved,
-        _meta: { optimistic_id: optimisticId },
+        contents,
       });
     } catch (err) {
       // 3. Rollback on Network Failure
@@ -157,7 +279,7 @@ export function ChatInput() {
       // If it was echoed, the optimistic flag was stripped by the reducer, and it's a real message now.
       const currentState = useAppStore.getState().getSessionState(activeSessionId);
       const isStillOptimistic = currentState.messages.some(
-        (m) => m._meta?.optimistic_id === optimisticId,
+        (m) => m.displayId === displayId,
       );
 
       if (isStillOptimistic) {
@@ -165,7 +287,7 @@ export function ChatInput() {
 
         // Remove the optimistically added message
         const newMessages = currentState.messages.filter(
-          (m) => m._meta?.optimistic_id !== optimisticId,
+          (m) => m.displayId !== displayId,
         );
         useAppStore
           .getState()
@@ -184,32 +306,16 @@ export function ChatInput() {
           displayId: crypto.randomUUID(),
         } satisfies ChatMessage);
       }
-    } finally {
-      // 4. Final cleanup
-      clearStreamingTimer();
-      const currentState = useAppStore.getState().getSessionState(activeSessionId);
-
-      // Force finalize streaming if we were in a streaming state
-      if (currentState.isStreaming) {
-        useAppStore
-          .getState()
-          .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
-      }
-
-      // 5. Update Title if it's the first message
-      // We check this in finally to ensure it runs even if stream is interrupted
-      const messages = useAppStore.getState().getSessionState(activeSessionId).messages;
-      if (messages.filter((m: ChatMessage) => m.role === "user_message").length === 1) {
-        await request
-          .updateSessionTitle({
-            sessionId: activeSessionId,
-            title: getSummaryTitle(resolved),
-          })
-          .catch((e) => console.error("Failed to update title", e));
-        loadHistorySessions();
-      }
     }
-  }, [input, activeSessionId, isStreaming, addMessage, setIsStreaming, clearStreamingTimer]);
+  }, [
+    input,
+    attachments,
+    activeSessionId,
+    isStreaming,
+    addMessage,
+    setIsStreaming,
+    clearStreamingTimer,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -337,6 +443,49 @@ export function ChatInput() {
           onDragLeave={handleDragLeave}
           onPasteCapture={handlePaste}
         >
+          {/* Top Preview Area */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-3 pb-0">
+              {attachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="relative flex items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 text-xs"
+                >
+                  {att.type === "image" ? (
+                    <HoverCard>
+                      <HoverCardTrigger
+                        render={
+                          <div className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                            <ImageIcon className="size-3.5" />
+                            <span className="max-w-[100px] truncate">{att.file.name}</span>
+                          </div>
+                        }
+                      />
+                      <HoverCardContent className="w-auto p-1" side="top">
+                        <img
+                          src={att.previewUrl}
+                          alt={att.file.name}
+                          className="max-h-[200px] max-w-[200px] rounded object-contain"
+                        />
+                      </HoverCardContent>
+                    </HoverCard>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <FileText className="size-3.5" />
+                      <span className="max-w-[100px] truncate">{att.file.name}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeAttachment(att.id)}
+                    className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* MentionsInput */}
           <MentionsInput
             value={input}
@@ -411,6 +560,35 @@ export function ChatInput() {
                   </Select>
                 </>
               )}
+              {
+                agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+                agentInfo?.agentCapabilities?.promptCapabilities?.image ? (
+                <>
+                  <input
+                    type="file"
+                    multiple
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept={
+                      [
+                        agentInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
+                        agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? "*/*" : ""
+                      ].filter(Boolean).join(",")
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 rounded-lg text-muted-foreground"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label={t("chatInput.attach", "Attach file")}
+                    disabled={disabled}
+                  >
+                    <Paperclip className="size-3.5" />
+                  </Button>
+                </>
+              ) : null}
             </div>
             <div className="flex items-center gap-2">
               {availableModels.length > 0 ? (
@@ -468,7 +646,7 @@ export function ChatInput() {
                     size="icon"
                     className="size-7 rounded-lg"
                     onClick={handleSubmit}
-                    disabled={disabled || !input.trim()}
+                    disabled={disabled || (!input.trim() && attachments.length === 0)}
                     aria-label={t("chatInput.send", "Send")}
                   >
                     <ArrowUp className="size-3.5" />

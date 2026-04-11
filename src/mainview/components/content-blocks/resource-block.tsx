@@ -8,7 +8,11 @@ import { StreamMarkdown } from "../common/stream-markdown";
 import { request } from "../../backend";
 import { toast } from "sonner";
 import { SessionInfo } from "../../../shared/schema";
-import type { EmbeddedResource, TextResourceContents, BlobResourceContents } from "@agentclientprotocol/sdk";
+import type {
+  EmbeddedResource,
+  TextResourceContents,
+  BlobResourceContents,
+} from "@agentclientprotocol/sdk";
 import type { ChatMessage } from "../../chat-message";
 
 interface ResourceBlockProps {
@@ -75,7 +79,7 @@ const BlobResourceBlock = memo(function BlobResourceBlock({
   };
 
   return (
-    <Card className="flex items-center gap-3 p-2 shadow-none">
+    <Card className="flex items-center gap-3 p-0 shadow-none">
       <FileCode className="h-6 w-6 text-purple-400 shrink-0" />
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-xs font-medium truncate">{getBasename(resource.uri)}</span>
@@ -83,7 +87,13 @@ const BlobResourceBlock = memo(function BlobResourceBlock({
           <span className="text-[10px] text-muted-foreground truncate">{resource.mimeType}</span>
         )}
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleDownload} title={t("contentBlock.download")}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={handleDownload}
+        title={t("contentBlock.download")}
+      >
         <Download className="h-4 w-4" />
       </Button>
     </Card>
@@ -121,11 +131,15 @@ const FallbackResourceBlock = memo(function FallbackResourceBlock({
       <FileCode className="h-6 w-6 text-purple-400 shrink-0" />
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-xs font-medium truncate">{getBasename(uri)}</span>
-        {mimeType && (
-          <span className="text-[10px] text-muted-foreground truncate">{mimeType}</span>
-        )}
+        {mimeType && <span className="text-[10px] text-muted-foreground truncate">{mimeType}</span>}
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleDownload} title={t("contentBlock.download")}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={handleDownload}
+        title={t("contentBlock.download")}
+      >
         <Download className="h-4 w-4" />
       </Button>
     </Card>
@@ -150,7 +164,9 @@ export const ResourceBlock = memo(function ResourceBlock({
 
   const fallbackResource = resource as unknown as { uri?: string; mimeType?: string };
   if (fallbackResource.uri) {
-    return <FallbackResourceBlock uri={fallbackResource.uri} mimeType={fallbackResource.mimeType} />;
+    return (
+      <FallbackResourceBlock uri={fallbackResource.uri} mimeType={fallbackResource.mimeType} />
+    );
   }
 
   return null;

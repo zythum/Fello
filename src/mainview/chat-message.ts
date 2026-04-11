@@ -87,21 +87,21 @@ export type ChatRole = ChatMessage["role"];
 export function isValidMessageToDisplay(message: ChatMessage): boolean {
   if (message.role === "agent_message") {
     for (const content of message.contents) {
-      if (content.type === 'text') {
+      if (content.type === "text") {
         if (content.text.length > 0) {
           return true;
         }
       }
-      if (content.type === 'audio') {
+      if (content.type === "audio") {
         return true;
       }
-      if (content.type === 'image') {
+      if (content.type === "image") {
         return true;
       }
-      if (content.type === 'resource') {
+      if (content.type === "resource") {
         return true;
       }
-      if (content.type === 'resource_link') {
+      if (content.type === "resource_link") {
         return true;
       }
     }

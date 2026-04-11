@@ -17,7 +17,7 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
     <div className="px-4 flex flex-col">
       {prevBubbleRole != null && <div className="my-14 h-px bg-border" />}
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl border border-border bg-secondary px-4 py-2 text-[13px] leading-snug font-normal text-card-foreground/75">
+        <div className="min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary px-2 py-2 text-[13px] leading-snug font-normal text-card-foreground/75">
           <ContentBlocks
             blocks={message.contents}
             role={message.role}

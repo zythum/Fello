@@ -33,6 +33,7 @@ export function Chat() {
       if (!result) return;
       updateSessionState(session.id, (prev) => ({
         ...prev,
+        agentInfo: result.agentInfo ?? null,
         availableModels: result.models?.availableModels ?? [],
         currentModelId: result.models?.currentModelId ?? null,
         availableModes: result.modes?.availableModes ?? [],

@@ -44,7 +44,7 @@ export const AudioBlock = memo(function AudioBlock({
   const src = data && mimeType ? `data:${mimeType};base64,${data}` : undefined;
 
   return (
-    <Card className="flex items-center gap-2 p-2 shadow-none bg-muted/30">
+    <Card className="flex items-center gap-2 p-0 shadow-none bg-muted/30">
       {src ? (
         <audio controls src={src} className="h-8 max-w-[200px]" />
       ) : (

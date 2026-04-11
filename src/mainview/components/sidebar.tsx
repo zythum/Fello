@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ModelInfo, SessionMode } from "@agentclientprotocol/sdk";
+import type { ModelInfo, SessionMode, InitializeResponse } from "@agentclientprotocol/sdk";
 import { useAppStore } from "../store";
 import type { ProjectInfo, SessionInfo } from "../../shared/schema";
 import { request, isWebUI } from "../backend";
@@ -82,6 +82,7 @@ export function Sidebar() {
       sessionId: string;
       models: { availableModels: ModelInfo[]; currentModelId: string } | null;
       modes: { availableModes: SessionMode[]; currentModeId: string } | null;
+      agentInfo: InitializeResponse | null;
     } | null,
   ) => {
     if (!payload) return;
@@ -91,6 +92,7 @@ export function Sidebar() {
       currentModelId: payload.models?.currentModelId ?? null,
       availableModes: payload.modes?.availableModes ?? [],
       currentModeId: payload.modes?.currentModeId ?? null,
+      agentInfo: payload.agentInfo,
     }));
   };
 
@@ -161,11 +163,7 @@ export function Sidebar() {
     useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: true }));
     try {
       const result = await request.loadSession({ sessionId: session.id });
-      applySessionState({
-        sessionId: session.id,
-        models: result.models,
-        modes: result.modes,
-      });
+      applySessionState(result);
     } catch (err) {
       console.error("Failed to load session", err);
       pushGlobalErrorMessage(

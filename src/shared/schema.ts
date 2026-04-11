@@ -4,6 +4,7 @@ import type {
   InitializeResponse,
   SessionModeState,
   SessionModelState,
+  ContentBlock,
 } from "@agentclientprotocol/sdk";
 
 /**
@@ -168,7 +169,10 @@ export type FelloIPCRequests = {
   };
   /** 向会话发送用户消息 */
   sendMessage: {
-    params: { sessionId: string; text: string; _meta?: { [key: string]: unknown } };
+    params: {
+      sessionId: string;
+      contents: ContentBlock[];
+    };
     response: { stopReason: string };
   };
   /** 取消当前正在生成的回答/任务 */

@@ -16,37 +16,43 @@ function calculateUserMessageChunk(
   update: UpdatePayload<"user_message_chunk">,
 ): SessionState {
   const content = update.content;
-  const msgs = state.messages;
+  const messages = state.messages;
 
   // Optimistic update deduplication
-  const optimisticId = update._meta?.optimistic_id;
-  if (optimisticId) {
-    const existingIdx = msgs.findIndex((m) => m._meta?.optimistic_id === optimisticId);
-    if (existingIdx !== -1) {
+  const optimisticId = content._meta?.optimistic_id;
+  const displayId = content._meta?.display_id;
+  if (typeof optimisticId  === 'string' && typeof displayId === 'string') {
+    const messageIdx = messages.findIndex((m) => m.displayId === displayId);
+    if (messageIdx !== -1) {
       // We found the optimistically added message!
       // Instead of ignoring the backend's chunk, we replace our fake message
       // with the real content and metadata confirmed by the backend.
-      const newMessages = [...msgs];
-      const existingMsg = newMessages[existingIdx];
 
-      // Extract real metadata and strip the temporary optimistic_id flag
-      const { optimistic_id: _optimistic_id, ...realMeta } = update._meta || {};
+      const existingMsg = messages[messageIdx];
+      if (existingMsg.role === 'user_message') {
 
-      newMessages[existingIdx] = {
-        ...existingMsg,
-        role: "user_message",
-        contents: [content], // Use the backend's canonical content
-        _meta: Object.keys(realMeta).length > 0 ? realMeta : undefined,
-      } satisfies ChatMessage;
+        const contents = existingMsg.contents;
+        const contentIdx= contents.findIndex((c) => c._meta?.optimistic_id === optimisticId);
+        if (contentIdx !== -1) {
+          const newContents = [...contents];
+          newContents[contentIdx] = content;
+          const newMessages = [...messages];
+          newMessages[messageIdx] = {
+            ...existingMsg,
+            role: "user_message",
+            contents: newContents, // Use the backend's canonical content
+          } satisfies ChatMessage;
 
-      return { ...state, messages: newMessages };
+          return { ...state, messages: newMessages };
+        }
+      }
     }
   }
 
   return {
     ...state,
     messages: [
-      ...msgs,
+      ...messages,
       {
         role: "user_message",
         contents: [content],

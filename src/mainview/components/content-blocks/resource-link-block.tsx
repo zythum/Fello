@@ -91,7 +91,7 @@ export const ResourceLinkBlock = memo(function ResourceLinkBlock({
     !isWebUI && isFile && sessionCwd && path && !isSubPath(sessionCwd, path);
 
   return (
-    <Card className="flex flex-col gap-2 p-3 hover:bg-muted/30 transition-colors shadow-none">
+    <Card className="flex flex-col gap-2 p-0 hover:bg-muted/30 transition-colors shadow-none">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 rounded-sm bg-primary/10 p-1.5 shrink-0 text-primary">
           <Link2 className="h-4 w-4" />

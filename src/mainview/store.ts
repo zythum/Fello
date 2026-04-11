@@ -6,6 +6,7 @@ import type {
   SessionMode,
   RequestPermissionRequest,
   UsageUpdate,
+  InitializeResponse,
 } from "@agentclientprotocol/sdk";
 
 export type PermissionRequest = Omit<RequestPermissionRequest, "sessionId">;
@@ -22,6 +23,7 @@ export interface SessionState {
   currentModelId: string | null;
   availableModes: SessionMode[];
   currentModeId: string | null;
+  agentInfo: InitializeResponse | null;
 }
 
 const emptySessionState = (): SessionState => ({
@@ -35,6 +37,7 @@ const emptySessionState = (): SessionState => ({
   currentModelId: null,
   availableModes: [],
   currentModeId: null,
+  agentInfo: null,
 });
 
 interface AppState {

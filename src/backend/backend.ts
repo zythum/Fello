@@ -2,6 +2,7 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
   SessionNotification,
+  ContentBlock,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
@@ -417,6 +418,9 @@ export const backendHandlers: {
       sessionId: session.resumeId,
       cwd: session.cwd,
       mcpServers: [],
+      _meta: {
+        "client": "Fello",
+      }
     });
     return {
       sessionId: session.id,
@@ -426,7 +430,7 @@ export const backendHandlers: {
     };
   },
 
-  async sendMessage({ sessionId, text, _meta }) {
+  async sendMessage({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgePool.get(session.agentId);
@@ -435,21 +439,24 @@ export const backendHandlers: {
     storageOps.touchSession(sessionId);
 
     // Broadcast user message to clients
-    const notification: SessionNotification = {
-      sessionId: session.resumeId,
-      update: {
-        sessionUpdate: "user_message_chunk",
-        content: { type: "text", text },
-        _meta: _meta ?? {},
-      },
-      _meta: {},
-    };
-    sendEvent("session-update", {
-      sessionId: session.id,
-      notification: notification,
-    });
+    for (const content of contents) {
+      const notification: SessionNotification = {
+        sessionId: session.resumeId,
+        update: {
+          sessionUpdate: "user_message_chunk",
+          content: content,
+        },
+      };
+      sendEvent("session-update", {
+        sessionId: session.id,
+        notification: notification,
+      });
+    }
 
-    return b.sendPrompt({ sessionId: session.resumeId, prompt: [{ type: "text", text }] });
+    return b.sendPrompt({
+      sessionId: session.resumeId,
+      prompt: contents,
+    });
   },
 
   async cancelPrompt({ sessionId }) {
