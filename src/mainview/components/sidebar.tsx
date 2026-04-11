@@ -315,7 +315,7 @@ export function Sidebar() {
       <div className="px-2 pt-2 pb-1">
         <div
           onClick={() => setActiveSessionId(null)}
-          className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-medium transition-colors ${
+          className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
             !activeSessionId
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
@@ -326,7 +326,7 @@ export function Sidebar() {
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
-        <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/35 uppercase">
+        <span className="text-[10px] font-normal tracking-wide text-sidebar-foreground/35 uppercase">
           {t("sidebar.projects")}
         </span>
         <Button
@@ -347,7 +347,7 @@ export function Sidebar() {
               <div key={project.id} className="space-y-0.5">
                 <div
                   onClick={() => toggleProject(project.id)}
-                  className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-medium text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                  className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
                     openProjectMenuId === project.id || openAgentMenuProjectId === project.id
                       ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                       : ""
@@ -484,7 +484,7 @@ export function Sidebar() {
                     <div
                       key={session.id}
                       onClick={() => handleSelectSession(session)}
-                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-2 text-xs font-medium transition-colors ${
+                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-2 text-xs font-normal transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"

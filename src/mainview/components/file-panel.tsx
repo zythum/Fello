@@ -240,7 +240,7 @@ function TreeItem({
               {statusText && (
                 <span
                   className={cn(
-                    "mx-1 shrink-0 text-[10px] font-medium tracking-tighter",
+                    "mx-1 shrink-0 text-[10px] font-normal tracking-tighter",
                     statusColor,
                   )}
                 >
@@ -1108,7 +1108,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             <span className="truncate">{gitStatus.branch}</span>
           </div>
           {hasChanges && (
-            <div className="ml-2 flex shrink-0 gap-1.5 font-medium tracking-tighter">
+            <div className="ml-2 flex shrink-0 gap-1.5 font-normal tracking-tighter">
               {GIT_SUMMARY_BADGES.map(({ key, color }) =>
                 counts[key] > 0 ? (
                   <span key={key} className={color}>

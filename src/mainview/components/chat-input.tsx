@@ -496,7 +496,7 @@ export function ChatInput() {
 /** Inline styles for MentionsInput to match the existing textarea look */
 const mentionsInputStyle = {
   control: {
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: "1.5",
   },
   "&multiLine": {
@@ -514,7 +514,7 @@ const mentionsInputStyle = {
       overflow: "auto",
       maxHeight: 200,
       color: "var(--foreground)",
-      fontSize: 13,
+      fontSize: 12,
       lineHeight: "1.5",
     },
   },
@@ -524,7 +524,7 @@ const mentionsInputStyle = {
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
       borderRadius: 8,
-      fontSize: 13,
+      fontSize: 12,
       overflow: "hidden",
     },
     item: {

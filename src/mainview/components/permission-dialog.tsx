@@ -29,7 +29,7 @@ export function PermissionDialog({ request }: Props) {
             <ShieldAlert className="size-5 text-yellow-400" />
           </div>
           <div>
-            <h2 className="leading-none font-medium">
+            <h2 className="leading-none font-normal">
               {t("permission.title", "Permission Required")}
             </h2>
             <p className="text-sm text-muted-foreground">{request.toolCall.title}</p>

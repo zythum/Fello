@@ -57,7 +57,7 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
     >
       <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
         {kindIcon}
-        <span className="flex-1 font-medium text-foreground">
+        <span className="flex-1 font-normal text-foreground">
           {message.title || t("toolBubble.tool")}
         </span>
         {statusIcons[status]}

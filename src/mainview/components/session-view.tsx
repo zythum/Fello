@@ -86,7 +86,7 @@ export function SessionView() {
                     type="button"
                     onClick={() => setRightTab("files")}
                     className={cn(
-                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-normal",
                       rightTab === "files"
                         ? "bg-accent text-accent-foreground"
                         : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
@@ -99,7 +99,7 @@ export function SessionView() {
                     type="button"
                     onClick={() => setRightTab("terminal")}
                     className={cn(
-                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                      "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-normal",
                       rightTab === "terminal"
                         ? "bg-accent text-accent-foreground"
                         : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
