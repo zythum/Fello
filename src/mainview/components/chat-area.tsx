@@ -62,17 +62,15 @@ export function ChatArea() {
     <div className="relative min-h-0 flex-1">
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="py-4 max-w-3xl mx-auto">
-          {messages
-            .filter(isValidMessageToDisplay)
-            .map((msg, i, messages) => (
-              <div key={msg.displayId} className="chat-message" data-role={msg.role}>
-                <MessageBubble
-                  message={msg}
-                  prevBubbleRole={messages[i - 1]?.role}
-                  nextBubbleRole={messages[i + 1]?.role}
-                />
-              </div>
-            ))}
+          {messages.filter(isValidMessageToDisplay).map((msg, i, messages) => (
+            <div key={msg.displayId} className="chat-message" data-role={msg.role}>
+              <MessageBubble
+                message={msg}
+                prevBubbleRole={messages[i - 1]?.role}
+                nextBubbleRole={messages[i + 1]?.role}
+              />
+            </div>
+          ))}
 
           {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
             <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">

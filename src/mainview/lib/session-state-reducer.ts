@@ -45,7 +45,15 @@ function calculateUserMessageChunk(
 
   return {
     ...state,
-    messages: [...msgs, { role: "user_message", contents: [content], _meta: update._meta, displayId: crypto.randomUUID() }],
+    messages: [
+      ...msgs,
+      {
+        role: "user_message",
+        contents: [content],
+        _meta: update._meta,
+        displayId: crypto.randomUUID(),
+      },
+    ],
   };
 }
 
@@ -79,7 +87,12 @@ function calculateAgentChunk(
         msgs[i] = { ...m, streaming: false };
       }
     }
-    msgs.push({ role, contents: [block], streaming: true, displayId: crypto.randomUUID() } satisfies ChatMessage);
+    msgs.push({
+      role,
+      contents: [block],
+      streaming: true,
+      displayId: crypto.randomUUID(),
+    } satisfies ChatMessage);
   }
   return { ...state, messages: msgs };
 }

@@ -182,6 +182,16 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: { ok: boolean; cwd: string | null };
   };
+  /** 将文件复制到当前会话的工作目录 */
+  copyFileToWorkspace: {
+    params: { projectId: string; sourcePath: string; destDir?: string };
+    response: { success: boolean; destPath: string };
+  };
+  /** 读取 URL (本地文件或 http 链接) 并转换为 Base64 (Data URL) */
+  readUrlAsDataUrl: {
+    params: { url: string; mimeType?: string };
+    response: string;
+  };
   /** 删除会话 */
   deleteSession: { params: string; response: void };
 

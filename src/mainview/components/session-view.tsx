@@ -78,7 +78,7 @@ export function SessionView() {
                 )}
               </div>
             </ResizablePanel>
-            <ResizableHandle className="bg-sidebar-border"/>
+            <ResizableHandle className="bg-sidebar-border" />
             <ResizablePanel defaultSize={30} minSize={15}>
               <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col bg-sidebar">
                 <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">

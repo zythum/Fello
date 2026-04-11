@@ -65,3 +65,47 @@ export function extractErrorMessage(error: unknown): string {
 
   return String(error);
 }
+
+export function downloadDataUrl(dataUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function formatBytes(bytes: number, decimals = 2) {
+  if (!+bytes) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+export function getBasename(pathOrUri: string): string {
+  if (!pathOrUri) return "";
+  let p = pathOrUri;
+  if (p.startsWith("file://")) {
+    p = decodeURIComponent(p.slice(7));
+  } else if (p.startsWith("http://") || p.startsWith("https://")) {
+    try {
+      p = new URL(p).pathname;
+    } catch {
+      // ignore
+    }
+  }
+  // handle both posix and windows paths
+  const segments = p.split(/[/\\]/);
+  return segments.pop() || p;
+}
+
+export function isSubPath(parentDir: string, childPath: string): boolean {
+  if (!parentDir || !childPath) return false;
+  let p = parentDir.replace(/\\/g, "/");
+  let c = childPath.replace(/\\/g, "/");
+  if (!p.endsWith("/")) p += "/";
+  if (!c.endsWith("/")) c += "/";
+  return c.startsWith(p);
+}

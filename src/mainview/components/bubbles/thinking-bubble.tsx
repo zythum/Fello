@@ -2,7 +2,8 @@ import { memo } from "react";
 import { Lightbulb } from "lucide-react";
 import type { AgentThoughtMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "./content-blocks";
+import { ContentBlocks } from "../content-blocks/content-blocks";
+import { useAppStore } from "../../store";
 
 interface Props {
   message: AgentThoughtMessage;
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubbleRole }: Props) {
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
+
   return (
     <details
       className={cn("w-full px-4", prevBubbleRole != null && "mt-3")}
@@ -22,7 +26,11 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
       </summary>
       <div className="mt-1 pl-5 text-[11px] italic text-muted-foreground/60">
         <div className="max-w-none">
-          <ContentBlocks blocks={message.contents} streaming={message.streaming} />
+          <ContentBlocks
+            blocks={message.contents}
+            session={session}
+            streaming={message.streaming}
+          />
         </div>
       </div>
     </details>

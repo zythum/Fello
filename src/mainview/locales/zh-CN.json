@@ -150,5 +150,19 @@
   },
   "permission": {
     "title": "需要权限"
+  },
+  "contentBlock": {
+    "unsupported": "不支持的内容块：{{type}}",
+    "download": "下载",
+    "revealInFinder": "在访达中显示",
+    "copyToWorkspace": "复制到工作区",
+    "copySuccess": "已复制到工作区",
+    "openLink": "打开链接",
+    "invalidImage": "[无效的图片块]",
+    "invalidAudio": "[无效的音频块]",
+    "image": "图片:",
+    "audio": "音频:",
+    "imageAlt": "智能体提供的图片",
+    "fileTooLarge": "文件过大 (超过 20MB)"
   }
 }

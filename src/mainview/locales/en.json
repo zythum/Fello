@@ -150,5 +150,19 @@
   },
   "permission": {
     "title": "Permission Required"
+  },
+  "contentBlock": {
+    "unsupported": "Unsupported block type: {{type}}",
+    "download": "Download",
+    "revealInFinder": "Reveal in Finder",
+    "copyToWorkspace": "Copy to Workspace",
+    "copySuccess": "Copied to workspace",
+    "openLink": "Open Link",
+    "invalidImage": "[Invalid Image block]",
+    "invalidAudio": "[Invalid Audio block]",
+    "image": "Image:",
+    "audio": "Audio:",
+    "imageAlt": "Agent provided image",
+    "fileTooLarge": "File is too large (exceeds 20MB)"
   }
 }

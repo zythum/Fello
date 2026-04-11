@@ -1,7 +1,8 @@
 import { memo } from "react";
 import type { AgentMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "./content-blocks";
+import { ContentBlocks } from "../content-blocks/content-blocks";
+import { useAppStore } from "../../store";
 
 interface Props {
   message: AgentMessage;
@@ -10,6 +11,9 @@ interface Props {
 }
 
 export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRole }: Props) {
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
+
   if (!message.contents || message.contents.length === 0) {
     return null;
   }
@@ -20,7 +24,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
         prevBubbleRole != null && "mt-4",
       )}
     >
-      <ContentBlocks blocks={message.contents} streaming={message.streaming} />
+      <ContentBlocks blocks={message.contents} session={session} streaming={message.streaming} />
     </div>
   );
 });

@@ -9,6 +9,7 @@ import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
+import * as mimeTypes from "mime-types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -99,20 +100,11 @@ export async function startWebUI(options?: {
         filePath = join(baseDir, "index.html");
       }
 
-      const ext = filePath.split(".").pop();
-      const mimeTypes: Record<string, string> = {
-        html: "text/html",
-        js: "application/javascript",
-        css: "text/css",
-        png: "image/png",
-        jpg: "image/jpeg",
-        svg: "image/svg+xml",
-        json: "application/json",
-      };
+      const mime = mimeTypes.lookup(filePath) || "application/octet-stream";
 
       const content = await readFile(filePath);
       res.writeHead(200, {
-        "Content-Type": mimeTypes[ext || "html"] || "application/octet-stream",
+        "Content-Type": mime,
       });
       res.end(content);
     } catch (err) {

@@ -3,6 +3,8 @@ import type { UserMessage } from "../../chat-message";
 import { electron } from "../../electron";
 import { isWebUI } from "../../backend";
 import { ABSOLUTE_PATH_REGEX } from "@/lib/regexp";
+import { ContentBlocks } from "../content-blocks/content-blocks";
+import { useAppStore } from "../../store";
 
 interface Props {
   message: UserMessage;
@@ -40,6 +42,9 @@ const PathLink = memo(function PathLink({ path, children }: PathLinkProps) {
 });
 
 export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: Props) {
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
+
   const contentNodes = useMemo(() => {
     if (!message.contents || message.contents.length === 0) return null;
 
@@ -77,25 +82,14 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
         return <span key={blockIndex}>{parts.length > 0 ? parts : <>{text}</>}</span>;
       }
 
-      if (block.type === "image") {
-        return (
-          <div key={blockIndex} className="text-sm italic text-muted-foreground my-2">
-            [Image block]
-          </div>
-        );
-      }
-
-      if (block.type === "resource") {
-        return (
-          <div key={blockIndex} className="text-sm italic text-muted-foreground my-2">
-            [Resource block]
-          </div>
-        );
-      }
-
-      return null;
+      // Delegate rendering of non-text blocks to ContentBlocks
+      return (
+        <div key={blockIndex} className="my-2">
+          <ContentBlocks blocks={[block]} session={session} streaming={message.streaming} />
+        </div>
+      );
     });
-  }, [message.contents]);
+  }, [message.contents, message.streaming, session]);
 
   return (
     <div className="px-4 flex flex-col">

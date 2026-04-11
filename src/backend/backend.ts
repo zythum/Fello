@@ -17,7 +17,9 @@ import {
   stat,
   writeFile,
   open,
+  copyFile,
 } from "fs/promises";
+import * as mimeTypes from "mime-types";
 import { dirname, join, relative, extname, basename } from "path";
 import { createRequire } from "module";
 import { execFile } from "child_process";
@@ -489,6 +491,91 @@ export const backendHandlers: {
       return resolveSafePath(project.cwd, inputPath);
     }
     return relative(project.cwd, resolveSafePath(project.cwd, inputPath));
+  },
+
+  async copyFileToWorkspace({ projectId, sourcePath, destDir }) {
+    const project = storageOps.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const cwd = destDir || project.cwd;
+
+    const fileName = basename(sourcePath);
+    let destPath = join(cwd, fileName);
+    let counter = 1;
+
+    while (true) {
+      const info = await stat(destPath).catch(() => null);
+      if (!info) break;
+      const ext = extname(fileName);
+      const name = basename(fileName, ext);
+      destPath = join(cwd, `${name}(${counter})${ext}`);
+      counter++;
+    }
+
+    await copyFile(sourcePath, destPath);
+    markProjectFsDirty(projectId);
+    return { success: true, destPath: toPosixPath(relative(cwd, destPath)) };
+  },
+
+  async readUrlAsDataUrl({ url: inputUrl, mimeType }) {
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
+    // 如果是 http(s)，我们可以在这里通过 fetch 下载，但这部分也可以由前端直接加载
+    // 为了满足“读取URL为DataUrl”的能力，这里也支持对 http 资源的获取
+    if (inputUrl.startsWith("http://") || inputUrl.startsWith("https://")) {
+      try {
+        const res = await fetch(inputUrl, { method: "HEAD" });
+        if (res.ok) {
+          const contentLength = res.headers.get("content-length");
+          if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE) {
+            throw new Error(`File is too large (exceeds 20MB)`);
+          }
+        }
+      } catch (err) {
+        // 忽略 HEAD 请求的失败（如 405 Method Not Allowed 或 CORS 问题）
+        // 我们会继续尝试通过 GET 请求下载，并在拿到数据时进行大小校验
+        if (err instanceof Error && err.message.includes("exceeds 20MB")) {
+          throw err;
+        }
+      }
+
+      const getRes = await fetch(inputUrl);
+      if (!getRes.ok) throw new Error(`Failed to fetch URL: ${getRes.statusText}`);
+
+      const arrayBuffer = await getRes.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_FILE_SIZE) {
+        throw new Error(`File is too large (exceeds 20MB)`);
+      }
+
+      const buffer = Buffer.from(arrayBuffer);
+      const data = buffer.toString("base64");
+      const mime = mimeType || getRes.headers.get("content-type") || "application/octet-stream";
+      return `data:${mime};base64,${data}`;
+    }
+
+    let inputPath = "";
+    if (inputUrl.startsWith("file://")) {
+      inputPath = decodeURIComponent(inputUrl.slice(7));
+    } else {
+      throw new Error(`Unsupported protocol or path format: ${inputUrl}`);
+    }
+
+    // 因为我们要求 uri 必须是 file:// 协议（绝对路径），所以不再依赖 project.cwd
+    // 直接读取本地系统路径即可
+    const safePath = inputPath;
+
+    const fileStat = await stat(safePath);
+    if (fileStat.size > MAX_FILE_SIZE) {
+      throw new Error(`File is too large (exceeds 20MB)`);
+    }
+
+    const data = await fsReadFile(safePath, "base64");
+
+    let mime = mimeType;
+    if (!mime) {
+      mime = mimeTypes.lookup(safePath) || "application/octet-stream";
+    }
+
+    return `data:${mime};base64,${data}`;
   },
 
   async getModels({ sessionId }) {
