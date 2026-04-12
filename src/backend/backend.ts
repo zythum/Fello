@@ -2,7 +2,6 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
   SessionNotification,
-  ContentBlock,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
@@ -419,8 +418,8 @@ export const backendHandlers: {
       cwd: session.cwd,
       mcpServers: [],
       _meta: {
-        "client": "Fello",
-      }
+        client: "Fello",
+      },
     });
     return {
       sessionId: session.id,

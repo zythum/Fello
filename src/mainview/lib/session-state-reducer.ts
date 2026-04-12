@@ -21,7 +21,7 @@ function calculateUserMessageChunk(
   // Optimistic update deduplication
   const optimisticId = content._meta?.optimistic_id;
   const displayId = content._meta?.display_id;
-  if (typeof optimisticId  === 'string' && typeof displayId === 'string') {
+  if (typeof optimisticId === "string" && typeof displayId === "string") {
     const messageIdx = messages.findIndex((m) => m.displayId === displayId);
     if (messageIdx !== -1) {
       // We found the optimistically added message!
@@ -29,10 +29,9 @@ function calculateUserMessageChunk(
       // with the real content and metadata confirmed by the backend.
 
       const existingMsg = messages[messageIdx];
-      if (existingMsg.role === 'user_message') {
-
+      if (existingMsg.role === "user_message") {
         const contents = existingMsg.contents;
-        const contentIdx= contents.findIndex((c) => c._meta?.optimistic_id === optimisticId);
+        const contentIdx = contents.findIndex((c) => c._meta?.optimistic_id === optimisticId);
         if (contentIdx !== -1) {
           const newContents = [...contents];
           newContents[contentIdx] = content;

@@ -75,10 +75,6 @@ function resolveMentions(value: string): string {
   return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
 }
 
-const getSummaryTitle = (text: string) => {
-  return text.length > 40 ? text.slice(0, 40) + "..." : text;
-};
-
 export function ChatInput() {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -90,16 +86,22 @@ export function ChatInput() {
     useActiveSessionState();
 
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const attachmentsRef = useRef<StagedAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cleanup object URLs to avoid memory leaks
+  // Sync attachments to ref for cleanup
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  // Cleanup object URLs to avoid memory leaks when component unmounts
   useEffect(() => {
     return () => {
-      attachments.forEach((att) => {
+      attachmentsRef.current.forEach((att) => {
         if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
       });
     };
-  }, [attachments]);
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -187,16 +189,7 @@ export function ChatInput() {
     };
     subscribe.on("session-update", handleUpdate);
     return () => subscribe.off("session-update", handleUpdate);
-  }, [clearStreamingTimer]);
-
-  const loadHistorySessions = async () => {
-    try {
-      const result = await request.listSessions();
-      useAppStore.getState().setSessions(result ?? []);
-    } catch (error) {
-      console.error("Failed to load sessions", error);
-    }
-  };
+  }, [clearStreamingTimer, t]);
 
   const handleSubmit = useCallback(async () => {
     const displayId = crypto.randomUUID();
@@ -222,17 +215,22 @@ export function ChatInput() {
         _meta: {
           display_id: displayId,
           optimistic_id: crypto.randomUUID(),
-        }
-      })
-    };
-    contents.push(...attachmentBlocks.map(block => {
-      return Object.assign({
-        _meta: {
-          display_id: displayId,
-          optimistic_id: crypto.randomUUID(),
-        }
-      }, block);
-    }));
+        },
+      });
+    }
+    contents.push(
+      ...attachmentBlocks.map((block) => {
+        return Object.assign(
+          {
+            _meta: {
+              display_id: displayId,
+              optimistic_id: crypto.randomUUID(),
+            },
+          },
+          block,
+        );
+      }),
+    );
 
     const userMessage = {
       role: "user_message",
@@ -242,7 +240,13 @@ export function ChatInput() {
 
     // 1. Optimistic Update: clear input and add message to screen instantly
     setInput("");
-    setAttachments([]);
+    setAttachments((current) => {
+      // Clean up URLs for submitted attachments
+      current.forEach((att) => {
+        if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
+      });
+      return [];
+    });
     addMessage(activeSessionId, userMessage);
     setIsStreaming(activeSessionId, true);
 
@@ -278,17 +282,13 @@ export function ChatInput() {
       // Only rollback if the message is STILL optimistic (meaning backend never echoed it back).
       // If it was echoed, the optimistic flag was stripped by the reducer, and it's a real message now.
       const currentState = useAppStore.getState().getSessionState(activeSessionId);
-      const isStillOptimistic = currentState.messages.some(
-        (m) => m.displayId === displayId,
-      );
+      const isStillOptimistic = currentState.messages.some((m) => m.displayId === displayId);
 
       if (isStillOptimistic) {
         console.error("Prompt error (network failure):", err);
 
         // Remove the optimistically added message
-        const newMessages = currentState.messages.filter(
-          (m) => m.displayId !== displayId,
-        );
+        const newMessages = currentState.messages.filter((m) => m.displayId !== displayId);
         useAppStore
           .getState()
           .updateSessionState(activeSessionId, () => ({ messages: newMessages }));
@@ -325,43 +325,86 @@ export function ChatInput() {
     }
   };
 
-  /** Insert mention markup for each dropped tree node */
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    const raw = e.dataTransfer.getData("application/x-fello-tree-nodes");
-    if (!raw) return; // not from file-tree, ignore
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-
-    try {
-      const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
-      if (nodes.length === 0) return;
-      const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
-      setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
-
-      // Focus the textarea after drop
-      requestAnimationFrame(() => {
-        containerRef.current?.querySelector("textarea")?.focus();
-      });
-    } catch {
-      // ignore malformed data
-    }
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    // Must always preventDefault on dragover to allow drop
-    if (e.dataTransfer.types.includes("application/x-fello-tree-nodes")) {
+  /** Insert mention markup for each dropped tree node or add files as attachments */
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      e.dataTransfer.dropEffect = "copy";
-      // Clear any pending drag-leave timeout (child→child transitions fire leave+enter)
-      if (dragLeaveTimer.current) {
-        clearTimeout(dragLeaveTimer.current);
-        dragLeaveTimer.current = null;
+      setIsDragOver(false);
+
+      const supportsImage = agentInfo?.agentCapabilities?.promptCapabilities?.image;
+      const supportsEmbedded = agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
+      const supportsFiles = supportsImage || supportsEmbedded;
+
+      // Handle files drop
+      if (supportsFiles && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const files = Array.from(e.dataTransfer.files).filter((file) => {
+          const isImage = file.type.startsWith("image/");
+          if (isImage) return supportsImage;
+          return supportsEmbedded;
+        });
+
+        if (files.length > 0) {
+          const newAttachments = files.map((file) => {
+            const isImage = file.type.startsWith("image/");
+            const type = isImage && supportsImage ? "image" : "file";
+            return {
+              id: crypto.randomUUID(),
+              file,
+              type,
+              previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
+            } as StagedAttachment;
+          });
+          setAttachments((prev) => [...prev, ...newAttachments]);
+          return;
+        }
       }
-      setIsDragOver(true);
-    }
-  }, []);
+
+      // Handle tree nodes drop
+      const raw = e.dataTransfer.getData("application/x-fello-tree-nodes");
+      if (!raw) return; // not from file-tree, ignore
+
+      try {
+        const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
+        if (nodes.length === 0) return;
+        const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
+        setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+
+        // Focus the textarea after drop
+        requestAnimationFrame(() => {
+          containerRef.current?.querySelector("textarea")?.focus();
+        });
+      } catch {
+        // ignore malformed data
+      }
+    },
+    [agentInfo?.agentCapabilities?.promptCapabilities],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      const supportsFiles =
+        agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+        agentInfo?.agentCapabilities?.promptCapabilities?.image;
+
+      // Must always preventDefault on dragover to allow drop
+      if (
+        e.dataTransfer.types.includes("application/x-fello-tree-nodes") ||
+        (supportsFiles && e.dataTransfer.types.includes("Files"))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+        // Clear any pending drag-leave timeout (child→child transitions fire leave+enter)
+        if (dragLeaveTimer.current) {
+          clearTimeout(dragLeaveTimer.current);
+          dragLeaveTimer.current = null;
+        }
+        setIsDragOver(true);
+      }
+    },
+    [agentInfo?.agentCapabilities?.promptCapabilities],
+  );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -560,9 +603,8 @@ export function ChatInput() {
                   </Select>
                 </>
               )}
-              {
-                agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-                agentInfo?.agentCapabilities?.promptCapabilities?.image ? (
+              {agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+              agentInfo?.agentCapabilities?.promptCapabilities?.image ? (
                 <>
                   <input
                     type="file"
@@ -570,12 +612,14 @@ export function ChatInput() {
                     ref={fileInputRef}
                     className="hidden"
                     onChange={handleFileSelect}
-                    accept={
-                      [
-                        agentInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
-                        agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? "*/*" : ""
-                      ].filter(Boolean).join(",")
-                    }
+                    accept={[
+                      agentInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
+                      agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
+                        ? "*/*"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(",")}
                   />
                   <Button
                     variant="ghost"
@@ -585,7 +629,11 @@ export function ChatInput() {
                     aria-label={t("chatInput.attach", "Attach file")}
                     disabled={disabled}
                   >
-                    <Paperclip className="size-3.5" />
+                    {agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
+                      <Paperclip className="size-3.5" />
+                    ) : (
+                      <ImageIcon className="size-3.5" />
+                    )}
                   </Button>
                 </>
               ) : null}
