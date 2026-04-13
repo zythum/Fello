@@ -109,4 +109,6 @@ bridge.on("session-update", (payload) => emit("session-update", payload));
 bridge.on("permission-request", (payload) => emit("permission-request", payload));
 bridge.on("terminal-output", (payload) => emit("terminal-output", payload));
 bridge.on("terminal-exit", (payload) => emit("terminal-exit", payload));
+bridge.on("agent-terminal-output", (payload) => emit("agent-terminal-output", payload));
+bridge.on("webui-status-changed", (payload) => emit("webui-status-changed", payload));
 bridge.on("fs-changed", (payload) => emit("fs-changed", payload));
