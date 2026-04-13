@@ -144,6 +144,14 @@
     "thinking": "Thinking...",
     "scrollToBottom": "Scroll to bottom"
   },
+  "thinkingBubble": {
+    "thinking": "Thinking...",
+    "thought": "Thought"
+  },
+  "session": {
+    "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
+    "usageSummaryCached": "  ↻ {{cached}}"
+  },
   "terminalPanel": {
     "noTerminalSelected": "No terminal selected",
     "addTerminal": "Add terminal"

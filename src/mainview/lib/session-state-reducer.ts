@@ -1,4 +1,5 @@
 import type { SessionNotification, ContentBlock } from "@agentclientprotocol/sdk";
+import i18n from "../i18n";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, ChatMessage } from "../chat-message";
 
@@ -70,7 +71,7 @@ function calculateAgentChunk(
   const msgs = [...state.messages];
   const last = msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
 
-  if (last && last.role === role && "streaming" in last && last.streaming) {
+  if (last && last.role === role && state.isStreaming) {
     const oldContents = last.contents || [];
     const lastBlock = oldContents[oldContents.length - 1];
 
@@ -85,17 +86,9 @@ function calculateAgentChunk(
       msgs[msgs.length - 1] = { ...last, contents: [...oldContents, block] };
     }
   } else {
-    // Finalize any prior streaming messages when starting a new one
-    for (let i = 0; i < msgs.length; i++) {
-      const m = msgs[i];
-      if ("streaming" in m && m.streaming) {
-        msgs[i] = { ...m, streaming: false };
-      }
-    }
     msgs.push({
       role,
       contents: [block],
-      streaming: true,
       displayId: crypto.randomUUID(),
     } satisfies ChatMessage);
   }
@@ -207,6 +200,46 @@ export function reduceSessionUpdate(
       nextState = calculateToolCall(currentState, update);
       break;
 
+    case "session_info_update":
+      if (update._meta) {
+        if (typeof update._meta.isStreaming === "boolean") {
+          nextState = { ...currentState, isStreaming: update._meta.isStreaming };
+        }
+
+        if (update._meta.usage) {
+          const usage = update._meta.usage as {
+            inputTokens: number;
+            outputTokens: number;
+            totalTokens: number;
+            cachedReadTokens?: number;
+          };
+          nextState = {
+            ...nextState,
+            messages: [
+              ...nextState.messages,
+              {
+                role: "system_message",
+                kind: "info",
+                displayId: crypto.randomUUID(),
+                contents: [
+                  i18n.t("session.usageSummary", {
+                    total: usage.totalTokens,
+                    input: usage.inputTokens,
+                    output: usage.outputTokens,
+                    cachedPart: usage.cachedReadTokens
+                      ? i18n.t("session.usageSummaryCached", {
+                          cached: usage.cachedReadTokens,
+                        })
+                      : "",
+                  }),
+                ],
+              } as ChatMessage,
+            ],
+          };
+        }
+      }
+      break;
+
     case "usage_update":
       nextState = calculateUsageUpdate(currentState, update);
       break;
@@ -238,10 +271,8 @@ export function reduceFlushStreaming(currentState: SessionState): SessionState {
     });
   }
 
-  // Finalize streaming messages
-  newMessages = newMessages.map((m: ChatMessage) =>
-    "streaming" in m && m.streaming ? { ...m, streaming: false } : m,
-  );
+  // No need to finalize individual message streaming states anymore,
+  // since we rely entirely on the session-level isStreaming flag.
 
   return {
     ...currentState,

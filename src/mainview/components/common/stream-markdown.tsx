@@ -5,16 +5,16 @@ import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
 
 export interface StreamMarkdownProps {
-  streaming?: boolean;
+  isStreaming?: boolean;
   children?: string;
 }
 
-export function StreamMarkdown({ children, streaming }: StreamMarkdownProps) {
+export function StreamMarkdown({ children, isStreaming }: StreamMarkdownProps) {
   return (
     <Streamdown
       plugins={{ code, mermaid, math, cjk }}
       shikiTheme={["github-light", "github-dark"]}
-      isAnimating={streaming}
+      isAnimating={isStreaming}
       linkSafety={{ enabled: false }}
     >
       {children}

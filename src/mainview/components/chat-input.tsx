@@ -173,14 +173,12 @@ export function ChatInput() {
           useAppStore.getState().updateSessionState(sid, () => reduceFlushStreaming(currentState));
           useAppStore.getState().addMessage(sid, {
             role: "system_message",
+            kind: "error",
             contents: [
-              {
-                type: "text",
-                text: t(
-                  "chatInput.timeoutError",
-                  "Agent stopped responding (timed out after 30s).",
-                ),
-              },
+              t(
+                "chatInput.timeoutError",
+                "Agent stopped responding (timed out after 30s).",
+              ),
             ],
             displayId: crypto.randomUUID(),
           });
@@ -248,7 +246,6 @@ export function ChatInput() {
       return [];
     });
     addMessage(activeSessionId, userMessage);
-    setIsStreaming(activeSessionId, true);
 
     // Start the streaming inactivity timeout
     clearStreamingTimer();
@@ -260,11 +257,9 @@ export function ChatInput() {
           .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system_message",
+          kind: "error",
           contents: [
-            {
-              type: "text",
-              text: t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
-            },
+            t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
           ],
           displayId: crypto.randomUUID(),
         });
@@ -272,40 +267,41 @@ export function ChatInput() {
     }, STREAMING_TIMEOUT_MS);
 
     try {
-      // 2. Fire and Forget (wait for network only, UI is already updated)
+      // 2. Wait for the generation to complete
       await request.sendMessage({
         sessionId: activeSessionId,
         contents,
       });
+
+      // 3. Generation completed successfully. 
+      // The backend has already broadcasted isStreaming: false via session_info_update.
+      clearStreamingTimer();
     } catch (err) {
-      // 3. Rollback on Network Failure
-      // Only rollback if the message is STILL optimistic (meaning backend never echoed it back).
-      // If it was echoed, the optimistic flag was stripped by the reducer, and it's a real message now.
+      // 4. Rollback on Network Failure
       const currentState = useAppStore.getState().getSessionState(activeSessionId);
       const isStillOptimistic = currentState.messages.some((m) => m.displayId === displayId);
 
       if (isStillOptimistic) {
         console.error("Prompt error (network failure):", err);
-
-        // Remove the optimistically added message
         const newMessages = currentState.messages.filter((m) => m.displayId !== displayId);
         useAppStore
           .getState()
           .updateSessionState(activeSessionId, () => ({ messages: newMessages }));
       } else {
-        // Backend received the user message, but Agent failed to generate a response.
         console.error("Prompt error (generation failure):", err);
         useAppStore.getState().addMessage(activeSessionId, {
           role: "system_message",
+          kind: "error",
           contents: [
-            {
-              type: "text",
-              text: `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
-            },
+            `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
           ],
           displayId: crypto.randomUUID(),
         } satisfies ChatMessage);
       }
+      // If an error occurs, the backend might have crashed or network failed before
+      // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
+      useAppStore.getState().updateSessionState(activeSessionId, () => ({ isStreaming: false }));
+      clearStreamingTimer();
     }
   }, [
     input,

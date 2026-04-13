@@ -22,7 +22,6 @@ export const UserBubble = memo(function UserBubble({ message, prevBubbleRole }: 
             blocks={message.contents}
             role={message.role}
             session={session}
-            streaming={message.streaming}
           />
         </div>
       </div>

@@ -155,6 +155,7 @@ export type FelloIPCRequests = {
       agentInfo: InitializeResponse | null;
       models: SessionModelState | null;
       modes: SessionModeState | null;
+      isStreaming: boolean;
     };
   };
   /** 加载已有会话 */
@@ -165,6 +166,7 @@ export type FelloIPCRequests = {
       agentInfo: InitializeResponse | null;
       models: SessionModelState | null;
       modes: SessionModeState | null;
+      isStreaming: boolean;
     };
   };
   /** 向会话发送用户消息 */

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Lightbulb } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { AgentThoughtMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
 import { ContentBlocks } from "../content-blocks/content-blocks";
@@ -9,20 +10,26 @@ interface Props {
   message: AgentThoughtMessage;
   prevBubbleRole?: string;
   nextBubbleRole?: string;
+  isStreaming?: boolean;
 }
 
-export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubbleRole }: Props) {
+export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubbleRole, isStreaming }: Props) {
+  const { t } = useTranslation();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
   return (
     <details
       className={cn("w-full px-4", prevBubbleRole != null && "mt-3")}
-      open={message.streaming}
+      open={isStreaming}
     >
       <summary className="flex cursor-pointer select-none items-center gap-2 px-0 py-0 text-[11px] text-muted-foreground/90 hover:text-muted-foreground">
-        <Lightbulb className={`size-3.5 ${message.streaming ? "animate-pulse" : ""}`} />
-        <span>{message.streaming ? "Thinking..." : "Thought"}</span>
+        <Lightbulb className={`size-3.5 ${isStreaming ? "animate-pulse" : ""}`} />
+        <span>
+          {isStreaming
+            ? t("thinkingBubble.thinking", "Thinking...")
+            : t("thinkingBubble.thought", "Thought")}
+        </span>
       </summary>
       <div className="mt-1 pl-5">
         <div className="max-w-none">
@@ -30,7 +37,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({ message, prevBubble
             blocks={message.contents}
             role={message.role}
             session={session}
-            streaming={message.streaming}
+            isStreaming={isStreaming}
           />
         </div>
       </div>

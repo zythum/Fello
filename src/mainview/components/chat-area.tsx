@@ -50,9 +50,7 @@ export function ChatArea() {
     return () => viewport.removeEventListener("scroll", handleScroll);
   }, [getViewport]);
 
-  const lastMsg = messages[messages.length - 1];
-  const hasStreamingContent =
-    lastMsg && "streaming" in lastMsg && lastMsg.streaming && lastMsg.role === "agent_message";
+  const renderedMessages = messages.filter(isValidMessageToDisplay);
 
   useEffect(() => {
     scrollToBottom();
@@ -62,18 +60,25 @@ export function ChatArea() {
     <div className="relative min-h-0 flex-1">
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="py-4 max-w-3xl mx-auto">
-          {messages.filter(isValidMessageToDisplay).map((msg, i, messages) => (
-            <div key={msg.displayId} className="chat-message" data-role={msg.role}>
-              <MessageBubble
-                message={msg}
-                prevBubbleRole={messages[i - 1]?.role}
-                nextBubbleRole={messages[i + 1]?.role}
-              />
-            </div>
-          ))}
+          {renderedMessages.map((msg, i, arr) => {
+            const isLastRendered = i === arr.length - 1;
+            const isStreamableRole = msg.role === "agent_message" || msg.role === "agent_thought";
+            const isLastMessageStreaming = isStreaming && isLastRendered && isStreamableRole;
 
-          {isStreaming && !hasStreamingContent && activeToolCalls.size === 0 && (
-            <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">
+            return (
+              <div key={msg.displayId} className="chat-message" data-role={msg.role}>
+                <MessageBubble
+                  message={msg}
+                  prevBubbleRole={arr[i - 1]?.role}
+                  nextBubbleRole={arr[i + 1]?.role}
+                  isStreaming={isLastMessageStreaming}
+                />
+              </div>
+            );
+          })}
+
+          {isStreaming && (
+            <div className="flex items-center gap-1.5 px-4 py-2 mt-2 text-[11px] text-muted-foreground/50 uppercase tracking-widest">
               <span>{t("chatArea.thinking", "Thinking...")}</span>
             </div>
           )}

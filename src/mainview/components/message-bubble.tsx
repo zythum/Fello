@@ -4,17 +4,20 @@ import { ToolBubble } from "./bubbles/tool-bubble";
 import { ThinkingBubble } from "./bubbles/thinking-bubble";
 import { UserBubble } from "./bubbles/user-bubble";
 import { AgentBubble } from "./bubbles/agent-bubble";
+import { SystemBubble } from "./bubbles/system-bubble";
 
 interface Props {
   message: ChatMessage;
   prevBubbleRole?: ChatMessage["role"];
   nextBubbleRole?: ChatMessage["role"];
+  isStreaming?: boolean;
 }
 
 export const MessageBubble = memo(function MessageBubble({
   message,
   prevBubbleRole,
   nextBubbleRole,
+  isStreaming,
 }: Props) {
   switch (message.role) {
     case "tool_call":
@@ -31,6 +34,7 @@ export const MessageBubble = memo(function MessageBubble({
           message={message}
           prevBubbleRole={prevBubbleRole}
           nextBubbleRole={nextBubbleRole}
+          isStreaming={isStreaming}
         />
       );
     case "user_message":
@@ -47,11 +51,11 @@ export const MessageBubble = memo(function MessageBubble({
           message={message}
           prevBubbleRole={prevBubbleRole}
           nextBubbleRole={nextBubbleRole}
+          isStreaming={isStreaming}
         />
       );
     case "system_message":
-      // TODO: 实现 SystemMessage 的专属渲染气泡 (SystemBubble)
-      return null;
+      return <SystemBubble message={message} />;
     case "plan":
       // TODO: 实现 PlanMessage 的专属渲染面板 (PlanBubble)
       return null;

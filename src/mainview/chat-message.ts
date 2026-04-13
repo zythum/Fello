@@ -11,30 +11,25 @@ export interface BaseMessage<T extends string> {
 }
 
 /**
- * 适用于通过文本块增量拼接生成的消息（例如文本、思考过程）。
- * 这些消息需要流式状态来控制 UI 动画（如打字机光标）。
+ * 表示用户发送的消息。
  */
-export interface StreamableMessage {
-  /** 当消息仍在增量接收/流式传输时为 true */
-  streaming?: boolean;
-  /** 消息内容块数组 */
+export interface UserMessage extends BaseMessage<"user_message"> {
   contents: ContentBlock[];
 }
 
 /**
- * 表示用户发送的消息。
- */
-export interface UserMessage extends BaseMessage<"user_message">, StreamableMessage {}
-
-/**
  * 表示 Agent 返回的标准响应消息。
  */
-export interface AgentMessage extends BaseMessage<"agent_message">, StreamableMessage {}
+export interface AgentMessage extends BaseMessage<"agent_message"> {
+  contents: ContentBlock[];
+}
 
 /**
  * 表示 Agent 在生成响应之前的内部推理或思考过程。
  */
-export interface AgentThoughtMessage extends BaseMessage<"agent_thought">, StreamableMessage {}
+export interface AgentThoughtMessage extends BaseMessage<"agent_thought"> {
+  contents: ContentBlock[];
+}
 
 /**
  * 表示 Agent 发起的工具调用请求。
@@ -56,11 +51,12 @@ export interface ToolCallMessage extends BaseMessage<"tool_call">, ToolCall {
 export interface PlanMessage extends BaseMessage<"plan">, Plan {}
 
 /**
- * 表示系统生成的消息（例如网络错误、超时提示）。
+ * 表示系统生成的消息（例如网络错误、超时提示、Token 用量统计）。
  * 由客户端本地创建，不从服务器流式传输。
  */
 export interface SystemMessage extends BaseMessage<"system_message"> {
-  contents: ContentBlock[];
+  kind: "info" | "warning" | "error";
+  contents: string[];
 }
 
 /**
@@ -106,6 +102,9 @@ export function isValidMessageToDisplay(message: ChatMessage): boolean {
       }
     }
     return false;
+  }
+  if (message.role === "system_message") {
+    return message.contents.length > 0;
   }
   return true;
 }

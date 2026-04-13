@@ -12,17 +12,17 @@ interface Props {
   blocks: ContentBlock[];
   role: ChatMessage["role"];
   session?: SessionInfo;
-  streaming?: boolean;
+  isStreaming?: boolean;
 }
 
-export function ContentBlocks({ blocks, role, session, streaming }: Props) {
+export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
   if (!blocks || blocks.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">
       {blocks.map((block, index) => {
         const isLast = index === blocks.length - 1;
-        const isStreaming = isLast && streaming;
+        const blockIsStreaming = isLast && isStreaming;
 
         switch (block.type) {
           case "text":
@@ -32,7 +32,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
 
@@ -43,7 +43,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
 
@@ -54,7 +54,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
 
@@ -65,7 +65,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
 
@@ -76,7 +76,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
 
@@ -88,7 +88,7 @@ export function ContentBlocks({ blocks, role, session, streaming }: Props) {
                 block={block}
                 role={role}
                 session={session}
-                isStreaming={isStreaming}
+                isStreaming={blockIsStreaming}
               />
             );
         }

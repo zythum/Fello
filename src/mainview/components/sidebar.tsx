@@ -83,6 +83,7 @@ export function Sidebar() {
       models: { availableModels: ModelInfo[]; currentModelId: string } | null;
       modes: { availableModes: SessionMode[]; currentModeId: string } | null;
       agentInfo: InitializeResponse | null;
+      isStreaming: boolean;
     } | null,
   ) => {
     if (!payload) return;
@@ -93,6 +94,7 @@ export function Sidebar() {
       availableModes: payload.modes?.availableModes ?? [],
       currentModeId: payload.modes?.currentModeId ?? null,
       agentInfo: payload.agentInfo,
+      isStreaming: payload.isStreaming,
     }));
   };
 

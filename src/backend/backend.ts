@@ -2,6 +2,7 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
   SessionNotification,
+  PromptResponse,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
@@ -58,6 +59,12 @@ const pendingPermissions = new Map<
     timeoutId: ReturnType<typeof setTimeout>;
   }
 >();
+
+// Track sessions that are currently streaming to sync multiple clients
+const activeStreamingSessions = new Set<string>();
+
+// Track generation locks to prevent race conditions during concurrent sendMessage calls
+const sessionGenerationLocks = new Map<string, string>();
 
 type ManagedTerminal = {
   write: (data: string) => void;
@@ -406,6 +413,7 @@ export const backendHandlers: {
       agentInfo: b.agentInfo,
       models: models ?? null,
       modes: modes ?? null,
+      isStreaming: false,
     };
   },
 
@@ -426,6 +434,7 @@ export const backendHandlers: {
       agentInfo: b.agentInfo,
       models: models ?? null,
       modes: modes ?? null,
+      isStreaming: activeStreamingSessions.has(session.id),
     };
   },
 
@@ -436,6 +445,11 @@ export const backendHandlers: {
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
+
+    // Generate a unique ID for this generation attempt to prevent race conditions
+    const currentGenerationId = crypto.randomUUID();
+    sessionGenerationLocks.set(sessionId, currentGenerationId);
+    activeStreamingSessions.add(sessionId);
 
     // Broadcast user message to clients
     for (const content of contents) {
@@ -452,10 +466,48 @@ export const backendHandlers: {
       });
     }
 
-    return b.sendPrompt({
-      sessionId: session.resumeId,
-      prompt: contents,
+    // Broadcast streaming start
+    sendEvent("session-update", {
+      sessionId: session.id,
+      notification: {
+        sessionId: session.resumeId,
+        update: {
+          sessionUpdate: "session_info_update",
+          _meta: { isStreaming: true },
+        },
+      },
     });
+
+    let promptResponse: PromptResponse | undefined;
+    try {
+      promptResponse = await b.sendPrompt({
+        sessionId: session.resumeId,
+        prompt: contents,
+      });
+      return promptResponse;
+    } finally {
+      // Only broadcast end and clear state if this is still the active generation
+      if (sessionGenerationLocks.get(sessionId) === currentGenerationId) {
+        sessionGenerationLocks.delete(sessionId);
+        activeStreamingSessions.delete(sessionId);
+
+        // Broadcast streaming end
+        sendEvent("session-update", {
+          sessionId: session.id,
+          notification: {
+            sessionId: session.resumeId,
+            update: {
+              sessionUpdate: "session_info_update",
+              _meta: {
+                isStreaming: false,
+                usage: promptResponse?.usage,
+                stopReason: promptResponse?.stopReason,
+              },
+            },
+          },
+        });
+      }
+    }
   },
 
   async cancelPrompt({ sessionId }) {

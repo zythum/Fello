@@ -144,6 +144,14 @@
     "thinking": "思考中...",
     "scrollToBottom": "滚动到底部"
   },
+  "thinkingBubble": {
+    "thinking": "思考中...",
+    "thought": "思考过程"
+  },
+  "session": {
+    "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
+    "usageSummaryCached": "  ↻ {{cached}}"
+  },
   "terminalPanel": {
     "noTerminalSelected": "未选择终端",
     "addTerminal": "添加终端"

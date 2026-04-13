@@ -8,9 +8,10 @@ interface Props {
   message: AgentMessage;
   prevBubbleRole?: string;
   nextBubbleRole?: string;
+  isStreaming?: boolean;
 }
 
-export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRole }: Props) {
+export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRole, isStreaming }: Props) {
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
@@ -23,7 +24,7 @@ export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRo
         blocks={message.contents}
         role={message.role}
         session={session}
-        streaming={message.streaming}
+        isStreaming={isStreaming}
       />
     </div>
   );

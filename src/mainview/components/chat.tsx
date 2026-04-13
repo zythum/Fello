@@ -38,6 +38,7 @@ export function Chat() {
         currentModelId: result.models?.currentModelId ?? null,
         availableModes: result.modes?.availableModes ?? [],
         currentModeId: result.modes?.currentModeId ?? null,
+        isStreaming: result.isStreaming,
       }));
     } catch (err) {
       console.error("Failed to load session:", err);

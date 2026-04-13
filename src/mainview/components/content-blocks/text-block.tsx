@@ -68,7 +68,7 @@ export const TextBlock = memo(function TextBlock({
 
   return (
     <div className={cn(baseClasses, typographyClasses)}>
-      <StreamMarkdown streaming={isStreaming}>{block.text}</StreamMarkdown>
+      <StreamMarkdown isStreaming={isStreaming}>{block.text}</StreamMarkdown>
     </div>
   );
 });
