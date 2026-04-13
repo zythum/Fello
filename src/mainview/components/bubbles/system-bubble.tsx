@@ -24,8 +24,8 @@ export const SystemBubble = memo(function SystemBubble({ message }: Props) {
               kind === "info"
                 ? "px-3 py-0.5 text-center max-w-[80%] break-words bg-muted/30 rounded-full border border-border/40"
                 : kind === "warning"
-                ? "text-xs text-warning/80 bg-warning/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
-                : "text-xs text-destructive/80 bg-destructive/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
+                  ? "text-xs text-warning/80 bg-warning/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
+                  : "text-xs text-destructive/80 bg-destructive/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
             }
           >
             {text}

@@ -175,10 +175,7 @@ export function ChatInput() {
             role: "system_message",
             kind: "error",
             contents: [
-              t(
-                "chatInput.timeoutError",
-                "Agent stopped responding (timed out after 30s).",
-              ),
+              t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
             ],
             displayId: crypto.randomUUID(),
           });
@@ -273,7 +270,7 @@ export function ChatInput() {
         contents,
       });
 
-      // 3. Generation completed successfully. 
+      // 3. Generation completed successfully.
       // The backend has already broadcasted isStreaming: false via session_info_update.
       clearStreamingTimer();
     } catch (err) {

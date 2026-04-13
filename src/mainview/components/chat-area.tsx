@@ -17,7 +17,7 @@ export function ChatArea() {
   const [showThinking, setShowThinking] = useState(false);
 
   useEffect(() => {
-    let timeoutId: any = null
+    let timeoutId: any = null;
     setShowThinking(false);
     if (isStreaming) {
       timeoutId = setTimeout(() => {
@@ -30,7 +30,7 @@ export function ChatArea() {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-    }
+    };
   }, [messages, activeToolCalls, isStreaming]);
 
   const getViewport = useCallback(() => {
@@ -97,7 +97,7 @@ export function ChatArea() {
 
           {showThinking && (
             <div className="flex items-center gap-1.5 px-4 py-2 mt-2 text-[11px] text-muted-foreground/50 uppercase tracking-widest">
-              <span>{t("chatArea.thinking", "Thinking...")}</span>
+              <span className="animate-shimmer-text">{t("chatArea.thinking", "Thinking...")}</span>
             </div>
           )}
 

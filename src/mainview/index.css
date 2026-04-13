@@ -218,3 +218,26 @@ html.dark .shiki span {
 html.dark .shiki {
   background-color: var(--shiki-dark-bg) !important;
 }
+
+@utility animate-shimmer-text {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, currentColor 40%, transparent) 20%,
+    currentColor 50%,
+    color-mix(in srgb, currentColor 40%, transparent) 80%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-text 2.5s linear infinite;
+}
+
+@keyframes shimmer-text {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}

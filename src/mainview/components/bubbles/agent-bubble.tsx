@@ -11,7 +11,11 @@ interface Props {
   isStreaming?: boolean;
 }
 
-export const AgentBubble = memo(function AssistantBubble({ message, prevBubbleRole, isStreaming }: Props) {
+export const AgentBubble = memo(function AssistantBubble({
+  message,
+  prevBubbleRole,
+  isStreaming,
+}: Props) {
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
