@@ -14,6 +14,24 @@ export function ChatArea() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<any>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showThinking, setShowThinking] = useState(false);
+
+  useEffect(() => {
+    let timeoutId: any = null
+    setShowThinking(false);
+    if (isStreaming) {
+      timeoutId = setTimeout(() => {
+        setShowThinking(true);
+        timeoutId = null;
+      }, 1000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    }
+  }, [messages, activeToolCalls, isStreaming]);
 
   const getViewport = useCallback(() => {
     return scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
@@ -77,7 +95,7 @@ export function ChatArea() {
             );
           })}
 
-          {isStreaming && (
+          {showThinking && (
             <div className="flex items-center gap-1.5 px-4 py-2 mt-2 text-[11px] text-muted-foreground/50 uppercase tracking-widest">
               <span>{t("chatArea.thinking", "Thinking...")}</span>
             </div>

@@ -32,8 +32,8 @@ export const TextBlock = memo(function TextBlock({
       "prose-a:text-blue-500/70 dark:prose-a:text-blue-400/70 prose-a:underline-offset-4 hover:prose-a:underline",
       "prose-code:text-muted-foreground/70 prose-code:bg-muted/30 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal",
       "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-      "prose-li:marker:text-muted-foreground/50 prose-li:text-[11px] prose-li:text-muted-foreground/60",
-      "prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-ul:pl-4 prose-ol:pl-4",
+      "prose-li:marker:text-muted-foreground/50 prose-li:text-[11px] prose-li:text-muted-foreground/60 prose-li:py-[0.5px]",
+      "prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-ul:pl-1 prose-ol:pl-1",
       "prose-blockquote:border-l-border prose-blockquote:text-muted-foreground/60 prose-blockquote:text-[11px]",
     );
   } else if (role === "user_message") {
