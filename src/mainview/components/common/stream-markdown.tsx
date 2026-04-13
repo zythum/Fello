@@ -15,6 +15,7 @@ export function StreamMarkdown({ children, isStreaming }: StreamMarkdownProps) {
       plugins={{ code, mermaid, math, cjk }}
       shikiTheme={["github-light", "github-dark"]}
       isAnimating={isStreaming}
+      animated={{ sep: "char" }}
       linkSafety={{ enabled: false }}
     >
       {children}

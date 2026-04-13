@@ -6,10 +6,12 @@
 fello/
 ├── src/
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
-│   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现、WebUI WebSocket 服务
+│   │   ├── backend.ts                # IPC handlers 注册、文件/终端 API 实现
 │   │   ├── acp-bridge.ts             # ACP 连接封装（spawn/initialize/session/model）
+│   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
 │   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
 │   │   ├── watcher.ts                # 文件系统监控（chokidar 封装）
+│   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
 │   │   └── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │
 │   ├── electron/                     # Electron 主进程 + preload
@@ -41,10 +43,14 @@ fello/
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
 │       └── components/
-│           ├── bubbles/              # 各类消息的具体渲染组件 (agent-bubble, user-bubble, tool-bubble 等)
-│           │   └── content-blocks.tsx # ContentBlock 多模态内容路由与渲染器
-│           ├── message-bubble.tsx    # 消息多态分发器
-│           └── ...
+│           ├── bubbles/              # 各类消息气泡实现
+│           │   ├── user-bubble.tsx
+│           │   ├── agent-bubble.tsx
+│           │   ├── thinking-bubble.tsx
+│           │   └── tool-bubble.tsx
+│           ├── common/               # 公用组件 (stream-markdown 等)
+│           ├── content-blocks/       # ContentBlock 多模态内容组件 (text, image, audio 等)
+│           ├── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
 │           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
 │           ├── settings-webui-dialog.tsx # WebUI 设置弹窗
@@ -52,18 +58,13 @@ fello/
 │           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
 │           ├── chat-area.tsx         # 消息渲染与滚动控制
 │           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
-│           ├── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
+│           ├── file-preview.tsx      # 文件内容预览组件
 │           ├── terminal-panel.tsx    # 多终端页签（xterm + node-pty）
+│           ├── readonly-terminal.tsx # 只读终端输出组件
 │           ├── permission-dialog.tsx # 工具权限请求弹层
 │           ├── message.tsx           # 全局对话框与 Toast 队列 (MessageProvider)
 │           ├── theme-provider.tsx    # 主题切换上下文
-│           ├── bubbles/              # 各类消息气泡实现
-│           │   ├── user-bubble.tsx
-│           │   ├── agent-bubble.tsx
-│           │   ├── thinking-bubble.tsx
-│           │   ├── tool-bubble.tsx
-│           │   └── path-link.tsx         # 提取的绝对路径链接渲染组件
 │           └── ui/                   # shadcn/base-ui 基础组件
 │               ├── badge.tsx
 │               ├── button.tsx

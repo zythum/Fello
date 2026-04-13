@@ -11,6 +11,7 @@
 - 文件名统一 kebab-case（如 `chat-input.tsx`、`acp-bridge.ts`）
 - React 组件文件以功能命名，按页面结构放入 `components/`
 - 消息气泡按角色拆分到 `components/bubbles/`
+- 多模态消息内容块按类型拆分到 `components/content-blocks/`
 - UI primitives 保持 `components/ui/`，避免跨目录重复实现
 
 ## React 组件约定

@@ -3,7 +3,7 @@ Fello (Electron ACP Client)
 Runtime
 - Main process: src/electron/main.ts
 - Preload (contextBridge): src/electron/preload.ts
-- Backend Logic (Node.js): src/backend/
+- Backend Logic (Node.js): src/backend/ (includes IPC handlers, ACP bridge, terminal manager, WebUI server)
 - Renderer (React + Vite): src/mainview/
 
 IPC
@@ -15,7 +15,8 @@ Sessions & Persistence
 - Session metadata persistence: src/backend/storage.ts
 - Message history is replayed from the ACP server when resuming a session
 - Renderer state store: src/mainview/store.ts
-- ChatMessage polymorphic interface: src/mainview/chat-message.ts
+- ChatMessage polymorphic interface: src/mainview/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
+- Content block rendering: src/mainview/components/content-blocks/
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
 
 Dev / Build Commands

@@ -35,20 +35,25 @@ Main/preload changes typically require restarting the dev process.
 │   ├── shared/
 │   │   └── schema.ts       # Typed IPC contracts & Storage schemas
 │   ├── backend/
-│   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal, WebUI server
+│   │   ├── backend.ts      # Backend IPC handlers, FS, Terminal
 │   │   ├── acp-bridge.ts   # ACP connection wrapper
-│   │   └── storage.ts      # Persistent storage & settings (JSON)
+│   │   ├── agent-terminal-manager.ts # Agent terminal process manager
+│   │   ├── storage.ts      # Persistent storage & settings (JSON)
+│   │   ├── utils.ts        # Backend utilities
+│   │   ├── watcher.ts      # File system watcher
+│   │   └── webui.ts        # WebUI WebSocket & HTTP server
 │   ├── electron/
 │   │   ├── main.ts         # Electron main process
 │   │   └── preload.ts      # Preload (contextBridge)
 │   └── mainview/
 │       ├── App.tsx         # React app component (with MessageProvider & ThemeProvider)
 │       ├── main.tsx        # React entry point
-│       ├── components/     # UI components (shadcn/ui, dialogs, etc.)
+│       ├── components/     # UI components (bubbles, content-blocks, shadcn/ui, etc.)
 │       ├── store.ts        # Zustand state management
 │       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
 │       ├── lib/            # Utilities (session-state-reducer.ts, etc.)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
+│       ├── electron.ts     # Native Electron-only API wrapper
 │       ├── i18n.ts         # i18next configuration
 │       ├── locales/        # i18n translation files (en.json, zh-CN.json)
 │       ├── index.html      # HTML template
