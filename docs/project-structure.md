@@ -42,13 +42,13 @@ fello/
 │       │   ├── remark-filepath.ts    # Markdown 文件路径转换为可点击链接的 remark 插件
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
-│       └── components/
+│       ├── components/
 │           ├── bubbles/              # 各类消息气泡实现
 │           │   ├── user-bubble.tsx
 │           │   ├── agent-bubble.tsx
 │           │   ├── thinking-bubble.tsx
 │           │   └── tool-bubble.tsx
-│           ├── common/               # 公用组件 (stream-markdown 等)
+│           ├── common/               # 公用组件 (stream-markdown, code-view, code-compare-view, image-view 等)
 │           ├── content-blocks/       # ContentBlock 多模态内容组件 (text, image, audio 等)
 │           ├── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
@@ -59,7 +59,7 @@ fello/
 │           ├── chat-area.tsx         # 消息渲染与滚动控制
 │           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
 │           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
-│           ├── file-preview.tsx      # 文件内容预览组件
+│           ├── file-preview.tsx      # 文件内容与图片预览组件（入口，渲染 common 视图）
 │           ├── terminal-panel.tsx    # 多终端页签（xterm + node-pty）
 │           ├── readonly-terminal.tsx # 只读终端输出组件
 │           ├── permission-dialog.tsx # 工具权限请求弹层
