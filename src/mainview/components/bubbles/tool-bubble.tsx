@@ -18,7 +18,8 @@ import {
   ArrowRightLeft,
   Wrench,
 } from "lucide-react";
-import { ReadonlyTerminal } from "../readonly-terminal";
+import { ReadonlyTerminal } from "../common/readonly-terminal";
+import { ContentBlocks } from "../content-blocks/content-blocks";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -77,6 +78,21 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
             ))}
           </div>
         )}
+        {message.content && (
+          message.content.map((content, index) => {
+            if (content.type === 'content') {
+              return <div className="px-3 py-2 text-muted-foreground">
+                <ContentBlocks key={index} blocks={[content.content]} role="tool_call"></ContentBlocks>
+              </div>
+            } else if (content.type === 'diff') {
+
+            }
+            return null;
+          })
+        )}
+        {message.terminalId && (
+          <ReadonlyTerminal terminalId={message.terminalId} />
+        )}
         {message.rawInput != null && (
           <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
             {typeof message.rawInput === "string"
@@ -84,20 +100,6 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
               : JSON.stringify(message.rawInput, null, 2)}
           </pre>
         )}
-        {message.terminalId && (
-          <div className="px-3 pb-2 pt-1">
-            <ReadonlyTerminal terminalId={message.terminalId} />
-          </div>
-        )}
-        {message.content &&
-          message.content.length > 0 &&
-          !message.rawInput &&
-          !message.terminalId && (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
-              {JSON.stringify(message.content, null, 2).slice(0, 500)}
-              {JSON.stringify(message.content).length > 500 && "..."}
-            </pre>
-          )}
       </div>
     </details>
   );
