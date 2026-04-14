@@ -94,7 +94,6 @@
     "send": "发送",
     "tokensUsage": "输入: {{input}} 输出: {{output}} 总计: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "timeoutError": "智能体无响应（30秒后超时）。",
     "generationFailed": "生成失败。"
   },
   "filePreview": {

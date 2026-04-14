@@ -94,7 +94,6 @@
     "send": "Send",
     "tokensUsage": "In: {{input}} Out: {{output}} Total: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "timeoutError": "Agent stopped responding (timed out after 30s).",
     "generationFailed": "Generation failed."
   },
   "filePreview": {

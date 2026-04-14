@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useActiveSessionState } from "../store";
 import type { ChatMessage } from "../chat-message";
-import { request, subscribe } from "../backend";
+import { request } from "../backend";
 import { reduceFlushStreaming } from "../lib/session-state-reducer";
 import { Button } from "@/components/ui/button";
 import {
@@ -151,41 +151,6 @@ export function ChatInput() {
     [session],
   );
 
-  const STREAMING_TIMEOUT_MS = 30_000;
-  const streamingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearStreamingTimer = useCallback(() => {
-    if (streamingTimer.current) {
-      clearTimeout(streamingTimer.current);
-      streamingTimer.current = null;
-    }
-  }, []);
-
-  // Reset the streaming timeout whenever a session update arrives
-  useEffect(() => {
-    const handleUpdate = () => {
-      if (!streamingTimer.current) return;
-      clearStreamingTimer();
-      streamingTimer.current = setTimeout(() => {
-        const sid = useAppStore.getState().activeSessionId;
-        if (sid && useAppStore.getState().getSessionState(sid).isStreaming) {
-          const currentState = useAppStore.getState().getSessionState(sid);
-          useAppStore.getState().updateSessionState(sid, () => reduceFlushStreaming(currentState));
-          useAppStore.getState().addMessage(sid, {
-            role: "system_message",
-            kind: "error",
-            contents: [
-              t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
-            ],
-            displayId: crypto.randomUUID(),
-          });
-        }
-      }, STREAMING_TIMEOUT_MS);
-    };
-    subscribe.on("session-update", handleUpdate);
-    return () => subscribe.off("session-update", handleUpdate);
-  }, [clearStreamingTimer, t]);
-
   const handleSubmit = useCallback(async () => {
     const displayId = crypto.randomUUID();
     const resolved = resolveMentions(input).trim();
@@ -244,25 +209,6 @@ export function ChatInput() {
     });
     addMessage(activeSessionId, userMessage);
 
-    // Start the streaming inactivity timeout
-    clearStreamingTimer();
-    streamingTimer.current = setTimeout(() => {
-      if (useAppStore.getState().getSessionState(activeSessionId).isStreaming) {
-        const currentState = useAppStore.getState().getSessionState(activeSessionId);
-        useAppStore
-          .getState()
-          .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
-        useAppStore.getState().addMessage(activeSessionId, {
-          role: "system_message",
-          kind: "error",
-          contents: [
-            t("chatInput.timeoutError", "Agent stopped responding (timed out after 30s)."),
-          ],
-          displayId: crypto.randomUUID(),
-        });
-      }
-    }, STREAMING_TIMEOUT_MS);
-
     try {
       // 2. Wait for the generation to complete
       await request.sendMessage({
@@ -272,7 +218,6 @@ export function ChatInput() {
 
       // 3. Generation completed successfully.
       // The backend has already broadcasted isStreaming: false via session_info_update.
-      clearStreamingTimer();
     } catch (err) {
       // 4. Rollback on Network Failure
       const currentState = useAppStore.getState().getSessionState(activeSessionId);
@@ -297,8 +242,7 @@ export function ChatInput() {
       }
       // If an error occurs, the backend might have crashed or network failed before
       // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
-      useAppStore.getState().updateSessionState(activeSessionId, () => ({ isStreaming: false }));
-      clearStreamingTimer();
+      useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
     }
   }, [
     input,
@@ -307,7 +251,6 @@ export function ChatInput() {
     isStreaming,
     addMessage,
     setIsStreaming,
-    clearStreamingTimer,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
