@@ -103,6 +103,7 @@
     "errorLoading": "加载文件失败",
     "loading": "加载中...",
     "preview": "预览",
+    "code": "代码",
     "compare": "对比"
   },
   "filePanel": {
@@ -127,6 +128,9 @@
   },
   "toolBubble": {
     "tool": "工具"
+  },
+  "imageView": {
+    "fallbackAlt": "图片"
   },
   "readonlyTerminal": {
     "waitingForOutput": "等待输出..."

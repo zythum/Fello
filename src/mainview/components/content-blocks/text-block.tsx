@@ -15,7 +15,7 @@ interface TextBlockProps {
 const baseClasses = "max-w-none break-words whitespace-pre-wrap";
 
 const typographyClasses: Record<string, string> = {
-  'agent_thought': cn(
+  agent_thought: cn(
     baseClasses,
     "prose dark:prose-invert",
     "prose-p:text-[11px] prose-p:leading-normal prose-p:text-muted-foreground/60 prose-p:italic prose-p:m-0 prose-p:mb-1.5",
@@ -29,8 +29,8 @@ const typographyClasses: Record<string, string> = {
     "prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-ul:pl-1 prose-ol:pl-1",
     "prose-blockquote:border-l-border prose-blockquote:text-muted-foreground/60 prose-blockquote:text-[11px]",
   ),
-  'user_message': cn(
-  baseClasses,
+  user_message: cn(
+    baseClasses,
     "prose prose-sm dark:prose-invert",
     "prose-p:leading-snug prose-p:text-card-foreground/75 prose-p:m-0 prose-p:text-[13px]",
     "prose-headings:text-card-foreground prose-headings:font-medium prose-headings:mt-2.5 prose-headings:mb-1",
@@ -42,7 +42,7 @@ const typographyClasses: Record<string, string> = {
     "prose-li:my-0 prose-li:text-[13px]",
     "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
   ),
-  'agent_message': cn(
+  agent_message: cn(
     baseClasses,
     "prose prose-sm dark:prose-invert",
     "prose-p:leading-snug prose-p:text-foreground/90 prose-p:my-1.5 prose-p:text-[13px]",
@@ -57,7 +57,7 @@ const typographyClasses: Record<string, string> = {
     "prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:text-[13px]",
     "prose-th:border-border prose-td:border-border",
   ),
-  'fallback': cn(
+  fallback: cn(
     baseClasses,
     "prose prose-sm dark:prose-invert",
     "prose-p:leading-snug prose-p:text-card-foreground/75 prose-p:m-0 prose-p:text-[13px]",
@@ -70,7 +70,7 @@ const typographyClasses: Record<string, string> = {
     "prose-li:my-0 prose-li:text-[13px]",
     "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
   ),
-}
+};
 
 export const TextBlock = memo(function TextBlock({
   block,
@@ -79,7 +79,8 @@ export const TextBlock = memo(function TextBlock({
   isStreaming,
 }: TextBlockProps) {
   // UserBubble 中原有的 text 解析和路径识别功能被移除了，现在所有的渲染都交由 TextBlock 负责
-  let className = role in typographyClasses ? typographyClasses[role] : typographyClasses['fallback'];
+  let className =
+    role in typographyClasses ? typographyClasses[role] : typographyClasses["fallback"];
   return (
     <div className={className}>
       <StreamMarkdown isStreaming={isStreaming}>{block.text}</StreamMarkdown>

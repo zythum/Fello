@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { request } from "../backend";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
-import { codeToHtml } from "shiki";
-import * as Diff from "diff";
 import { ScrollArea } from "./ui/scroll-area";
 import { File, XIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTranslation } from "react-i18next";
+import { CodeView } from "./common/code-view";
+import { CodeCompareView } from "./common/code-compare-view";
+import { StreamMarkdown } from "./common/stream-markdown";
+import { ImageView } from "./common/image-view";
 
 export interface FilePreviewSheetProps {
   projectId: string | null;
@@ -15,6 +17,9 @@ export interface FilePreviewSheetProps {
   onClose: () => void;
   panelWidth: number;
 }
+
+type FileKind = "image" | "markdown" | "text";
+type ViewMode = "preview" | "code" | "compare";
 
 export function FilePreviewSheet({
   projectId,
@@ -25,15 +30,15 @@ export function FilePreviewSheet({
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
-  const [isDiffMode, setIsDiffMode] = useState(false);
-  const [html, setHtml] = useState<string>("");
+  const [fileKind, setFileKind] = useState<FileKind | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("code");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isImage, setIsImage] = useState(false);
   const [imageBase64, setImageBase64] = useState("");
 
   useEffect(() => {
-    setIsDiffMode(false);
+    setFileKind(null);
+    setViewMode("code");
   }, [relativePath]);
 
   useEffect(() => {
@@ -43,12 +48,11 @@ export function FilePreviewSheet({
     async function load() {
       setLoading(true);
       setErrorMsg("");
-      setIsImage(false);
       setImageBase64("");
       setContent("");
       setGitContent(null);
-      setHtml("");
-      setIsDiffMode(false);
+      setFileKind(null);
+      setViewMode("code");
       try {
         const safeProjectId = projectId!;
         const safeRelativePath = relativePath!;
@@ -70,10 +74,12 @@ export function FilePreviewSheet({
         }
 
         const ext = safeRelativePath.split(".").pop()?.toLowerCase() || "";
+        const isMarkdown = ext === "md";
         const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
 
         if (imageExts.includes(ext)) {
-          setIsImage(true);
+          setFileKind("image");
+          setViewMode("preview");
           const base64 = await request.readFile({
             projectId: safeProjectId,
             relativePath: safeRelativePath,
@@ -99,8 +105,10 @@ export function FilePreviewSheet({
           request.readGitHeadFile({ projectId: safeProjectId, relativePath: safeRelativePath }),
         ]);
         if (!active) return;
+        setFileKind(isMarkdown ? "markdown" : "text");
+        setViewMode(isMarkdown ? "preview" : "code");
         setContent(current);
-        setGitContent(git || "");
+        setGitContent(git);
       } catch (e) {
         if (!active) return;
         console.error(e);
@@ -115,77 +123,9 @@ export function FilePreviewSheet({
     };
   }, [projectId, relativePath]);
 
-  useEffect(() => {
-    if (loading || !content) return;
-    let active = true;
-
-    async function renderCode() {
-      const ext = relativePath?.split(".").pop() || "text";
-      let lang = ext;
-
-      const langMap: Record<string, string> = {
-        ts: "typescript",
-        tsx: "tsx",
-        js: "javascript",
-        jsx: "jsx",
-        json: "json",
-        md: "markdown",
-        css: "css",
-        html: "html",
-        rs: "rust",
-        py: "python",
-        go: "go",
-      };
-      lang = langMap[ext] || ext;
-
-      try {
-        let finalHtml = "";
-
-        if (isDiffMode && gitContent !== null) {
-          const patch = Diff.createTwoFilesPatch(
-            relativePath || "file",
-            relativePath || "file",
-            gitContent,
-            content,
-            "HEAD",
-            "Working Tree",
-          );
-          finalHtml = await codeToHtml(patch, {
-            lang: "diff",
-            themes: { light: "github-light", dark: "github-dark" },
-          });
-        } else {
-          finalHtml = await codeToHtml(content, {
-            lang,
-            themes: { light: "github-light", dark: "github-dark" },
-          });
-        }
-
-        if (active) setHtml(finalHtml);
-      } catch (e) {
-        console.error(e);
-        if (active) {
-          try {
-            const fallback = await codeToHtml(content, {
-              lang: "text",
-              themes: { light: "github-light", dark: "github-dark" },
-            });
-            setHtml(fallback);
-          } catch {
-            setHtml(
-              `<pre><code>${content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`,
-            );
-          }
-        }
-      }
-    }
-    renderCode();
-    return () => {
-      active = false;
-    };
-  }, [content, gitContent, isDiffMode, relativePath, loading]);
-
-  const fileName = relativePath ? relativePath.split("/").pop() : "";
+  const fileName = relativePath?.split("/").pop() ?? "";
+  const canCompare = gitContent != null;
+  const showTabs = !loading && !errorMsg && fileKind !== null && fileKind !== "image";
 
   return (
     <Sheet
@@ -212,17 +152,22 @@ export function FilePreviewSheet({
             {fileName}
           </SheetTitle>
           <div className="flex items-center gap-1">
-            {!isImage && !errorMsg && (
+            {showTabs && (
               <Tabs
-                value={isDiffMode ? "diff" : "preview"}
-                onValueChange={(v) => setIsDiffMode(v === "diff")}
+                value={viewMode}
+                onValueChange={(v) => setViewMode(v as ViewMode)}
                 className="h-8"
               >
                 <TabsList className="h-8">
-                  <TabsTrigger value="preview" className="text-[12px]">
-                    {t("filePreview.preview")}
+                  {fileKind === "markdown" && (
+                    <TabsTrigger value="preview" className="text-[12px]">
+                      {t("filePreview.preview")}
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger value="code" className="text-[12px]">
+                    {t("filePreview.code")}
                   </TabsTrigger>
-                  <TabsTrigger value="diff" disabled={gitContent === ""} className="text-[12px]">
+                  <TabsTrigger value="compare" disabled={!canCompare} className="text-[12px]">
                     {t("filePreview.compare")}
                   </TabsTrigger>
                 </TabsList>
@@ -239,22 +184,31 @@ export function FilePreviewSheet({
             </Button>
           </div>
         </SheetHeader>
-        <ScrollArea className="flex-1 w-full h-0 text-[12px] font-mono bg-[#ffffff] dark:bg-[#24292e]">
+        <ScrollArea className="flex-1 w-full h-0">
           {loading ? (
             <div className="text-muted-foreground text-center mt-10">
               {t("filePreview.loading")}
             </div>
           ) : errorMsg ? (
             <div className="text-muted-foreground text-center mt-10">{errorMsg}</div>
-          ) : isImage ? (
-            <div className="flex items-center justify-center min-h-full p-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZiIgLz4KPHBhdGggZD0iTTAgMGgxMHYxMEgwem0xMCAxMGgxMHYxMEgxMHoiIGZpbGw9IiNlZWVlZWUiIC8+Cjwvc3ZnPg==')] dark:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iIzIyMiIgLz4KPHBhdGggZD0iTTAgMGgxMHYxMEgwem0xMCAxMGgxMHYxMEgxMHoiIGZpbGw9IiMzMzMiIC8+Cjwvc3ZnPg==')]">
-              <img src={imageBase64} alt={fileName} className="max-w-full shadow-sm" />
+          ) : fileKind === "image" ? (
+            <ImageView src={imageBase64} filename={fileName} />
+          ) : viewMode === "compare" ? (
+            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono">
+              <CodeCompareView
+                oldContent={gitContent ?? ""}
+                newContent={content}
+                filename={fileName}
+              />
+            </div>
+          ) : fileKind === "markdown" && viewMode === "preview" ? (
+            <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans">
+              <StreamMarkdown>{content}</StreamMarkdown>
             </div>
           ) : (
-            <div
-              dangerouslySetInnerHTML={{ __html: html }}
-              className="[&_pre]:bg-transparent [&_pre]:p-4 [&_pre]:m-0 [&_code]:block [&_code]:w-max [&_code]:[counter-reset:step] [&_code]:[counter-increment:step_0] [&_.line::before]:content-[counter(step)] [&_.line::before]:[counter-increment:step] [&_.line::before]:w-6 [&_.line::before]:mr-4 [&_.line::before]:inline-block [&_.line::before]:text-right [&_.line::before]:text-muted-foreground/60 [&_.line::before]:select-none"
-            />
+            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono">
+              <CodeView content={content} filename={fileName} />
+            </div>
           )}
         </ScrollArea>
       </SheetContent>

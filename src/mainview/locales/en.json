@@ -103,6 +103,7 @@
     "errorLoading": "Error loading file",
     "loading": "Loading...",
     "preview": "Preview",
+    "code": "Code",
     "compare": "Compare"
   },
   "filePanel": {
@@ -127,6 +128,9 @@
   },
   "toolBubble": {
     "tool": "Tool"
+  },
+  "imageView": {
+    "fallbackAlt": "Image"
   },
   "readonlyTerminal": {
     "waitingForOutput": "Waiting for output..."

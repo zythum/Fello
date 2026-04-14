@@ -7,6 +7,7 @@ import { Sidebar } from "./components/sidebar";
 import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "@/components/message";
+import { ThemeProvider } from "./components/theme-provider";
 
 function AppContent() {
   const {
@@ -115,9 +116,11 @@ function AppContent() {
 
 function App() {
   return (
-    <MessageProvider>
-      <AppContent />
-    </MessageProvider>
+    <ThemeProvider>
+      <MessageProvider>
+        <AppContent />
+      </MessageProvider>
+    </ThemeProvider>
   );
 }
 

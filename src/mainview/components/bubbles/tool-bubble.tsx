@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { ReadonlyTerminal } from "../common/readonly-terminal";
 import { ContentBlocks } from "../content-blocks/content-blocks";
+import { CodeView } from "../common/code-view";
+import { CodeCompareView } from "../common/code-compare-view";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -78,21 +80,43 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
             ))}
           </div>
         )}
-        {message.content && (
+        {message.content &&
           message.content.map((content, index) => {
-            if (content.type === 'content') {
-              return <div className="px-3 py-2 text-muted-foreground">
-                <ContentBlocks key={index} blocks={[content.content]} role="tool_call"></ContentBlocks>
-              </div>
-            } else if (content.type === 'diff') {
-
+            if (content.type === "content") {
+              return (
+                <div key={index} className="px-3 py-2 text-muted-foreground">
+                  <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
+                </div>
+              );
+            } else if (content.type === "diff") {
+              return (
+                <div
+                  key={index}
+                  className="h-64 border-b border-border last:border-b-0 flex flex-col"
+                >
+                  <div className="px-3 py-1 bg-muted/50 border-b border-border text-[10px] font-mono text-muted-foreground truncate">
+                    {content.path}
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    {content.oldText == null ? (
+                      <CodeView
+                        content={content.newText}
+                        filename={content.path.split("/").pop()}
+                      />
+                    ) : (
+                      <CodeCompareView
+                        oldContent={content.oldText}
+                        newContent={content.newText}
+                        filename={content.path.split("/").pop()}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
             }
             return null;
-          })
-        )}
-        {message.terminalId && (
-          <ReadonlyTerminal terminalId={message.terminalId} />
-        )}
+          })}
+        {message.terminalId && <ReadonlyTerminal terminalId={message.terminalId} />}
         {message.rawInput != null && (
           <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
             {typeof message.rawInput === "string"

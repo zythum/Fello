@@ -242,16 +242,11 @@ export function ChatInput() {
       }
       // If an error occurs, the backend might have crashed or network failed before
       // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
-      useAppStore.getState().updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
+      useAppStore
+        .getState()
+        .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
     }
-  }, [
-    input,
-    attachments,
-    activeSessionId,
-    isStreaming,
-    addMessage,
-    setIsStreaming,
-  ]);
+  }, [input, attachments, activeSessionId, isStreaming, addMessage, setIsStreaming]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -690,9 +685,9 @@ const mentionsInputStyle = {
 };
 
 const mentionStyle = {
-  backgroundColor: "color-mix(in srgb, var(--primary) 15%, transparent)",
-  boxShadow: "0 0 0 0.5px var(--border)",
-  borderRadius: 4,
-  margin: -1,
-  padding: 1,
+  backgroundColor: "var(--secondary)",
+  boxShadow: "0 0 0 1px var(--ring)",
+  borderRadius: 3,
+  margin: -1.5,
+  padding: 1.5,
 };

@@ -128,9 +128,14 @@ body,
 }
 
 [data-streamdown="code-block-body"] code {
+  font-size: 13px !important;
   padding: 0.4rem 0 !important;
   display: block !important;
   border-radius: 0 !important;
+}
+[data-streamdown="inline-code"] {
+  font-size: 13px !important;
+  opacity: 0.85;
 }
 
 [data-streamdown="code-block-body"] pre {

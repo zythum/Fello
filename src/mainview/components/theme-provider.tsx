@@ -1,33 +1,28 @@
 import { useEffect } from "react";
 import { useAppStore } from "../store";
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+function ThemeSync() {
   const themeMode = useAppStore((state) => state.theme.themeMode);
+  const { setTheme } = useTheme();
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
+    setTheme(themeMode);
+  }, [themeMode, setTheme]);
 
-    if (themeMode === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      root.classList.add(systemTheme);
+  return null;
+}
 
-      // Listen for system theme changes
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handler = (e: MediaQueryListEvent) => {
-        if (useAppStore.getState().theme.themeMode === "system") {
-          root.classList.remove("light", "dark");
-          root.classList.add(e.matches ? "dark" : "light");
-        }
-      };
-      mediaQuery.addEventListener("change", handler);
-      return () => mediaQuery.removeEventListener("change", handler);
-    }
-
-    root.classList.add(themeMode);
-  }, [themeMode]);
-
-  return <>{children}</>;
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <ThemeSync />
+      {children}
+    </NextThemesProvider>
+  );
 }
