@@ -346,6 +346,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const openFoldersRef = useRef<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [dragIds, setDragIds] = useState<string[]>([]);
@@ -368,17 +369,76 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
     refreshSeqRef.current += 1;
     setSelectedIds(new Set());
     setOpenFolders(new Set());
+    openFoldersRef.current = new Set();
     setLastSelectedId(null);
     setEditingId(null);
     setGitStatus(null);
+    setData([]);
   }, [cwd]);
+
+  useEffect(() => {
+    openFoldersRef.current = openFolders;
+  }, [openFolders]);
 
   const loadTree = useCallback(async (projectId: string, seq: number) => {
     setLoading(true);
     try {
-      const result = await request.readDir({ projectId, relativePath: "" });
+      const dirsToFetch = Array.from(new Set(["", ...Array.from(openFoldersRef.current)]));
+      const settled = await Promise.allSettled(
+        dirsToFetch.map(async (dir) => {
+          const children = await request.readDir({ projectId, relativePath: dir });
+          return { dir, children: children ?? [] };
+        }),
+      );
+
+      const rootResult = settled[0];
+      if (rootResult?.status !== "fulfilled") {
+        throw rootResult?.reason ?? new Error("Failed to load file tree");
+      }
+
+      const results = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
       if (refreshSeqRef.current !== seq) return;
-      setData(result ?? []);
+      setData((oldData) => {
+        const oldExpanded = new Map<string, TreeNode[]>();
+        function buildExpandedMap(nodes: TreeNode[]) {
+          for (const n of nodes) {
+            if (n.children) {
+              oldExpanded.set(n.id, n.children);
+              buildExpandedMap(n.children);
+            }
+          }
+        }
+        buildExpandedMap(oldData);
+
+        const fetchedByDir = new Map<string, TreeNode[]>();
+        for (const r of results) {
+          fetchedByDir.set(r.dir, r.children);
+        }
+
+        const nextData = fetchedByDir.get("") ?? [];
+
+        function updateNodes(nodes: TreeNode[]): TreeNode[] {
+          return nodes.map((node) => {
+            const fetchedChildren = fetchedByDir.get(node.id);
+            let children = node.children;
+
+            if (fetchedChildren === undefined && children === undefined && oldExpanded.has(node.id)) {
+              children = oldExpanded.get(node.id);
+            }
+
+            if (fetchedChildren !== undefined) {
+              children = fetchedChildren;
+            }
+
+            if (children) {
+              return { ...node, children: updateNodes(children) };
+            }
+            return node;
+          });
+        }
+
+        return updateNodes(nextData);
+      });
     } catch (err) {
       if (refreshSeqRef.current !== seq) return;
       console.error("Failed to load file tree:", extractErrorMessage(err));
@@ -459,20 +519,24 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             }
             buildExpandedMap(oldData);
 
-            const rootFetch = results.find((r) => r.dir === "");
-            const nextData = rootFetch ? rootFetch.children : oldData;
+            const fetchedByDir = new Map<string, TreeNode[]>();
+            for (const r of results) {
+              fetchedByDir.set(r.dir, r.children);
+            }
+
+            const nextData = fetchedByDir.get("") ?? oldData;
 
             function updateNodes(nodes: TreeNode[]): TreeNode[] {
               return nodes.map((node) => {
-                const fetched = results.find((r) => r.dir === node.id);
+                const fetchedChildren = fetchedByDir.get(node.id);
                 let children = node.children;
 
-                if (!fetched && children === undefined && oldExpanded.has(node.id)) {
+                if (fetchedChildren === undefined && children === undefined && oldExpanded.has(node.id)) {
                   children = oldExpanded.get(node.id);
                 }
 
-                if (fetched) {
-                  children = fetched.children;
+                if (fetchedChildren !== undefined) {
+                  children = fetchedChildren;
                 }
 
                 if (children) {
