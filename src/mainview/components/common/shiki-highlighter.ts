@@ -26,13 +26,26 @@ export function getShikiHighlighter() {
 }
 
 export function getShikiLanguageFromFilename(filename?: string) {
-  const ext = filename?.split(".").pop()?.toLowerCase() || "text";
+  const normalized = filename?.split("/").pop() ?? filename;
+  const ext = normalized?.split(".").pop()?.toLowerCase() || "text";
   const langMap: Record<string, string> = {
     ts: "typescript",
     tsx: "tsx",
     js: "javascript",
     jsx: "jsx",
     json: "json",
+    jsonc: "json",
+    json5: "json",
+    jsonl: "json",
+    geojson: "json",
+    har: "json",
+    avsc: "json",
+    ipynb: "json",
+    prettierrc: "json",
+    eslintrc: "json",
+    babelrc: "json",
+    stylelintrc: "json",
+    lintstagedrc: "json",
     md: "markdown",
     css: "css",
     html: "html",
