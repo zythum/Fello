@@ -405,11 +405,11 @@ export function ChatInput() {
   );
 
   return (
-    <div className="border-t border-border p-3">
+    <div className="p-3 -mt-3">
       <div className="mx-auto max-w-3xl">
         <div
           ref={containerRef}
-          className={`rounded-xl border bg-card shadow-sm transition-colors focus-within:border-ring focus-within:ring-ring ${
+          className={`rounded-xl border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${
             isDragOver ? "border-primary ring-0.5 ring-primary bg-primary/5" : "border-input"
           }`}
           onDrop={handleDrop}
@@ -431,7 +431,7 @@ export function ChatInput() {
                         render={
                           <div className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground">
                             <ImageIcon className="size-3.5" />
-                            <span className="max-w-[100px] truncate">{att.file.name}</span>
+                            <span className="max-w-25 truncate">{att.file.name}</span>
                           </div>
                         }
                       />
@@ -439,14 +439,14 @@ export function ChatInput() {
                         <img
                           src={att.previewUrl}
                           alt={att.file.name}
-                          className="max-h-[200px] max-w-[200px] rounded object-contain"
+                          className="max-h-50 max-w-50 rounded object-contain"
                         />
                       </HoverCardContent>
                     </HoverCard>
                   ) : (
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <FileText className="size-3.5" />
-                      <span className="max-w-[100px] truncate">{att.file.name}</span>
+                      <span className="max-w-25 truncate">{att.file.name}</span>
                     </div>
                   )}
                   <button
