@@ -233,7 +233,7 @@ export function reduceSessionUpdate(
                       : "",
                   }),
                 ],
-              } as ChatMessage,
+              } satisfies ChatMessage,
             ],
           };
         }

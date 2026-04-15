@@ -118,7 +118,7 @@ export function ChatInput() {
         file,
         type,
         previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
-      } as StagedAttachment;
+      } satisfies StagedAttachment;
     });
     setAttachments((prev) => [...prev, ...newAttachments]);
     // Reset input
@@ -284,7 +284,7 @@ export function ChatInput() {
               file,
               type,
               previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
-            } as StagedAttachment;
+            } satisfies StagedAttachment;
           });
           setAttachments((prev) => [...prev, ...newAttachments]);
           return;

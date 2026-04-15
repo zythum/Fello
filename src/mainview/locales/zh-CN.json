@@ -110,7 +110,8 @@
     "loading": "加载中...",
     "preview": "预览",
     "code": "代码",
-    "compare": "对比"
+    "compare": "对比",
+    "close": "关闭"
   },
   "filePanel": {
     "emptyDirectory": "空目录",

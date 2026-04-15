@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { downloadDataUrl } from "../../lib/utils";
+import { downloadDataUrl, extractErrorMessage } from "../../lib/utils";
 import { request } from "../../backend";
 
 import { toast } from "sonner";
@@ -38,7 +38,7 @@ export const ImageBlock = memo(function ImageBlock({
         const url = await request.readUrlAsDataUrl({ url: uri, mimeType });
         downloadDataUrl(url, "image");
       } catch (err) {
-        const msg = (err as Error).message || String(err);
+        const msg = extractErrorMessage(err);
         if (msg.includes("exceeds 20MB")) {
           toast.error(t("contentBlock.fileTooLarge", "File is too large (exceeds 20MB)"));
         } else {

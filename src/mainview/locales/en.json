@@ -110,7 +110,8 @@
     "loading": "Loading...",
     "preview": "Preview",
     "code": "Code",
-    "compare": "Compare"
+    "compare": "Compare",
+    "close": "Close"
   },
   "filePanel": {
     "emptyDirectory": "Empty directory",

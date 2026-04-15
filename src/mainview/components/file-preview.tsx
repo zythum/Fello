@@ -143,47 +143,51 @@ export function FilePreviewSheet({
         showCloseButton={false}
         showOverlay={false}
       >
-        <SheetHeader className="h-12 border-b flex flex-row items-center justify-between px-4 py-0">
-          <SheetTitle
-            className="text-sm truncate leading-normal flex items-center gap-1.5 flex-1 mr-4"
-            title={relativePath || ""}
-          >
-            <File className="size-3.5 shrink-0 text-muted-foreground/90" />
-            {fileName}
-          </SheetTitle>
-          <div className="flex items-center gap-1">
-            {showTabs && (
+          <SheetHeader className="border-b grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2">
+            <SheetTitle className="min-w-0 flex flex-col gap-0.5" title={relativePath || ""}>
+              <div className="min-w-0 flex items-center gap-1.5">
+                <File className="size-3.5 shrink-0 text-muted-foreground/80" />
+                <span className="text-xs truncate leading-tight text-foreground/90">{fileName}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground/80 truncate leading-tight">
+                {relativePath}
+              </span>
+            </SheetTitle>
+            {showTabs ? (
               <Tabs
                 value={viewMode}
-                onValueChange={(v) => setViewMode(v as ViewMode)}
+                onValueChange={(v: ViewMode) => setViewMode(v)}
                 className="h-8"
               >
                 <TabsList className="h-8">
                   {fileKind === "markdown" && (
-                    <TabsTrigger value="preview" className="text-[12px]">
+                    <TabsTrigger value="preview" className="text-xs">
                       {t("filePreview.preview")}
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="code" className="text-[12px]">
+                  <TabsTrigger value="code" className="text-xs">
                     {t("filePreview.code")}
                   </TabsTrigger>
-                  <TabsTrigger value="compare" disabled={!canCompare} className="text-[12px]">
+                  <TabsTrigger value="compare" disabled={!canCompare} className="text-xs">
                     {t("filePreview.compare")}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+            ) : (
+              <div />
             )}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-              className="h-8 w-8 shrink-0 -mr-3"
-            >
-              <XIcon className="size-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-          </div>
-        </SheetHeader>
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onClose}
+                className="h-8 w-8 shrink-0 -mr-3"
+              >
+                <XIcon className="size-4" />
+                <span className="sr-only">{t("filePreview.close")}</span>
+              </Button>
+            </div>
+          </SheetHeader>
         <ScrollArea className="flex-1 w-full h-0">
           {loading ? (
             <div className="text-muted-foreground text-center mt-10">
