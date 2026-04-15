@@ -322,11 +322,11 @@ export function Sidebar() {
           }`}
         >
           <Home className="size-3.5" />
-          <span className="flex-1 truncate leading-normal">{t("sidebar.welcome")}</span>
+          <span className="flex-1 truncate leading-normal select-none">{t("sidebar.welcome")}</span>
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
-        <span className="text-[10px] font-normal tracking-wide text-sidebar-foreground/35 uppercase">
+        <span className="text-[10px] font-normal tracking-wide text-sidebar-foreground/35 uppercase select-none">
           {t("sidebar.projects")}
         </span>
         <Button
@@ -359,7 +359,7 @@ export function Sidebar() {
                     <FolderClosed className="size-3.5" />
                   )}
                   <span
-                    className="flex-1 truncate leading-normal font-normal uppercase"
+                    className="flex-1 truncate leading-normal font-normal uppercase select-none"
                     title={project.cwd}
                   >
                     {project.title}
@@ -408,6 +408,7 @@ export function Sidebar() {
                         <Pencil className="size-3" />
                         {t("sidebar.rename")}
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={(e) => {
@@ -497,12 +498,12 @@ export function Sidebar() {
                         />
                         <Badge
                           variant="outline"
-                          className="px-1 -ml-1 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0"
+                          className="px-1 -ml-1 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
                         >
                           {configuredAgents.find((a) => a.id === session.agentId)?.id ||
                             session.agentId}
                         </Badge>
-                        <span className="min-w-0 flex-1 truncate leading-normal">
+                        <span className="min-w-0 flex-1 truncate leading-normal select-none">
                           {session.title}
                         </span>
                       </div>
@@ -539,6 +540,7 @@ export function Sidebar() {
                             <Pencil className="size-3" />
                             {t("sidebar.rename")}
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"
                             onClick={(e) => {
@@ -557,7 +559,7 @@ export function Sidebar() {
             );
           })}
           {projects.length === 0 && (
-            <p className="mt-4 text-center text-xs text-muted-foreground">
+            <p className="mt-4 text-center text-xs text-muted-foreground select-none">
               {t("sidebar.noProjects")}
             </p>
           )}

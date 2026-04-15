@@ -5,6 +5,7 @@ import { useAppStore } from "../store";
 import { request } from "../backend";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
@@ -230,16 +231,21 @@ export function SettingsAgentsDialog({
                   ) : (
                     <div className="flex w-full flex-row items-center gap-2">
                       <div className="flex min-w-8 font-normal truncate">
-                        <span className="">{agent.id}</span>
+                        <Badge
+                          variant="outline"
+                          className="px-1 uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
+                        >
+                          {agent.id}
+                        </Badge>
                       </div>
                       <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
                         {[agent.command, ...(agent.args || [])].join(" ")}
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 opacity-50">
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          className="size-6 text-foreground/70"
+                          className="size-6 text-foreground/80"
                           onClick={() => handleEdit(agent)}
                         >
                           <Pencil className="size-3.5" />

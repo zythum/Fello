@@ -8,6 +8,7 @@ import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "@/components/message";
 import { ThemeProvider } from "./components/theme-provider";
+import { GlobalTextContextMenu } from "./components/global-text-context-menu";
 
 function AppContent() {
   const {
@@ -109,6 +110,7 @@ function AppContent() {
       <div className="flex h-screen bg-background text-foreground">
         <Sidebar />
         <SessionView />
+        <GlobalTextContextMenu />
       </div>
     </TooltipProvider>
   );

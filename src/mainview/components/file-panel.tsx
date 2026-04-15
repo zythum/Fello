@@ -250,15 +250,15 @@ function TreeItem({
             </>
           )}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
+        <ContextMenuContent>
           {node.isFolder ? (
             <>
               <ContextMenuItem onClick={() => actions.createIn(node.id, false)}>
-                <FilePlus className="size-3" />
+                <FilePlus />
                 {t("filePanel.newFile")}
               </ContextMenuItem>
               <ContextMenuItem onClick={() => actions.createIn(node.id, true)}>
-                <FolderPlus className="size-3" />
+                <FolderPlus />
                 {t("filePanel.newFolder")}
               </ContextMenuItem>
               <ContextMenuSeparator />
@@ -266,11 +266,11 @@ function TreeItem({
           ) : (
             <>
               <ContextMenuItem onClick={() => actions.createIn(null, false)}>
-                <FilePlus className="size-3" />
+                <FilePlus />
                 {t("filePanel.newFile")}
               </ContextMenuItem>
               <ContextMenuItem onClick={() => actions.createIn(null, true)}>
-                <FolderPlus className="size-3" />
+                <FolderPlus />
                 {t("filePanel.newFolder")}
               </ContextMenuItem>
               <ContextMenuSeparator />
@@ -281,7 +281,7 @@ function TreeItem({
               actions.startRename(node);
             }}
           >
-            <Pencil className="size-3" />
+            <Pencil />
             {t("filePanel.rename")}
           </ContextMenuItem>
           <ContextMenuItem
@@ -289,7 +289,7 @@ function TreeItem({
               actions.copyPath(node.id, true);
             }}
           >
-            <Copy className="size-3" />
+            <Copy />
             {t("filePanel.copyPath")}
           </ContextMenuItem>
           <ContextMenuItem
@@ -297,7 +297,7 @@ function TreeItem({
               actions.copyPath(node.id, false);
             }}
           >
-            <Copy className="size-3" />
+            <Copy />
             {t("filePanel.copyRelativePath")}
           </ContextMenuItem>
           {!isWebUI && (
@@ -306,7 +306,7 @@ function TreeItem({
                 actions.revealInFinder(node.id);
               }}
             >
-              <FolderOpen className="size-3" />
+              <FolderOpen />
               {t("filePanel.revealInFinder")}
             </ContextMenuItem>
           )}
@@ -319,7 +319,7 @@ function TreeItem({
               actions.deleteNode(ids);
             }}
           >
-            <Trash2 className="size-3" />
+            <Trash2 />
             {t("filePanel.delete")}
           </ContextMenuItem>
         </ContextMenuContent>
@@ -1325,19 +1325,19 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
               </div>
             )}
           </ContextMenuTrigger>
-          <ContextMenuContent className="w-48">
+          <ContextMenuContent>
             <ContextMenuItem onClick={() => createIn(null, false)}>
-              <FilePlus className="size-3" />
+              <FilePlus />
               {t("filePanel.newFile")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => createIn(null, true)}>
-              <FolderPlus className="size-3" />
+              <FolderPlus />
               {t("filePanel.newFolder")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             {!isWebUI && (
               <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
-                <FolderOpen className="size-3" />
+                <FolderOpen />
                 {t("filePanel.revealInFinder")}
               </ContextMenuItem>
             )}

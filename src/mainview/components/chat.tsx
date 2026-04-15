@@ -56,7 +56,7 @@ export function Chat() {
         <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
           <div className="min-w-0 flex flex-1">
             <div className="flex flex-1 min-w-0 items-center gap-1.5">
-              <Badge variant="outline" className="px-1 text-[10px] uppercase">
+              <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">
                 {session.agentId}
               </Badge>
               <span className="truncate text-sm font-normal text-sidebar-foreground/85">

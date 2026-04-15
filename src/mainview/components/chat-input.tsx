@@ -653,6 +653,7 @@ const mentionsInputStyle = {
     highlighter: {
       padding: "12px 16px 8px",
       border: "none",
+      maxHeight: 200,
     },
     input: {
       padding: "12px 16px 8px",

@@ -69,7 +69,7 @@ export function SessionView() {
               <div className="relative flex h-full flex-col">
                 <Chat />
                 {isLoading && (
-                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/10">
+                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">
                       {t("sessionView.connecting")}
@@ -93,7 +93,7 @@ export function SessionView() {
                     )}
                   >
                     <FolderTree className="size-3.5" />
-                    <span>{t("sessionView.files")}</span>
+                    <span className="select-none">{t("sessionView.files")}</span>
                   </button>
                   <button
                     type="button"
@@ -106,7 +106,7 @@ export function SessionView() {
                     )}
                   >
                     <SquareTerminal className="size-3.5" />
-                    <span>{t("sessionView.terminal")}</span>
+                    <span className="select-none">{t("sessionView.terminal")}</span>
                   </button>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">

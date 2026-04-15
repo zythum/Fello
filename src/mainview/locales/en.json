@@ -39,6 +39,12 @@
     "projectNameEmpty": "Project name cannot be empty.",
     "chatNameEmpty": "Chat name cannot be empty."
   },
+  "contextMenu": {
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select All"
+  },
   "settings": {
     "title": "Settings",
     "description": "Configure available AI agents and their launch commands.",

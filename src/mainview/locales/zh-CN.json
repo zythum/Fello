@@ -39,6 +39,12 @@
     "projectNameEmpty": "项目名称不能为空。",
     "chatNameEmpty": "会话名称不能为空。"
   },
+  "contextMenu": {
+    "cut": "剪切",
+    "copy": "复制",
+    "paste": "粘贴",
+    "selectAll": "全选"
+  },
   "settings": {
     "title": "设置",
     "description": "配置可用的 AI Agents 及其启动命令。",
