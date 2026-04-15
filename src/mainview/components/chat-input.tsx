@@ -405,7 +405,7 @@ export function ChatInput() {
   );
 
   return (
-    <div className="p-3 -mt-3">
+    <div className="p-5 -mt-6 relative">
       <div className="mx-auto max-w-3xl">
         <div
           ref={containerRef}

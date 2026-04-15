@@ -102,7 +102,7 @@ export function ChatArea() {
   }, [messages, activeToolCalls.size, isAtBottom, isStreaming, scrollToBottomAuto]);
 
   return (
-    <div className="relative min-h-0 flex-1">
+    <div className="relative min-h-0 flex-1 px-2">
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="py-4 max-w-3xl mx-auto">
           {renderedMessages.map((msg, i, arr) => {
