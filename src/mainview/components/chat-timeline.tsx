@@ -47,9 +47,11 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
               >
                 <div
                   className={cn(
-                  "size-2 rounded-full transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                  isActive ? "bg-foreground/40" : "bg-muted-foreground/15 group-hover:bg-muted-foreground/40",
-                )}
+                    "size-2 rounded-full transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    isActive
+                      ? "bg-foreground/40"
+                      : "bg-muted-foreground/15 group-hover:bg-muted-foreground/40",
+                  )}
                 ></div>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>

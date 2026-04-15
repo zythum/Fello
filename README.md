@@ -67,6 +67,8 @@ Main/preload changes typically require restarting the dev process.
 
 - **Local AI Collaboration**: Connect to local agents via ACP (e.g. `kiro-cli acp`).
 - **WebUI Remote Access**: Expose the interface to a browser over the local network via WebSocket, enabling remote collaboration. (Enable in Settings > WebUI).
+- **Chat Attachments**: Attach images/files from the chat input (agent capability aware) with preview and drag-and-drop support.
+- **Chat Timeline**: Jump between user messages using the timeline dots in the chat view.
 
 ## Customizing
 
@@ -78,3 +80,7 @@ Main/preload changes typically require restarting the dev process.
 - **IPC types**: Edit `src/shared/schema.ts`
 - **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `src/shared/schema.ts`
 - **Build settings**: Edit `electron.vite.config.ts`
+
+## Docs
+
+See [docs/README.md](./docs/README.md).

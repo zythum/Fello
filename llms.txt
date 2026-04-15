@@ -19,6 +19,8 @@ Sessions & Persistence
 - Content block rendering: src/mainview/components/content-blocks/
 - Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, ReadonlyTerminal)
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
+- Chat input attachments (staged): src/mainview/components/chat-input.tsx (supports file picker + drag-and-drop; filters by agent promptCapabilities)
+- Chat timeline dots + scroll tracking: src/mainview/components/chat-area.tsx and src/mainview/components/chat-timeline.tsx
 
 Dev / Build Commands
 - npm run dev (electron-vite dev; Vite server on http://localhost:5173)
@@ -32,3 +34,4 @@ Repo Conventions
 - Electron code lives under src/electron
 - Backend logic lives under src/backend
 - UI code lives under src/mainview
+- ScrollArea utility: src/mainview/components/ui/scroll-area.tsx (supports hideScrollBar to omit scrollbar rendering)
