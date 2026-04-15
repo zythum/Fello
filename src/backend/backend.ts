@@ -385,17 +385,21 @@ export const backendHandlers: {
       projectFsVersions.set(result.project.id, 0);
     }
     syncWatchers();
+    sendEvent("projects-changed", undefined);
     return result;
   },
 
   async renameProject({ projectId, title }) {
     storageOps.updateProjectTitle(projectId, title);
+    sendEvent("projects-changed", undefined);
   },
 
   async deleteProject(projectId: string) {
     storageOps.deleteProject(projectId);
     clearProjectSearchState(projectId);
     syncWatchers();
+    sendEvent("projects-changed", undefined);
+    sendEvent("sessions-changed", undefined);
   },
 
   async newSession({ projectId, agentId }) {
@@ -408,6 +412,7 @@ export const backendHandlers: {
       modes,
     } = await b.newSession({ cwd: project.cwd, mcpServers: [] });
     const sessionId = storageOps.createSession(project.id, resumeId, agentId);
+    sendEvent("sessions-changed", undefined);
     return {
       sessionId: sessionId,
       agentInfo: b.agentInfo,
@@ -445,6 +450,7 @@ export const backendHandlers: {
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
+    sendEvent("sessions-changed", undefined);
 
     // Generate a unique ID for this generation attempt to prevent race conditions
     const currentGenerationId = crypto.randomUUID();
@@ -531,6 +537,7 @@ export const backendHandlers: {
 
   async updateSessionTitle({ sessionId, title }) {
     storageOps.updateSessionTitle(sessionId, title);
+    sendEvent("sessions-changed", undefined);
   },
 
   async changeWorkDir() {
@@ -539,6 +546,7 @@ export const backendHandlers: {
 
   async deleteSession(sessionId: string) {
     storageOps.deleteSession(sessionId);
+    sendEvent("sessions-changed", undefined);
   },
 
   async getSystemFilePath({ projectId, path: inputPath, isAbsolute }) {

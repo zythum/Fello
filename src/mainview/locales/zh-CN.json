@@ -150,6 +150,10 @@
     "dialogTitle": "消息提示",
     "errorTitle": "错误"
   },
+  "toast": {
+    "activeSessionDeleted": "当前会话已被删除",
+    "activeSessionDeletedWithTitle": "当前会话“{{title}}”已被删除"
+  },
   "chatArea": {
     "thinking": "思考中...",
     "scrollToBottom": "滚动到底部"

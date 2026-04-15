@@ -338,6 +338,16 @@ export type FelloIPCEvents = {
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
   /**
+   * 项目列表发生变更的事件（新增/删除/重命名等）
+   * 用于让所有客户端（包含 WebUI）刷新 `listProjects()` 的结果。
+   */
+  "projects-changed": void;
+  /**
+   * 会话列表发生变更的事件（新增/删除/重命名等）
+   * 用于让所有客户端（包含 WebUI）刷新 `listSessions()` 的结果。
+   */
+  "sessions-changed": void;
+  /**
    * 文件系统发生变更的事件（如文件被增删改）
    * 载荷中的 `changes` 列表，在从后端发送到前端前，已被统一转换为 POSIX 风格的相对路径。
    */

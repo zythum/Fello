@@ -150,6 +150,10 @@
     "dialogTitle": "Message Dialog",
     "errorTitle": "Error"
   },
+  "toast": {
+    "activeSessionDeleted": "Current session was deleted",
+    "activeSessionDeletedWithTitle": "Current session \"{{title}}\" was deleted"
+  },
   "chatArea": {
     "thinking": "Thinking...",
     "scrollToBottom": "Scroll to bottom"

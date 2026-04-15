@@ -21,7 +21,7 @@ function AppContent() {
     setI18n,
   } = useAppStore();
   const { t, i18n } = useTranslation();
-  const { alert } = useMessage();
+  const { alert, toast } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
   const [isReady, setIsReady] = useState(false);
 
@@ -75,15 +75,57 @@ function AppContent() {
       useAppStore.getState().setWebUIStatus(detail.status);
     };
 
+    let currentProjectsFetchId = 0;
+    const handleProjectsChanged = async () => {
+      const fetchId = ++currentProjectsFetchId;
+      const nextProjects = await request.listProjects();
+      if (fetchId !== currentProjectsFetchId) return;
+      useAppStore.getState().setProjects(nextProjects ?? []);
+    };
+
+    let currentSessionsFetchId = 0;
+    const handleSessionsChanged = async () => {
+      const fetchId = ++currentSessionsFetchId;
+      const prevSessions = useAppStore.getState().sessions;
+      const prevActiveSessionId = useAppStore.getState().activeSessionId;
+      const prevActiveSessionTitle =
+        prevSessions.find((s) => s.id === prevActiveSessionId)?.title ?? null;
+      const nextSessions = (await request.listSessions()) ?? [];
+      if (fetchId !== currentSessionsFetchId) return;
+
+      const store = useAppStore.getState();
+      const currentActiveSessionId = store.activeSessionId;
+      store.setSessions(nextSessions);
+
+      const sessionIds = new Set(nextSessions.map((s) => s.id));
+      const nextStates = new Map(
+        Array.from(store.sessionStates.entries()).filter(([sid]) => sessionIds.has(sid)),
+      );
+      useAppStore.setState({ sessionStates: nextStates });
+
+      if (currentActiveSessionId && !sessionIds.has(currentActiveSessionId)) {
+        if (prevActiveSessionId === currentActiveSessionId && prevActiveSessionTitle) {
+          toast.info(t("toast.activeSessionDeletedWithTitle", { title: prevActiveSessionTitle }));
+        } else {
+          toast.info(t("toast.activeSessionDeleted"));
+        }
+        store.setActiveSessionId(nextSessions[0]?.id ?? null);
+      }
+    };
+
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
+    subscribe.on("projects-changed", handleProjectsChanged);
+    subscribe.on("sessions-changed", handleSessionsChanged);
     return () => {
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
+      subscribe.off("projects-changed", handleProjectsChanged);
+      subscribe.off("sessions-changed", handleSessionsChanged);
     };
   }, []);
 
