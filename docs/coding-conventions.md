@@ -14,6 +14,12 @@
 - 多模态消息内容块按类型拆分到 `components/content-blocks/`
 - UI primitives 保持 `components/ui/`，避免跨目录重复实现
 
+## TypeScript 约定
+
+- 优先使用 `unknown` 而非 `any`，强制在使用前进行类型检查
+- 优先使用 `satisfies` 操作符而非类型断言（`as`），以保留精确的类型推导并确保类型兼容性
+- 避免过度使用类型断言，尽量让 TS 自动推导类型
+
 ## React 组件约定
 
 - 优先使用函数组件与具名导出

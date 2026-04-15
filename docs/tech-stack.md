@@ -61,7 +61,7 @@
 | --- | --- | --- |
 | streamdown | ^2.5.0 | 流式 Markdown 渲染 |
 | @streamdown/code | ^1.1.1 | 代码高亮扩展 |
-| react-diff-viewer-continued | ^3.4.0 | 代码 Diff 双栏/单栏对比视图 |
+| react-diff-viewer-continued | ^4.2.0 | 代码 Diff 双栏/单栏对比视图 |
 | shiki | ^1.0.0 | 代码高亮底层引擎，通过 `shiki-highlighter.ts` 统一管理 |
 
 ## 工程质量与规范执行

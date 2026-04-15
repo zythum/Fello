@@ -52,7 +52,7 @@ Main/preload changes typically require restarting the dev process.
 │       ├── store.ts        # Zustand state management
 │       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
 │       ├── lib/            # Utilities (session-state-reducer.ts, etc.)
-│       ├── components/common/ # Shared components (CodeView, CodeCompareView, ImageView)
+│       ├── components/common/ # Shared components (CodeView, CodeCompareView, ImageView, ReadonlyTerminal, ShikiHighlighter)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── electron.ts     # Native Electron-only API wrapper
 │       ├── i18n.ts         # i18next configuration

@@ -17,7 +17,7 @@ Sessions & Persistence
 - Renderer state store: src/mainview/store.ts
 - ChatMessage polymorphic interface: src/mainview/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
 - Content block rendering: src/mainview/components/content-blocks/
-- Code & Diff Viewers: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki)
+- Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, ReadonlyTerminal)
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
 
 Dev / Build Commands

@@ -48,7 +48,7 @@ fello/
 │           │   ├── agent-bubble.tsx
 │           │   ├── thinking-bubble.tsx
 │           │   └── tool-bubble.tsx
-│           ├── common/               # 公用组件 (stream-markdown, code-view, code-compare-view, image-view 等)
+│           ├── common/               # 公用组件 (stream-markdown, code-view, code-compare-view, image-view, readonly-terminal, shiki-highlighter 等)
 │           ├── content-blocks/       # ContentBlock 多模态内容组件 (text, image, audio 等)
 │           ├── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
@@ -60,11 +60,11 @@ fello/
 │           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
 │           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
 │           ├── file-preview.tsx      # 文件内容与图片预览组件（入口，渲染 common 视图）
+│           ├── global-text-context-menu.tsx # 全局文本选中上下文菜单
 │           ├── terminal-panel.tsx    # 多终端页签（xterm + node-pty）
-│           ├── readonly-terminal.tsx # 只读终端输出组件
 │           ├── permission-dialog.tsx # 工具权限请求弹层
 │           ├── message.tsx           # 全局对话框与 Toast 队列 (MessageProvider)
-│           ├── theme-provider.tsx    # 主题切换上下文
+│           ├── theme-provider.tsx    # 基于 next-themes 的主题切换上下文
 │           └── ui/                   # shadcn/base-ui 基础组件
 │               ├── badge.tsx
 │               ├── button.tsx
@@ -72,11 +72,16 @@ fello/
 │               ├── context-menu.tsx
 │               ├── dialog.tsx
 │               ├── dropdown-menu.tsx
+│               ├── hover-card.tsx
 │               ├── input.tsx
 │               ├── resizable.tsx
 │               ├── scroll-area.tsx
 │               ├── select.tsx
 │               ├── separator.tsx
+│               ├── sheet.tsx
+│               ├── sonner.tsx
+│               ├── switch.tsx
+│               ├── tabs.tsx
 │               └── tooltip.tsx
 │
 ├── icons/                            # 应用图标资源
