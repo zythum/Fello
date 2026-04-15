@@ -61,7 +61,7 @@ interface Actions {
 
 const GIT_FOLDER_STATUS = {
   text: "•",
-  color: "text-muted-foreground/60",
+  color: "text-amber-500/90",
 } as const;
 
 const GIT_SUMMARY_BADGES = [
@@ -1049,7 +1049,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         if (slashIdx === -1) break;
         parent = parent.slice(0, slashIdx);
         if (!map.has(parent)) {
-          map.set(parent, "•");
+          map.set(parent, GIT_FOLDER_STATUS.text);
         }
       }
     }
@@ -1082,7 +1082,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         <DropdownMenuTrigger
           className={cn(
             "flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-xs text-foreground/70 outline-none",
-            hasChanges && "hover:bg-accent/50 cursor-pointer",
+            hasChanges && "hover:bg-accent/50",
           )}
           disabled={!hasChanges}
         >
@@ -1107,10 +1107,10 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
           <DropdownMenuContent
             align="center"
             side="top"
-            className="w-[calc(var(--anchor-width)-8px)] max-h-64 py-1.5 space-y-0.5"
+            className="w-[calc(var(--anchor-width)-8px)] max-h-64"
           >
             <ScrollArea className="max-h-64">
-              <div className="p-1">
+              <div>
                 {Object.entries(gitStatus.files).map(([relPath, status]) => {
                   let statusColor = "text-muted-foreground";
                   let statusText = status.trim();
@@ -1147,33 +1147,30 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                   return (
                     <DropdownMenuItem
                       key={relPath}
-                      className="text-xs rounded-xs flex items-center justify-between cursor-pointer"
                       onClick={() =>
                         activeProjectId &&
                         onPreviewFile?.({ projectId: activeProjectId, relativePath: relPath })
                       }
                     >
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex w-full items-center gap-2">
                         <span className={cn("truncate font-normal", statusColor)} title={fileName}>
                           {fileName}
                         </span>
-                        {folderPath && (
-                          <span
-                            className="truncate flex-1 text-xs text-muted-foreground/90"
-                            title={folderPath}
-                          >
-                            {folderPath}
-                          </span>
-                        )}
+                        <span
+                          className="truncate flex-1 text-[10px] text-muted-foreground/90"
+                          title={folderPath ?? undefined}
+                        >
+                          {folderPath ?? ''}
+                        </span>
+                        <span
+                          className={cn(
+                            "ml-2 shrink-0 text-[10px] font-normal tracking-tighter",
+                            statusColor,
+                          )}
+                        >
+                          {statusText}
+                        </span>
                       </div>
-                      <span
-                        className={cn(
-                          "ml-2 shrink-0 text-[10px] font-normal tracking-tighter",
-                          statusColor,
-                        )}
-                      >
-                        {statusText}
-                      </span>
                     </DropdownMenuItem>
                   );
                 })}
