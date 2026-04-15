@@ -158,6 +158,10 @@
     "thinking": "Thinking...",
     "scrollToBottom": "Scroll to bottom"
   },
+  "chatTimeline": {
+    "userMessageIndex": "User message {{index}}",
+    "jumpToUserMessage": "Jump to {{label}}"
+  },
   "thinkingBubble": {
     "thinking": "Thinking...",
     "thought": "Thought"

@@ -158,6 +158,10 @@
     "thinking": "思考中...",
     "scrollToBottom": "滚动到底部"
   },
+  "chatTimeline": {
+    "userMessageIndex": "第 {{index}} 条用户消息",
+    "jumpToUserMessage": "跳转到{{label}}"
+  },
   "thinkingBubble": {
     "thinking": "思考中...",
     "thought": "思考过程"

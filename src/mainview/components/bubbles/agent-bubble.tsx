@@ -23,7 +23,7 @@ export const AgentBubble = memo(function AssistantBubble({
     return null;
   }
   return (
-    <div className={cn("w-full px-4", prevBubbleRole != null && "mt-4")}>
+    <div className={cn("w-full", prevBubbleRole != null && "mt-4")}>
       <ContentBlocks
         blocks={message.contents}
         role={message.role}

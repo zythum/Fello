@@ -422,7 +422,11 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             const fetchedChildren = fetchedByDir.get(node.id);
             let children = node.children;
 
-            if (fetchedChildren === undefined && children === undefined && oldExpanded.has(node.id)) {
+            if (
+              fetchedChildren === undefined &&
+              children === undefined &&
+              oldExpanded.has(node.id)
+            ) {
               children = oldExpanded.get(node.id);
             }
 
@@ -531,7 +535,11 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                 const fetchedChildren = fetchedByDir.get(node.id);
                 let children = node.children;
 
-                if (fetchedChildren === undefined && children === undefined && oldExpanded.has(node.id)) {
+                if (
+                  fetchedChildren === undefined &&
+                  children === undefined &&
+                  oldExpanded.has(node.id)
+                ) {
                   children = oldExpanded.get(node.id);
                 }
 
@@ -1224,7 +1232,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                           className="truncate flex-1 text-[10px] text-muted-foreground/90"
                           title={folderPath ?? undefined}
                         >
-                          {folderPath ?? ''}
+                          {folderPath ?? ""}
                         </span>
                         <span
                           className={cn(
