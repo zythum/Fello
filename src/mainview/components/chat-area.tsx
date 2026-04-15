@@ -12,7 +12,9 @@ export function ChatArea() {
   const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollRafRef = useRef<any>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasAutoScrolledOnMountRef = useRef(false);
+  const userHasScrolledUpRef = useRef(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showThinking, setShowThinking] = useState(false);
 
@@ -37,20 +39,35 @@ export function ChatArea() {
     return scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
   }, []);
 
-  const scrollToBottom = useCallback(() => {
-    if (scrollRafRef.current) {
-      clearTimeout(scrollRafRef.current);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
     }
-    scrollRafRef.current = setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+
+    if (behavior === "smooth") {
+      scrollTimeoutRef.current = setTimeout(() => {
+        userHasScrolledUpRef.current = false;
+        bottomRef.current?.scrollIntoView({ behavior });
+      }, 100);
+      return;
+    }
+
+    userHasScrolledUpRef.current = false;
+    bottomRef.current?.scrollIntoView({ behavior });
   }, []);
+
+  const scrollToBottomAuto = useCallback(() => {
+    scrollToBottom("auto");
+  }, [scrollToBottom]);
+
+  const scrollToBottomManual = useCallback(() => {
+    scrollToBottom("smooth");
+  }, [scrollToBottom]);
 
   useEffect(() => {
     return () => {
-      if (scrollRafRef.current) {
-        clearTimeout(scrollRafRef.current);
-      }
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
   }, []);
 
@@ -60,7 +77,9 @@ export function ChatArea() {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
-      setIsAtBottom(scrollHeight - scrollTop - clientHeight < 40);
+      const nextIsAtBottom = scrollHeight - scrollTop - clientHeight < 40;
+      userHasScrolledUpRef.current = !nextIsAtBottom;
+      setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
     };
 
     viewport.addEventListener("scroll", handleScroll, { passive: true });
@@ -71,8 +90,16 @@ export function ChatArea() {
   const renderedMessages = messages.filter(isValidMessageToDisplay);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, activeToolCalls.size, scrollToBottom]);
+    if (!hasAutoScrolledOnMountRef.current) {
+      hasAutoScrolledOnMountRef.current = true;
+      scrollToBottomAuto();
+      return;
+    }
+
+    if (!userHasScrolledUpRef.current && (isAtBottom || isStreaming)) {
+      scrollToBottomAuto();
+    }
+  }, [messages, activeToolCalls.size, isAtBottom, isStreaming, scrollToBottomAuto]);
 
   return (
     <div className="relative min-h-0 flex-1">
@@ -110,7 +137,7 @@ export function ChatArea() {
           variant="secondary"
           size="icon-sm"
           className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-lg border border-border"
-          onClick={scrollToBottom}
+          onClick={scrollToBottomManual}
           aria-label={t("chatArea.scrollToBottom", "Scroll to bottom")}
         >
           <ArrowDown className="size-4" />

@@ -425,6 +425,7 @@ export const backendHandlers: {
   async loadSession({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
+    sendEvent("session-clear", { sessionId: session.id });
     const b = await ensureBridge(session.cwd, session.agentId);
     const { models, modes } = await b.loadSession({
       sessionId: session.resumeId,

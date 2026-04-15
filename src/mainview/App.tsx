@@ -48,6 +48,21 @@ function AppContent() {
   }, [setProjects, setSessions, setConfiguredAgents, setTheme, setI18n, i18n]);
 
   useEffect(() => {
+    const handleSessionClear = (detail: BackendEvents["session-clear"]) => {
+      useAppStore.getState().updateSessionState(detail.sessionId, () => ({
+        messages: [],
+        usage: null,
+        isStreaming: false,
+        permissionRequests: [],
+        activeToolCalls: new Map(),
+        availableModels: [],
+        currentModelId: null,
+        availableModes: [],
+        currentModeId: null,
+        agentInfo: null,
+      }));
+    };
+
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sessions = useAppStore.getState().sessions;
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
@@ -113,6 +128,7 @@ function AppContent() {
       }
     };
 
+    subscribe.on("session-clear", handleSessionClear);
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
@@ -120,6 +136,7 @@ function AppContent() {
     subscribe.on("projects-changed", handleProjectsChanged);
     subscribe.on("sessions-changed", handleSessionsChanged);
     return () => {
+      subscribe.off("session-clear", handleSessionClear);
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
