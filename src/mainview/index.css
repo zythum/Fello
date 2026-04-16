@@ -126,11 +126,13 @@ body,
   padding: 0.4rem 0 !important;
   display: block !important;
   border-radius: 0 !important;
+  background-color: var(--muted);
 }
 [data-streamdown="code-block-body"] pre {
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 0 !important;
+  background-color: var(--muted);
 }
 [data-streamdown="code-block-actions"] {
   margin-top: -3px !important;
