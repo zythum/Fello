@@ -1,4 +1,5 @@
 import { spawn, execFileSync, type ChildProcess } from "child_process";
+import { homedir } from "os";
 import { Writable, Readable } from "stream";
 import {
   ndJsonStream,
@@ -51,7 +52,6 @@ export interface ACPBridgeOptions {
   command: string;
   args: string[];
   env?: Record<string, string>;
-  cwd: string;
   onSessionUpdate: SessionUpdateCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
@@ -117,7 +117,7 @@ export class ACPBridge {
     const shouldDetach = process.platform !== "win32";
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
-      cwd: this.options.cwd,
+      cwd: process.cwd(),
       env: { ...process.env, ...this.options.env },
       detached: shouldDetach,
     });
@@ -164,7 +164,6 @@ export class ACPBridge {
     const onUpdate = this.onSessionUpdate;
     const modeStates = this._modeStates;
     const terminalManager = this.terminalManager;
-    const defaultCwd = this.options.cwd;
     const client: Client = {
       async requestPermission(
         params: RequestPermissionRequest,
@@ -194,7 +193,7 @@ export class ACPBridge {
         const id = terminalManager.create(
           params.command,
           params.args || [],
-          params.cwd || defaultCwd,
+          params.cwd || homedir(),
           params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
           params.outputByteLimit || 1048576,
         );

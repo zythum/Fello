@@ -157,6 +157,11 @@ body,
   font-weight: 400;
 }
 
+[data-streamdown="table-header-cell"],
+[data-streamdown="table-cell"] {
+  font-size: 1em !important;
+}
+
 .dark {
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);

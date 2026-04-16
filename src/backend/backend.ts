@@ -155,7 +155,7 @@ function resolveAgentRuntime(agentId: string) {
   return { command, args, env };
 }
 
-async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge> {
+async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
   const connectPromise = bridgePool.get(agentId);
   if (connectPromise) {
     const pooledBridge = await connectPromise;
@@ -173,7 +173,6 @@ async function ensureBridge(cwd: string, agentId: AgentType): Promise<ACPBridge>
     command: runtime.command,
     args: runtime.args,
     env: runtime.env,
-    cwd,
     onSessionUpdate: (notification: SessionNotification) => {
       sendEvent("session-update", {
         sessionId: `${agentId}:${notification.sessionId}`,
@@ -405,7 +404,7 @@ export const backendHandlers: {
   async newSession({ projectId, agentId }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
-    const b = await ensureBridge(project.cwd, agentId);
+    const b = await ensureBridge(agentId);
     const {
       sessionId: resumeId,
       models,
@@ -426,7 +425,7 @@ export const backendHandlers: {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     sendEvent("session-clear", { sessionId: session.id });
-    const b = await ensureBridge(session.cwd, session.agentId);
+    const b = await ensureBridge(session.agentId);
     const { models, modes } = await b.loadSession({
       sessionId: session.resumeId,
       cwd: session.cwd,
