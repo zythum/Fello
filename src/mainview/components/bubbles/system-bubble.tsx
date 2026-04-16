@@ -9,7 +9,7 @@ export const SystemBubble = memo(function SystemBubble({ message }: Props) {
   const { kind, contents } = message;
 
   return (
-    <div className="flex w-full flex-col items-center justify-center py-2 gap-2">
+    <div className="flex w-full flex-col items-center justify-center py-2 gap-2 pointer-events-auto">
       <div
         className={
           kind === "info"

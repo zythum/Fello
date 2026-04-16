@@ -19,7 +19,7 @@ export const PlanBubble = memo(function PlanBubble({
   return (
     <details
       className={cn(
-        "mx-4 border border-border bg-card rounded-md",
+        "mx-4 border border-border bg-card rounded-md pointer-events-auto",
         prevBubbleRole != null && "mt-4",
       )}
       open

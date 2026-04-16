@@ -58,7 +58,7 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
       className="text-xs min-w-0 overflow-hidden"
       open={isLive || message.terminalId != null}
     >
-      <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground">
+      <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary">
         {kindIcon}
         <span className="flex-1 font-normal text-foreground">
           {message.title || t("toolBubble.tool")}
@@ -147,7 +147,7 @@ export const ToolBubble = memo(function ToolBubble({
   return (
     <div
       className={cn(
-        "tool-bubble border border-border bg-card rounded-none",
+        "tool-bubble border border-border bg-card rounded-none pointer-events-auto",
         !isGroupedWithPrev && hasPrevBubble && "mt-4",
         isGroupedWithPrev && "-mt-px",
         !isGroupedWithPrev && "rounded-t-md",

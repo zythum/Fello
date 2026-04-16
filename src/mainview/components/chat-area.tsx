@@ -242,7 +242,7 @@ export function ChatArea() {
           return (
             <div
               key={group.key}
-              className={cn("message-group max-w-3xl mx-auto flex flex-col relative", {
+              className={cn("message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none", {
                 "pt-4": !isFirstGroup,
                 "min-h-full": isLastGroup,
                 "border-b border-border": !isLastGroup,
@@ -259,7 +259,7 @@ export function ChatArea() {
               {group.userMessage && (
                 <div className="message-header sticky z-5 top-0 pt-4 pb-14 -mb-5 bg-linear-to-b from-background via-background/95 via-65% to-background/0">
                   <div
-                    className="chat-message pointer-events-auto"
+                    className="chat-message"
                     data-role={group.userMessage.role}
                     data-display-id={group.userMessage.displayId}
                   >
