@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { downloadDataUrl, extractErrorMessage } from "../../lib/utils";
 import { request } from "../../backend";
 
-import { toast } from "sonner";
+import { useMessage } from "../message";
 
 import { SessionInfo } from "../../../shared/schema";
 import type { ImageContent } from "@agentclientprotocol/sdk";
@@ -26,6 +26,7 @@ export const ImageBlock = memo(function ImageBlock({
   isStreaming: _isStreaming,
 }: ImageBlockProps) {
   const { t } = useTranslation();
+  const { toast } = useMessage();
   const data = block.data;
   const mimeType = block.mimeType ?? undefined;
   const uri = block.uri;

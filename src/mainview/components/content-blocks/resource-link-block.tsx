@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { getBasename, formatBytes, downloadDataUrl, isSubPath } from "../../lib/utils";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
-import { toast } from "sonner";
+import { useMessage } from "../message";
 import { SessionInfo } from "../../../shared/schema";
 import type { ResourceLink } from "@agentclientprotocol/sdk";
 import type { ChatMessage } from "../../chat-message";
@@ -25,6 +25,7 @@ export const ResourceLinkBlock = memo(function ResourceLinkBlock({
   isStreaming: _isStreaming,
 }: ResourceLinkBlockProps) {
   const { t } = useTranslation();
+  const { toast } = useMessage();
   const uri = block.uri;
   const name = block.name;
   const mimeType = block.mimeType ?? undefined;

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { downloadDataUrl, getBasename } from "../../lib/utils";
 import { StreamMarkdown } from "../common/stream-markdown";
 import { request } from "../../backend";
-import { toast } from "sonner";
+import { useMessage } from "../message";
 import { SessionInfo } from "../../../shared/schema";
 import type {
   EmbeddedResource,
@@ -108,6 +108,7 @@ const FallbackResourceBlock = memo(function FallbackResourceBlock({
   mimeType?: string;
 }) {
   const { t } = useTranslation();
+  const { toast } = useMessage();
 
   const handleDownload = async () => {
     try {
