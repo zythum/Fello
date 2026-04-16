@@ -315,7 +315,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
               </DialogTitle>
               {activeDialog?.content && (
                 <DialogDescription>
-                  <span className="text-sm text-foreground/50 pt-1">{activeDialog.content}</span>
+                  <span className="text-xs! not-last:text-foreground/50 pt-1">{activeDialog.content}</span>
                 </DialogDescription>
               )}
             </DialogHeader>
