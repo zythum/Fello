@@ -4,8 +4,8 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync
 import { createHash } from "crypto";
 import type { ProjectInfo, SessionInfo, SettingsInfo } from "../shared/schema";
 
-const DATA_DIR = join(homedir(), ".fello");
-const PROJECTS_DIR = join(DATA_DIR, "projects");
+export const FELLO_DIR = join(homedir(), ".fello");
+export const PROJECTS_DIR = join(FELLO_DIR, "projects");
 
 interface SettingsMeta {
   agents: {
@@ -50,7 +50,7 @@ interface SessionMeta {
 mkdirSync(PROJECTS_DIR, { recursive: true });
 
 function settingsPath() {
-  return join(DATA_DIR, "settings.json");
+  return join(FELLO_DIR, "settings.json");
 }
 
 function readSettings(): SettingsMeta {

@@ -409,7 +409,10 @@ export const backendHandlers: {
       sessionId: resumeId,
       models,
       modes,
-    } = await b.newSession({ cwd: project.cwd, mcpServers: [] });
+    } = await b.newSession({
+      cwd: project.cwd,
+      mcpServers: [],
+    });
     const sessionId = storageOps.createSession(project.id, resumeId, agentId);
     sendEvent("sessions-changed", undefined);
     return {
@@ -430,9 +433,6 @@ export const backendHandlers: {
       sessionId: session.resumeId,
       cwd: session.cwd,
       mcpServers: [],
-      _meta: {
-        client: "Fello",
-      },
     });
     return {
       sessionId: session.id,

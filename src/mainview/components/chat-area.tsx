@@ -244,7 +244,7 @@ export function ChatArea() {
         <Button
           variant="secondary"
           size="icon-sm"
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-lg border border-border"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-xl border border-primary/30 bg-secondary hover:bg-secondary hover:border-primary"
           onClick={scrollToBottomManual}
           aria-label={t("chatArea.scrollToBottom", "Scroll to bottom")}
         >
