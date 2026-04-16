@@ -83,7 +83,9 @@ export const TextBlock = memo(function TextBlock({
     role in typographyClasses ? typographyClasses[role] : typographyClasses["fallback"];
   return (
     <div className={className}>
-      <StreamMarkdown isStreaming={isStreaming}>{block.text}</StreamMarkdown>
+      <StreamMarkdown isStreaming={isStreaming} forceBreaks={role === "user_message"}>
+        {block.text}
+      </StreamMarkdown>
     </div>
   );
 });
