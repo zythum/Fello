@@ -25,7 +25,7 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
     [onSelect],
   );
 
-  if (items.length === 0) return null;
+  if (items.length < 2) return null;
 
   return (
     <div className="h-full flex flex-col items-center overflow-hidden">
