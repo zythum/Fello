@@ -523,7 +523,7 @@ export function Sidebar() {
                               ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
                               : "opacity-0 group-hover:opacity-80 text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/75"
                           }`}
-                          aria-label={`Chat actions for ${session.title}`}
+                          aria-label={`Chat actions for ${session.title || t("sidebar.newChat", "New Chat")}`}
                         >
                           <MoreHorizontal className="size-3" />
                         </DropdownMenuTrigger>
