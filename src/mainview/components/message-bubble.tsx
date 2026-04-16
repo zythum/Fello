@@ -5,6 +5,7 @@ import { ThinkingBubble } from "./bubbles/thinking-bubble";
 import { UserBubble } from "./bubbles/user-bubble";
 import { AgentBubble } from "./bubbles/agent-bubble";
 import { SystemBubble } from "./bubbles/system-bubble";
+import { PlanBubble } from "./bubbles/plan-bubble";
 
 interface Props {
   message: ChatMessage;
@@ -57,8 +58,13 @@ export const MessageBubble = memo(function MessageBubble({
     case "system_message":
       return <SystemBubble message={message} />;
     case "plan":
-      // TODO: 实现 PlanMessage 的专属渲染面板 (PlanBubble)
-      return null;
+      return (
+        <PlanBubble
+          message={message}
+          prevBubbleRole={prevBubbleRole}
+          nextBubbleRole={nextBubbleRole}
+        />
+      );
     default:
       return null;
   }

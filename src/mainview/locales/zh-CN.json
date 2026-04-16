@@ -37,7 +37,8 @@
     "saveLanguageFailed": "保存语言设置失败。",
     "projectExists": "项目已存在。",
     "projectNameEmpty": "项目名称不能为空。",
-    "chatNameEmpty": "会话名称不能为空。"
+    "chatNameEmpty": "会话名称不能为空。",
+    "newChat": "新会话"
   },
   "contextMenu": {
     "cut": "剪切",
@@ -78,6 +79,20 @@
   },
   "chat": {
     "failedToLoadSession": "加载会话失败。"
+  },
+  "planBubble": {
+    "title": "计划",
+    "summary": "已完成 {{completed}} / {{total}}",
+    "status": {
+      "pending": "等待中",
+      "inProgress": "进行中",
+      "completed": "已完成"
+    },
+    "priority": {
+      "high": "高优先级",
+      "medium": "中优先级",
+      "low": "低优先级"
+    }
   },
   "chatHeader": {
     "refresh": "刷新"

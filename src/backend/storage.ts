@@ -315,7 +315,7 @@ export const storageOps = {
     const id = `${agentId}:${resumeId}`;
     writeSessionMeta({
       id: id,
-      title: "New Chat",
+      title: "",
       agent_id: agentId,
       resume_id: resumeId,
       project_id: projectId,

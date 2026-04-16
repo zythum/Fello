@@ -447,6 +447,19 @@ export const backendHandlers: {
   async sendMessage({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
+
+    // Fallback: If it's a new chat, simulate an agent title update
+    if (!session.title) {
+      const firstTextContent = contents.find((c) => c.type === "text");
+      if (firstTextContent && firstTextContent.type === "text" && firstTextContent.text) {
+        let fallbackTitle = firstTextContent.text.trim().split("\n")[0].substring(0, 30);
+        if (firstTextContent.text.length > 30) fallbackTitle += "...";
+        storageOps.updateSessionTitle(sessionId, fallbackTitle);
+        // We don't need to explicitly broadcast session_info_update for title,
+        // because the 'sessions-changed' event below will trigger a sidebar refresh.
+      }
+    }
+
     const connectPromise = bridgePool.get(session.agentId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;

@@ -1,7 +1,7 @@
 import type { SessionNotification, ContentBlock } from "@agentclientprotocol/sdk";
 import i18n from "../i18n";
 import type { SessionState } from "../store";
-import type { ToolCallMessage, ChatMessage } from "../chat-message";
+import type { ToolCallMessage, ChatMessage, PlanMessage } from "../chat-message";
 
 // ---------------------------------------------------------------------------
 // Pure Functions for State Calculation
@@ -200,10 +200,31 @@ export function reduceSessionUpdate(
       nextState = calculateToolCall(currentState, update);
       break;
 
+    case "plan":
+      nextState = {
+        ...currentState,
+        messages: [
+          ...currentState.messages,
+          {
+            role: "plan",
+            entries: update.entries ?? [],
+            _meta: update._meta,
+            displayId: crypto.randomUUID(),
+          } satisfies PlanMessage,
+        ],
+      };
+      break;
+
     case "session_info_update":
       if (update._meta) {
         if (typeof update._meta.isStreaming === "boolean") {
           nextState = { ...currentState, isStreaming: update._meta.isStreaming };
+        }
+
+        if (update.title && typeof update.title === "string") {
+          // Note: update.title will be extracted by the App level listener
+          // which can call request.updateSessionTitle IPC to persist it.
+          // We can optionally keep it in state if needed, but Fello reads session title from global AppStore sessions.
         }
 
         if (update._meta.usage) {

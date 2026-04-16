@@ -68,6 +68,13 @@ function AppContent() {
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
       const sid = targetSession ? targetSession.id : useAppStore.getState().activeSessionId;
       if (!sid) return;
+
+      const update = detail.notification.update;
+      if (update?.sessionUpdate === "session_info_update" && update.title) {
+        // Automatically persist the new session title returned by Agent
+        request.updateSessionTitle({ sessionId: sid, title: update.title });
+      }
+
       const currentState = useAppStore.getState().getSessionState(sid);
       const nextState = reduceSessionUpdate(currentState, detail.notification.update);
 

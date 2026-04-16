@@ -60,7 +60,7 @@ export function Chat() {
                 {session.agentId}
               </Badge>
               <span className="truncate text-sm font-normal text-sidebar-foreground/85">
-                {session.title}
+                {session.title || t("sidebar.newChat", "New Chat")}
               </span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground/60 whitespace-nowrap">
                 {formatSessionTime(session.updatedAt)}

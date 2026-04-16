@@ -228,7 +228,11 @@ export class ACPBridge {
         terminalManager.release(params.terminalId);
         return {};
       },
-      async extNotification(_method: string, _params: unknown): Promise<void> {},
+      async extNotification(_method: string, _params: unknown): Promise<void> {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[ACP Ext Notification] Method: ${_method}`, JSON.stringify(_params));
+        }
+      },
     };
 
     this.connection = new ClientSideConnection((_agent) => client, stream);

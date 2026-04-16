@@ -37,7 +37,8 @@
     "saveLanguageFailed": "Failed to save language setting.",
     "projectExists": "Project already exists.",
     "projectNameEmpty": "Project name cannot be empty.",
-    "chatNameEmpty": "Chat name cannot be empty."
+    "chatNameEmpty": "Chat name cannot be empty.",
+    "newChat": "New Chat"
   },
   "contextMenu": {
     "cut": "Cut",
@@ -78,6 +79,20 @@
   },
   "chat": {
     "failedToLoadSession": "Failed to load session."
+  },
+  "planBubble": {
+    "title": "Plan",
+    "summary": "{{completed}} / {{total}} completed",
+    "status": {
+      "pending": "Pending",
+      "inProgress": "In progress",
+      "completed": "Completed"
+    },
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
   },
   "chatHeader": {
     "refresh": "Refresh"

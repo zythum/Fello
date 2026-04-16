@@ -177,9 +177,10 @@ export function Sidebar() {
   };
 
   const handleDeleteSession = async (session: SessionInfo) => {
+    const displayTitle = session.title || t("sidebar.newChat", "New Chat");
     await confirm({
       title: t("sidebar.deleteChat"),
-      content: t("sidebar.deleteChatConfirm", { title: session.title }),
+      content: t("sidebar.deleteChatConfirm", { title: displayTitle }),
       buttons: [
         { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
         {
@@ -218,10 +219,11 @@ export function Sidebar() {
   };
 
   const handleRenameSession = async (session: SessionInfo) => {
+    const displayTitle = session.title || t("sidebar.newChat", "New Chat");
     const newName = await prompt({
       title: t("sidebar.renameChat"),
       content: t("sidebar.enterNewChatName"),
-      defaultValue: session.title,
+      defaultValue: displayTitle,
       validate: (val) =>
         val.trim() ? undefined : t("sidebar.chatNameEmpty", "Chat name cannot be empty"),
     });
@@ -504,7 +506,7 @@ export function Sidebar() {
                             session.agentId}
                         </Badge>
                         <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                          {session.title}
+                          {session.title || t("sidebar.newChat", "New Chat")}
                         </span>
                       </div>
                       <DropdownMenu

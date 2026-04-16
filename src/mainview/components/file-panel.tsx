@@ -1225,11 +1225,14 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                       }
                     >
                       <div className="flex w-full items-center gap-2">
-                        <span className={cn("truncate font-normal", statusColor)} title={fileName}>
+                        <span
+                          className={cn("truncate text-[11px] font-normal", statusColor)}
+                          title={fileName}
+                        >
                           {fileName}
                         </span>
                         <span
-                          className="truncate flex-1 text-[10px] text-muted-foreground/90"
+                          className="truncate flex-1 text-[11px] text-muted-foreground/50"
                           title={folderPath ?? undefined}
                         >
                           {folderPath ?? ""}
