@@ -1,26 +1,14 @@
 {
-  "fill-specializations" : [
-    {
-      "value" : "automatic"
-    },
-    {
-      "appearance" : "dark",
-      "value" : "automatic"
-    }
-  ],
+  "fill" : "automatic",
   "groups" : [
     {
-      "blend-mode" : "normal",
-      "blur-material" : 0.5,
-      "hidden" : false,
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "image-name" : "Fello 14.png",
-          "name" : "Fello 14"
+          "glass" : false,
+          "image-name" : "fello.svg",
+          "name" : "fello"
         }
       ],
-      "lighting" : "combined",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
