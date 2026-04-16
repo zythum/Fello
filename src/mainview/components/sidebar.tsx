@@ -146,7 +146,7 @@ export function Sidebar() {
   const handleNewChat = async (projectId: string, agentId: string) => {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
-      // Add a temporary loading state locally or push a dummy session
+      useAppStore.getState().setIsCreatingSession(true);
       const result = await request.newSession({ projectId, agentId });
       setActiveSessionId(result.sessionId);
       applySessionState(result);
@@ -156,6 +156,8 @@ export function Sidebar() {
       pushGlobalErrorMessage(
         getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")),
       );
+    } finally {
+      useAppStore.getState().setIsCreatingSession(false);
     }
   };
 

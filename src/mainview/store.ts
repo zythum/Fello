@@ -51,6 +51,7 @@ interface AppState {
   // 2. Session Management
   // ==========================================================================
   activeSessionId: string | null;
+  isCreatingSession: boolean;
   /**
    * Per-session state bucket.
    * All state specific to an individual chat session (messages, loading state, model/mode config)
@@ -90,6 +91,7 @@ interface AppState {
   setProjects: (projects: ProjectInfo[]) => void;
   setSessions: (sessions: SessionInfo[]) => void;
   setActiveSessionId: (id: string | null) => void;
+  setIsCreatingSession: (v: boolean) => void;
 
   // ==========================================================================
   // Per-session mutators
@@ -132,6 +134,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 2. Session Management
   // ==========================================================================
   activeSessionId: null,
+  isCreatingSession: false,
   sessionStates: new Map(),
 
   // ==========================================================================
@@ -173,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   setSessions: (sessions) => set({ sessions }),
   setActiveSessionId: (id) => set({ activeSessionId: id }),
+  setIsCreatingSession: (v) => set({ isCreatingSession: v }),
 
   // ==========================================================================
   // Per-session mutators

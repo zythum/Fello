@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { t } = useTranslation();
-  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions } = useAppStore();
+  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions, isCreatingSession } = useAppStore();
   const { isLoading } = useActiveSessionState();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeProjectId = activeSession?.projectId;
@@ -56,7 +56,7 @@ export function SessionView() {
           </div>
         )}
 
-        {!activeSessionId && isLoading ? (
+        {!activeSessionId && (isLoading || isCreatingSession) ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="text-sm font-normal text-muted-foreground/60">
@@ -68,7 +68,7 @@ export function SessionView() {
             <ResizablePanel defaultSize={70} minSize={30}>
               <div className="relative flex h-full flex-col">
                 <Chat />
-                {isLoading && (
+                {(isLoading || isCreatingSession) && (
                   <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">
