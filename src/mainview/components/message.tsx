@@ -315,7 +315,9 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
               </DialogTitle>
               {activeDialog?.content && (
                 <DialogDescription>
-                  <span className="text-xs! not-last:text-foreground/50 pt-1 whitespace-pre-line">{activeDialog.content}</span>
+                  <span className="text-xs! not-last:text-foreground/50 pt-1 whitespace-pre-line">
+                    {activeDialog.content}
+                  </span>
                 </DialogDescription>
               )}
             </DialogHeader>
@@ -329,7 +331,9 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
                 </DialogTitle>
                 {activeDialog?.icon && <div className="mb-3 size-4">{activeDialog.icon}</div>}
                 {activeDialog?.content && (
-                  <div className="text-xs! text-foreground/70 mb-3 whitespace-pre-line">{activeDialog.content}</div>
+                  <div className="text-xs! text-foreground/70 mb-3 whitespace-pre-line">
+                    {activeDialog.content}
+                  </div>
                 )}
               </>
             )}

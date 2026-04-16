@@ -66,12 +66,12 @@ function AppContent() {
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sessions = useAppStore.getState().sessions;
       const targetSession = sessions.find((s) => s.id === detail.sessionId);
-      
+
       // Strict matching: Only process updates for the specific session indicated by the backend
       // Do not fallback to activeSessionId to prevent cross-session data corruption
       if (!targetSession) return;
       const sid = targetSession.id;
-      
+
       const update = detail.notification.update;
       if (update?.sessionUpdate === "session_info_update" && update.title) {
         // Automatically persist the new session title returned by Agent

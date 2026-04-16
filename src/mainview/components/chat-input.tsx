@@ -16,6 +16,7 @@ import {
 import { ArrowUp, Square, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
+import { useMessage } from "./message";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
 // Define an interface for the staged file
@@ -77,6 +78,7 @@ function resolveMentions(value: string): string {
 
 export function ChatInput() {
   const { t } = useTranslation();
+  const { toast } = useMessage();
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -231,15 +233,12 @@ export function ChatInput() {
           .updateSessionState(activeSessionId, () => ({ messages: newMessages }));
       } else {
         console.error("Prompt error (generation failure):", err);
-        useAppStore.getState().addMessage(activeSessionId, {
-          role: "system_message",
-          kind: "error",
-          contents: [
-            `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
-          ],
-          displayId: crypto.randomUUID(),
-        } satisfies ChatMessage);
       }
+
+      toast.error(
+        `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
+      );
+
       // If an error occurs, the backend might have crashed or network failed before
       // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
       useAppStore
@@ -406,7 +405,7 @@ export function ChatInput() {
 
   return (
     <div className="p-4 -mt-4 relative">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-200">
         <div
           ref={containerRef}
           className={`rounded-xl border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${

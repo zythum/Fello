@@ -8,6 +8,7 @@ import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function ChatArea() {
   const { t } = useTranslation();
@@ -131,6 +132,37 @@ export function ChatArea() {
   }, [getViewport]);
 
   const renderedMessages = useMemo(() => messages.filter(isValidMessageToDisplay), [messages]);
+
+  const messageGroups = useMemo(() => {
+    const groups: {
+      key: string;
+      userMessage?: (typeof renderedMessages)[0];
+      contentMessages: typeof renderedMessages;
+    }[] = [];
+    let currentGroup: (typeof groups)[0] | null = null;
+
+    for (const msg of renderedMessages) {
+      if (msg.role === "user_message") {
+        currentGroup = {
+          key: msg.displayId,
+          userMessage: msg,
+          contentMessages: [],
+        };
+        groups.push(currentGroup);
+      } else {
+        if (!currentGroup) {
+          currentGroup = {
+            key: msg.displayId,
+            contentMessages: [],
+          };
+          groups.push(currentGroup);
+        }
+        currentGroup.contentMessages.push(msg);
+      }
+    }
+    return groups;
+  }, [renderedMessages]);
+
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
       renderedMessages
@@ -203,41 +235,89 @@ export function ChatArea() {
       </div>
 
       <ScrollArea ref={scrollAreaRef} className="flex-1 pl-2 pr-8">
-        <div className="py-4 max-w-3xl mx-auto">
-          {renderedMessages.map((msg, i, arr) => {
-            const isLastRendered = i === arr.length - 1;
-            const isStreamableRole = msg.role === "agent_message" || msg.role === "agent_thought";
-            const isLastMessageStreaming = isStreaming && isLastRendered && isStreamableRole;
+        {messageGroups.map((group, groupIndex) => {
+          const isFirstGroup = groupIndex === 0;
+          const isLastGroup = groupIndex === messageGroups.length - 1;
 
-            return (
-              <div
-                key={msg.displayId}
-                ref={(el) => {
-                  if (msg.role !== "user_message") return;
-                  setUserMessageElement(msg.displayId, el);
-                }}
-                className="chat-message"
-                data-role={msg.role}
-                data-display-id={msg.displayId}
-              >
-                <MessageBubble
-                  message={msg}
-                  prevBubbleRole={arr[i - 1]?.role}
-                  nextBubbleRole={arr[i + 1]?.role}
-                  isStreaming={isLastMessageStreaming}
-                />
+          return (
+            <div
+              key={group.key}
+              className={cn("message-group py-4 max-w-3xl mx-auto flex flex-col", {
+                "mt-10": !isFirstGroup,
+                "min-h-full": isLastGroup,
+              })}
+            >
+              {group.userMessage && (
+                <div className="message-header mb-2">
+                  <div
+                    ref={(el) => {
+                      setUserMessageElement(group.userMessage!.displayId, el);
+                    }}
+                    className="chat-message"
+                    data-role={group.userMessage.role}
+                    data-display-id={group.userMessage.displayId}
+                  >
+                    <MessageBubble
+                      message={group.userMessage}
+                      prevBubbleRole={
+                        groupIndex === 0
+                          ? undefined
+                          : (messageGroups[groupIndex - 1]?.contentMessages.at(-1)?.role ??
+                            messageGroups[groupIndex - 1]?.userMessage?.role)
+                      }
+                      nextBubbleRole={
+                        group.contentMessages[0]?.role ??
+                        messageGroups[groupIndex + 1]?.userMessage?.role
+                      }
+                      isStreaming={false}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="message-content flex-1">
+                {group.contentMessages.map((msg, i, arr) => {
+                  const isLastInGroup = i === arr.length - 1;
+                  const isLastRendered = isLastGroup && isLastInGroup;
+                  const isStreamableRole =
+                    msg.role === "agent_message" || msg.role === "agent_thought";
+                  const isLastMessageStreaming = isStreaming && isLastRendered && isStreamableRole;
+
+                  return (
+                    <div
+                      key={msg.displayId}
+                      className="chat-message"
+                      data-role={msg.role}
+                      data-display-id={msg.displayId}
+                    >
+                      <MessageBubble
+                        message={msg}
+                        prevBubbleRole={i === 0 ? group.userMessage?.role : arr[i - 1]?.role}
+                        nextBubbleRole={
+                          isLastInGroup
+                            ? messageGroups[groupIndex + 1]?.userMessage?.role
+                            : arr[i + 1]?.role
+                        }
+                        isStreaming={isLastMessageStreaming}
+                      />
+                    </div>
+                  );
+                })}
+                <div className={
+                  cn("text-[11px] text-muted-foreground/50 uppercase tracking-widest", {
+                    "invisible": !(isLastGroup && showThinking)
+                  })
+                }>
+                  <span className="animate-shimmer-text">
+                    {t("chatArea.thinking", "Thinking...")}
+                  </span>
+                </div>
               </div>
-            );
-          })}
-
-          {showThinking && (
-            <div className="flex items-center gap-1.5 px-4 py-2 mt-2 text-[11px] text-muted-foreground/50 uppercase tracking-widest">
-              <span className="animate-shimmer-text">{t("chatArea.thinking", "Thinking...")}</span>
             </div>
-          )}
+          );
+        })}
 
-          <div ref={bottomRef} />
-        </div>
+        <div ref={bottomRef} />
       </ScrollArea>
 
       {!isAtBottom && (

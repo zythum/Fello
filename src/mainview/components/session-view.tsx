@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { t } = useTranslation();
-  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions, isCreatingSession } = useAppStore();
+  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions, isCreatingSession } =
+    useAppStore();
   const { isLoading } = useActiveSessionState();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeProjectId = activeSession?.projectId;
