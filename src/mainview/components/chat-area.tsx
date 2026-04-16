@@ -219,14 +219,14 @@ export function ChatArea() {
       const viewportRect = viewport.getBoundingClientRect();
       const scrollTop = viewport.scrollTop;
       const elTop = el.getBoundingClientRect().top - viewportRect.top + scrollTop;
-      viewport.scrollTo({ top: Math.max(0, elTop - 12), behavior: "smooth" });
+      viewport.scrollTo({ top: Math.max(0, elTop), behavior: "smooth" });
     },
     [getViewport],
   );
 
   return (
     <div className="w-full relative min-h-0 flex flex-1 overflow-hidden">
-      <div className="shrink-0 w-6">
+      <div className="shrink-0 w-6 -mr-6 relative z-1">
         <ChatTimeline
           items={timelineItems}
           activeDisplayId={activeUserMessageId}
@@ -234,7 +234,7 @@ export function ChatArea() {
         />
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className="flex-1 pl-2 pr-8">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 px-10">
         {messageGroups.map((group, groupIndex) => {
           const isFirstGroup = groupIndex === 0;
           const isLastGroup = groupIndex === messageGroups.length - 1;
@@ -242,18 +242,24 @@ export function ChatArea() {
           return (
             <div
               key={group.key}
-              className={cn("message-group py-4 max-w-3xl mx-auto flex flex-col", {
-                "mt-10": !isFirstGroup,
+              className={cn("message-group max-w-3xl mx-auto flex flex-col relative", {
+                "pt-4": !isFirstGroup,
                 "min-h-full": isLastGroup,
+                "border-b border-border": !isLastGroup,
               })}
             >
+              <div
+                className="absolute top-0"
+                ref={(el) => {
+                  if (group.userMessage) {
+                    setUserMessageElement(group.userMessage.displayId, el);
+                  }
+                }}
+              />
               {group.userMessage && (
-                <div className="message-header mb-2">
+                <div className="message-header sticky z-5 top-0 pt-4 pb-14 -mb-5 bg-linear-to-b from-background via-background/95 via-65% to-background/0">
                   <div
-                    ref={(el) => {
-                      setUserMessageElement(group.userMessage!.displayId, el);
-                    }}
-                    className="chat-message"
+                    className="chat-message pointer-events-auto"
                     data-role={group.userMessage.role}
                     data-display-id={group.userMessage.displayId}
                   >
@@ -275,7 +281,7 @@ export function ChatArea() {
                 </div>
               )}
 
-              <div className="message-content flex-1">
+              <div className="message-content pb-4 flex-1">
                 {group.contentMessages.map((msg, i, arr) => {
                   const isLastInGroup = i === arr.length - 1;
                   const isLastRendered = isLastGroup && isLastInGroup;
@@ -303,11 +309,11 @@ export function ChatArea() {
                     </div>
                   );
                 })}
-                <div className={
-                  cn("text-[11px] text-muted-foreground/50 uppercase tracking-widest", {
-                    "invisible": !(isLastGroup && showThinking)
-                  })
-                }>
+                <div
+                  className={cn("text-[11px] text-muted-foreground/50 uppercase tracking-widest", {
+                    invisible: !(isLastGroup && showThinking),
+                  })}
+                >
                   <span className="animate-shimmer-text">
                     {t("chatArea.thinking", "Thinking...")}
                   </span>
@@ -324,7 +330,7 @@ export function ChatArea() {
         <Button
           variant="secondary"
           size="icon-sm"
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-xl border border-primary/30 bg-secondary hover:bg-secondary hover:border-primary"
+          className="absolute z-10 bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-xl border border-primary/30 bg-secondary hover:bg-secondary hover:border-primary"
           onClick={scrollToBottomManual}
           aria-label={t("chatArea.scrollToBottom", "Scroll to bottom")}
         >
