@@ -473,6 +473,7 @@ export function ChatInput() {
             allowSuggestionsAboveCursor
             autoCorrect="off"
             autoComplete="off"
+            spellCheck={false}
             a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
             <Mention

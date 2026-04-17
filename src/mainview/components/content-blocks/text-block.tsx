@@ -12,7 +12,7 @@ interface TextBlockProps {
   isStreaming?: boolean;
 }
 
-const baseClasses = "max-w-none break-words whitespace-pre-wrap";
+const baseClasses = "max-w-none wrap-anywhere whitespace-pre-wrap";
 
 const typographyClasses: Record<string, string> = {
   agent_thought: cn(
@@ -79,11 +79,11 @@ export const TextBlock = memo(function TextBlock({
   isStreaming,
 }: TextBlockProps) {
   // UserBubble 中原有的 text 解析和路径识别功能被移除了，现在所有的渲染都交由 TextBlock 负责
-  let className =
+  const className =
     role in typographyClasses ? typographyClasses[role] : typographyClasses["fallback"];
   return (
-    <div className={className}>
-      <StreamMarkdown isStreaming={isStreaming} forceBreaks={role === "user_message"}>
+    <div>
+      <StreamMarkdown className={className} isStreaming={isStreaming} forceBreaks={role === "user_message"}>
         {block.text}
       </StreamMarkdown>
     </div>

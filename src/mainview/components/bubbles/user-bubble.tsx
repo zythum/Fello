@@ -28,7 +28,7 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
     const checkOverflow = () => {
       // 13px text with snug leading (1.375) is ~18px per line.
       // 2 lines = 36px. We use 44px as the threshold to safely detect > 2 lines.
-      setIsOverflowing(el.scrollHeight > 44);
+      setIsOverflowing(el.scrollHeight > 50);
     };
 
     const observer = new ResizeObserver(checkOverflow);
@@ -60,7 +60,7 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
                   </div>
                 </ScrollArea>
               ) : (
-                <div ref={contentRef} className="[&>div]:block! [&>div>*:not(:first-child)]:mt-2!">
+                <div ref={contentRef} className="pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!">
                   <ContentBlocks blocks={message.contents} role={message.role} session={session} />
                 </div>
               )}

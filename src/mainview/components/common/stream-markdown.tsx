@@ -8,11 +8,12 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface StreamMarkdownProps {
+  className?: string;
   isStreaming?: boolean;
   children?: string;
   forceBreaks?: boolean;
 }
-const baseClasses = "max-w-none break-words whitespace-pre-wrap";
+const baseClasses = "max-w-none wrap-anywhere whitespace-pre-wrap";
 
 const typographyClasses = cn(
   baseClasses,
@@ -30,13 +31,13 @@ const typographyClasses = cn(
   "prose-th:border-border prose-td:border-border",
 );
 
-export function StreamMarkdown({ children, isStreaming, forceBreaks }: StreamMarkdownProps) {
+export function StreamMarkdown({ className, children, isStreaming, forceBreaks }: StreamMarkdownProps) {
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
   }, [forceBreaks]);
 
   return (
-    <div className={typographyClasses}>
+    <div className={className ?? typographyClasses}>
       <Streamdown
         plugins={{ code, mermaid, math, cjk }}
         shikiTheme={["github-light", "github-dark"]}
