@@ -148,9 +148,9 @@ export function Sidebar() {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       useAppStore.getState().setIsCreatingSession(true);
       const result = await request.newSession({ projectId, agentId });
-      setActiveSessionId(result.sessionId);
       applySessionState(result);
       await refreshData();
+      setActiveSessionId(result.sessionId);
     } catch (err) {
       console.error("Failed to create new chat:", err);
       pushGlobalErrorMessage(
@@ -162,8 +162,17 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
-    resetSessionState(session.id);
+    if (activeSessionId === session.id) return;
+
     setActiveSessionId(session.id);
+
+    const sessionState = useAppStore.getState().getSessionState(session.id);
+    if (sessionState.agentInfo) {
+      // Already loaded in this lifecycle, skip reload
+      return;
+    }
+
+    resetSessionState(session.id);
     useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: true }));
     try {
       const result = await request.loadSession({ sessionId: session.id });
