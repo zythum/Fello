@@ -159,7 +159,7 @@ export function FilePreviewSheet({
             <div className={showMacTrafficLightSpace ? "w-17" : "w-0"} />
             <div className="min-w-0 flex items-center gap-1.5">
               <File className="size-4 shrink-0 text-muted-foreground/80" />
-              <div className="flex flex-col min-w-0" style={{ WebkitAppRegion: "no-drag" }}>
+              <div className="flex flex-col min-w-0">
                 <span className="text-xs truncate leading-tight text-foreground/90">
                   {fileName}
                 </span>
