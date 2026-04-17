@@ -55,17 +55,17 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
 
   return (
     <details
-      className="text-xs min-w-0 overflow-hidden"
+      className="text-xs min-w-0 overflow-hidden group"
       open={isLive || message.terminalId != null}
     >
-      <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary">
+      <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary group-open:bg-secondary">
         {kindIcon}
         <span className="flex-1 font-normal text-foreground">
           {message.title || t("toolBubble.tool")}
         </span>
         {statusIcons[status]}
       </summary>
-      <div className="border-t border-border overflow-hidden">
+      <div className="border-t border-border overflow-hidden bg-secondary/50">
         {message.locations && message.locations.length > 0 && (
           <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
             {message.locations.map((loc, i) => (

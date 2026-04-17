@@ -1,11 +1,11 @@
 import { memo } from "react";
-import type { ChatMessage } from "../chat-message";
-import { ToolBubble } from "./bubbles/tool-bubble";
-import { ThinkingBubble } from "./bubbles/thinking-bubble";
-import { UserBubble } from "./bubbles/user-bubble";
-import { AgentBubble } from "./bubbles/agent-bubble";
-import { SystemBubble } from "./bubbles/system-bubble";
-import { PlanBubble } from "./bubbles/plan-bubble";
+import type { ChatMessage } from "../../chat-message";
+import { ToolBubble } from "./tool-bubble";
+import { ThinkingBubble } from "./thinking-bubble";
+import { UserBubble } from "./user-bubble";
+import { AgentBubble } from "./agent-bubble";
+import { SystemBubble } from "./system-bubble";
+import { PlanBubble } from "./plan-bubble";
 
 interface Props {
   message: ChatMessage;
