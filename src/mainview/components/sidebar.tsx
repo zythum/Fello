@@ -343,7 +343,7 @@ export function Sidebar() {
           }`}
         >
           <Home className="size-3.5" />
-          <span className="flex-1 truncate leading-normal select-none">{t("sidebar.welcome")}</span>
+          <span className="flex-1 truncate leading-normal select-none uppercase">{t("sidebar.welcome")}</span>
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
@@ -513,8 +513,8 @@ export function Sidebar() {
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <LoaderCircle
                           className={cn(
-                            "size-3 animate-spin",
-                            !sessionStates.get(session.id)?.isStreaming && "invisible",
+                            "size-3",
+                            !sessionStates.get(session.id)?.isStreaming ? "invisible" : "animate-spin",
                           )}
                         />
                         <Badge
