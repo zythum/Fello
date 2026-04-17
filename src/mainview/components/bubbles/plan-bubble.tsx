@@ -54,7 +54,7 @@ export const PlanBubble = memo(function PlanBubble({
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
                   <div
                     className={cn(
-                      "text-foreground break-words leading-relaxed",
+                      "text-foreground wrap-break-word leading-relaxed",
                       entry.status === "completed" &&
                         "text-muted-foreground line-through opacity-70",
                     )}

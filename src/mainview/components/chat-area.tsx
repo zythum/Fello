@@ -242,11 +242,14 @@ export function ChatArea() {
           return (
             <div
               key={group.key}
-              className={cn("message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none", {
-                "pt-4": !isFirstGroup,
-                "min-h-full": isLastGroup,
-                "border-b border-foreground/10 border-dashed": !isLastGroup,
-              })}
+              className={cn(
+                "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none",
+                {
+                  "pt-4": !isFirstGroup,
+                  "min-h-full": isLastGroup,
+                  "border-b border-foreground/10 border-dashed": !isLastGroup,
+                },
+              )}
             >
               <div
                 className="absolute top-0"
@@ -310,9 +313,12 @@ export function ChatArea() {
                   );
                 })}
                 <div
-                  className={cn("text-[11px] text-muted-foreground/50 mt-4 uppercase tracking-widest", {
-                    invisible: !(isLastGroup && showThinking),
-                  })}
+                  className={cn(
+                    "text-[11px] text-muted-foreground/50 mt-4 uppercase tracking-widest",
+                    {
+                      invisible: !(isLastGroup && showThinking),
+                    },
+                  )}
                 >
                   <span className="animate-shimmer-text">
                     {t("chatArea.thinking", "Thinking...")}

@@ -23,7 +23,11 @@ export const ThinkingBubble = memo(function ThinkingBubble({
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
   return (
-    <details className={cn("w-full", prevBubbleRole != null && "mt-3")} open={isStreaming} pointer-events-auto>
+    <details
+      className={cn("w-full", prevBubbleRole != null && "mt-3")}
+      open={isStreaming}
+      pointer-events-auto
+    >
       <summary className="flex cursor-pointer select-none items-center gap-2 px-0 py-1 text-[11px] text-muted-foreground/90 hover:text-muted-foreground">
         <Lightbulb className={`size-3.5 ${isStreaming ? "animate-pulse" : ""}`} />
         <span>

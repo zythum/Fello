@@ -22,10 +22,10 @@ export const SystemBubble = memo(function SystemBubble({ message }: Props) {
             key={i}
             className={
               kind === "info"
-                ? "px-3 py-0.5 text-center max-w-[80%] break-words bg-muted/30 rounded-full border border-border/40"
+                ? "px-3 py-0.5 text-center max-w-[80%] wrap-break-word bg-muted/30 rounded-full border border-border/40"
                 : kind === "warning"
-                  ? "text-xs text-warning/80 bg-warning/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
-                  : "text-xs text-destructive/80 bg-destructive/10 px-3 py-1 rounded-md text-center max-w-[80%] break-words"
+                  ? "text-xs text-warning/80 bg-warning/10 px-3 py-1 rounded-md text-center max-w-[80%] wrap-break-word"
+                  : "text-xs text-destructive/80 bg-destructive/10 px-3 py-1 rounded-md text-center max-w-[80%] wrap-break-word"
             }
           >
             {text}
