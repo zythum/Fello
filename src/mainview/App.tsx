@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
@@ -24,6 +24,10 @@ function AppContent() {
   const { alert, toast } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
   const [isReady, setIsReady] = useState(false);
+  const pendingSessionUpdatesRef = useRef(
+    new Map<string, BackendEvents["session-update"]["notification"]["update"][]>(),
+  );
+  const sessionUpdateFlushRafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -48,7 +52,74 @@ function AppContent() {
   }, [setProjects, setSessions, setConfiguredAgents, setTheme, setI18n, i18n]);
 
   useEffect(() => {
+    const flushPendingSessionUpdates = () => {
+      sessionUpdateFlushRafIdRef.current = null;
+      const store = useAppStore.getState();
+      const budgetMs = 8;
+      const start = performance.now();
+
+      for (const [sid, updates] of pendingSessionUpdatesRef.current.entries()) {
+        // 1. Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
+        pendingSessionUpdatesRef.current.delete(sid);
+
+        // 2. Drop updates if session no longer exists
+        const sessionExists = store.sessions.some((s) => s.id === sid);
+        if (!sessionExists) {
+          continue;
+        }
+
+        let nextTitle: string | null = null;
+        let processedCount = 0;
+
+        // 3. Apply batch of updates securely on top of the freshest state
+        store.updateSessionState(sid, (currentState) => {
+          let state = currentState;
+          for (let i = 0; i < updates.length; i++) {
+            const update = updates[i];
+            if (update?.sessionUpdate === "session_info_update" && update.title) {
+              nextTitle = update.title;
+            }
+            state = reduceSessionUpdate(state, update);
+            processedCount++;
+
+            // Break inner loop if time budget exceeded
+            if (performance.now() - start > budgetMs) {
+              break;
+            }
+          }
+          return state;
+        });
+
+        // 4. Handle side-effects
+        if (nextTitle) {
+          request.updateSessionTitle({ sessionId: sid, title: nextTitle });
+        }
+
+        // 5. Re-queue unprocessed updates
+        if (processedCount < updates.length) {
+          // By setting it again, it moves to the end of Map iteration order
+          pendingSessionUpdatesRef.current.set(sid, updates.slice(processedCount));
+        }
+
+        // 6. Break outer loop if time budget exceeded
+        if (performance.now() - start > budgetMs) {
+          break;
+        }
+      }
+
+      // 7. Schedule next flush if there are still items in the queue
+      if (pendingSessionUpdatesRef.current.size > 0) {
+        scheduleFlushPendingSessionUpdates();
+      }
+    };
+
+    const scheduleFlushPendingSessionUpdates = () => {
+      if (sessionUpdateFlushRafIdRef.current != null) return;
+      sessionUpdateFlushRafIdRef.current = requestAnimationFrame(flushPendingSessionUpdates);
+    };
+
     const handleSessionClear = (detail: BackendEvents["session-clear"]) => {
+      pendingSessionUpdatesRef.current.delete(detail.sessionId);
       useAppStore.getState().updateSessionState(detail.sessionId, () => ({
         messages: [],
         usage: null,
@@ -71,23 +142,20 @@ function AppContent() {
       // Do not fallback to activeSessionId to prevent cross-session data corruption
       if (!targetSession) return;
       const sid = targetSession.id;
-
       const update = detail.notification.update;
-      if (update?.sessionUpdate === "session_info_update" && update.title) {
-        // Automatically persist the new session title returned by Agent
-        request.updateSessionTitle({ sessionId: sid, title: update.title });
+      
+      let pending = pendingSessionUpdatesRef.current.get(sid);
+      if (!pending) {
+        pending = [];
+        pendingSessionUpdatesRef.current.set(sid, pending);
       }
-
-      const currentState = useAppStore.getState().getSessionState(sid);
-      const nextState = reduceSessionUpdate(currentState, detail.notification.update);
-
-      if (nextState !== currentState) {
-        useAppStore.getState().updateSessionState(sid, () => nextState);
-      }
+      pending.push(update);
+      
+      scheduleFlushPendingSessionUpdates();
     };
 
     const handlePermissionRequest = (detail: BackendEvents["permission-request"]) => {
-      const sid = useAppStore.getState().activeSessionId;
+      const sid = detail.sessionId;
       if (!sid) return;
       useAppStore.getState().addPermissionRequest(sid, detail.request);
     };
@@ -128,6 +196,13 @@ function AppContent() {
       );
       useAppStore.setState({ sessionStates: nextStates });
 
+      // 同步清理 pendingSessionUpdatesRef 中已删除的会话
+      for (const sid of pendingSessionUpdatesRef.current.keys()) {
+        if (!sessionIds.has(sid)) {
+          pendingSessionUpdatesRef.current.delete(sid);
+        }
+      }
+
       if (currentActiveSessionId && !sessionIds.has(currentActiveSessionId)) {
         if (prevActiveSessionId === currentActiveSessionId && prevActiveSessionTitle) {
           toast.info(t("toast.activeSessionDeletedWithTitle", { title: prevActiveSessionTitle }));
@@ -153,6 +228,11 @@ function AppContent() {
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);
       subscribe.off("sessions-changed", handleSessionsChanged);
+      if (sessionUpdateFlushRafIdRef.current != null) {
+        cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
+        sessionUpdateFlushRafIdRef.current = null;
+      }
+      pendingSessionUpdatesRef.current.clear();
     };
   }, []);
 
