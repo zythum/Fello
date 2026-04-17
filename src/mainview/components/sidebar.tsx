@@ -50,6 +50,8 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
 export function Sidebar() {
   const { t, i18n: _i18n } = useTranslation();
   const {
+    isMacApp,
+    isFullScreen,
     projects,
     sessions,
     activeSessionId,
@@ -74,6 +76,8 @@ export function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [webUIOpen, setWebUIOpen] = useState(false);
   const { prompt, confirm } = useMessage();
+
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
   if (!sidebarOpen) return null;
 
@@ -325,6 +329,10 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
+      <div
+        className={showMacTrafficLightSpace ? "h-10" : "h-0"}
+        style={{ WebkitAppRegion: "drag" }}
+      ></div>
       <div className="px-2 pt-2 pb-1">
         <div
           onClick={() => setActiveSessionId(null)}
@@ -339,7 +347,7 @@ export function Sidebar() {
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
-        <span className="text-[10px] font-normal tracking-wide text-sidebar-foreground/35 uppercase select-none">
+        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/30 uppercase select-none">
           {t("sidebar.projects")}
         </span>
         <Button
@@ -584,7 +592,7 @@ export function Sidebar() {
           <DropdownMenuTrigger
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "flex w-full items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/90 outline-none",
+              "flex w-full items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
             )}
           >
             <div className="flex items-center gap-2">

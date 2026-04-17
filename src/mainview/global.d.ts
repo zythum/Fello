@@ -11,7 +11,9 @@ export type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
 
 declare global {
   interface Window {
-    fello: {
+    fello?: {
+      isMacApp: boolean;
+      onMacFullScreen?: (callback: (isFullScreen: boolean) => void) => () => void;
       invoke<K extends keyof AllIPCRequests>(
         channel: K,
         params?: AllIPCRequests[K]["params"],
@@ -25,5 +27,11 @@ declare global {
         listener: (payload: FelloIPCSchema["events"][K]) => void,
       ): void;
     };
+  }
+}
+
+declare module "react" {
+  interface CSSProperties {
+    WebkitAppRegion?: "drag" | "no-drag";
   }
 }

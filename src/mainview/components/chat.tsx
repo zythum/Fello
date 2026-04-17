@@ -49,21 +49,24 @@ export function Chat() {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-background">
-      {session && (
-        <div className="flex h-12 shrink-0 items-center border-b border-border px-3">
+      {session ? (
+        <div
+          className="flex h-12 shrink-0 items-center border-b border-border px-3"
+          style={{ WebkitAppRegion: "drag" }}
+        >
           <div className="min-w-0 flex flex-1">
             <div className="flex flex-1 min-w-0 items-center gap-1.5">
               <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">
                 {session.agentId}
               </Badge>
-              <span className="truncate text-sm font-normal text-sidebar-foreground/85">
+              <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
                 {session.title || t("sidebar.newChat", "New Chat")}
               </span>
               <span className="ml-auto shrink-0 text-xs text-sidebar-foreground/85 whitespace-nowrap">
                 {formatSessionTime(session.updatedAt)}
               </span>
             </div>
-            <div className="ml-2 flex items-center shrink-0">
+            <div className="ml-2 flex items-center shrink-0" style={{ WebkitAppRegion: "no-drag" }}>
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex size-6 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors">
                   <MoreHorizontal className="size-3.5" />
@@ -78,6 +81,8 @@ export function Chat() {
             </div>
           </div>
         </div>
+      ) : (
+        <div className="flex h-12 px-3" style={{ WebkitAppRegion: "drag" }} />
       )}
       <ChatArea />
       <ChatInput />

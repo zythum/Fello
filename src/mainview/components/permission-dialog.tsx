@@ -19,7 +19,10 @@ export function PermissionDialog({ request, sessionId, toastId: _toastId }: Prop
 
   const handleSelect = async (optionId: string) => {
     try {
-      await backend.request.respondPermission({ toolCallId: request.toolCall.toolCallId, optionId });
+      await backend.request.respondPermission({
+        toolCallId: request.toolCall.toolCallId,
+        optionId,
+      });
     } catch {
       toast.error(t("permission.error", "Failed to respond to permission request"));
     }

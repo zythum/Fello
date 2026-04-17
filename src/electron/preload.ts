@@ -20,7 +20,12 @@ const wrappedListeners = new Map<
 >();
 
 contextBridge.exposeInMainWorld("fello", {
-  isMac: process.platform === "darwin",
+  isMacApp: process.platform === "darwin",
+  onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
+    const handler = (_event: unknown, isFullScreen: boolean) => callback(isFullScreen);
+    ipcRenderer.on("ui:mac-fullscreen", handler);
+    return () => ipcRenderer.removeListener("ui:mac-fullscreen", handler);
+  },
   invoke<K extends keyof AllIPCRequests>(channel: K, params?: AllIPCRequests[K]["params"]) {
     return ipcRenderer.invoke(channel, params) as Promise<AllIPCRequests[K]["response"]>;
   },

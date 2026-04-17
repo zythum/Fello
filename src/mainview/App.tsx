@@ -20,6 +20,8 @@ function AppContent() {
     setConfiguredAgents,
     setTheme,
     setI18n,
+    isMacApp,
+    setIsFullScreen,
   } = useAppStore();
   const { t, i18n } = useTranslation();
   const { alert, toast } = useMessage();
@@ -53,6 +55,7 @@ function AppContent() {
   }, [setProjects, setSessions, setConfiguredAgents, setTheme, setI18n, i18n]);
 
   useEffect(() => {
+    let unlistenFullScreen: (() => void) | undefined;
     const flushPendingSessionUpdates = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
@@ -237,7 +240,14 @@ function AppContent() {
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
     subscribe.on("sessions-changed", handleSessionsChanged);
+
+    const fello = window.fello;
+    if (isMacApp && fello?.onMacFullScreen) {
+      unlistenFullScreen = fello.onMacFullScreen((isFull) => setIsFullScreen(isFull));
+    }
+
     return () => {
+      if (unlistenFullScreen) unlistenFullScreen();
       subscribe.off("session-clear", handleSessionClear);
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
@@ -252,7 +262,7 @@ function AppContent() {
       }
       pendingSessionUpdatesRef.current.clear();
     };
-  }, []);
+  }, [isMacApp]);
 
   useEffect(() => {
     if (!currentGlobalError) return;

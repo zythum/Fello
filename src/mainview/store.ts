@@ -67,6 +67,8 @@ interface AppState {
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   webUIStatus: { enabled: boolean; url: string | null };
+  isMacApp: boolean;
+  isFullScreen: boolean;
 
   // ==========================================================================
   // 4. Global Caches & Ephemeral State
@@ -118,6 +120,7 @@ interface AppState {
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
+  setIsFullScreen: (v: boolean) => void;
   pushGlobalErrorMessage: (message: string) => void;
   shiftGlobalErrorMessage: () => void;
   clearGlobalErrors: () => void;
@@ -145,6 +148,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   webUIStatus: { enabled: false, url: null },
+  isMacApp: window.fello?.isMacApp ?? false,
+  isFullScreen: false,
 
   // ==========================================================================
   // 4. Global Caches & Ephemeral State
@@ -230,6 +235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
+  setIsFullScreen: (v) => set({ isFullScreen: v }),
   pushGlobalErrorMessage: (message) =>
     set((state) => ({ globalErrorMessages: [...state.globalErrorMessages, message] })),
   shiftGlobalErrorMessage: () =>

@@ -148,8 +148,19 @@ function createMainWindow() {
     title: "Fello",
     width: 1100,
     height: 800,
+    minWidth: 800,
+    minHeight: 600,
     backgroundColor,
     show: false, // Don't show until ready-to-show
+    ...(process.platform === "darwin"
+      ? {
+          titleBarStyle: "hidden",
+          trafficLightPosition: {
+            x: 14,
+            y: 15,
+          },
+        }
+      : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/preload.mjs"),
       contextIsolation: true,
@@ -157,6 +168,15 @@ function createMainWindow() {
       sandbox: false,
     },
   });
+
+  if (process.platform === "darwin") {
+    win.on("enter-full-screen", () => {
+      win.webContents.send("ui:mac-fullscreen", true);
+    });
+    win.on("leave-full-screen", () => {
+      win.webContents.send("ui:mac-fullscreen", false);
+    });
+  }
 
   win.once("ready-to-show", () => {
     win.show();
@@ -250,9 +270,11 @@ app.on("before-quit", (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
-  killBridge().finally(() => {
-    app.quit();
-  });
+  killBridge()
+    .catch(() => {})
+    .then(() => {
+      app.quit();
+    });
 });
 
 app.whenReady().then(() => {

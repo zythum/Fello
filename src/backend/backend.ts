@@ -197,10 +197,10 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
             const pending = pendingPermissions.get(toolCallId);
             if (pending) {
               pendingPermissions.delete(toolCallId);
-              // Instead of rejecting (which might crash or hang the tool call), 
+              // Instead of rejecting (which might crash or hang the tool call),
               // we resolve with a 'deny' action automatically when it times out.
               resolve({ outcome: { outcome: "selected", optionId: "deny" } });
-              
+
               sendEvent("permission-resolved", {
                 sessionId: pending.sessionId,
                 toolCallId,
@@ -240,7 +240,7 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
 }
 
 export async function killBridge() {
-  const killPromises: Promise<void>[] = [];
+  const killPromises: Promise<void>[] = [new Promise((resolve) => setTimeout(resolve, 100))];
   for (const p of bridgePool.values()) {
     killPromises.push(p.then((b) => b.kill()).catch(() => {}));
   }

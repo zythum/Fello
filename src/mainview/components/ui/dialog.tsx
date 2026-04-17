@@ -33,7 +33,12 @@ function DialogOverlay({
         className
       )}
       {...props}
-    />
+    >
+      <div
+        className="absolute left-0 top-0 right-0 h-12"
+        style={{ WebkitAppRegion: "drag" }}
+      ></div>
+    </DialogPrimitive.Backdrop>
   )
 }
 

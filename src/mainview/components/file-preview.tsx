@@ -10,6 +10,8 @@ import { CodeView } from "./common/code-view";
 import { CodeCompareView } from "./common/code-compare-view";
 import { StreamMarkdown } from "./common/stream-markdown";
 import { ImageView } from "./common/image-view";
+import { useAppStore } from "../store";
+import { cn } from "@/lib/utils";
 
 export interface FilePreviewSheetProps {
   projectId: string | null;
@@ -28,6 +30,7 @@ export function FilePreviewSheet({
   panelWidth = 300,
 }: FilePreviewSheetProps) {
   const { t } = useTranslation();
+  const { isMacApp, isFullScreen } = useAppStore();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
   const [fileKind, setFileKind] = useState<FileKind | null>(null);
@@ -35,6 +38,8 @@ export function FilePreviewSheet({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [imageBase64, setImageBase64] = useState("");
+
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
   useEffect(() => {
     setFileKind(null);
@@ -103,6 +108,7 @@ export function FilePreviewSheet({
         const [current, git] = await Promise.all([
           request.readFile({ projectId: safeProjectId, relativePath: safeRelativePath }),
           request.readGitHeadFile({ projectId: safeProjectId, relativePath: safeRelativePath }),
+          new Promise((resolve) => setTimeout(resolve, 300)),
         ]);
         if (!active) return;
         setFileKind(isMarkdown ? "markdown" : "text");
@@ -143,41 +149,55 @@ export function FilePreviewSheet({
         showCloseButton={false}
         showOverlay={false}
       >
-        <SheetHeader className="border-b grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2">
-          <SheetTitle className="min-w-0 flex flex-col gap-0.5" title={relativePath || ""}>
+        <SheetHeader
+          className="h-12 border-b grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-0"
+          style={{ WebkitAppRegion: "drag" }}
+        >
+          <SheetTitle className="flex flex-row items-center" title={relativePath || ""}>
+            <div className={showMacTrafficLightSpace ? "w-17" : "w-0"} />
             <div className="min-w-0 flex items-center gap-1.5">
-              <File className="size-3.5 shrink-0 text-muted-foreground/80" />
-              <span className="text-xs truncate leading-tight text-foreground/90">{fileName}</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground/80 truncate leading-tight">
-              {relativePath}
-            </span>
-          </SheetTitle>
-          {showTabs ? (
-            <Tabs value={viewMode} onValueChange={(v: ViewMode) => setViewMode(v)} className="h-8">
-              <TabsList className="h-8">
-                {fileKind === "markdown" && (
-                  <TabsTrigger value="preview" className="text-xs">
-                    {t("filePreview.preview")}
-                  </TabsTrigger>
+              <File className="size-4 shrink-0 text-muted-foreground/80" />
+              <div className="flex flex-col min-w-0" style={{ WebkitAppRegion: "no-drag" }}>
+                <span className="text-xs truncate leading-tight text-foreground/90">
+                  {fileName}
+                </span>
+                {fileName !== relativePath && (
+                  <span className="text-[10px] text-muted-foreground/80 truncate leading-tight">
+                    {relativePath}
+                  </span>
                 )}
-                <TabsTrigger value="code" className="text-xs">
-                  {t("filePreview.code")}
+              </div>
+            </div>
+          </SheetTitle>
+          <Tabs
+            value={viewMode}
+            onValueChange={(v: ViewMode) => setViewMode(v)}
+            className={cn("h-8", {
+              "pointer-events-none opacity-50 transition-all": !showTabs,
+            })}
+            style={{ WebkitAppRegion: "no-drag" }}
+          >
+            <TabsList className="h-8">
+              {fileKind === "markdown" && (
+                <TabsTrigger value="preview" className="text-xs">
+                  {t("filePreview.preview")}
                 </TabsTrigger>
-                <TabsTrigger value="compare" disabled={!canCompare} className="text-xs">
-                  {t("filePreview.compare")}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          ) : (
-            <div />
-          )}
+              )}
+              <TabsTrigger value="code" className="text-xs">
+                {t("filePreview.code")}
+              </TabsTrigger>
+              <TabsTrigger value="compare" disabled={!canCompare} className="text-xs">
+                {t("filePreview.compare")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <div className="flex justify-end">
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onClose}
               className="h-8 w-8 shrink-0 -mr-3"
+              style={{ WebkitAppRegion: "no-drag" }}
             >
               <XIcon className="size-4" />
               <span className="sr-only">{t("filePreview.close")}</span>

@@ -5,15 +5,13 @@ import { Chat } from "./chat";
 import { FilePanel } from "./file-panel";
 import { TerminalPanel } from "./terminal-panel";
 import { FilePreviewSheet } from "./file-preview";
-import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { PanelLeft, Loader2, MessageSquare, FolderTree, SquareTerminal } from "lucide-react";
+import { Loader2, MessageSquare, FolderTree, SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SessionView() {
   const { t } = useTranslation();
-  const { activeSessionId, sidebarOpen, setSidebarOpen, sessions, isCreatingSession } =
-    useAppStore();
+  const { activeSessionId, sessions, isCreatingSession } = useAppStore();
   const { isLoading } = useActiveSessionState();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeProjectId = activeSession?.projectId;
@@ -44,21 +42,12 @@ export function SessionView() {
   return (
     <>
       <main className="flex min-w-0 flex-1 flex-col">
-        {!sidebarOpen && (
-          <div className="absolute top-2 left-2 z-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Toggle sidebar"
-            >
-              <PanelLeft className="size-4" />
-            </Button>
-          </div>
-        )}
-
         {!activeSessionId && (isLoading || isCreatingSession) ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
+            <div
+              className="absolute left-0 top-0 right-0 h-12"
+              style={{ WebkitAppRegion: "drag" }}
+            />
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="text-sm font-normal text-muted-foreground/60">
               {t("sessionView.connecting")}
@@ -70,7 +59,7 @@ export function SessionView() {
               <div className="relative flex h-full flex-col">
                 <Chat />
                 {(isLoading || isCreatingSession) && (
-                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
+                  <div className="absolute inset-0 top-12 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
                     <Loader2 className="size-8 animate-spin text-primary" />
                     <p className="text-sm font-normal text-foreground/50">
                       {t("sessionView.connecting")}
@@ -82,7 +71,10 @@ export function SessionView() {
             <ResizableHandle className="bg-sidebar-border" />
             <ResizablePanel defaultSize={30} minSize={15}>
               <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col">
-                <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
+                <div
+                  className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2"
+                  style={{ WebkitAppRegion: "drag" }}
+                >
                   <button
                     type="button"
                     onClick={() => setRightTab("files")}
@@ -92,6 +84,7 @@ export function SessionView() {
                         ? "bg-accent text-accent-foreground"
                         : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
                     )}
+                    style={{ WebkitAppRegion: "no-drag" }}
                   >
                     <FolderTree className="size-3.5" />
                     <span className="select-none">{t("sessionView.files")}</span>
@@ -105,6 +98,7 @@ export function SessionView() {
                         ? "bg-accent text-accent-foreground"
                         : "text-sidebar-foreground/70 hover:bg-accent/50 hover:text-sidebar-foreground",
                     )}
+                    style={{ WebkitAppRegion: "no-drag" }}
                   >
                     <SquareTerminal className="size-3.5" />
                     <span className="select-none">{t("sessionView.terminal")}</span>
@@ -134,7 +128,11 @@ export function SessionView() {
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 relative">
+            <div
+              className="absolute left-0 top-0 right-0 h-12"
+              style={{ WebkitAppRegion: "drag" }}
+            />
             <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
               <MessageSquare className="size-8 text-primary" />
             </div>
