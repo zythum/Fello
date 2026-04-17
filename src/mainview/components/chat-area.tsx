@@ -112,7 +112,7 @@ export function ChatArea() {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
-      const nextIsAtBottom = scrollHeight - scrollTop - clientHeight < 40;
+      const nextIsAtBottom = scrollHeight - scrollTop - clientHeight < 100;
       userHasScrolledUpRef.current = !nextIsAtBottom;
       setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
 
