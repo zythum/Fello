@@ -41,6 +41,7 @@ import {
   Settings,
   Sun,
   Trash2,
+  Check,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -595,7 +596,7 @@ export function Sidebar() {
           <DropdownMenuTrigger
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "flex w-full items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
+              "flex w-full font-normal items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
             )}
           >
             <div className="flex items-center gap-2">
@@ -643,21 +644,21 @@ export function Sidebar() {
                     <Sun className="size-3" />
                     {t("sidebar.light")}
                     {theme.themeMode === "light" && (
-                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                      <div className="ml-auto"><Check className="size-3"/></div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("dark")}>
                     <Moon className="size-3" />
                     {t("sidebar.dark")}
                     {theme.themeMode === "dark" && (
-                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                      <div className="ml-auto"><Check className="size-3"/></div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("system")}>
                     <Monitor className="size-3" />
                     {t("sidebar.system")}
                     {theme.themeMode === "system" && (
-                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
+                      <div className="ml-auto"><Check className="size-3"/></div>
                     )}
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
