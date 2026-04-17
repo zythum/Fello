@@ -245,7 +245,7 @@ export function ChatArea() {
               className={cn("message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none", {
                 "pt-4": !isFirstGroup,
                 "min-h-full": isLastGroup,
-                "border-b border-border": !isLastGroup,
+                "border-b border-foreground/10 border-dashed": !isLastGroup,
               })}
             >
               <div
@@ -310,7 +310,7 @@ export function ChatArea() {
                   );
                 })}
                 <div
-                  className={cn("text-[11px] text-muted-foreground/50 uppercase tracking-widest", {
+                  className={cn("text-[11px] text-muted-foreground/50 mt-4 uppercase tracking-widest", {
                     invisible: !(isLastGroup && showThinking),
                   })}
                 >

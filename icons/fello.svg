@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <title>账户相片</title>
-    <g id="账户相片" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round">
-        <g id="message-square" transform="translate(246.000000, 290.000000)" stroke="#4D4D4D" stroke-width="40">
+    <title>桌面端</title>
+    <g id="桌面端" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="fello" transform="translate(245.000000, 259.000000)" stroke="#4D4D4D" stroke-width="80">
             <path d="M533,373.659006 C533,403.139888 509.136777,427.038864 479.7,427.038864 L128.6662,427.038864 C114.531316,427.041888 100.976463,432.667804 90.9831,442.679163 L32.2998,501.450387 C26.8883316,506.868974 18.7507201,508.489764 11.6808857,505.557112 C4.61105122,502.62446 0,495.715781 0,488.052042 L0,53.3798581 C0,23.8989765 23.8632228,0 53.3,0 L479.7,0 C509.136777,0 533,23.8989765 533,53.3798581 L533,373.659006 Z" id="路径"></path>
         </g>
     </g>

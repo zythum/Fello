@@ -471,6 +471,8 @@ export function ChatInput() {
             aria-label={t("chatInput.messageInput", "Message input")}
             style={mentionsInputStyle}
             allowSuggestionsAboveCursor
+            autoCorrect="off"
+            autoComplete="off"
             a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
             <Mention
@@ -642,7 +644,7 @@ export function ChatInput() {
 /** Inline styles for MentionsInput to match the existing textarea look */
 const mentionsInputStyle = {
   control: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: "1.5",
   },
   "&multiLine": {
@@ -661,7 +663,7 @@ const mentionsInputStyle = {
       overflow: "auto",
       maxHeight: 200,
       color: "var(--foreground)",
-      fontSize: 12,
+      fontSize: 13,
       lineHeight: "1.5",
       opacity: 0.8,
     },
