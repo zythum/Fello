@@ -108,6 +108,7 @@ export const subscribe = { on, off };
 bridge.on("session-clear", (payload) => emit("session-clear", payload));
 bridge.on("session-update", (payload) => emit("session-update", payload));
 bridge.on("permission-request", (payload) => emit("permission-request", payload));
+bridge.on("permission-resolved", (payload) => emit("permission-resolved", payload));
 bridge.on("terminal-output", (payload) => emit("terminal-output", payload));
 bridge.on("terminal-exit", (payload) => emit("terminal-exit", payload));
 bridge.on("agent-terminal-output", (payload) => emit("agent-terminal-output", payload));

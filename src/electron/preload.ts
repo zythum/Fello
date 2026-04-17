@@ -20,6 +20,7 @@ const wrappedListeners = new Map<
 >();
 
 contextBridge.exposeInMainWorld("fello", {
+  isMac: process.platform === "darwin",
   invoke<K extends keyof AllIPCRequests>(channel: K, params?: AllIPCRequests[K]["params"]) {
     return ipcRenderer.invoke(channel, params) as Promise<AllIPCRequests[K]["response"]>;
   },

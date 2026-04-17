@@ -57,6 +57,7 @@ const pendingPermissions = new Map<
   {
     resolve: (value: RequestPermissionResponse) => void;
     timeoutId: ReturnType<typeof setTimeout>;
+    sessionId: string;
   }
 >();
 
@@ -190,15 +191,30 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
           outcome: { outcome: "selected", optionId: "deny" },
         } satisfies RequestPermissionResponse);
       }
-      return new Promise<RequestPermissionResponse>((resolve, reject) => {
+      return new Promise<RequestPermissionResponse>((resolve) => {
         const timeoutId = setTimeout(
           () => {
-            pendingPermissions.delete(toolCallId);
-            reject(new Error("Request Permission Timeout"));
+            const pending = pendingPermissions.get(toolCallId);
+            if (pending) {
+              pendingPermissions.delete(toolCallId);
+              // Instead of rejecting (which might crash or hang the tool call), 
+              // we resolve with a 'deny' action automatically when it times out.
+              resolve({ outcome: { outcome: "selected", optionId: "deny" } });
+              
+              sendEvent("permission-resolved", {
+                sessionId: pending.sessionId,
+                toolCallId,
+                optionId: "deny",
+              });
+            }
           },
           30 * 60 * 1000,
         );
-        pendingPermissions.set(toolCallId, { resolve, timeoutId });
+        pendingPermissions.set(toolCallId, {
+          resolve,
+          timeoutId,
+          sessionId: `${agentId}:${request.sessionId}`,
+        });
       });
     },
     onAgentTerminalOutput: (terminalId: string, data: string) => {
@@ -545,6 +561,11 @@ export const backendHandlers: {
       clearTimeout(pending.timeoutId);
       pending.resolve({ outcome: { outcome: "selected", optionId } });
       pendingPermissions.delete(toolCallId);
+      sendEvent("permission-resolved", {
+        sessionId: pending.sessionId,
+        toolCallId,
+        optionId,
+      });
     }
   },
 

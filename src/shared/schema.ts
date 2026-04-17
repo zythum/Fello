@@ -329,6 +329,8 @@ export type FelloIPCEvents = {
   "session-update": { sessionId: string; notification: SessionNotification };
   /** 代理发出权限请求的事件 */
   "permission-request": { sessionId: string; request: RequestPermissionRequest };
+  /** 代理权限请求已解决的事件（用于多端同步关闭弹窗） */
+  "permission-resolved": { sessionId: string; toolCallId: string; optionId: string };
   /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
   /** 终端退出的事件 */

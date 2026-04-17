@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "@/components/message";
 import { ThemeProvider } from "./components/theme-provider";
 import { GlobalTextContextMenu } from "./components/global-text-context-menu";
+import { PermissionDialog } from "./components/permission-dialog";
 
 function AppContent() {
   const {
@@ -143,14 +144,14 @@ function AppContent() {
       if (!targetSession) return;
       const sid = targetSession.id;
       const update = detail.notification.update;
-      
+
       let pending = pendingSessionUpdatesRef.current.get(sid);
       if (!pending) {
         pending = [];
         pendingSessionUpdatesRef.current.set(sid, pending);
       }
       pending.push(update);
-      
+
       scheduleFlushPendingSessionUpdates();
     };
 
@@ -158,6 +159,21 @@ function AppContent() {
       const sid = detail.sessionId;
       if (!sid) return;
       useAppStore.getState().addPermissionRequest(sid, detail.request);
+
+      toast.custom(
+        (t) => <PermissionDialog request={detail.request} sessionId={sid} toastId={t} />,
+        {
+          duration: Infinity,
+          id: `perm-${sid}-${detail.request.toolCall.toolCallId}`,
+        },
+      );
+    };
+
+    const handlePermissionResolved = (detail: BackendEvents["permission-resolved"]) => {
+      const sid = detail.sessionId;
+      if (!sid) return;
+      useAppStore.getState().removePermissionRequest(sid, detail.toolCallId);
+      toast.dismiss(`perm-${sid}-${detail.toolCallId}`);
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
@@ -216,6 +232,7 @@ function AppContent() {
     subscribe.on("session-clear", handleSessionClear);
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
+    subscribe.on("permission-resolved", handlePermissionResolved);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -224,6 +241,7 @@ function AppContent() {
       subscribe.off("session-clear", handleSessionClear);
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
+      subscribe.off("permission-resolved", handlePermissionResolved);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);

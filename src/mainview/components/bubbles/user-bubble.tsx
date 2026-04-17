@@ -60,7 +60,10 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
                   </div>
                 </ScrollArea>
               ) : (
-                <div ref={contentRef} className="pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!">
+                <div
+                  ref={contentRef}
+                  className="pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
+                >
                   <ContentBlocks blocks={message.contents} role={message.role} session={session} />
                 </div>
               )}

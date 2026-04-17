@@ -55,7 +55,9 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
                 ></div>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                <div className="line-clamp-2 max-w-70 text-xs leading-relaxed">{item.content || label}</div>
+                <div className="line-clamp-2 max-w-70 text-xs leading-relaxed">
+                  {item.content || label}
+                </div>
               </TooltipContent>
             </Tooltip>
           );

@@ -31,7 +31,12 @@ const typographyClasses = cn(
   "prose-th:border-border prose-td:border-border",
 );
 
-export function StreamMarkdown({ className, children, isStreaming, forceBreaks }: StreamMarkdownProps) {
+export function StreamMarkdown({
+  className,
+  children,
+  isStreaming,
+  forceBreaks,
+}: StreamMarkdownProps) {
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
   }, [forceBreaks]);

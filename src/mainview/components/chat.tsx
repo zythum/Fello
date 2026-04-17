@@ -1,7 +1,6 @@
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
-import { PermissionDialog } from "./permission-dialog";
-import { useActiveSessionState, useAppStore } from "../store";
+import { useAppStore } from "../store";
 import { Badge } from "@/components/ui/badge";
 import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -16,9 +15,7 @@ import {
 
 export function Chat() {
   const { t } = useTranslation();
-  const { permissionRequests } = useActiveSessionState();
   const { sessions, activeSessionId } = useAppStore();
-  const currentPermissionRequest = permissionRequests[0];
   const session = sessions.find((item) => item.id === activeSessionId) ?? null;
 
   const handleRefreshSession = async () => {
@@ -84,12 +81,6 @@ export function Chat() {
       )}
       <ChatArea />
       <ChatInput />
-      {currentPermissionRequest && (
-        <PermissionDialog
-          key={currentPermissionRequest.toolCall.toolCallId}
-          request={currentPermissionRequest}
-        />
-      )}
     </div>
   );
 }
