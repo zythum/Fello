@@ -22,7 +22,7 @@ const typographyClasses = cn(
   "prose-headings:text-foreground prose-headings:font-medium prose-headings:mt-2.5 prose-headings:mb-1",
   "prose-h1:text-[15px] prose-h2:text-[14px] prose-h3:text-[13px] prose-h4:text-[12px] prose-h5:text-[12px] prose-h6:text-[11px]",
   "prose-strong:text-foreground prose-strong:font-medium",
-  "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline prose-a:underline-offset-4 prose-a:text-[13px]",
+  "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:no-underline prose-a:underline-offset-4 prose-a:text-[13px]",
   "prose-code:text-foreground/80 prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-normal prose-code:text-[12px]!",
   "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
   "prose-li:marker:text-muted-foreground prose-li:my-0 prose-li:text-[13px]",
