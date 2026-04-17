@@ -14,6 +14,7 @@ import { useAppStore } from "../store";
 import { cn } from "@/lib/utils";
 
 export interface FilePreviewSheetProps {
+  open: boolean;
   projectId: string | null;
   relativePath: string | null;
   onClose: () => void;
@@ -24,6 +25,7 @@ type FileKind = "image" | "markdown" | "text";
 type ViewMode = "preview" | "code" | "compare";
 
 export function FilePreviewSheet({
+  open,
   projectId,
   relativePath,
   onClose,
@@ -135,7 +137,7 @@ export function FilePreviewSheet({
 
   return (
     <Sheet
-      open={!!relativePath}
+      open={open}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore, useActiveSessionState } from "../store";
 import { Chat } from "./chat";
@@ -23,9 +23,28 @@ export function SessionView() {
     projectId: string;
     relativePath: string;
   } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const previewCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closePreview = () => {
+    if (previewCloseTimeoutRef.current) {
+      clearTimeout(previewCloseTimeoutRef.current);
+      previewCloseTimeoutRef.current = null;
+    }
+    setIsPreviewOpen(false);
+    previewCloseTimeoutRef.current = setTimeout(() => {
+      setPreviewFile(null);
+      previewCloseTimeoutRef.current = null;
+    }, 300);
+  };
 
   useEffect(() => {
     setPreviewFile(null);
+    setIsPreviewOpen(false);
+    if (previewCloseTimeoutRef.current) {
+      clearTimeout(previewCloseTimeoutRef.current);
+      previewCloseTimeoutRef.current = null;
+    }
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -109,7 +128,14 @@ export function SessionView() {
                     {activeProjectId && (
                       <FilePanel
                         projectId={activeProjectId}
-                        onPreviewFile={(file) => setPreviewFile(file)}
+                        onPreviewFile={(file) => {
+                          if (previewCloseTimeoutRef.current) {
+                            clearTimeout(previewCloseTimeoutRef.current);
+                            previewCloseTimeoutRef.current = null;
+                          }
+                          setPreviewFile(file);
+                          setIsPreviewOpen(true);
+                        }}
                       />
                     )}
                   </div>
@@ -149,14 +175,13 @@ export function SessionView() {
         )}
       </main>
 
-      {previewFile && (
-        <FilePreviewSheet
-          projectId={previewFile.projectId}
-          relativePath={previewFile.relativePath}
-          onClose={() => setPreviewFile(null)}
-          panelWidth={rightPanelWidth}
-        />
-      )}
+      <FilePreviewSheet
+        open={isPreviewOpen}
+        projectId={previewFile?.projectId ?? null}
+        relativePath={previewFile?.relativePath ?? null}
+        onClose={closePreview}
+        panelWidth={rightPanelWidth}
+      />
     </>
   );
 }

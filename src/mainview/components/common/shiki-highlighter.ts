@@ -19,6 +19,10 @@ export function getShikiHighlighter() {
         "go",
         "rust",
         "diff",
+        "dotenv",
+        "sh",
+        "bash",
+        "dockerfile",
       ],
     });
   }
@@ -52,6 +56,12 @@ export function getShikiLanguageFromFilename(filename?: string) {
     rs: "rust",
     py: "python",
     go: "go",
+    env: "dotenv",
+    gitignore: "text",
+    dockerignore: "text",
+    sh: "sh",
+    bash: "bash",
+    dockerfile: "dockerfile",
   };
   return langMap[ext] || ext;
 }
