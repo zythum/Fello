@@ -1153,17 +1153,17 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "flex shrink-0 items-center justify-between border-t border-border px-2 py-2 text-xs text-foreground/70 outline-none",
+            "flex shrink-0 items-center justify-between border-t border-border px-2.5 py-2 text-xs text-foreground/70 outline-none",
             hasChanges && "hover:bg-accent/50",
           )}
           disabled={!hasChanges}
         >
-          <div className="flex min-w-0 items-center gap-1" title={`Branch: ${gitStatus.branch}`}>
+          <div className="flex min-w-0  items-center gap-1" title={`Branch: ${gitStatus.branch}`}>
             <GitBranch className="size-3 shrink-0" />
             <span className="truncate">{gitStatus.branch}</span>
           </div>
           {hasChanges && (
-            <div className="ml-2 flex shrink-0 gap-1.5 text-[10px] font-normal tracking-tighter">
+            <div className="ml-2 mr-1 flex shrink-0 gap-1.5 text-[10px] font-normal tracking-tighter">
               {GIT_SUMMARY_BADGES.map(({ key, color }) =>
                 counts[key] > 0 ? (
                   <span key={key} className={color}>
