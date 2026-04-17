@@ -18,6 +18,7 @@ import {
   ArrowRightLeft,
   Wrench,
 } from "lucide-react";
+import { stringify as toYamlString } from 'json-to-pretty-yaml';
 import { ReadonlyTerminal } from "../common/readonly-terminal";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import { CodeView } from "../common/code-view";
@@ -118,10 +119,10 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
           })}
         {message.terminalId && <ReadonlyTerminal terminalId={message.terminalId} />}
         {message.rawInput != null && (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 text-muted-foreground">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all p-2 text-xs leading-relaxed text-muted-foreground">
             {typeof message.rawInput === "string"
               ? message.rawInput
-              : JSON.stringify(message.rawInput, null, 2)}
+              : toYamlString(message.rawInput)}
           </pre>
         )}
       </div>
