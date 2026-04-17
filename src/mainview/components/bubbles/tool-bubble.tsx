@@ -147,7 +147,7 @@ export const ToolBubble = memo(function ToolBubble({
   return (
     <div
       className={cn(
-        "tool-bubble border border-border bg-secondary/40 rounded-none pointer-events-auto overflow-hidden",
+        "tool-bubble border border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
         !isGroupedWithPrev && hasPrevBubble && "mt-4",
         isGroupedWithPrev && "-mt-px",
         !isGroupedWithPrev && "rounded-t-md",

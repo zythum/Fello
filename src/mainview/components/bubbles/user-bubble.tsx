@@ -40,7 +40,7 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
   return (
     <div className="flex flex-col">
       <div className="flex justify-end">
-        <div className="relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary px-3 py-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto group">
+        <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary px-3 py-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
           <div className="relative flex">
             <div
               className={cn(

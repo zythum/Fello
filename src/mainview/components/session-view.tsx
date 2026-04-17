@@ -74,7 +74,7 @@ export function SessionView() {
           </div>
         ) : activeSessionId ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
-            <ResizablePanel defaultSize={70} minSize={300}>
+            <ResizablePanel defaultSize={700} minSize={300}>
               <div className="relative flex h-full flex-col">
                 <Chat />
                 {(isLoading || isCreatingSession) && (
@@ -88,7 +88,7 @@ export function SessionView() {
               </div>
             </ResizablePanel>
             <ResizableHandle className="bg-sidebar-border" />
-            <ResizablePanel defaultSize={30} minSize={300}>
+            <ResizablePanel defaultSize={300} minSize={300}>
               <aside ref={setRightPanel} className="flex h-full min-h-0 flex-col">
                 <div
                   className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2"
