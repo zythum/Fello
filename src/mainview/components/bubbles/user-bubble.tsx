@@ -1,9 +1,10 @@
-import { memo, useRef, useState, useEffect } from "react";
+import { memo, useRef, useState, useEffect, useCallback } from "react";
 import type { UserMessage } from "../../chat-message";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import { useAppStore } from "../../store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronsUpDown, ChevronsDownUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ChevronsUpDown, ChevronsDownUp, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,12 +15,31 @@ interface Props {
 }
 
 export const UserBubble = memo(function UserBubble({ message }: Props) {
+  const { t } = useTranslation();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const textBlocks = message.contents.filter((c) => c.type === "text");
+    const text = textBlocks.map((c) => (c.type === "text" ? c.text : "")).join("\n");
+    if (text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setHasCopied(true);
+        setTimeout(() => setHasCopied(false), 2000);
+      } catch (e) {
+        console.error("Failed to copy text", e);
+      }
+    }
+  }, [message.contents]);
+
+  const hasText = message.contents.some((c) => c.type === "text");
 
   useEffect(() => {
     const el = contentRef.current;
@@ -39,7 +59,26 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
 
   return (
     <div className="flex flex-col">
-      <div className="flex justify-end">
+      <div className="flex justify-end items-stretch group/user-bubble">
+        {hasText && (
+          <div className="py-2 pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={cn(
+                "size-6 shrink-0 bg-transparent hover:bg-transparent text-muted-foreground/60 hover:text-muted-foreground/80",
+              )}
+              onClick={handleCopy}
+              title={t("userBubble.copy", "Copy")}
+            >
+              {hasCopied ? (
+                <Check className="size-3.5 text-green-500" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </Button>
+          </div>
+        )}
         <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary px-3 py-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
           <div className="relative flex">
             <div
@@ -50,7 +89,7 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
               )}
             >
               {isExpanded ? (
-                <ScrollArea className="h-full max-h-45 pr-1">
+                <ScrollArea className="h-full max-h-45 pr-2.5">
                   <div ref={contentRef}>
                     <ContentBlocks
                       blocks={message.contents}

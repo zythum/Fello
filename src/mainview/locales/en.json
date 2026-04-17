@@ -181,6 +181,9 @@
     "thinking": "Thinking...",
     "thought": "Thought"
   },
+  "userBubble": {
+    "copy": "Copy"
+  },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
     "usageSummaryCached": "  ↻ {{cached}}"

@@ -383,7 +383,6 @@ export function Sidebar() {
                   )}
                   <span
                     className="flex-1 truncate leading-normal font-normal uppercase select-none"
-                    title={project.cwd}
                   >
                     {project.title}
                   </span>

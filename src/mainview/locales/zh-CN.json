@@ -181,6 +181,9 @@
     "thinking": "思考中...",
     "thought": "思考过程"
   },
+  "userBubble": {
+    "copy": "复制"
+  },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
     "usageSummaryCached": "  ↻ {{cached}}"

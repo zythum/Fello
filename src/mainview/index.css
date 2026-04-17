@@ -145,6 +145,9 @@ body,
 [data-streamdown="table-cell"] {
   font-size: 1em !important;
 }
+[data-streamdown="link"] {
+  font-weight: normal;
+}
 
 .dark {
   --background: oklch(0.141 0.005 285.823);
