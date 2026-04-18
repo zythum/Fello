@@ -24,20 +24,23 @@ export const UserBubble = memo(function UserBubble({ message }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
 
-  const handleCopy = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const textBlocks = message.contents.filter((c) => c.type === "text");
-    const text = textBlocks.map((c) => (c.type === "text" ? c.text : "")).join("\n");
-    if (text) {
-      try {
-        await navigator.clipboard.writeText(text);
-        setHasCopied(true);
-        setTimeout(() => setHasCopied(false), 2000);
-      } catch (e) {
-        console.error("Failed to copy text", e);
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const textBlocks = message.contents.filter((c) => c.type === "text");
+      const text = textBlocks.map((c) => (c.type === "text" ? c.text : "")).join("\n");
+      if (text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          setHasCopied(true);
+          setTimeout(() => setHasCopied(false), 2000);
+        } catch (e) {
+          console.error("Failed to copy text", e);
+        }
       }
-    }
-  }, [message.contents]);
+    },
+    [message.contents],
+  );
 
   const hasText = message.contents.some((c) => c.type === "text");
 

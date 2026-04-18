@@ -18,7 +18,7 @@ import {
   ArrowRightLeft,
   Wrench,
 } from "lucide-react";
-import { stringify as toYamlString } from 'json-to-pretty-yaml';
+import { stringify as toYamlString } from "json-to-pretty-yaml";
 import { ReadonlyTerminal } from "../common/readonly-terminal";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import { CodeView } from "../common/code-view";

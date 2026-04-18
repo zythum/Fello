@@ -382,9 +382,7 @@ export function Sidebar() {
                   ) : (
                     <FolderClosed className="size-3.5" />
                   )}
-                  <span
-                    className="flex-1 truncate leading-normal font-normal uppercase select-none"
-                  >
+                  <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
                     {project.title}
                   </span>
                   <DropdownMenu
@@ -644,21 +642,27 @@ export function Sidebar() {
                     <Sun className="size-3" />
                     {t("sidebar.light")}
                     {theme.themeMode === "light" && (
-                      <div className="ml-auto"><Check className="size-3"/></div>
+                      <div className="ml-auto">
+                        <Check className="size-3" />
+                      </div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("dark")}>
                     <Moon className="size-3" />
                     {t("sidebar.dark")}
                     {theme.themeMode === "dark" && (
-                      <div className="ml-auto"><Check className="size-3"/></div>
+                      <div className="ml-auto">
+                        <Check className="size-3" />
+                      </div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("system")}>
                     <Monitor className="size-3" />
                     {t("sidebar.system")}
                     {theme.themeMode === "system" && (
-                      <div className="ml-auto"><Check className="size-3"/></div>
+                      <div className="ml-auto">
+                        <Check className="size-3" />
+                      </div>
                     )}
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
