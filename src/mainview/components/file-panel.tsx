@@ -1192,7 +1192,7 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
             <div className="ml-2 mr-1 flex shrink-0 gap-1.5 text-[10px] font-normal tracking-tighter">
               {GIT_SUMMARY_BADGES.map(({ key, color }) =>
                 counts[key] > 0 ? (
-                  <span key={key} className={color}>
+                  <span key={key} className={cn(color, "font-medium")}>
                     {key}
                     {counts[key]}
                   </span>
@@ -1252,20 +1252,20 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                     >
                       <div className="flex w-full items-center gap-2">
                         <span
-                          className={cn("truncate text-[11px] font-normal", statusColor)}
+                          className={cn("truncate text-sx font-normal", statusColor)}
                           title={fileName}
                         >
                           {fileName}
                         </span>
                         <span
-                          className="truncate flex-1 text-[11px] text-muted-foreground/50"
+                          className="truncate flex-1 text-sx text-muted-foreground/50"
                           title={folderPath ?? undefined}
                         >
                           {folderPath ?? ""}
                         </span>
                         <span
                           className={cn(
-                            "ml-2 shrink-0 text-[10px] font-normal tracking-tighter",
+                            "ml-2 shrink-0 text-[10px] font-medium tracking-tighter",
                             statusColor,
                           )}
                         >

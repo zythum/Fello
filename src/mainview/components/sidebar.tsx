@@ -350,7 +350,7 @@ export function Sidebar() {
         </div>
       </div>
       <div className="flex items-center justify-between px-3 pb-2 pt-2">
-        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/30 uppercase select-none">
+        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
           {t("sidebar.projects")}
         </span>
         <Button

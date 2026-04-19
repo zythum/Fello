@@ -12,6 +12,13 @@ import { StreamMarkdown } from "./common/stream-markdown";
 import { ImageView } from "./common/image-view";
 import { useAppStore } from "../store";
 import { cn } from "@/lib/utils";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "./ui/context-menu";
+import { MessageSquarePlus, Copy } from "lucide-react";
 
 export interface FilePreviewSheetProps {
   open: boolean;
@@ -40,6 +47,10 @@ export function FilePreviewSheet({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [imageBase64, setImageBase64] = useState("");
+  const [selectedText, setSelectedText] = useState("");
+  const [selectedLineRange, setSelectedLineRange] = useState<{ start: number; end: number } | null>(
+    null,
+  );
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
@@ -135,6 +146,94 @@ export function FilePreviewSheet({
   const canCompare = gitContent != null;
   const showTabs = !loading && !errorMsg && fileKind !== null && fileKind !== "image";
 
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (viewMode !== "code" && viewMode !== "compare") return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setSelectedLineRange(null);
+      setSelectedText("");
+      return;
+    }
+
+    setSelectedText(selection.toString());
+
+    const container = e.currentTarget;
+    const range = selection.getRangeAt(0);
+
+    if (!container.contains(range.commonAncestorContainer)) {
+      setSelectedLineRange(null);
+      return;
+    }
+
+    const lines = Array.from(container.querySelectorAll(".line"));
+    if (lines.length === 0) {
+      setSelectedLineRange(null);
+      return;
+    }
+
+    let start = -1;
+    let end = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (selection.containsNode(line, true)) {
+        if (start === -1) start = i + 1;
+        end = i + 1;
+      }
+    }
+
+    if (start === -1) {
+      let startNode = range.startContainer as Node | null;
+      let endNode = range.endContainer as Node | null;
+
+      const startLine =
+        startNode?.nodeType === Node.TEXT_NODE
+          ? startNode.parentElement?.closest(".line")
+          : (startNode as Element)?.closest(".line");
+      const endLine =
+        endNode?.nodeType === Node.TEXT_NODE
+          ? endNode.parentElement?.closest(".line")
+          : (endNode as Element)?.closest(".line");
+
+      if (startLine && endLine) {
+        start = lines.indexOf(startLine as Element) + 1;
+        end = lines.indexOf(endLine as Element) + 1;
+        if (start > end) {
+          const temp = start;
+          start = end;
+          end = temp;
+        }
+      } else if (startLine) {
+        start = end = lines.indexOf(startLine as Element) + 1;
+      } else if (endLine) {
+        start = end = lines.indexOf(endLine as Element) + 1;
+      }
+    }
+
+    if (start !== -1 && end !== -1 && start > 0 && end > 0) {
+      setSelectedLineRange({ start, end });
+    } else {
+      setSelectedLineRange(null);
+    }
+  };
+
+  const handleAddToChat = () => {
+    if (!relativePath || !selectedLineRange) return;
+    const { start, end } = selectedLineRange;
+    const suffix = start === end ? `L${start}` : `L${start}-L${end}`;
+    const nodeId = `${relativePath}:${suffix}`;
+    const nodeName = `${fileName}:${suffix}`;
+    const nodesPayloads = [{ id: nodeId, name: nodeName, isFolder: false }];
+    document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
+  };
+
+  const handleCopy = () => {
+    if (selectedText) {
+      navigator.clipboard.writeText(selectedText);
+    }
+  };
+
   return (
     <Sheet
       open={open}
@@ -228,9 +327,37 @@ export function FilePreviewSheet({
               <StreamMarkdown>{content}</StreamMarkdown>
             </div>
           ) : (
-            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono">
-              <CodeView content={content} filename={fileName} />
-            </div>
+            <ContextMenu
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSelectedLineRange(null);
+                  setSelectedText("");
+                }
+              }}
+            >
+              <ContextMenuTrigger
+                className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -m-3.5"
+                onContextMenu={handleContextMenu}
+              >
+                <CodeView content={content} filename={fileName} />
+              </ContextMenuTrigger>
+              {(selectedLineRange || selectedText) && (
+                <ContextMenuContent>
+                  {selectedText && (
+                    <ContextMenuItem onClick={handleCopy}>
+                      <Copy/>
+                      {t("userBubble.copy")}
+                    </ContextMenuItem>
+                  )}
+                  {selectedLineRange && (
+                    <ContextMenuItem onClick={handleAddToChat}>
+                      <MessageSquarePlus/>
+                      {t("filePanel.addToChat")}
+                    </ContextMenuItem>
+                  )}
+                </ContextMenuContent>
+              )}
+            </ContextMenu>
           )}
         </ScrollArea>
       </SheetContent>
