@@ -146,7 +146,8 @@
     "noActiveSession": "No active session",
     "loading": "Loading...",
     "collapseFolders": "Collapse Folders",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "addToChat": "Add to Chat"
   },
   "toolBubble": {
     "tool": "Tool"

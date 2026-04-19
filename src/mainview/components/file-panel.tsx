@@ -33,6 +33,7 @@ import {
   FolderOpen,
   GitBranch,
   Copy,
+  MessageSquarePlus,
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ interface Actions {
   revealInFinder: (id: string) => void;
   previewFile: (id: string) => void;
   copyPath: (id: string, isAbsolute: boolean) => void;
+  addToChat: (id: string) => void;
 }
 
 const GIT_FOLDER_STATUS = {
@@ -276,6 +278,15 @@ function TreeItem({
               <ContextMenuSeparator />
             </>
           )}
+          <ContextMenuItem
+            onClick={() => {
+              actions.addToChat(node.id);
+            }}
+          >
+            <MessageSquarePlus />
+            {t("filePanel.addToChat")}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => {
               actions.startRename(node);
@@ -1106,6 +1117,21 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
         isAbsolute,
       });
       navigator.clipboard.writeText(text);
+    },
+    addToChat: (id: string) => {
+      const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
+      const nodesPayloads = ids.map((nodeId) => {
+        let isFolder = false;
+        for (const root of data) {
+          const found = findNode(root, nodeId);
+          if (found) {
+            isFolder = found.isFolder;
+            break;
+          }
+        }
+        return { id: nodeId, name: nodeId.split("/").pop() ?? nodeId, isFolder };
+      });
+      document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
     },
   };
 

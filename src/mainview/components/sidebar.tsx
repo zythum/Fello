@@ -401,7 +401,7 @@ export function Sidebar() {
                       }`}
                       aria-label={`Project actions for ${project.title}`}
                     >
-                      <MoreHorizontal className="size-3" />
+                      <MoreHorizontal />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       side="right"
@@ -416,7 +416,7 @@ export function Sidebar() {
                             void handleRevealProjectInFinder(project);
                           }}
                         >
-                          <FolderOpen className="size-3" />
+                          <FolderOpen />
                           {t("sidebar.revealInFinder")}
                         </DropdownMenuItem>
                       )}
@@ -426,7 +426,7 @@ export function Sidebar() {
                           handleRenameProject(project);
                         }}
                       >
-                        <Pencil className="size-3" />
+                        <Pencil />
                         {t("sidebar.rename")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -437,7 +437,7 @@ export function Sidebar() {
                           handleDeleteProject(project);
                         }}
                       >
-                        <Trash2 className="size-3" />
+                        <Trash2 />
                         {t("sidebar.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -459,7 +459,7 @@ export function Sidebar() {
                         }`}
                         aria-label={`Create chat in ${project.title}`}
                       >
-                        <MessageCirclePlus className="size-3" />
+                        <MessageCirclePlus />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         side="right"
@@ -495,7 +495,7 @@ export function Sidebar() {
                       className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                       aria-label={`Create chat in ${project.title}`}
                     >
-                      <MessageCirclePlus className="size-3" />
+                      <MessageCirclePlus />
                     </button>
                   )}
                 </div>
@@ -546,7 +546,7 @@ export function Sidebar() {
                           }`}
                           aria-label={`Chat actions for ${session.title || t("sidebar.newChat", "New Chat")}`}
                         >
-                          <MoreHorizontal className="size-3" />
+                          <MoreHorizontal />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           side="right"
@@ -560,7 +560,7 @@ export function Sidebar() {
                               handleRenameSession(session);
                             }}
                           >
-                            <Pencil className="size-3" />
+                            <Pencil />
                             {t("sidebar.rename")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -571,7 +571,7 @@ export function Sidebar() {
                               void handleDeleteSession(session);
                             }}
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 />
                             {t("sidebar.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -611,7 +611,7 @@ export function Sidebar() {
             {!isWebUI && (
               <>
                 <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                  <Bot className="size-3" />
+                  <Bot />
                   {t("sidebar.agents")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -625,7 +625,7 @@ export function Sidebar() {
             {isWebUI && (
               <>
                 <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                  <Bot className="size-3" />
+                  <Bot />
                   {t("sidebar.agents")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -633,35 +633,35 @@ export function Sidebar() {
             )}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <Palette className="size-3" />
+                <Palette />
                 {t("sidebar.theme")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="w-32">
                   <DropdownMenuItem onClick={() => void handleThemeChange("light")}>
-                    <Sun className="size-3" />
+                    <Sun />
                     {t("sidebar.light")}
                     {theme.themeMode === "light" && (
                       <div className="ml-auto">
-                        <Check className="size-3" />
+                        <Check />
                       </div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("dark")}>
-                    <Moon className="size-3" />
+                    <Moon />
                     {t("sidebar.dark")}
                     {theme.themeMode === "dark" && (
                       <div className="ml-auto">
-                        <Check className="size-3" />
+                        <Check />
                       </div>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleThemeChange("system")}>
-                    <Monitor className="size-3" />
+                    <Monitor />
                     {t("sidebar.system")}
                     {theme.themeMode === "system" && (
                       <div className="ml-auto">
-                        <Check className="size-3" />
+                        <Check />
                       </div>
                     )}
                   </DropdownMenuItem>
@@ -671,7 +671,7 @@ export function Sidebar() {
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <Globe className="size-3" />
+                <Globe />
                 {t("sidebar.language")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>

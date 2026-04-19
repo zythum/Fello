@@ -146,7 +146,8 @@
     "noActiveSession": "无活动会话",
     "loading": "加载中...",
     "collapseFolders": "折叠文件夹",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "addToChat": "添加到对话"
   },
   "toolBubble": {
     "tool": "工具"

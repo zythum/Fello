@@ -105,6 +105,25 @@ export function ChatInput() {
     };
   }, []);
 
+  // Handle external add-to-chat events from file-panel
+  useEffect(() => {
+    const handleAddToChat = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const nodes = customEvent.detail as { id: string; name: string; isFolder: boolean }[];
+      if (!nodes || nodes.length === 0) return;
+      const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
+      setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+
+      // Focus the textarea
+      requestAnimationFrame(() => {
+        containerRef.current?.querySelector("textarea")?.focus();
+      });
+    };
+
+    document.addEventListener("fello-add-to-chat", handleAddToChat);
+    return () => document.removeEventListener("fello-add-to-chat", handleAddToChat);
+  }, []);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const newAttachments = files.map((file) => {

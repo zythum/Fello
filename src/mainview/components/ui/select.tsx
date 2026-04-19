@@ -130,7 +130,7 @@ function SelectItem({
           <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />
         }
       >
-        <CheckIcon className="pointer-events-none size-3.5" />
+        <CheckIcon className="pointer-events-none size-3" />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
   )
