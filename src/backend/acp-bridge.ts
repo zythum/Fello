@@ -229,7 +229,7 @@ export class ACPBridge {
       },
       async extNotification(_method: string, _params: unknown): Promise<void> {
         if (process.env.NODE_ENV === "development") {
-          console.log(`[ACP Ext Notification] Method: ${_method}`, JSON.stringify(_params));
+          console.log(`[ACP Ext Notification] Method: ${_method}`);
         }
       },
     };

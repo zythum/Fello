@@ -11,15 +11,19 @@ export default defineConfig({
       lib: {
         entry: resolve(__dirname, "src/electron/main.ts"),
       },
-      outDir: "out/main",
+      outDir: "out/electron",
     },
   },
   preload: {
     build: {
       lib: {
-        entry: resolve(__dirname, "src/electron/preload.ts"),
+        entry: {
+          "electron-preload/preload": resolve(__dirname, "src/scripts/electron-preload/preload.ts"),
+          "mcp-bmi/server": resolve(__dirname, "src/scripts/mcp-bmi/server.ts"),
+          "mcp-skills/server": resolve(__dirname, "src/scripts/mcp-skills/server.ts"),
+        },
       },
-      outDir: "out/preload",
+      outDir: "out/scripts",
     },
   },
   renderer: {

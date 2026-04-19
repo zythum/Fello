@@ -136,8 +136,6 @@ body,
 [data-streamdown="code-block-actions"] {
   margin-top: -3px !important;
 }
-
-
 [data-streamdown="table"] {
   margin: 0 !important;
 }
@@ -147,6 +145,11 @@ body,
 }
 [data-streamdown="link"] {
   font-weight: normal;
+}
+
+/* Sonner code block styling */
+[data-sonner-toast][data-styled=true] [data-title] {
+  font-weight: normal !important;
 }
 
 .dark {

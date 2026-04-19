@@ -29,7 +29,7 @@ export function PermissionDialog({ request, sessionId, toastId: _toastId }: Prop
   };
 
   return (
-    <div className="flex w-full min-w-[320px] flex-col gap-4 rounded-xl border bg-popover p-5 text-sm text-popover-foreground shadow-lg">
+    <div className="flex w-(--width) flex-col gap-4 rounded-xl border bg-popover p-5 text-sm text-popover-foreground shadow-lg overflow-hidden">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
@@ -44,7 +44,7 @@ export function PermissionDialog({ request, sessionId, toastId: _toastId }: Prop
             </p>
           </div>
         </div>
-        <pre className="text-xs text-foreground/80 bg-muted mt-1 p-2 rounded wrap-anywhere break-all">
+        <pre className="text-xs text-foreground/80 bg-muted mt-1 p-2 rounded wrap-anywhere whitespace-pre-wrap break-all">
           {request.toolCall.title}
         </pre>
       </div>

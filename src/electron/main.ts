@@ -162,7 +162,7 @@ function createMainWindow() {
         }
       : {}),
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"),
+      preload: join(__dirname, "../scripts/electron-preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

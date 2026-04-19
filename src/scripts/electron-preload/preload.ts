@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { FelloIPCSchema } from "../shared/schema";
+import type { FelloIPCSchema } from "../../shared/schema";
 
 type ElectronIPCRequests = {
   showOpenDialog: { params: void; response: string | null };

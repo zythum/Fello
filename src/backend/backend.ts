@@ -3,6 +3,7 @@ import type {
   RequestPermissionResponse,
   SessionNotification,
   PromptResponse,
+  McpServer,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
@@ -22,6 +23,7 @@ import {
 } from "fs/promises";
 import * as mimeTypes from "mime-types";
 import { dirname, join, relative, extname, basename } from "path";
+import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -34,6 +36,33 @@ import { initWatcher, syncWatchers } from "./watcher";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const mcpServers: McpServer[] = [
+  {
+    name: "bmi",
+    command: process.argv0,
+    args: [join(__dirname, "../scripts/mcp-bmi/server.mjs")],
+    env: [
+      {
+        name: "ELECTRON_RUN_AS_NODE",
+        value: "1",
+      },
+    ],
+  },
+  {
+    name: "skills",
+    command: process.argv0,
+    args: [join(__dirname, "../scripts/mcp-skills/server.mjs")],
+    env: [
+      {
+        name: "ELECTRON_RUN_AS_NODE",
+        value: "1",
+      },
+    ],
+  },
+];
 
 export const SEARCH_MAX_RESULTS = 10;
 export const SEARCH_FUSE_THRESHOLD = 0.4;
@@ -427,7 +456,7 @@ export const backendHandlers: {
       modes,
     } = await b.newSession({
       cwd: project.cwd,
-      mcpServers: [],
+      mcpServers: mcpServers,
     });
     const sessionId = storageOps.createSession(project.id, resumeId, agentId);
     sendEvent("sessions-changed", undefined);
@@ -448,7 +477,7 @@ export const backendHandlers: {
     const { models, modes } = await b.loadSession({
       sessionId: session.resumeId,
       cwd: session.cwd,
-      mcpServers: [],
+      mcpServers: mcpServers,
     });
     return {
       sessionId: session.id,

@@ -234,7 +234,7 @@ export function ChatArea() {
         />
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className="flex-1 px-10">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
         {messageGroups.map((group, groupIndex) => {
           const isFirstGroup = groupIndex === 0;
           const isLastGroup = groupIndex === messageGroups.length - 1;
@@ -243,7 +243,7 @@ export function ChatArea() {
             <div
               key={group.key}
               className={cn(
-                "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none",
+                "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none px-10",
                 {
                   "pt-4": !isFirstGroup,
                   "min-h-full": isLastGroup,
