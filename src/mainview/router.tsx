@@ -21,7 +21,7 @@ function SessionWrapper() {
     return <Navigate to="/" replace />;
   }
 
-  return <SessionView key={sessionId} session={sessionInfo} />;
+  return <SessionView session={sessionInfo} />;
 }
 
 export function AppRouter() {
