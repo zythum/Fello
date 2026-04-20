@@ -11,7 +11,12 @@ import {
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { backendHandlers, initBackend, killBridge, type FelloIPCSchema } from "../backend/backend";
+import {
+  backendHandlers,
+  initBackend,
+  killBridge,
+  type FelloIPCSchema,
+} from "../backend/backend";
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
 
@@ -39,9 +44,39 @@ initBackend(safeSend);
 for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema["requests"]>) {
   ipcMain.handle(
     channel,
-    async (_event: unknown, params: FelloIPCSchema["requests"][typeof channel]["params"]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (event: Electron.IpcMainInvokeEvent, params: any) => {
       try {
-        return await backendHandlers[channel](params as never);
+        if (channel === "registerClient") {
+          const wc = event.sender;
+          const clientId = params.clientId;
+
+          let isCleaned = false;
+          const doCleanup = () => {
+            if (isCleaned) return;
+            isCleaned = true;
+            void backendHandlers.killTerminalsByClient({ clientId });
+            wc.removeListener("destroyed", doCleanup);
+            wc.removeListener("did-start-navigation", onNavigation);
+            wc.removeListener("render-process-gone", doCleanup);
+          };
+
+          const onNavigation = (
+            _e: Electron.Event,
+            _url: string,
+            isInPlace: boolean,
+            isMainFrame: boolean,
+          ) => {
+            if (isMainFrame && !isInPlace) {
+              doCleanup();
+            }
+          };
+
+          wc.once("destroyed", doCleanup);
+          wc.on("did-start-navigation", onNavigation);
+          wc.once("render-process-gone", doCleanup);
+        }
+        return await (backendHandlers as any)[channel](params);
       } catch (error) {
         throw new Error(extractErrorMessage(error));
       }

@@ -345,13 +345,13 @@ export function FilePreviewSheet({
                 <ContextMenuContent>
                   {selectedText && (
                     <ContextMenuItem onClick={handleCopy}>
-                      <Copy/>
+                      <Copy />
                       {t("userBubble.copy")}
                     </ContextMenuItem>
                   )}
                   {selectedLineRange && (
                     <ContextMenuItem onClick={handleAddToChat}>
-                      <MessageSquarePlus/>
+                      <MessageSquarePlus />
                       {t("filePanel.addToChat")}
                     </ContextMenuItem>
                   )}

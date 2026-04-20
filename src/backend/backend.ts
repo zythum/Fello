@@ -104,6 +104,7 @@ type ManagedTerminal = {
   onExit: (listener: (exitCode: number | null) => void) => void;
 };
 const terminals = new Map<string, ManagedTerminal>();
+export const clientTerminals = new Map<string, Set<string>>();
 let terminalCounter = 0;
 let isNodePtyHelperPrepared = false;
 
@@ -278,6 +279,7 @@ export async function killBridge() {
     terminal.kill();
   }
   terminals.clear();
+  clientTerminals.clear();
   await Promise.all(killPromises);
 }
 
@@ -379,6 +381,9 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
   });
   child.onExit((exitCode: number | null) => {
     terminals.delete(terminalId);
+    for (const set of clientTerminals.values()) {
+      set.delete(terminalId);
+    }
     sendEvent("terminal-exit", { terminalId, exitCode });
   });
   return terminalId;
@@ -936,12 +941,27 @@ export const backendHandlers: {
     markProjectFsDirty(projectId);
   },
 
-  async createTerminal({ projectId, cwd, cols, rows }) {
+  async registerClient({ clientId }) {
+    if (!clientTerminals.has(clientId)) {
+      clientTerminals.set(clientId, new Set());
+    }
+  },
+
+  async createTerminal({ projectId, cwd, cols, rows, clientId }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project not found");
     const targetCwd = cwd ? resolveSafePath(project.cwd, cwd) : project.cwd;
 
-    return { terminalId: await createTerminalProcess(targetCwd, { cols, rows }) };
+    const terminalId = await createTerminalProcess(targetCwd, { cols, rows });
+    if (clientId) {
+      let set = clientTerminals.get(clientId);
+      if (!set) {
+        set = new Set();
+        clientTerminals.set(clientId, set);
+      }
+      set.add(terminalId);
+    }
+    return { terminalId };
   },
 
   async writeTerminal({ terminalId, data }) {
@@ -951,12 +971,29 @@ export const backendHandlers: {
     return { ok: true };
   },
 
+  async killTerminalsByClient({ clientId }) {
+    const termIds = clientTerminals.get(clientId);
+    const terminalIds = termIds ? [...termIds] : [];
+    for (const tid of terminalIds) {
+      const terminal = terminals.get(tid);
+      if (terminal) {
+        terminal.kill();
+        terminals.delete(tid);
+      }
+    }
+    clientTerminals.delete(clientId);
+    return { terminalIds };
+  },
+
   async killTerminal({ terminalId }) {
     const terminal = terminals.get(terminalId);
-    if (!terminal) return { ok: false };
+    if (!terminal) return {};
     terminal.kill();
     terminals.delete(terminalId);
-    return { ok: true };
+    for (const set of clientTerminals.values()) {
+      set.delete(terminalId);
+    }
+    return { terminalId };
   },
 
   async resizeTerminal({ terminalId, cols, rows }) {

@@ -40,6 +40,8 @@ const fallbackBridge = {
 export const isWebUI = typeof window.fello === "undefined";
 const bridge = window.fello ?? fallbackBridge;
 
+export const clientId = crypto.randomUUID();
+
 let ws: WebSocket | null = null;
 let wsReadyPromise: Promise<void> | null = null;
 let msgId = 0;
@@ -116,3 +118,6 @@ bridge.on("webui-status-changed", (payload) => emit("webui-status-changed", payl
 bridge.on("fs-changed", (payload) => emit("fs-changed", payload));
 bridge.on("projects-changed", (payload) => emit("projects-changed", payload));
 bridge.on("sessions-changed", (payload) => emit("sessions-changed", payload));
+
+// Register client identity
+void invokeIPC("registerClient", { clientId }).catch(() => {});

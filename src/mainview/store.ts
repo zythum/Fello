@@ -11,6 +11,23 @@ import type {
 
 export type PermissionRequest = Omit<RequestPermissionRequest, "sessionId">;
 
+export interface TerminalItem {
+  id: string;
+  running: boolean;
+  projectId: string;
+}
+
+// Per-project state bucket
+export interface ProjectState {
+  terminals: TerminalItem[];
+  activeTerminalId: string | null;
+}
+
+const emptyProjectState = (): ProjectState => ({
+  terminals: [],
+  activeTerminalId: null,
+});
+
 // Per-session state bucket
 export interface SessionState {
   messages: ChatMessage[];
@@ -60,7 +77,12 @@ interface AppState {
   sessionStates: Map<string, SessionState>;
 
   // ==========================================================================
-  // 3. Global UI & Configuration State
+  // 3. Project Management
+  // ==========================================================================
+  projectStates: Map<string, ProjectState>;
+
+  // ==========================================================================
+  // 4. Global UI & Configuration State
   // ==========================================================================
   sidebarOpen: boolean;
   configuredAgents: SettingsInfo["agents"];
@@ -71,7 +93,7 @@ interface AppState {
   isFullScreen: boolean;
 
   // ==========================================================================
-  // 4. Global Caches & Ephemeral State
+  // 5. Global Caches & Ephemeral State
   // ==========================================================================
   globalErrorMessages: string[];
   /**
@@ -85,11 +107,13 @@ interface AppState {
   // Selectors
   // ==========================================================================
   getSessionState: (id?: string) => SessionState;
+  getProjectState: (id: string) => ProjectState;
 
   // ==========================================================================
   // Core Mutators
   // ==========================================================================
   updateSessionState: (id: string, updater: (state: SessionState) => Partial<SessionState>) => void;
+  updateProjectState: (id: string, updater: (state: ProjectState) => Partial<ProjectState>) => void;
   setProjects: (projects: ProjectInfo[]) => void;
   setSessions: (sessions: SessionInfo[]) => void;
   setActiveSessionId: (id: string | null) => void;
@@ -141,7 +165,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   sessionStates: new Map(),
 
   // ==========================================================================
-  // 3. Global UI & Configuration State
+  // 3. Project Management
+  // ==========================================================================
+  projectStates: new Map(),
+
+  // ==========================================================================
+  // 4. Global UI & Configuration State
   // ==========================================================================
   sidebarOpen: true,
   configuredAgents: [],
@@ -152,7 +181,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isFullScreen: false,
 
   // ==========================================================================
-  // 4. Global Caches & Ephemeral State
+  // 5. Global Caches & Ephemeral State
   // ==========================================================================
   globalErrorMessages: [],
   terminalLogs: {},
@@ -165,6 +194,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!sid) return emptySessionState();
     return get().sessionStates.get(sid) ?? emptySessionState();
   },
+  getProjectState: (id) => {
+    if (!id) return emptyProjectState();
+    return get().projectStates.get(id) ?? emptyProjectState();
+  },
 
   // ==========================================================================
   // Core Mutators
@@ -175,6 +208,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       const current = map.get(id) ?? emptySessionState();
       map.set(id, { ...current, ...updater(current) });
       return { sessionStates: map };
+    });
+  },
+  updateProjectState: (id, updater) => {
+    set((state) => {
+      const map = new Map(state.projectStates);
+      const current = map.get(id) ?? emptyProjectState();
+      map.set(id, { ...current, ...updater(current) });
+      return { projectStates: map };
     });
   },
 
@@ -251,4 +292,12 @@ export function useActiveSessionState() {
     return emptySessionState();
   }
   return sessionStates.get(activeSessionId) ?? emptySessionState();
+}
+
+export function useProjectState(projectId: string | null) {
+  const projectStates = useAppStore((s) => s.projectStates);
+  if (!projectId) {
+    return emptyProjectState();
+  }
+  return projectStates.get(projectId) ?? emptyProjectState();
 }

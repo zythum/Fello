@@ -1,19 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, SquareTerminal, X, Circle } from "lucide-react";
-import { request, subscribe } from "../backend";
-import { useAppStore } from "../store";
+import { request, clientId } from "../backend";
+import { useAppStore, useProjectState } from "../store";
+import { getOrCreateTerminalInstance, destroyTerminalInstance } from "../terminal-manager";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-interface TerminalItem {
-  id: string;
-  running: boolean;
-  projectId: string;
-}
 
 interface TerminalPanelProps {
   isActive: boolean;
@@ -22,44 +14,30 @@ interface TerminalPanelProps {
 
 export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
   const { t } = useTranslation();
-  const [projectTerminals, setProjectTerminals] = useState<Record<string, TerminalItem[]>>({});
-  const [activeTerminalByProject, setActiveTerminalByProject] = useState<
-    Record<string, string | null>
-  >({});
+  
+  const projectState = useProjectState(projectId);
+  const terminals = projectState.terminals;
+  const activeTerminalId = projectState.activeTerminalId;
+  const updateProjectState = useAppStore((s) => s.updateProjectState);
+  
   const projects = useAppStore((s) => s.projects);
-  const projectTerminalsRef = useRef<Record<string, TerminalItem[]>>({});
+  const projectStates = useAppStore((s) => s.projectStates);
+  
   const previousProjectIdsRef = useRef(new Set<string>());
   const creatingProjectRef = useRef(new Set<string>());
   const containerRefs = useRef(new Map<string, HTMLDivElement | null>());
   const resizeObserverRefs = useRef(new Map<string, ResizeObserver>());
-  const instanceRefs = useRef(
-    new Map<
-      string,
-      {
-        terminal: Terminal;
-        fitAddon: FitAddon;
-      }
-    >(),
-  );
-  const pendingOutputRef = useRef(new Map<string, string>());
 
   const activeProjectId = projectId;
+  const allTerminals = useMemo(() => Array.from(projectStates.values()).flatMap(s => s.terminals), [projectStates]);
 
-  const terminals = useMemo(
-    () => (activeProjectId ? (projectTerminals[activeProjectId] ?? []) : []),
-    [activeProjectId, projectTerminals],
-  );
-  const allTerminals = useMemo(() => Object.values(projectTerminals).flat(), [projectTerminals]);
-  const activeTerminalId = useMemo(
-    () => (activeProjectId ? (activeTerminalByProject[activeProjectId] ?? null) : null),
-    [activeProjectId, activeTerminalByProject],
-  );
   const cwd = useMemo(() => {
     if (!activeProjectId) return "";
     return projects.find((p) => p.id === activeProjectId)?.cwd ?? "";
   }, [activeProjectId, projects]);
+
   const fitTerminal = (terminalId: string) => {
-    const instance = instanceRefs.current.get(terminalId);
+    const instance = getOrCreateTerminalInstance(terminalId, activeProjectId, "");
     const container = containerRefs.current.get(terminalId);
     if (!instance || !container) return;
     if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
@@ -70,47 +48,6 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
       rows: instance.terminal.rows,
     });
   };
-
-  useEffect(() => {
-    projectTerminalsRef.current = projectTerminals;
-  }, [projectTerminals]);
-
-  useEffect(() => {
-    const onOutput = (payload: { terminalId: string; data: string }) => {
-      const instance = instanceRefs.current.get(payload.terminalId);
-      if (instance) {
-        instance.terminal.write(payload.data);
-        return;
-      }
-      const existing = pendingOutputRef.current.get(payload.terminalId) ?? "";
-      pendingOutputRef.current.set(payload.terminalId, `${existing}${payload.data}`);
-    };
-    const onExit = (payload: { terminalId: string; exitCode: number | null }) => {
-      const instance = instanceRefs.current.get(payload.terminalId);
-      if (instance) {
-        instance.terminal.options.disableStdin = true;
-        instance.terminal.writeln(`\r\n[Process exited with code ${payload.exitCode ?? "null"}]`);
-      }
-      setProjectTerminals((prev) => {
-        let changed = false;
-        const next: Record<string, TerminalItem[]> = {};
-        for (const [projectId, list] of Object.entries(prev)) {
-          next[projectId] = list.map((terminal) => {
-            if (terminal.id !== payload.terminalId) return terminal;
-            changed = true;
-            return { ...terminal, running: false };
-          });
-        }
-        return changed ? next : prev;
-      });
-    };
-    subscribe.on("terminal-output", onOutput);
-    subscribe.on("terminal-exit", onExit);
-    return () => {
-      subscribe.off("terminal-output", onOutput);
-      subscribe.off("terminal-exit", onExit);
-    };
-  }, []);
 
   useEffect(() => {
     if (!isActive) return;
@@ -130,36 +67,33 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
         .getComputedStyle(document.documentElement)
         .getPropertyValue("--color-neutral-900")
         .trim() || "#0f0f10";
+
     for (const terminalItem of allTerminals) {
-      if (instanceRefs.current.has(terminalItem.id)) continue;
       const container = containerRefs.current.get(terminalItem.id);
       if (!container) continue;
-      const terminal = new Terminal({
-        cursorBlink: true,
-        fontSize: 11,
-        lineHeight: 1.35,
-        theme: {
-          background: terminalBackground,
-        },
-      });
-      const fitAddon = new FitAddon();
-      terminal.loadAddon(fitAddon);
-      terminal.open(container);
-      fitAddon.fit();
-      terminal.onData((data) => {
-        void request.writeTerminal({ terminalId: terminalItem.id, data });
-      });
-      instanceRefs.current.set(terminalItem.id, { terminal, fitAddon });
-      const observer = new ResizeObserver(() => {
-        fitTerminal(terminalItem.id);
-      });
-      observer.observe(container);
-      resizeObserverRefs.current.set(terminalItem.id, observer);
-      const pending = pendingOutputRef.current.get(terminalItem.id);
-      if (pending) {
-        terminal.write(pending);
-        pendingOutputRef.current.delete(terminalItem.id);
+
+      const instance = getOrCreateTerminalInstance(
+        terminalItem.id,
+        terminalItem.projectId,
+        terminalBackground,
+      );
+
+      if (instance.terminal.element?.parentElement !== container) {
+        if (!instance.terminal.element) {
+          instance.terminal.open(container);
+        } else {
+          container.appendChild(instance.terminal.element);
+        }
       }
+
+      if (!resizeObserverRefs.current.has(terminalItem.id)) {
+        const observer = new ResizeObserver(() => {
+          fitTerminal(terminalItem.id);
+        });
+        observer.observe(container);
+        resizeObserverRefs.current.set(terminalItem.id, observer);
+      }
+
       requestAnimationFrame(() => {
         fitTerminal(terminalItem.id);
       });
@@ -170,11 +104,10 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
     if (!activeProjectId) return;
     if (terminals.length === 0) return;
     if (activeTerminalId && terminals.some((terminal) => terminal.id === activeTerminalId)) return;
-    setActiveTerminalByProject((prev) => ({
-      ...prev,
-      [activeProjectId]: terminals[terminals.length - 1].id,
+    updateProjectState(activeProjectId, () => ({
+      activeTerminalId: terminals[terminals.length - 1].id,
     }));
-  }, [activeProjectId, activeTerminalId, terminals]);
+  }, [activeProjectId, activeTerminalId, terminals, updateProjectState]);
 
   useEffect(() => {
     if (!activeTerminalId) return;
@@ -200,60 +133,35 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
       (projectId) => !currentProjectIds.has(projectId),
     );
     if (removedProjectIds.length > 0) {
-      const all = projectTerminalsRef.current;
       for (const projectId of removedProjectIds) {
-        const list = all[projectId] ?? [];
+        const list = projectStates.get(projectId)?.terminals ?? [];
         for (const terminal of list) {
           void request.killTerminal({ terminalId: terminal.id });
-          const instance = instanceRefs.current.get(terminal.id);
-          if (instance) {
-            instance.terminal.dispose();
-            instanceRefs.current.delete(terminal.id);
-          }
+          destroyTerminalInstance(terminal.id);
           const observer = resizeObserverRefs.current.get(terminal.id);
           if (observer) {
             observer.disconnect();
             resizeObserverRefs.current.delete(terminal.id);
           }
           containerRefs.current.delete(terminal.id);
-          pendingOutputRef.current.delete(terminal.id);
         }
+        useAppStore.setState((state) => {
+          const map = new Map(state.projectStates);
+          map.delete(projectId);
+          return { projectStates: map };
+        });
       }
-      setProjectTerminals((prev) => {
-        const next = { ...prev };
-        for (const projectId of removedProjectIds) {
-          delete next[projectId];
-        }
-        return next;
-      });
-      setActiveTerminalByProject((prev) => {
-        const next = { ...prev };
-        for (const projectId of removedProjectIds) {
-          delete next[projectId];
-        }
-        return next;
-      });
     }
     previousProjectIdsRef.current = currentProjectIds;
-  }, [projects]);
+  }, [projects, projectStates]);
 
   useEffect(() => {
     return () => {
-      for (const list of Object.values(projectTerminalsRef.current)) {
-        for (const terminal of list) {
-          void request.killTerminal({ terminalId: terminal.id });
-        }
-      }
-      for (const { terminal } of instanceRefs.current.values()) {
-        terminal.dispose();
-      }
       for (const observer of resizeObserverRefs.current.values()) {
         observer.disconnect();
       }
-      instanceRefs.current.clear();
       resizeObserverRefs.current.clear();
       containerRefs.current.clear();
-      pendingOutputRef.current.clear();
     };
   }, []);
 
@@ -261,42 +169,35 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
     const projectId = projectIdArg ?? activeProjectId;
     const targetCwd = cwdArg ?? "";
     if (!projectId) return;
-    const { terminalId } = await request.createTerminal({ projectId, cwd: targetCwd });
-    setProjectTerminals((prev) => ({
-      ...prev,
-      [projectId]: [...(prev[projectId] ?? []), { id: terminalId, running: true, projectId }],
+    const { terminalId } = await request.createTerminal({ projectId, cwd: targetCwd, clientId });
+    updateProjectState(projectId, (prev) => ({
+      terminals: [...prev.terminals, { id: terminalId, running: true, projectId }],
+      activeTerminalId: terminalId,
     }));
-    setActiveTerminalByProject((prev) => ({ ...prev, [projectId]: terminalId }));
   }
 
   async function deleteTerminal(terminalId: string, projectId: string) {
-    const instance = instanceRefs.current.get(terminalId);
-    if (instance) {
-      instance.terminal.dispose();
-      instanceRefs.current.delete(terminalId);
-    }
+    destroyTerminalInstance(terminalId);
+    
     const observer = resizeObserverRefs.current.get(terminalId);
     if (observer) {
       observer.disconnect();
       resizeObserverRefs.current.delete(terminalId);
     }
     containerRefs.current.delete(terminalId);
-    pendingOutputRef.current.delete(terminalId);
+    
     await request.killTerminal({ terminalId });
-    setProjectTerminals((prev) => ({
-      ...prev,
-      [projectId]: (prev[projectId] ?? []).filter((terminal) => terminal.id !== terminalId),
-    }));
-    const nextList = (projectTerminalsRef.current[projectId] ?? []).filter(
-      (terminal) => terminal.id !== terminalId,
-    );
-    setActiveTerminalByProject((prev) => ({
-      ...prev,
-      [projectId]:
-        prev[projectId] === terminalId
-          ? (nextList[nextList.length - 1]?.id ?? null)
-          : prev[projectId],
-    }));
+    
+    updateProjectState(projectId, (prev) => {
+      const nextList = prev.terminals.filter((terminal) => terminal.id !== terminalId);
+      return {
+        terminals: nextList,
+        activeTerminalId:
+          prev.activeTerminalId === terminalId
+            ? (nextList[nextList.length - 1]?.id ?? null)
+            : prev.activeTerminalId,
+      };
+    });
   }
 
   return (
@@ -317,9 +218,8 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
                 type="button"
                 onClick={() =>
                   activeProjectId &&
-                  setActiveTerminalByProject((prev) => ({
-                    ...prev,
-                    [activeProjectId]: terminal.id,
+                  updateProjectState(activeProjectId, () => ({
+                    activeTerminalId: terminal.id,
                   }))
                 }
                 className="flex h-6 items-center gap-1 px-2"

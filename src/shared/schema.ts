@@ -280,9 +280,12 @@ export type FelloIPCRequests = {
     response: void;
   };
 
+  /** 注册客户端 */
+  registerClient: { params: { clientId: string }; response: void };
+
   /** 创建终端实例 */
   createTerminal: {
-    params: { projectId: string; cwd?: string; cols?: number; rows?: number };
+    params: { projectId: string; cwd?: string; cols?: number; rows?: number; clientId?: string };
     response: { terminalId: string };
   };
   /** 向终端写入数据（如用户输入） */
@@ -290,10 +293,14 @@ export type FelloIPCRequests = {
     params: { terminalId: string; data: string };
     response: { ok: boolean };
   };
+  killTerminalsByClient: {
+    params: { clientId: string };
+    response: { terminalIds: string[] };
+  };
   /** 终止并销毁终端 */
   killTerminal: {
     params: { terminalId: string };
-    response: { ok: boolean };
+    response: { terminalId?: string };
   };
   /** 调整终端尺寸 */
   resizeTerminal: {

@@ -20,6 +20,7 @@ let isEnabled = false;
 
 // We need a way to broadcast events to all authenticated WS clients.
 const connectedClients = new Set<WebSocket>();
+const clientIdsBySocket = new WeakMap<WebSocket, string>();
 
 function getLocalIP() {
   const nets = networkInterfaces();
@@ -133,6 +134,12 @@ export async function startWebUI(options?: {
         if (msg.type === "request") {
           const { id, channel, params } = msg;
           try {
+            if (channel === "registerClient") {
+              const clientId = params?.clientId;
+              if (typeof clientId === "string" && clientId.length > 0) {
+                clientIdsBySocket.set(ws, clientId);
+              }
+            }
             const handler = (backendHandlers as Record<string, unknown>)[channel];
             if (typeof handler !== "function") {
               throw new Error(`Handler for ${channel} not found`);
@@ -150,6 +157,10 @@ export async function startWebUI(options?: {
 
     ws.on("close", () => {
       connectedClients.delete(ws);
+      const clientId = clientIdsBySocket.get(ws);
+      if (clientId) {
+        void backendHandlers.killTerminalsByClient({ clientId });
+      }
     });
   });
 
