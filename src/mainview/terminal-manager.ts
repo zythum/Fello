@@ -1,5 +1,6 @@
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import { request, subscribe } from "./backend";
 import { useAppStore } from "./store";
 
@@ -65,9 +66,15 @@ export function getOrCreateTerminalInstance(
     theme: {
       background,
     },
+    altClickMovesCursor: false,
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
+
+  const webLinksAddon = new WebLinksAddon((event, uri) => {
+    window.open(uri, "_blank");
+  });
+  terminal.loadAddon(webLinksAddon);
 
   terminal.onData((data) => {
     void request.writeTerminal({ terminalId, data });
