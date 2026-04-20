@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore, useActiveSessionState } from "../store";
 import { Chat } from "./chat";
@@ -26,6 +26,15 @@ export function SessionView() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const previewCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const openPreviewFile = useCallback((file: { projectId: string; relativePath: string }) => {
+    if (previewCloseTimeoutRef.current) {
+      clearTimeout(previewCloseTimeoutRef.current);
+      previewCloseTimeoutRef.current = null;
+    }
+    setPreviewFile(file);
+    setIsPreviewOpen(true);
+  }, []);
+
   const closePreview = () => {
     if (previewCloseTimeoutRef.current) {
       clearTimeout(previewCloseTimeoutRef.current);
@@ -46,6 +55,18 @@ export function SessionView() {
       previewCloseTimeoutRef.current = null;
     }
   }, [activeSessionId]);
+
+  useEffect(() => {
+    const handlePreviewFile = (e: Event) => {
+      const event = e as CustomEvent<{ projectId?: string | null; relativePath?: string | null }>;
+      const relativePath = event.detail?.relativePath ?? null;
+      const projectId = event.detail?.projectId ?? activeProjectId ?? null;
+      if (!relativePath || !projectId) return;
+      openPreviewFile({ projectId, relativePath });
+    };
+    document.addEventListener("fello-preview-file", handlePreviewFile);
+    return () => document.removeEventListener("fello-preview-file", handlePreviewFile);
+  }, [activeProjectId, openPreviewFile]);
 
   useEffect(() => {
     if (!rightPanel) return;
@@ -128,14 +149,6 @@ export function SessionView() {
                     {activeProjectId && (
                       <FilePanel
                         projectId={activeProjectId}
-                        onPreviewFile={(file) => {
-                          if (previewCloseTimeoutRef.current) {
-                            clearTimeout(previewCloseTimeoutRef.current);
-                            previewCloseTimeoutRef.current = null;
-                          }
-                          setPreviewFile(file);
-                          setIsPreviewOpen(true);
-                        }}
                       />
                     )}
                   </div>

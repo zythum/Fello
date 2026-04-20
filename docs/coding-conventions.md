@@ -32,7 +32,7 @@
 - 全局状态统一走 `useAppStore`
 - 与会话相关的状态必须按 `sessionId` 隔离在 `sessionStates` 中
 - 不在组件中散落维护重复业务状态，优先通过 store mutator 更新
-- 流式消息结束时统一调用 `flushStreaming` 收尾，保证消息状态一致
+- 流式消息结束时统一调用 `reduceFlushStreaming` 收尾，保证消息状态一致
 
 ## 事件处理约定（ACP）
 

@@ -229,6 +229,7 @@ export function ChatInput() {
       return [];
     });
     addMessage(activeSessionId, userMessage);
+    document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
 
     try {
       // 2. Wait for the generation to complete

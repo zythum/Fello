@@ -6,3 +6,4 @@
 - [Architecture](./architecture.md)
 - [Storage](./storage.md)
 - [Coding Conventions](./coding-conventions.md)
+- [Custom Events](./custom-events.md)

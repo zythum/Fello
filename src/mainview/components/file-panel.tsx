@@ -346,10 +346,9 @@ function TreeItem({
 
 export interface FilePanelProps {
   projectId: string;
-  onPreviewFile?: (file: { projectId: string; relativePath: string }) => void;
 }
 
-export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
+export function FilePanel({ projectId }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -1107,7 +1106,11 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
     },
     previewFile: (id: string) => {
       if (!activeProjectId) return;
-      onPreviewFile?.({ projectId: activeProjectId, relativePath: id });
+      document.dispatchEvent(
+        new CustomEvent("fello-preview-file", {
+          detail: { projectId: activeProjectId, relativePath: id },
+        }),
+      );
     },
     copyPath: async (id: string, isAbsolute: boolean) => {
       if (!activeProjectId) return;
@@ -1245,10 +1248,14 @@ export function FilePanel({ projectId, onPreviewFile }: FilePanelProps) {
                   return (
                     <DropdownMenuItem
                       key={relPath}
-                      onClick={() =>
-                        activeProjectId &&
-                        onPreviewFile?.({ projectId: activeProjectId, relativePath: relPath })
-                      }
+                      onClick={() => {
+                        if (!activeProjectId) return;
+                        document.dispatchEvent(
+                          new CustomEvent("fello-preview-file", {
+                            detail: { projectId: activeProjectId, relativePath: relPath },
+                          }),
+                        );
+                      }}
                     >
                       <div className="flex w-full items-center gap-2">
                         <span

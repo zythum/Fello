@@ -14,15 +14,15 @@ interface TerminalPanelProps {
 
 export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
   const { t } = useTranslation();
-  
+
   const projectState = useProjectState(projectId);
   const terminals = projectState.terminals;
   const activeTerminalId = projectState.activeTerminalId;
   const updateProjectState = useAppStore((s) => s.updateProjectState);
-  
+
   const projects = useAppStore((s) => s.projects);
   const projectStates = useAppStore((s) => s.projectStates);
-  
+
   const previousProjectIdsRef = useRef(new Set<string>());
   const creatingProjectRef = useRef(new Set<string>());
   const containerRefs = useRef(new Map<string, HTMLDivElement | null>());
@@ -178,16 +178,16 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
 
   async function deleteTerminal(terminalId: string, projectId: string) {
     destroyTerminalInstance(terminalId);
-    
+
     const observer = resizeObserverRefs.current.get(terminalId);
     if (observer) {
       observer.disconnect();
       resizeObserverRefs.current.delete(terminalId);
     }
     containerRefs.current.delete(terminalId);
-    
+
     await request.killTerminal({ terminalId });
-    
+
     updateProjectState(projectId, (prev) => {
       const nextList = prev.terminals.filter((terminal) => terminal.id !== terminalId);
       return {
@@ -261,7 +261,7 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
             <div
               key={terminal.id}
               className={cn(
-                "absolute inset-0",
+                "absolute inset-0 overflow-hidden",
                 terminal.id === activeTerminalId ? "block" : "pointer-events-none hidden",
               )}
             >

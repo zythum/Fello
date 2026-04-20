@@ -121,20 +121,28 @@ function calculateToolCall(
       displayId: crypto.randomUUID(),
     } satisfies ToolCallMessage);
 
-  const data: Partial<ToolCallMessage> = {
-    title: update.title ?? "",
-    status: update.status || "completed",
-    content: update.content || [],
-    kind: update.kind ?? undefined,
-    rawInput: update.rawInput,
-    locations: update.locations ?? [],
-  };
+  const data: Partial<ToolCallMessage> = {};
+  if (Object.prototype.hasOwnProperty.call(update, "title")) {
+    data.title = update.title ?? "";
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
+    data.status = update.status;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "content")) {
+    data.content = update.content ?? [];
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
+    data.kind = update.kind;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "rawInput")) {
+    data.rawInput = update.rawInput;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "locations")) {
+    data.locations = update.locations ?? [];
+  }
   if (terminalId) data.terminalId = terminalId;
 
-  const filtered = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v != null && v !== ""),
-  );
-  const merged: ToolCallMessage = { ...existing, ...filtered };
+  const merged: ToolCallMessage = { ...existing, ...data };
 
   newMap.set(update.toolCallId, merged);
 
@@ -277,23 +285,12 @@ export function reduceSessionUpdate(
 }
 
 export function reduceFlushStreaming(currentState: SessionState): SessionState {
-  let newMessages = currentState.messages;
-
-  // Finalize any in-progress tool messages already in the messages array
-  if (currentState.activeToolCalls.size > 0) {
-    const activeIds = new Set(currentState.activeToolCalls.keys());
-    newMessages = newMessages.map((m: ChatMessage) => {
-      if (m.role === "tool_call" && m.toolCallId && activeIds.has(m.toolCallId)) {
-        const status =
-          m.status === "in_progress" || m.status === "pending" ? "completed" : m.status;
-        return { ...m, status };
-      }
-      return m;
-    });
-  }
-
-  // No need to finalize individual message streaming states anymore,
-  // since we rely entirely on the session-level isStreaming flag.
+  const newMessages = currentState.messages.map((m: ChatMessage) => {
+    if (m.role === "tool_call" && (m.status === "in_progress" || m.status === "pending")) {
+      return { ...m, status: "completed" as const };
+    }
+    return m;
+  });
 
   return {
     ...currentState,

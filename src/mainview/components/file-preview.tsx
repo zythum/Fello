@@ -221,7 +221,7 @@ export function FilePreviewSheet({
   const handleAddToChat = () => {
     if (!relativePath || !selectedLineRange) return;
     const { start, end } = selectedLineRange;
-    const suffix = start === end ? `L${start}` : `L${start}-L${end}`;
+    const suffix = start === end ? `${start}` : `${start}-${end}`;
     const nodeId = `${relativePath}:${suffix}`;
     const nodeName = `${fileName}:${suffix}`;
     const nodesPayloads = [{ id: nodeId, name: nodeName, isFolder: false }];

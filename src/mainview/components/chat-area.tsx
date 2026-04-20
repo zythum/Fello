@@ -72,6 +72,12 @@ export function ChatArea() {
   }, [scrollToBottom]);
 
   useEffect(() => {
+    const handleScrollToBottom = () => scrollToBottomManual();
+    document.addEventListener("fello-scroll-to-bottom", handleScrollToBottom);
+    return () => document.removeEventListener("fello-scroll-to-bottom", handleScrollToBottom);
+  }, [scrollToBottomManual]);
+
+  useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };

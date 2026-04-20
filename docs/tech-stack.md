@@ -15,7 +15,8 @@
 
 | 技术 | 版本 | 说明 |
 | --- | --- | --- |
-| @agentclientprotocol/sdk | ^0.18.0 | ACP 客户端 SDK，负责 initialize/newSession/loadSession/prompt |
+| @agentclientprotocol/sdk | ^0.19.0 | ACP 客户端 SDK，负责 initialize/newSession/loadSession/prompt |
+| @modelcontextprotocol/sdk | ^1.29.0 | MCP SDK，负责与 Model Context Protocol 服务通信 |
 | NDJSON over stdio | - | 主进程与 `kiro-cli acp` 的传输层 |
 | Electron IPC | 内置 | `ipcMain.handle` + `ipcRenderer.invoke` 请求响应 |
 | contextBridge | 内置 | preload 暴露受限 API，隔离渲染层权限 |

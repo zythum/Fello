@@ -3,6 +3,8 @@ import type { ToolCallMessage } from "../../chat-message";
 import type { ToolCallStatus } from "@agentclientprotocol/sdk";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { useAppStore } from "@/store";
+import { Button } from "@/components/ui/button";
 import {
   Check,
   X,
@@ -50,6 +52,9 @@ interface ToolItemProps {
 
 export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
   const { t } = useTranslation();
+  const activeProjectId = useAppStore(
+    (s) => s.sessions.find((session) => session.id === s.activeSessionId)?.projectId ?? null,
+  );
   const status: ToolCallStatus = message.status ?? "completed";
   const isLive = status === "in_progress" || status === "pending";
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
@@ -61,26 +66,43 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
     >
       <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary group-open:bg-secondary">
         {kindIcon}
-        <span className="flex-1 font-normal text-foreground">
+        <span className="min-w-0 flex-1 font-normal text-foreground truncate">
           {message.title || t("toolBubble.tool")}
         </span>
+        {message.locations && message.locations.length > 0 && (
+          <div className="flex min-w-0 max-w-[45%] flex-nowrap items-center justify-end gap-1 overflow-x-auto">
+            {message.locations.map((loc, i) => {
+              const fileName = loc.path.split("/").pop() ?? loc.path;
+              const label = `${fileName}${loc.line != null ? `:${loc.line}` : ""}`;
+              return (
+                <Button
+                  key={i}
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  className="shrink-0 h-5 gap-1 rounded px-1.5 text-[10px] font-normal text-secondary-foreground/80 hover:text-secondary-foreground"
+                  title={loc.path}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!activeProjectId) return;
+                    document.dispatchEvent(
+                      new CustomEvent("fello-preview-file", {
+                        detail: { projectId: activeProjectId, relativePath: loc.path },
+                      }),
+                    );
+                  }}
+                >
+                  <FileText className="size-2.5" />
+                  <span className="max-w-40 truncate">{label}</span>
+                </Button>
+              );
+            })}
+          </div>
+        )}
         {statusIcons[status]}
       </summary>
       <div className="border-t border-border overflow-hidden bg-secondary/50">
-        {message.locations && message.locations.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-border">
-            {message.locations.map((loc, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-              >
-                <FileText className="size-2.5" />
-                {loc.path.split("/").pop()}
-                {loc.line != null && `:${loc.line}`}
-              </span>
-            ))}
-          </div>
-        )}
         {message.content &&
           message.content.map((content, index) => {
             if (content.type === "content") {

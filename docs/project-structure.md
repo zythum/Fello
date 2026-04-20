@@ -47,16 +47,19 @@ fello/
 │           │   ├── user-bubble.tsx
 │           │   ├── agent-bubble.tsx
 │           │   ├── thinking-bubble.tsx
-│           │   └── tool-bubble.tsx
+│           │   ├── tool-bubble.tsx
+│           │   ├── plan-bubble.tsx
+│           │   ├── system-bubble.tsx
+│           │   └── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── common/               # 公用组件 (stream-markdown, code-view, code-compare-view, image-view, readonly-terminal, shiki-highlighter 等)
 │           ├── content-blocks/       # ContentBlock 多模态内容组件 (text, image, audio 等)
-│           ├── message-bubble.tsx    # 根据 role 分发到对应 bubble
 │           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
 │           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
 │           ├── settings-webui-dialog.tsx # WebUI 设置弹窗
 │           ├── sidebar.tsx           # 项目分组侧边栏与项目/会话操作
 │           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
 │           ├── chat-area.tsx         # 消息渲染与滚动控制
+│           ├── chat-timeline.tsx     # 聊天时间线导航
 │           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
 │           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
 │           ├── file-preview.tsx      # 文件内容与图片预览组件（入口，渲染 common 视图）
@@ -149,8 +152,9 @@ fello/
 
 `session.json` 字段：
 
-- `id`: 会话 ID
-- `title`: 会话标题（默认 "New Chat"，首轮消息后自动截断生成）
-- `cwd`: 会话工作目录
-- `agentCommand`: 连接 agent 的命令（默认 `kiro-cli acp`）
-- `createdAt` / `updatedAt`: 秒级时间戳
+- `id`: 会话 ID（格式：`<agent_id>:<resume_id>`）
+- `title`: 会话标题
+- `agent_id`: 会话使用的 Agent ID
+- `resume_id`: 底层 ACP 服务的真实会话 ID
+- `project_id`: 所属项目 ID
+- `created_at` / `updated_at`: 秒级时间戳

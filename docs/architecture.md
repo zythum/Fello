@@ -133,7 +133,7 @@ Renderer: addProject(pickWorkDir)
 
 ```
 Renderer: resetSessionState(sessionId)
-  → Main: resumeChat(sessionId, cwd)
+  → Main: loadSession(sessionId)
   → ACP: loadSession (服务端重放历史)
   → session-update 持续推送
   → reduceSessionUpdate 重建消息/工具/usage 状态
@@ -148,7 +148,7 @@ ChatInput submit
   → ACP: prompt
   → session-update chunk 持续到达
   → reduceSessionUpdate / calculateToolCall
-  → flushStreaming 收尾，结束 streaming 状态
+  → reduceFlushStreaming 收尾，结束 streaming 状态
 ```
 
 ### D. 权限请求
