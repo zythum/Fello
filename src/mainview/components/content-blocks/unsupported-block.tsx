@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import type { SessionInfo } from "../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 
 interface UnsupportedBlockProps {
   block?: ContentBlock;

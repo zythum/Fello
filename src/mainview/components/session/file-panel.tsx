@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { request, subscribe, isWebUI } from "../backend";
-import { electron } from "../electron";
-import { useAppStore } from "../store";
+import { request, subscribe, isWebUI } from "../../backend";
+import { electron } from "../../electron";
+import { useAppStore } from "../../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMessage } from "./message";
+import { useMessage } from "../providers/message";
 import {
   ContextMenu,
   ContextMenuTrigger,

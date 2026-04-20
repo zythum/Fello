@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useActiveSessionState } from "../store";
-import { isValidMessageToDisplay } from "../chat-message";
+import { useSessionState } from "../../store";
+import { isValidMessageToDisplay } from "../../lib/chat-message";
 import { MessageBubble } from "./bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function ChatArea() {
+import type { SessionInfo } from "../../../shared/schema";
+export function ChatArea({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
-  const { messages, isStreaming, activeToolCalls } = useActiveSessionState();
+  const sessionId = session.id;
+  const { messages, isStreaming, activeToolCalls } = useSessionState(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,6 +275,7 @@ export function ChatArea() {
                     data-display-id={group.userMessage.displayId}
                   >
                     <MessageBubble
+                      session={session}
                       message={group.userMessage}
                       prevBubbleRole={
                         groupIndex === 0
@@ -306,6 +309,7 @@ export function ChatArea() {
                       data-display-id={msg.displayId}
                     >
                       <MessageBubble
+                        session={session}
                         message={msg}
                         prevBubbleRole={i === 0 ? group.userMessage?.role : arr[i - 1]?.role}
                         nextBubbleRole={

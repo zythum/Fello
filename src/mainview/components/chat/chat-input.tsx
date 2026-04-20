@@ -1,10 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { MentionsInput, Mention } from "react-mentions";
-import { useAppStore, useActiveSessionState } from "../store";
-import type { ChatMessage } from "../chat-message";
-import { request } from "../backend";
-import { reduceFlushStreaming } from "../lib/session-state-reducer";
+import { useAppStore, useSessionState } from "../../store";
+import type { ChatMessage } from "../../lib/chat-message";
+import { request } from "../../backend";
+import { reduceFlushStreaming } from "../../lib/session-state-reducer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,7 +16,7 @@ import {
 import { ArrowUp, Square, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
-import { useMessage } from "./message";
+import { useMessage } from "../providers/message";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
 // Define an interface for the staged file
@@ -76,16 +76,17 @@ function resolveMentions(value: string): string {
   return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
 }
 
-export function ChatInput() {
+import type { SessionInfo } from "../../../shared/schema";
+export function ChatInput({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { sessions, activeSessionId, addMessage, setIsStreaming } = useAppStore();
+  const { addMessage, setIsStreaming } = useAppStore();
   const { isStreaming, availableModels, currentModelId, availableModes, currentModeId, agentInfo } =
-    useActiveSessionState();
+    useSessionState(session.id);
 
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const attachmentsRef = useRef<StagedAttachment[]>([]);
@@ -154,8 +155,6 @@ export function ChatInput() {
     });
   };
 
-  const session = sessions.find((s) => s.id === activeSessionId) ?? null;
-
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
     (search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
@@ -175,7 +174,7 @@ export function ChatInput() {
   const handleSubmit = useCallback(async () => {
     const displayId = crypto.randomUUID();
     const resolved = resolveMentions(input).trim();
-    if ((!resolved && attachments.length === 0) || !activeSessionId || isStreaming) return;
+    if ((!resolved && attachments.length === 0) || !session.id || isStreaming) return;
 
     // Process attachments before sending
     let attachmentBlocks: ContentBlock[] = [];
@@ -228,13 +227,13 @@ export function ChatInput() {
       });
       return [];
     });
-    addMessage(activeSessionId, userMessage);
+    addMessage(session.id, userMessage);
     document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
 
     try {
       // 2. Wait for the generation to complete
       await request.sendMessage({
-        sessionId: activeSessionId,
+        sessionId: session.id,
         contents,
       });
 
@@ -242,15 +241,13 @@ export function ChatInput() {
       // The backend has already broadcasted isStreaming: false via session_info_update.
     } catch (err) {
       // 4. Rollback on Network Failure
-      const currentState = useAppStore.getState().getSessionState(activeSessionId);
+      const currentState = useAppStore.getState().getSessionState(session.id);
       const isStillOptimistic = currentState.messages.some((m) => m.displayId === displayId);
 
       if (isStillOptimistic) {
         console.error("Prompt error (network failure):", err);
         const newMessages = currentState.messages.filter((m) => m.displayId !== displayId);
-        useAppStore
-          .getState()
-          .updateSessionState(activeSessionId, () => ({ messages: newMessages }));
+        useAppStore.getState().updateSessionState(session.id, () => ({ messages: newMessages }));
       } else {
         console.error("Prompt error (generation failure):", err);
       }
@@ -263,9 +260,9 @@ export function ChatInput() {
       // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
       useAppStore
         .getState()
-        .updateSessionState(activeSessionId, () => reduceFlushStreaming(currentState));
+        .updateSessionState(session.id, () => reduceFlushStreaming(currentState));
     }
-  }, [input, attachments, activeSessionId, isStreaming, addMessage, setIsStreaming]);
+  }, [input, attachments, session.id, isStreaming, addMessage, setIsStreaming]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -362,8 +359,8 @@ export function ChatInput() {
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
   }, []);
 
-  const { isLoading } = useActiveSessionState();
-  const disabled = !activeSessionId || isLoading;
+  const { isLoading } = useSessionState(session.id);
+  const disabled = !session.id || isLoading;
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -523,7 +520,7 @@ export function ChatInput() {
                       if (modeId === null) {
                         return;
                       }
-                      const sid = useAppStore.getState().activeSessionId;
+                      const sid = session.id;
                       if (!sid) return;
                       useAppStore
                         .getState()
@@ -599,7 +596,7 @@ export function ChatInput() {
                     if (modelId === null) {
                       return;
                     }
-                    const sid = useAppStore.getState().activeSessionId;
+                    const sid = session.id;
                     if (!sid) return;
                     useAppStore
                       .getState()
@@ -636,7 +633,7 @@ export function ChatInput() {
                   variant="destructive"
                   size="icon"
                   className="size-7 cursor-default rounded-lg"
-                  onClick={() => request.cancelPrompt({ sessionId: activeSessionId! })}
+                  onClick={() => request.cancelPrompt({ sessionId: session.id })}
                   aria-label={t("chatInput.stop", "Stop")}
                 >
                   <Square className="size-3.5" />

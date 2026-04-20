@@ -1,8 +1,8 @@
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { request, subscribe } from "./backend";
-import { useAppStore } from "./store";
+import { request, subscribe, BackendEvents } from "../backend";
+import { useAppStore } from "../store";
 
 export interface TerminalInstance {
   id: string;
@@ -19,29 +19,29 @@ function ensureGlobalSubscription() {
   if (isSubscribed) return;
   isSubscribed = true;
 
-  subscribe.on("terminal-output", (payload) => {
+  subscribe.on("terminal-output", (payload: BackendEvents["terminal-output"]) => {
     const instance = terminalInstances.get(payload.terminalId);
     if (instance) {
       instance.terminal.write(payload.data);
     }
   });
 
-  subscribe.on("terminal-exit", (payload) => {
+  subscribe.on("terminal-exit", (payload: BackendEvents["terminal-exit"]) => {
     const instance = terminalInstances.get(payload.terminalId);
     if (instance) {
       instance.terminal.options.disableStdin = true;
       instance.terminal.writeln(`\r\n[Process exited with code ${payload.exitCode ?? "null"}]`);
     }
-    
+
     // We don't have projectId directly in the payload, but we can look it up from instances
     // or iterate through project states to update the running status
     const store = useAppStore.getState();
     store.projectStates.forEach((state, projectId) => {
-      if (state.terminals.some(t => t.id === payload.terminalId)) {
+      if (state.terminals.some((t) => t.id === payload.terminalId)) {
         store.updateProjectState(projectId, (s) => ({
-          terminals: s.terminals.map(t => 
-            t.id === payload.terminalId ? { ...t, running: false } : t
-          )
+          terminals: s.terminals.map((t) =>
+            t.id === payload.terminalId ? { ...t, running: false } : t,
+          ),
         }));
       }
     });

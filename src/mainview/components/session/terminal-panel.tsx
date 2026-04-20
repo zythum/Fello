@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, SquareTerminal, X, Circle } from "lucide-react";
-import { request, clientId } from "../backend";
-import { useAppStore, useProjectState } from "../store";
-import { getOrCreateTerminalInstance, destroyTerminalInstance } from "../terminal-manager";
+import { request, clientId } from "../../backend";
+import { useAppStore, useProjectState } from "../../store";
+import { getOrCreateTerminalInstance, destroyTerminalInstance } from "../../lib/terminal-manager";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,10 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
   const resizeObserverRefs = useRef(new Map<string, ResizeObserver>());
 
   const activeProjectId = projectId;
-  const allTerminals = useMemo(() => Array.from(projectStates.values()).flatMap(s => s.terminals), [projectStates]);
+  const allTerminals = useMemo(
+    () => Array.from(projectStates.values()).flatMap((s) => s.terminals),
+    [projectStates],
+  );
 
   const cwd = useMemo(() => {
     if (!activeProjectId) return "";

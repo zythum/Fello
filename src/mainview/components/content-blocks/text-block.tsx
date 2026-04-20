@@ -2,7 +2,7 @@ import { memo } from "react";
 import { cn } from "@/lib/utils";
 import type { TextContent } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../shared/schema";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 import { StreamMarkdown } from "../common/stream-markdown";
 
 interface TextBlockProps {

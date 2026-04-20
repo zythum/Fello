@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
-import type { ChatMessage, ToolCallMessage } from "./chat-message";
+import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
 import type {
   ModelInfo,
   SessionMode,
@@ -57,7 +57,7 @@ const emptySessionState = (): SessionState => ({
   agentInfo: null,
 });
 
-interface AppState {
+export interface AppState {
   // ==========================================================================
   // 1. Core Data (Entities)
   // ==========================================================================
@@ -67,7 +67,6 @@ interface AppState {
   // ==========================================================================
   // 2. Session Management
   // ==========================================================================
-  activeSessionId: string | null;
   isCreatingSession: boolean;
   /**
    * Per-session state bucket.
@@ -106,7 +105,7 @@ interface AppState {
   // ==========================================================================
   // Selectors
   // ==========================================================================
-  getSessionState: (id?: string) => SessionState;
+  getSessionState: (id: string) => SessionState;
   getProjectState: (id: string) => ProjectState;
 
   // ==========================================================================
@@ -116,7 +115,6 @@ interface AppState {
   updateProjectState: (id: string, updater: (state: ProjectState) => Partial<ProjectState>) => void;
   setProjects: (projects: ProjectInfo[]) => void;
   setSessions: (sessions: SessionInfo[]) => void;
-  setActiveSessionId: (id: string | null) => void;
   setIsCreatingSession: (v: boolean) => void;
 
   // ==========================================================================
@@ -160,7 +158,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // 2. Session Management
   // ==========================================================================
-  activeSessionId: null,
   isCreatingSession: false,
   sessionStates: new Map(),
 
@@ -189,10 +186,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // Selectors
   // ==========================================================================
-  getSessionState: (id) => {
-    const sid = id ?? get().activeSessionId;
-    if (!sid) return emptySessionState();
-    return get().sessionStates.get(sid) ?? emptySessionState();
+  getSessionState: (sid: string) => {
+    const state = get().sessionStates.get(sid);
+    if (state) return state;
+
+    return emptySessionState();
   },
   getProjectState: (id) => {
     if (!id) return emptyProjectState();
@@ -221,7 +219,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setProjects: (projects) => set({ projects }),
   setSessions: (sessions) => set({ sessions }),
-  setActiveSessionId: (id) => set({ activeSessionId: id }),
   setIsCreatingSession: (v) => set({ isCreatingSession: v }),
 
   // ==========================================================================
@@ -285,13 +282,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 }));
 
 // Selector: derive current session's state for use in components
-export function useActiveSessionState() {
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
+export function useSessionState(sessionId: string | null) {
   const sessionStates = useAppStore((s) => s.sessionStates);
-  if (!activeSessionId) {
+  if (!sessionId) {
     return emptySessionState();
   }
-  return sessionStates.get(activeSessionId) ?? emptySessionState();
+  return sessionStates.get(sessionId) ?? emptySessionState();
 }
 
 export function useProjectState(projectId: string | null) {

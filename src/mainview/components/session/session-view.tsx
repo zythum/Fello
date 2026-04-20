@@ -1,20 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore, useActiveSessionState } from "../store";
-import { Chat } from "./chat";
+import { useAppStore } from "../../store";
+import { Chat } from "../chat/chat";
 import { FilePanel } from "./file-panel";
 import { TerminalPanel } from "./terminal-panel";
 import { FilePreviewSheet } from "./file-preview";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { Loader2, MessageSquare, FolderTree, SquareTerminal } from "lucide-react";
+import { Loader2, FolderTree, SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { request } from "../../backend";
+import { useSessionState } from "../../store";
+import type { SessionInfo } from "../../../shared/schema";
 
-export function SessionView() {
+export function SessionView({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
-  const { activeSessionId, sessions, isCreatingSession } = useAppStore();
-  const { isLoading } = useActiveSessionState();
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const activeProjectId = activeSession?.projectId;
+  const sessionId = session.id;
+  const { isCreatingSession } = useAppStore();
+  const { isLoading } = useSessionState(sessionId);
+  const activeProjectId = session.projectId;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
   const [rightPanel, setRightPanel] = useState<HTMLElement | null>(null);
@@ -25,6 +28,47 @@ export function SessionView() {
   } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const previewCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto load session if not loaded
+  useEffect(() => {
+    if (!sessionId) return;
+    const sessionState = useAppStore.getState().getSessionState(sessionId);
+    // Don't auto load if we are currently creating a session or if it's already loaded
+    if (sessionState.agentInfo || isCreatingSession) {
+      return;
+    }
+
+    // prevent concurrent loads
+    if (sessionState.isLoading) {
+      return;
+    }
+
+    const loadSession = async () => {
+      useAppStore
+        .getState()
+        .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: true }));
+      try {
+        const result = await request.loadSession({ sessionId });
+        useAppStore.getState().updateSessionState(sessionId, (prev) => ({
+          ...prev,
+          availableModels: result.models?.availableModels ?? [],
+          currentModelId: result.models?.currentModelId ?? null,
+          availableModes: result.modes?.availableModes ?? [],
+          currentModeId: result.modes?.currentModeId ?? null,
+          agentInfo: result.agentInfo,
+          isStreaming: result.isStreaming,
+        }));
+      } catch (err) {
+        console.error("Failed to auto load session", err);
+      } finally {
+        useAppStore
+          .getState()
+          .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    void loadSession();
+  }, [sessionId, isCreatingSession]);
 
   const openPreviewFile = useCallback((file: { projectId: string; relativePath: string }) => {
     if (previewCloseTimeoutRef.current) {
@@ -54,7 +98,7 @@ export function SessionView() {
       clearTimeout(previewCloseTimeoutRef.current);
       previewCloseTimeoutRef.current = null;
     }
-  }, [activeSessionId]);
+  }, [sessionId]);
 
   useEffect(() => {
     const handlePreviewFile = (e: Event) => {
@@ -82,7 +126,7 @@ export function SessionView() {
   return (
     <>
       <main className="flex min-w-0 flex-1 flex-col">
-        {!activeSessionId && (isLoading || isCreatingSession) ? (
+        {!sessionId && (isLoading || isCreatingSession) ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
             <div
               className="absolute left-0 top-0 right-0 h-12"
@@ -93,11 +137,11 @@ export function SessionView() {
               {t("sessionView.connecting")}
             </p>
           </div>
-        ) : activeSessionId ? (
+        ) : sessionId ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
             <ResizablePanel defaultSize={700} minSize={300}>
               <div className="relative flex h-full flex-col">
-                <Chat />
+                <Chat session={session} />
                 {(isLoading || isCreatingSession) && (
                   <div className="absolute inset-0 top-12 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
                     <Loader2 className="size-8 animate-spin text-primary" />
@@ -146,11 +190,7 @@ export function SessionView() {
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <div className={cn("h-full min-h-0", rightTab === "files" ? "block" : "hidden")}>
-                    {activeProjectId && (
-                      <FilePanel
-                        projectId={activeProjectId}
-                      />
-                    )}
+                    {activeProjectId && <FilePanel projectId={activeProjectId} />}
                   </div>
                   <div
                     className={cn("h-full min-h-0", rightTab === "terminal" ? "block" : "hidden")}
@@ -166,26 +206,7 @@ export function SessionView() {
               </aside>
             </ResizablePanel>
           </ResizablePanelGroup>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 relative">
-            <div
-              className="absolute left-0 top-0 right-0 h-12"
-              style={{ WebkitAppRegion: "drag" }}
-            />
-            <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
-              <MessageSquare className="size-8 text-primary" />
-            </div>
-            <div className="text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {t("sessionView.welcomeTitle")}
-              </h1>
-              <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                {t("sessionView.welcomeDesc")}
-              </p>
-            </div>
-            <span className="text-xs text-muted-foreground/60">{t("sessionView.poweredBy")}</span>
-          </div>
-        )}
+        ) : null}
       </main>
 
       <FilePreviewSheet

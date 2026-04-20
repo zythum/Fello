@@ -1,11 +1,14 @@
 import { memo } from "react";
-import type { SystemMessage } from "../../chat-message";
+import type { SystemMessage } from "../../../lib/chat-message";
+import type { BaseBubbleProps } from "./types";
 
-interface Props {
-  message: SystemMessage;
-}
-
-export const SystemBubble = memo(function SystemBubble({ message }: Props) {
+export const SystemBubble = memo(function SystemBubble({
+  session: _session,
+  message,
+  prevBubbleRole: _prevBubbleRole,
+  nextBubbleRole: _nextBubbleRole,
+  isStreaming: _isStreaming,
+}: BaseBubbleProps<SystemMessage>) {
   const { kind, contents } = message;
 
   return (

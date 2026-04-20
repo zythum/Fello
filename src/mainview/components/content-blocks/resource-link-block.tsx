@@ -6,10 +6,10 @@ import { Card } from "@/components/ui/card";
 import { getBasename, formatBytes, downloadDataUrl, isSubPath } from "../../lib/utils";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
-import { useMessage } from "../message";
+import { useMessage } from "../providers/message";
 import { SessionInfo } from "../../../shared/schema";
 import type { ResourceLink } from "@agentclientprotocol/sdk";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 
 interface ResourceLinkBlockProps {
   block: ResourceLink;

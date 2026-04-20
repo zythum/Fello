@@ -1,23 +1,21 @@
 import { memo, useRef, useState, useEffect, useCallback } from "react";
-import type { UserMessage } from "../../chat-message";
-import { ContentBlocks } from "../content-blocks/content-blocks";
-import { useAppStore } from "../../store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
 import { ChevronsUpDown, ChevronsDownUp, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ContentBlocks } from "../../content-blocks/content-blocks";
+import type { UserMessage } from "../../../lib/chat-message";
+import type { BaseBubbleProps } from "./types";
 
-interface Props {
-  message: UserMessage;
-  prevBubbleRole?: string;
-  nextBubbleRole?: string;
-}
-
-export const UserBubble = memo(function UserBubble({ message }: Props) {
+export const UserBubble = memo(function UserBubble({
+  session,
+  message,
+  prevBubbleRole: _prevBubbleRole,
+  nextBubbleRole: _nextBubbleRole,
+  isStreaming: _isStreaming,
+}: BaseBubbleProps<UserMessage>) {
   const { t } = useTranslation();
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);

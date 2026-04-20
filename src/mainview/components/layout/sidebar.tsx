@@ -1,31 +1,25 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { ModelInfo, SessionMode, InitializeResponse } from "@agentclientprotocol/sdk";
-import { useAppStore } from "../store";
-import type { ProjectInfo, SessionInfo } from "../../shared/schema";
-import { request, isWebUI } from "../backend";
-import { electron } from "../electron";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { useAppStore } from "../../store";
+import type { ProjectInfo, SessionInfo } from "../../../shared/schema";
+import { request, isWebUI } from "../../backend";
+import { electron } from "../../electron";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SettingsAgentsDialog } from "./settings-agents-dialog";
-import { SettingsWebUIDialog } from "./settings-webui-dialog";
-import { useMessage } from "./message";
+import { useMessage } from "../providers/message";
 import { extractErrorMessage } from "@/lib/utils";
 import {
-  Bot,
   FolderClosed,
   FolderOpen,
   FolderPlus,
@@ -33,15 +27,10 @@ import {
   Home,
   LoaderCircle,
   MessageCirclePlus,
-  Monitor,
-  Moon,
   MoreHorizontal,
-  Palette,
   Pencil,
   Settings,
-  Sun,
   Trash2,
-  Check,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -50,23 +39,20 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
 
 export function Sidebar() {
   const { t, i18n: _i18n } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
+  const activeSessionId = matchSession ? matchSession[1] : null;
   const {
     isMacApp,
     isFullScreen,
     projects,
     sessions,
-    activeSessionId,
-    setActiveSessionId,
     setProjects,
     setSessions,
     pushGlobalErrorMessage,
     sidebarOpen,
-    resetSessionState,
     configuredAgents,
-    theme,
-    setTheme,
-    i18n,
-    setI18n,
     sessionStates,
     webUIStatus,
   } = useAppStore();
@@ -74,8 +60,6 @@ export function Sidebar() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [webUIOpen, setWebUIOpen] = useState(false);
   const { prompt, confirm } = useMessage();
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
@@ -155,7 +139,7 @@ export function Sidebar() {
       const result = await request.newSession({ projectId, agentId });
       applySessionState(result);
       await refreshData();
-      setActiveSessionId(result.sessionId);
+      navigate(`/session-view/${result.sessionId}`);
     } catch (err) {
       console.error("Failed to create new chat:", err);
       pushGlobalErrorMessage(
@@ -167,29 +151,7 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
-    if (activeSessionId === session.id) return;
-
-    setActiveSessionId(session.id);
-
-    const sessionState = useAppStore.getState().getSessionState(session.id);
-    if (sessionState.agentInfo) {
-      // Already loaded in this lifecycle, skip reload
-      return;
-    }
-
-    resetSessionState(session.id);
-    useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: true }));
-    try {
-      const result = await request.loadSession({ sessionId: session.id });
-      applySessionState(result);
-    } catch (err) {
-      console.error("Failed to load session", err);
-      pushGlobalErrorMessage(
-        getErrorMessage(err, t("sidebar.loadSessionFailed", "Failed to load session.")),
-      );
-    } finally {
-      useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: false }));
-    }
+    navigate(`/session-view/${session.id}`);
   };
 
   const handleDeleteSession = async (session: SessionInfo) => {
@@ -209,8 +171,12 @@ export function Sidebar() {
             useAppStore.setState({ sessionStates: map });
             const { sessions: updated } = await refreshData();
             if (activeSessionId === session.id) {
-              const next = updated.length > 0 ? updated[0].id : null;
-              setActiveSessionId(next);
+              const next = updated.length > 0 ? updated[0] : null;
+              if (next) {
+                navigate(`/session-view/${next.id}`);
+              } else {
+                navigate("/");
+              }
             }
             return "deleted";
           },
@@ -268,7 +234,12 @@ export function Sidebar() {
 
             const { sessions: updated } = await refreshData();
             if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
-              setActiveSessionId(updated.length > 0 ? updated[0].id : null);
+              const next = updated.length > 0 ? updated[0] : null;
+              if (next) {
+                navigate(`/session-view/${next.id}`);
+              } else {
+                navigate("/");
+              }
             }
             return "confirm";
           },
@@ -285,32 +256,6 @@ export function Sidebar() {
       pushGlobalErrorMessage(
         getErrorMessage(err, t("sidebar.revealInFinderFailed", "Failed to reveal in Finder.")),
       );
-    }
-  };
-
-  const handleThemeChange = async (mode: "light" | "dark" | "system") => {
-    const newTheme = { themeMode: mode };
-    setTheme(newTheme);
-    try {
-      await request.updateSettings({
-        theme: newTheme,
-      });
-    } catch {
-      pushGlobalErrorMessage(t("sidebar.saveThemeFailed", "Failed to save theme setting."));
-    }
-  };
-
-  const handleLanguageChange = async (lang: string) => {
-    setI18n({ language: lang });
-    _i18n.changeLanguage(lang);
-    try {
-      await request.updateSettings({
-        i18n: {
-          language: lang,
-        },
-      });
-    } catch {
-      pushGlobalErrorMessage(t("sidebar.saveLanguageFailed", "Failed to save language setting."));
     }
   };
 
@@ -336,9 +281,9 @@ export function Sidebar() {
       ></div>
       <div className="px-2 pt-2 pb-1">
         <div
-          onClick={() => setActiveSessionId(null)}
+          onClick={() => navigate("/")}
           className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
-            !activeSessionId
+            location.pathname === "/"
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
           }`}
@@ -399,7 +344,10 @@ export function Sidebar() {
                           ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
                           : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                       }`}
-                      aria-label={`Project actions for ${project.title}`}
+                      aria-label={t("sidebar.projectActions", {
+                        defaultValue: "Project actions for {{title}}",
+                        title: project.title,
+                      })}
                     >
                       <MoreHorizontal />
                     </DropdownMenuTrigger>
@@ -457,7 +405,10 @@ export function Sidebar() {
                             ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
                             : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                         }`}
-                        aria-label={`Create chat in ${project.title}`}
+                        aria-label={t("sidebar.createChatInProject", {
+                          defaultValue: "Create chat in {{title}}",
+                          title: project.title,
+                        })}
                       >
                         <MessageCirclePlus />
                       </DropdownMenuTrigger>
@@ -489,11 +440,14 @@ export function Sidebar() {
                         if (configuredAgents.length === 1) {
                           void handleNewChat(project.id, configuredAgents[0].id);
                         } else {
-                          setSettingsOpen(true);
+                          navigate("/settings/agents");
                         }
                       }}
                       className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                      aria-label={`Create chat in ${project.title}`}
+                      aria-label={t("sidebar.createChatInProject", {
+                        defaultValue: "Create chat in {{title}}",
+                        title: project.title,
+                      })}
                     >
                       <MessageCirclePlus />
                     </button>
@@ -544,7 +498,10 @@ export function Sidebar() {
                               ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
                               : "opacity-0 group-hover:opacity-80 text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/75"
                           }`}
-                          aria-label={`Chat actions for ${session.title || t("sidebar.newChat", "New Chat")}`}
+                          aria-label={t("sidebar.chatActions", {
+                            defaultValue: "Chat actions for {{title}}",
+                            title: session.title || t("sidebar.newChat", "New Chat"),
+                          })}
                         >
                           <MoreHorizontal />
                         </DropdownMenuTrigger>
@@ -590,113 +547,27 @@ export function Sidebar() {
       </ScrollArea>
 
       <div className="mt-auto border-t border-border/60 p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "flex w-full font-normal items-center justify-between gap-2 rounded-md p-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <Settings className="size-4" />
-              {t("sidebar.settings")}
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/settings/general")}
+          className={cn(
+            "flex w-full font-normal items-center justify-between gap-2 rounded-md p-2 text-xs h-9",
+            location.pathname.startsWith("/settings")
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Settings className="size-4" />
+            {t("sidebar.settings")}
+          </div>
+          {webUIStatus.enabled && (
+            <div title={t("sidebar.webuiEnabled", "WebUI Enabled")}>
+              <Globe className="size-3 text-green-500" />
             </div>
-            {webUIStatus.enabled && (
-              <div title={t("sidebar.webuiEnabled", "WebUI Enabled")}>
-                <Globe className="size-3 text-green-500" />
-              </div>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {!isWebUI && (
-              <>
-                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                  <Bot />
-                  {t("sidebar.agents")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setWebUIOpen(true)}>
-                  <Globe className={cn("size-3", { "text-green-500": webUIStatus.enabled })} />
-                  WebUI
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            {isWebUI && (
-              <>
-                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                  <Bot />
-                  {t("sidebar.agents")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Palette />
-                {t("sidebar.theme")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32">
-                  <DropdownMenuItem onClick={() => void handleThemeChange("light")}>
-                    <Sun />
-                    {t("sidebar.light")}
-                    {theme.themeMode === "light" && (
-                      <div className="ml-auto">
-                        <Check />
-                      </div>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void handleThemeChange("dark")}>
-                    <Moon />
-                    {t("sidebar.dark")}
-                    {theme.themeMode === "dark" && (
-                      <div className="ml-auto">
-                        <Check />
-                      </div>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void handleThemeChange("system")}>
-                    <Monitor />
-                    {t("sidebar.system")}
-                    {theme.themeMode === "system" && (
-                      <div className="ml-auto">
-                        <Check />
-                      </div>
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Globe />
-                {t("sidebar.language")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-32">
-                  <DropdownMenuItem onClick={() => void handleLanguageChange("en")}>
-                    {t("sidebar.english")}
-                    {i18n.language === "en" && (
-                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void handleLanguageChange("zh-CN")}>
-                    {t("sidebar.chinese")}
-                    {i18n.language === "zh-CN" && (
-                      <div className="ml-auto size-1.5 rounded-full bg-primary" />
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </Button>
       </div>
-
-      <SettingsAgentsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <SettingsWebUIDialog open={webUIOpen} onOpenChange={setWebUIOpen} />
     </aside>
   );
 }

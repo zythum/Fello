@@ -6,11 +6,11 @@ import { Card } from "@/components/ui/card";
 import { downloadDataUrl, extractErrorMessage } from "../../lib/utils";
 import { request } from "../../backend";
 
-import { useMessage } from "../message";
+import { useMessage } from "../providers/message";
 
 import { SessionInfo } from "../../../shared/schema";
 import type { ImageContent } from "@agentclientprotocol/sdk";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 
 interface ImageBlockProps {
   block: ImageContent;

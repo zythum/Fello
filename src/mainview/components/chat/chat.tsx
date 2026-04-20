@@ -1,10 +1,10 @@
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
-import { useAppStore } from "../store";
+import { useAppStore } from "../../store";
 import { Badge } from "@/components/ui/badge";
 import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { request } from "../backend";
+import { request } from "../../backend";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
@@ -13,10 +13,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function Chat() {
+import type { SessionInfo } from "../../../shared/schema";
+export function Chat({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
-  const { sessions, activeSessionId } = useAppStore();
-  const session = sessions.find((item) => item.id === activeSessionId) ?? null;
 
   const handleRefreshSession = async () => {
     if (!session) return;
@@ -84,8 +83,8 @@ export function Chat() {
       ) : (
         <div className="flex h-12 px-3" style={{ WebkitAppRegion: "drag" }} />
       )}
-      <ChatArea />
-      <ChatInput />
+      <ChatArea session={session} />
+      <ChatInput session={session} />
     </div>
   );
 }

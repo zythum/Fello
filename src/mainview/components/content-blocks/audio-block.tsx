@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { downloadDataUrl } from "../../lib/utils";
 import { SessionInfo } from "../../../shared/schema";
 import type { AudioContent } from "@agentclientprotocol/sdk";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 
 interface AudioBlockProps {
   block: AudioContent;

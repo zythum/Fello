@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAppStore } from "../store";
+import { useAppStore } from "../../store";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 
 function ThemeSync() {

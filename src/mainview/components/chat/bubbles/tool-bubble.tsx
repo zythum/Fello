@@ -1,9 +1,5 @@
-import { memo } from "react";
-import type { ToolCallMessage } from "../../chat-message";
-import type { ToolCallStatus } from "@agentclientprotocol/sdk";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import {
   Check,
@@ -21,10 +17,14 @@ import {
   Wrench,
 } from "lucide-react";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
-import { ReadonlyTerminal } from "../common/readonly-terminal";
-import { ContentBlocks } from "../content-blocks/content-blocks";
-import { CodeView } from "../common/code-view";
-import { CodeCompareView } from "../common/code-compare-view";
+import { ReadonlyTerminal } from "../../common/readonly-terminal";
+import { ContentBlocks } from "../../content-blocks/content-blocks";
+import { CodeView } from "../../common/code-view";
+import { CodeCompareView } from "../../common/code-compare-view";
+import type { ToolCallMessage } from "../../../lib/chat-message";
+import type { ToolCallStatus } from "@agentclientprotocol/sdk";
+import type { SessionInfo } from "../../../../shared/schema";
+import type { BaseBubbleProps } from "./types";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -47,14 +47,13 @@ const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
 };
 
 interface ToolItemProps {
+  session: SessionInfo;
   message: ToolCallMessage;
 }
 
-export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
+export function ToolItem({ session, message }: ToolItemProps) {
   const { t } = useTranslation();
-  const activeProjectId = useAppStore(
-    (s) => s.sessions.find((session) => session.id === s.activeSessionId)?.projectId ?? null,
-  );
+  const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const isLive = status === "in_progress" || status === "pending";
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
@@ -150,19 +149,15 @@ export const ToolItem = memo(function ToolItem({ message }: ToolItemProps) {
       </div>
     </details>
   );
-});
-
-interface ToolBubbleProps {
-  message: ToolCallMessage;
-  prevBubbleRole?: string;
-  nextBubbleRole?: string;
 }
 
-export const ToolBubble = memo(function ToolBubble({
+export function ToolBubble({
+  session,
   message,
   prevBubbleRole,
   nextBubbleRole,
-}: ToolBubbleProps) {
+  isStreaming: _isStreaming,
+}: BaseBubbleProps<ToolCallMessage>) {
   const isGroupedWithPrev = prevBubbleRole === "tool_call";
   const isGroupedWithNext = nextBubbleRole === "tool_call";
   const hasPrevBubble = prevBubbleRole != null;
@@ -177,7 +172,7 @@ export const ToolBubble = memo(function ToolBubble({
         !isGroupedWithNext && "rounded-b-md",
       )}
     >
-      <ToolItem message={message} />
+      <ToolItem session={session} message={message} />
     </div>
   );
-});
+}

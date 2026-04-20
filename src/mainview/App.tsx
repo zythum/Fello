@@ -3,13 +3,13 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionUpdate } from "./lib/session-state-reducer";
-import { Sidebar } from "./components/sidebar";
-import { SessionView } from "./components/session-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { MessageProvider, useMessage } from "@/components/message";
-import { ThemeProvider } from "./components/theme-provider";
-import { GlobalTextContextMenu } from "./components/global-text-context-menu";
-import { PermissionDialog } from "./components/permission-dialog";
+import { MessageProvider, useMessage } from "./components/providers/message";
+import { ThemeProvider } from "./components/providers/theme";
+import { PermissionDialog } from "./components/global/permission-dialog";
+import { GlobalTextContextMenu } from "./components/global/global-text-context-menu";
+import { AppRouter } from "./router";
+import { HashRouter, useLocation, useNavigate } from "react-router-dom";
 
 function AppContent() {
   const {
@@ -26,6 +26,14 @@ function AppContent() {
   const { t, i18n } = useTranslation();
   const { alert, toast } = useMessage();
   const currentGlobalError = globalErrorMessages[0] ?? null;
+  const location = useLocation();
+  const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
+  const activeSessionId = matchSession ? matchSession[1] : null;
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+  const navigate = useNavigate();
   const [isReady, setIsReady] = useState(false);
   const pendingSessionUpdatesRef = useRef(
     new Map<string, BackendEvents["session-update"]["notification"]["update"][]>(),
@@ -164,7 +172,9 @@ function AppContent() {
       useAppStore.getState().addPermissionRequest(sid, detail.request);
 
       toast.custom(
-        (t) => <PermissionDialog request={detail.request} sessionId={sid} toastId={t} />,
+        (t: string | number) => (
+          <PermissionDialog request={detail.request} sessionId={sid} toastId={t} />
+        ),
         {
           duration: Infinity,
           id: `perm-${sid}-${detail.request.toolCall.toolCallId}`,
@@ -199,14 +209,14 @@ function AppContent() {
     const handleSessionsChanged = async () => {
       const fetchId = ++currentSessionsFetchId;
       const prevSessions = useAppStore.getState().sessions;
-      const prevActiveSessionId = useAppStore.getState().activeSessionId;
+      const currentActiveSessionId = activeSessionIdRef.current;
       const prevActiveSessionTitle =
-        prevSessions.find((s) => s.id === prevActiveSessionId)?.title ?? null;
+        prevSessions.find((s) => s.id === currentActiveSessionId)?.title ?? null;
       const nextSessions = (await request.listSessions()) ?? [];
       if (fetchId !== currentSessionsFetchId) return;
 
       const store = useAppStore.getState();
-      const currentActiveSessionId = store.activeSessionId;
+
       store.setSessions(nextSessions);
 
       const sessionIds = new Set(nextSessions.map((s) => s.id));
@@ -223,12 +233,17 @@ function AppContent() {
       }
 
       if (currentActiveSessionId && !sessionIds.has(currentActiveSessionId)) {
-        if (prevActiveSessionId === currentActiveSessionId && prevActiveSessionTitle) {
+        if (prevActiveSessionTitle) {
           toast.info(t("toast.activeSessionDeletedWithTitle", { title: prevActiveSessionTitle }));
         } else {
           toast.info(t("toast.activeSessionDeleted"));
         }
-        store.setActiveSessionId(nextSessions[0]?.id ?? null);
+        const nextSession = nextSessions[0];
+        if (nextSession) {
+          navigate(`/session-view/${nextSession.id}`);
+        } else {
+          navigate("/");
+        }
       }
     };
 
@@ -284,11 +299,8 @@ function AppContent() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar />
-        <SessionView />
-        <GlobalTextContextMenu />
-      </div>
+      <AppRouter />
+      <GlobalTextContextMenu />
     </TooltipProvider>
   );
 }
@@ -297,7 +309,9 @@ function App() {
   return (
     <ThemeProvider>
       <MessageProvider>
-        <AppContent />
+        <HashRouter>
+          <AppContent />
+        </HashRouter>
       </MessageProvider>
     </ThemeProvider>
   );

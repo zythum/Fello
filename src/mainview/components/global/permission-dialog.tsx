@@ -1,6 +1,6 @@
-import type { PermissionRequest } from "../store";
-import * as backend from "../backend";
-import { useAppStore } from "../store";
+import { useAppStore, type PermissionRequest, type AppState } from "../../store";
+import type { SessionInfo } from "../../../shared/schema";
+import * as backend from "../../backend";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
@@ -14,7 +14,9 @@ interface Props {
 
 export function PermissionDialog({ request, sessionId, toastId: _toastId }: Props) {
   const { t } = useTranslation();
-  const session = useAppStore((s) => s.sessions.find((x) => x.id === sessionId));
+  const session = useAppStore((s: AppState) =>
+    s.sessions.find((x: SessionInfo) => x.id === sessionId),
+  );
   const sessionTitle = session?.title || t("sidebar.newChat", "New Chat");
 
   const handleSelect = async (optionId: string) => {
@@ -49,7 +51,7 @@ export function PermissionDialog({ request, sessionId, toastId: _toastId }: Prop
         </pre>
       </div>
       <div className="flex flex-col gap-2">
-        {request.options.map((option) => {
+        {request.options.map((option: any) => {
           const isAllow = option.kind === "allow_once" || option.kind === "allow_always";
           return (
             <Button

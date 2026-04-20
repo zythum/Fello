@@ -1,6 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../shared/schema";
-import type { ChatMessage } from "../../chat-message";
+import type { ChatMessage } from "../../lib/chat-message";
 import { TextBlock } from "./text-block";
 import { ImageBlock } from "./image-block";
 import { AudioBlock } from "./audio-block";

@@ -1,17 +1,17 @@
 import { memo } from "react";
-import type { PlanMessage } from "../../chat-message";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Check, Loader2, ChevronUp, ChevronDown, Minus } from "lucide-react";
+import type { BaseBubbleProps } from "./types";
+import type { PlanMessage } from "../../../lib/chat-message";
 
 export const PlanBubble = memo(function PlanBubble({
+  session: _session,
   message,
   prevBubbleRole,
-}: {
-  message: PlanMessage;
-  prevBubbleRole?: string;
-  nextBubbleRole?: string;
-}) {
+  nextBubbleRole: _nextBubbleRole,
+  isStreaming: _isStreaming,
+}: BaseBubbleProps<PlanMessage>) {
   const { t } = useTranslation();
   const total = message.entries?.length || 0;
   const completed = message.entries?.filter((e) => e.status === "completed").length || 0;

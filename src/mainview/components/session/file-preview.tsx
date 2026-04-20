@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
-import { request } from "../backend";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
-import { ScrollArea } from "./ui/scroll-area";
+import { request } from "../../backend";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { File, XIcon } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import { CodeView } from "./common/code-view";
-import { CodeCompareView } from "./common/code-compare-view";
-import { StreamMarkdown } from "./common/stream-markdown";
-import { ImageView } from "./common/image-view";
-import { useAppStore } from "../store";
+import { CodeView } from "../common/code-view";
+import { CodeCompareView } from "../common/code-compare-view";
+import { StreamMarkdown } from "../common/stream-markdown";
+import { ImageView } from "../common/image-view";
+import { useAppStore } from "../../store";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-} from "./ui/context-menu";
+} from "@/components/ui/context-menu";
 import { MessageSquarePlus, Copy } from "lucide-react";
 
 export interface FilePreviewSheetProps {

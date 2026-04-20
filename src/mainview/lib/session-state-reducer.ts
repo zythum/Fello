@@ -1,7 +1,7 @@
 import type { SessionNotification, ContentBlock } from "@agentclientprotocol/sdk";
 import i18n from "../i18n";
 import type { SessionState } from "../store";
-import type { ToolCallMessage, ChatMessage, PlanMessage } from "../chat-message";
+import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
 
 // ---------------------------------------------------------------------------
 // Pure Functions for State Calculation

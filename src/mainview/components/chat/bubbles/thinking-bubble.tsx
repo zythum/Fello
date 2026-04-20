@@ -1,26 +1,19 @@
 import { memo } from "react";
 import { Lightbulb } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { AgentThoughtMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../content-blocks/content-blocks";
-import { useAppStore } from "../../store";
-
-interface Props {
-  message: AgentThoughtMessage;
-  prevBubbleRole?: string;
-  nextBubbleRole?: string;
-  isStreaming?: boolean;
-}
+import { ContentBlocks } from "../../content-blocks/content-blocks";
+import type { AgentThoughtMessage } from "../../../lib/chat-message";
+import type { BaseBubbleProps } from "./types";
 
 export const ThinkingBubble = memo(function ThinkingBubble({
+  session,
   message,
   prevBubbleRole,
+  nextBubbleRole: _nextBubbleRole,
   isStreaming,
-}: Props) {
+}: BaseBubbleProps<AgentThoughtMessage>) {
   const { t } = useTranslation();
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
 
   return (
     <details

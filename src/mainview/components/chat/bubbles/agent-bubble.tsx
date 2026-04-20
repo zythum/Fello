@@ -1,24 +1,16 @@
 import { memo } from "react";
-import type { AgentMessage } from "../../chat-message";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../content-blocks/content-blocks";
-import { useAppStore } from "../../store";
-
-interface Props {
-  message: AgentMessage;
-  prevBubbleRole?: string;
-  nextBubbleRole?: string;
-  isStreaming?: boolean;
-}
+import { ContentBlocks } from "../../content-blocks/content-blocks";
+import type { AgentMessage } from "../../../lib/chat-message";
+import type { BaseBubbleProps } from "./types";
 
 export const AgentBubble = memo(function AssistantBubble({
+  session,
   message,
   prevBubbleRole,
+  nextBubbleRole: _nextBubbleRole,
   isStreaming,
-}: Props) {
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const session = useAppStore((s) => s.sessions.find((x) => x.id === activeSessionId));
-
+}: BaseBubbleProps<AgentMessage>) {
   if (!message.contents || message.contents.length === 0) {
     return null;
   }
@@ -27,8 +19,8 @@ export const AgentBubble = memo(function AssistantBubble({
       <ContentBlocks
         blocks={message.contents}
         role={message.role}
-        session={session}
         isStreaming={isStreaming}
+        session={session}
       />
     </div>
   );
