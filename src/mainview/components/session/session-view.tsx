@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { reduceFlushStreaming } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
 import { Chat } from "../chat/chat";
 import { FilePanel } from "./file-panel";
@@ -45,9 +46,10 @@ export function SessionView({ session }: { session: SessionInfo }) {
     }
 
     const loadSession = async () => {
-      useAppStore
-        .getState()
-        .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: true }));
+      useAppStore.getState().updateSessionState(sessionId, (prev) => ({
+        ...reduceFlushStreaming(prev),
+        isLoading: true,
+      }));
       try {
         const result = await request.loadSession({ sessionId });
         useAppStore.getState().updateSessionState(sessionId, (prev) => ({

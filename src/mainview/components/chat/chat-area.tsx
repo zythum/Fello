@@ -305,7 +305,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none px-10",
                 {
                   "pt-4": !isFirstGroup,
-                  "min-h-full": isLastGroup
+                  "min-h-full": isLastGroup,
                 },
               )}
             >
@@ -390,40 +390,42 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 <div className="flex items-center relative border-b border-foreground/10 border-dashed py-1.5 group/separator pointer-events-auto">
                   <div className="flex-1 flex items-center"></div>
                   <div className="flex items-center">
-                  {groupHasText && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/60 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const ok = await copyText(groupText);
-                        if (!ok) return;
-                        setCopiedGroupKey(group.key);
-                        setTimeout(() => setCopiedGroupKey((prev) => (prev === group.key ? null : prev)), 2000);
-                      }}
-                      title={
-                        copiedGroupKey === group.key
-                          ? t("chatArea.copiedGroup", "Copied")
-                          : t("chatArea.copyGroup", "Copy")
-                      }
-                      aria-label={
-                        copiedGroupKey === group.key
-                          ? t("chatArea.copiedGroup", "Copied")
-                          : t("chatArea.copyGroup", "Copy")
-                      }
-                    >
-                      {copiedGroupKey === group.key ? (
-                        <Check className="size-3.5 text-green-500" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </Button>
-                  )}
+                    {groupHasText && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/60 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const ok = await copyText(groupText);
+                          if (!ok) return;
+                          setCopiedGroupKey(group.key);
+                          setTimeout(
+                            () => setCopiedGroupKey((prev) => (prev === group.key ? null : prev)),
+                            2000,
+                          );
+                        }}
+                        title={
+                          copiedGroupKey === group.key
+                            ? t("chatArea.copiedGroup", "Copied")
+                            : t("chatArea.copyGroup", "Copy")
+                        }
+                        aria-label={
+                          copiedGroupKey === group.key
+                            ? t("chatArea.copiedGroup", "Copied")
+                            : t("chatArea.copyGroup", "Copy")
+                        }
+                      >
+                        {copiedGroupKey === group.key ? (
+                          <Check className="size-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="size-3.5" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
-
             </div>
           );
         })}

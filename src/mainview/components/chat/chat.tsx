@@ -1,6 +1,7 @@
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { useAppStore } from "../../store";
+import { reduceFlushStreaming } from "../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
 import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,7 @@ export function Chat({ session }: { session: SessionInfo }) {
     const { resetSessionState, updateSessionState } = useAppStore.getState();
 
     try {
+      updateSessionState(session.id, (prev) => reduceFlushStreaming(prev));
       resetSessionState(session.id);
       updateSessionState(session.id, () => ({ isLoading: true }));
       const result = await request.loadSession({ sessionId: session.id });
