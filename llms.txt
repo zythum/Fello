@@ -13,6 +13,7 @@ IPC
 
 Sessions & Persistence
 - Session metadata persistence: src/backend/storage.ts
+- MCP Server support allows dynamic capability extension via Model Context Protocol servers
 - Message history is replayed from the ACP server when resuming a session
 - Renderer state store: src/mainview/store.ts
 - Routing: src/mainview/router.tsx (uses react-router-dom HashRouter)

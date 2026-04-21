@@ -37,7 +37,7 @@
 
 ### Renderer（`src/mainview/`）
 
-- `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 队列管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
+- `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 提示管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
 - `router.tsx`：使用 `react-router-dom` 定义路由拓扑（包含 `/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings` 嵌套设置页等）
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾

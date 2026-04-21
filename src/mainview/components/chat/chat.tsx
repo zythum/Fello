@@ -16,16 +16,17 @@ import {
   DropdownMenuGroup,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { useMessage } from "../providers/message";
 
 import type { SessionInfo } from "../../../shared/schema";
 export function Chat({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
+  const { toast } = useMessage();
 
   const handleRefreshSession = async () => {
     if (!session) return;
-    const { resetSessionState, pushGlobalErrorMessage, updateSessionState } =
-      useAppStore.getState();
+    const { resetSessionState, updateSessionState } = useAppStore.getState();
 
     try {
       resetSessionState(session.id);
@@ -45,7 +46,7 @@ export function Chat({ session }: { session: SessionInfo }) {
       console.error("Failed to load session:", err);
       const message =
         extractErrorMessage(err) || t("chat.failedToLoadSession", "Failed to load session.");
-      pushGlobalErrorMessage(message);
+      toast.error(message);
     } finally {
       updateSessionState(session.id, () => ({ isLoading: false }));
     }
@@ -53,7 +54,6 @@ export function Chat({ session }: { session: SessionInfo }) {
 
   const handleToggleMcpServer = async (mcpId: string) => {
     if (!session) return;
-    const { pushGlobalErrorMessage } = useAppStore.getState();
     const currentMcpServers = session.mcpServers || [];
     const newMcpServers = currentMcpServers.includes(mcpId)
       ? currentMcpServers.filter((id) => id !== mcpId)
@@ -65,7 +65,10 @@ export function Chat({ session }: { session: SessionInfo }) {
       });
     } catch (err) {
       console.error("Failed to update MCP servers:", err);
-      pushGlobalErrorMessage(extractErrorMessage(err) || "Failed to update MCP servers");
+      toast.error(
+        extractErrorMessage(err) ||
+          t("chat.failedToUpdateMcpServers", "Failed to update MCP servers"),
+      );
     }
   };
 

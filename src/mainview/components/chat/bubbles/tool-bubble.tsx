@@ -111,10 +111,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
               );
             } else if (content.type === "diff") {
               return (
-                <div
-                  key={index}
-                  className="border-b border-border last:border-b-0 flex flex-col"
-                >
+                <div key={index} className="border-b border-border last:border-b-0 flex flex-col">
                   <div className="px-3 py-1 bg-muted/50 border-b border-border text-[10px] font-mono text-muted-foreground truncate">
                     {content.path}
                   </div>

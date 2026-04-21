@@ -115,7 +115,8 @@
     }
   },
   "chat": {
-    "failedToLoadSession": "加载会话失败。"
+    "failedToLoadSession": "加载会话失败。",
+    "failedToUpdateMcpServers": "更新 MCP 服务器失败。"
   },
   "planBubble": {
     "title": "计划",

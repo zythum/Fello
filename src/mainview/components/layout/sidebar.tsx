@@ -66,7 +66,6 @@ export function Sidebar() {
     sessions,
     setProjects,
     setSessions,
-    pushGlobalErrorMessage,
     sidebarOpen,
     configuredAgents,
     sessionStates,
@@ -76,7 +75,7 @@ export function Sidebar() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
-  const { prompt, confirm } = useMessage();
+  const { prompt, confirm, toast } = useMessage();
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
@@ -136,7 +135,7 @@ export function Sidebar() {
 
       const result = await request.addProject(selectedPath);
       if (!result.created) {
-        pushGlobalErrorMessage(t("sidebar.projectExists", "Project already exists."));
+        toast.error(t("sidebar.projectExists", "Project already exists."));
         return;
       }
       await refreshData();
@@ -144,7 +143,7 @@ export function Sidebar() {
     } catch (err) {
       const message = getErrorMessage(err, t("sidebar.addProjectFailed", "Failed to add project."));
       if (message === "Project selection was canceled") return;
-      pushGlobalErrorMessage(message);
+      toast.error(message);
     }
   };
 
@@ -158,9 +157,7 @@ export function Sidebar() {
       handleNavigate(`/session-view/${result.sessionId}`);
     } catch (err) {
       console.error("Failed to create new chat:", err);
-      pushGlobalErrorMessage(
-        getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")),
-      );
+      toast.error(getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")));
     } finally {
       useAppStore.getState().setIsCreatingSession(false);
     }
@@ -269,7 +266,7 @@ export function Sidebar() {
     try {
       await electron.revealInFinder(project.cwd);
     } catch (err) {
-      pushGlobalErrorMessage(
+      toast.error(
         getErrorMessage(err, t("sidebar.revealInFinderFailed", "Failed to reveal in Finder.")),
       );
     }

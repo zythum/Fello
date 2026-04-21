@@ -15,8 +15,6 @@ function AppContent() {
   const {
     setSessions,
     setProjects,
-    globalErrorMessages,
-    shiftGlobalErrorMessage,
     setConfiguredAgents,
     setConfiguredMcpServers,
     setWebUIStatus,
@@ -26,8 +24,7 @@ function AppContent() {
     setIsFullScreen,
   } = useAppStore();
   const { t, i18n } = useTranslation();
-  const { alert, toast } = useMessage();
-  const currentGlobalError = globalErrorMessages[0] ?? null;
+  const { toast } = useMessage();
   const location = useLocation();
   const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
   const activeSessionId = matchSession ? matchSession[1] : null;
@@ -290,20 +287,6 @@ function AppContent() {
       pendingSessionUpdatesRef.current.clear();
     };
   }, [isMacApp]);
-
-  useEffect(() => {
-    if (!currentGlobalError) return;
-
-    const showError = async () => {
-      await alert({
-        title: t("message.errorTitle", "Error"),
-        content: currentGlobalError,
-      });
-      shiftGlobalErrorMessage();
-    };
-
-    void showError();
-  }, [currentGlobalError, alert, shiftGlobalErrorMessage]);
 
   if (!isReady) {
     return null; // Don't render anything until initial data and theme are loaded

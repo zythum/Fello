@@ -8,10 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMessage } from "../providers/message";
 
 export function SettingsGeneral() {
   const { t, i18n: _i18n } = useTranslation();
-  const { theme, setTheme, i18n, setI18n, pushGlobalErrorMessage } = useAppStore();
+  const { theme, setTheme, i18n, setI18n } = useAppStore();
+  const { toast } = useMessage();
 
   const handleThemeChange = async (mode: string | null) => {
     if (!mode) return;
@@ -22,7 +24,7 @@ export function SettingsGeneral() {
         theme: newTheme,
       });
     } catch {
-      pushGlobalErrorMessage(t("sidebar.saveThemeFailed", "Failed to save theme setting."));
+      toast.error(t("sidebar.saveThemeFailed", "Failed to save theme setting."));
     }
   };
 
@@ -37,7 +39,7 @@ export function SettingsGeneral() {
         },
       });
     } catch {
-      pushGlobalErrorMessage(t("sidebar.saveLanguageFailed", "Failed to save language setting."));
+      toast.error(t("sidebar.saveLanguageFailed", "Failed to save language setting."));
     }
   };
 

@@ -96,7 +96,6 @@ export interface AppState {
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
-  globalErrorMessages: string[];
   /**
    * Global cache for terminal logs.
    * Kept flat and global to avoid deep updates in SessionState and to persist
@@ -146,9 +145,6 @@ export interface AppState {
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIsFullScreen: (v: boolean) => void;
-  pushGlobalErrorMessage: (message: string) => void;
-  shiftGlobalErrorMessage: () => void;
-  clearGlobalErrors: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -184,7 +180,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
-  globalErrorMessages: [],
   terminalLogs: {},
 
   // ==========================================================================
@@ -279,11 +274,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setI18n: (i18n) => set({ i18n }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIsFullScreen: (v) => set({ isFullScreen: v }),
-  pushGlobalErrorMessage: (message) =>
-    set((state) => ({ globalErrorMessages: [...state.globalErrorMessages, message] })),
-  shiftGlobalErrorMessage: () =>
-    set((state) => ({ globalErrorMessages: state.globalErrorMessages.slice(1) })),
-  clearGlobalErrors: () => set({ globalErrorMessages: [] }),
 }));
 
 // Selector: derive current session's state for use in components

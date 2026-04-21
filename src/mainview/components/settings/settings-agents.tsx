@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
+import { useMessage } from "../providers/message";
 
 function parseEnvJson(raw: string): Record<string, string> | null {
   const trimmed = raw.trim();
@@ -30,7 +31,8 @@ function parseEnvJson(raw: string): Record<string, string> | null {
 
 export function SettingsAgents() {
   const { t } = useTranslation();
-  const { configuredAgents, setConfiguredAgents, pushGlobalErrorMessage } = useAppStore();
+  const { configuredAgents, setConfiguredAgents } = useAppStore();
+  const { toast } = useMessage();
   const [agents, setAgents] = useState<SettingsInfo["agents"]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<SettingsInfo["agents"][number] | null>(null);
@@ -52,7 +54,7 @@ export function SettingsAgents() {
       await request.updateSettings({ agents: updatedAgents });
       setConfiguredAgents(updatedAgents);
     } catch (err) {
-      pushGlobalErrorMessage(
+      toast.error(
         extractErrorMessage(err) ||
           t("settings.agents.updateFailed", "Failed to update configuration."),
       );
@@ -94,7 +96,7 @@ export function SettingsAgents() {
   const handleSaveEdit = async () => {
     if (!editForm) return;
     if (!editForm.id.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage(t("settings.agents.errorIdCommand"));
+      toast.error(t("settings.agents.errorIdCommand"));
       return;
     }
 
@@ -103,13 +105,13 @@ export function SettingsAgents() {
         (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_agent_"),
       )
     ) {
-      pushGlobalErrorMessage(t("settings.agents.errorDuplicateId"));
+      toast.error(t("settings.agents.errorDuplicateId"));
       return;
     }
 
     const nextEnv = parseEnvJson(envRaw);
     if (!nextEnv) {
-      pushGlobalErrorMessage(t("settings.agents.errorEnvJson"));
+      toast.error(t("settings.agents.errorEnvJson"));
       return;
     }
 

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
+import { useMessage } from "../providers/message";
 
 function parseEnvJson(raw: string): Record<string, string> | null {
   const trimmed = raw.trim();
@@ -30,7 +31,8 @@ function parseEnvJson(raw: string): Record<string, string> | null {
 
 export function SettingsMcp() {
   const { t } = useTranslation();
-  const { configuredMcpServers, setConfiguredMcpServers, pushGlobalErrorMessage } = useAppStore();
+  const { configuredMcpServers, setConfiguredMcpServers } = useAppStore();
+  const { toast } = useMessage();
   const [mcpServers, setMcpServers] = useState<SettingsInfo["mcpServers"]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<SettingsInfo["mcpServers"][number] | null>(null);
@@ -52,7 +54,7 @@ export function SettingsMcp() {
       await request.updateSettings({ mcpServers: updatedMcpServers });
       setConfiguredMcpServers(updatedMcpServers);
     } catch (err) {
-      pushGlobalErrorMessage(
+      toast.error(
         extractErrorMessage(err) ||
           t("settings.mcp.updateFailed", "Failed to update configuration."),
       );
@@ -90,7 +92,7 @@ export function SettingsMcp() {
   const handleSaveEdit = async () => {
     if (!editForm) return;
     if (!editForm.id.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage(t("settings.mcp.errorIdCommand", "ID and Command are required."));
+      toast.error(t("settings.mcp.errorIdCommand", "ID and Command are required."));
       return;
     }
 
@@ -99,15 +101,13 @@ export function SettingsMcp() {
         (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_mcp_"),
       )
     ) {
-      pushGlobalErrorMessage(
-        t("settings.mcp.errorDuplicateId", "A server with this ID already exists."),
-      );
+      toast.error(t("settings.mcp.errorDuplicateId", "A server with this ID already exists."));
       return;
     }
 
     const nextEnv = parseEnvJson(envRaw);
     if (!nextEnv) {
-      pushGlobalErrorMessage(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
+      toast.error(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
       return;
     }
 

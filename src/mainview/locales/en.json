@@ -115,7 +115,8 @@
     }
   },
   "chat": {
-    "failedToLoadSession": "Failed to load session."
+    "failedToLoadSession": "Failed to load session.",
+    "failedToUpdateMcpServers": "Failed to update MCP servers."
   },
   "planBubble": {
     "title": "Plan",

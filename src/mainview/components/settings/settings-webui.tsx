@@ -7,10 +7,12 @@ import { Switch } from "@/components/ui/switch";
 import { Check, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { extractErrorMessage } from "@/lib/utils";
+import { useMessage } from "../providers/message";
 
 export function SettingsWebUI() {
   const { t } = useTranslation();
-  const { webUIStatus, pushGlobalErrorMessage } = useAppStore();
+  const { webUIStatus } = useAppStore();
+  const { toast } = useMessage();
   const [copied, setCopied] = useState(false);
   const [customPort, setCustomPort] = useState<string>("");
   const [customToken, setCustomToken] = useState<string>("");
@@ -29,7 +31,7 @@ export function SettingsWebUI() {
         useAppStore.getState().setWebUIStatus(status);
       }
     } catch (err) {
-      pushGlobalErrorMessage(
+      toast.error(
         extractErrorMessage(err) ||
           t("settings.webui.updateFailed", "Failed to update configuration."),
       );
