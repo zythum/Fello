@@ -210,7 +210,9 @@
   },
   "chatArea": {
     "thinking": "Thinking...",
-    "scrollToBottom": "Scroll to bottom"
+    "scrollToBottom": "Scroll to bottom",
+    "copyGroup": "Copy",
+    "copiedGroup": "Copied"
   },
   "chatTimeline": {
     "userMessageIndex": "User message {{index}}",

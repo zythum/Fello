@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionState } from "../../store";
-import { isValidMessageToDisplay } from "../../lib/chat-message";
+import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../lib/chat-message";
 import { MessageBubble } from "./bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type { SessionInfo } from "../../../shared/schema";
@@ -25,6 +25,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showThinking, setShowThinking] = useState(false);
   const [activeUserMessageId, setActiveUserMessageId] = useState<string | null>(null);
+  const [copiedGroupKey, setCopiedGroupKey] = useState<string | null>(null);
 
   useEffect(() => {
     let timeoutId: any = null;
@@ -144,8 +145,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const messageGroups = useMemo(() => {
     const groups: {
       key: string;
-      userMessage?: (typeof renderedMessages)[0];
-      contentMessages: typeof renderedMessages;
+      userMessage?: UserMessage;
+      contentMessages: ChatMessage[];
     }[] = [];
     let currentGroup: (typeof groups)[0] | null = null;
 
@@ -232,6 +233,54 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     [getViewport],
   );
 
+  const getAgentText = useCallback(
+    (groupMessages: typeof renderedMessages) => {
+      const parts: string[] = [];
+      for (const msg of groupMessages) {
+        if (msg.role !== "agent_message") {
+          continue;
+        }
+        if (!("contents" in msg)) continue;
+        const contents = msg.contents;
+        if (!Array.isArray(contents)) continue;
+        for (const block of contents) {
+          if (block.type === "text") {
+            const text = block.text.trim();
+            if (text) {
+              parts.push(text);
+            }
+          }
+        }
+      }
+      return parts.join("\n");
+    },
+    [renderedMessages],
+  );
+
+  const copyText = useCallback(async (text: string) => {
+    if (!text) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+  }, []);
+
   return (
     <div className="w-full relative min-h-0 flex flex-1 overflow-hidden">
       <div className="shrink-0 w-6 -mr-6 relative z-1">
@@ -246,6 +295,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
         {messageGroups.map((group, groupIndex) => {
           const isFirstGroup = groupIndex === 0;
           const isLastGroup = groupIndex === messageGroups.length - 1;
+          const groupText = getAgentText(group.contentMessages);
+          const groupHasText = groupText.trim().length > 0;
 
           return (
             <div
@@ -254,8 +305,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none px-10",
                 {
                   "pt-4": !isFirstGroup,
-                  "min-h-full": isLastGroup,
-                  "border-b border-foreground/10 border-dashed": !isLastGroup,
+                  "min-h-full": isLastGroup
                 },
               )}
             >
@@ -293,7 +343,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 </div>
               )}
 
-              <div className="message-content pb-4 flex-1">
+              <div className="message-content pb-4">
                 {group.contentMessages.map((msg, i, arr) => {
                   const isLastInGroup = i === arr.length - 1;
                   const isLastRendered = isLastGroup && isLastInGroup;
@@ -335,6 +385,45 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                   </span>
                 </div>
               </div>
+
+              {(isLastGroup ? !isStreaming : true) && (
+                <div className="flex items-center relative border-b border-foreground/10 border-dashed py-1.5 group/separator pointer-events-auto">
+                  <div className="flex-1 flex items-center"></div>
+                  <div className="flex items-center">
+                  {groupHasText && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/60 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const ok = await copyText(groupText);
+                        if (!ok) return;
+                        setCopiedGroupKey(group.key);
+                        setTimeout(() => setCopiedGroupKey((prev) => (prev === group.key ? null : prev)), 2000);
+                      }}
+                      title={
+                        copiedGroupKey === group.key
+                          ? t("chatArea.copiedGroup", "Copied")
+                          : t("chatArea.copyGroup", "Copy")
+                      }
+                      aria-label={
+                        copiedGroupKey === group.key
+                          ? t("chatArea.copiedGroup", "Copied")
+                          : t("chatArea.copyGroup", "Copy")
+                      }
+                    >
+                      {copiedGroupKey === group.key ? (
+                        <Check className="size-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                  )}
+                  </div>
+                </div>
+              )}
+
             </div>
           );
         })}

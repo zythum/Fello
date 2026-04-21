@@ -336,7 +336,7 @@ export function FilePreviewSheet({
               }}
             >
               <ContextMenuTrigger
-                className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -m-3.5"
+                className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 -my-2"
                 onContextMenu={handleContextMenu}
               >
                 <CodeView content={content} filename={fileName} />
