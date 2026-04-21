@@ -58,7 +58,7 @@ export function SettingsGeneral() {
             </span>
           </div>
           <Select value={theme.themeMode} onValueChange={handleThemeChange}>
-            <SelectTrigger size="sm" className="w-32">
+            <SelectTrigger size="sm" className="w-35">
               <SelectValue placeholder="Theme">
                 {(value: string) => {
                   if (value === "light") return t("sidebar.light");
@@ -83,7 +83,7 @@ export function SettingsGeneral() {
             </span>
           </div>
           <Select value={i18n.language} onValueChange={handleLanguageChange}>
-            <SelectTrigger size="sm" className="w-32">
+            <SelectTrigger size="sm" className="w-35">
               <SelectValue placeholder="Language">
                 {(value: string) => {
                   if (value === "en") return t("sidebar.english");
