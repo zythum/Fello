@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
-import { Bot, Globe, SlidersHorizontal } from "lucide-react";
+import { Bot, Globe, SlidersHorizontal, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SettingsLayout() {
@@ -23,6 +23,12 @@ export function SettingsLayout() {
       href: "/settings/agents",
       icon: <Bot className="size-4" />,
       label: t("settings.agents.title", "Agents"),
+    },
+    {
+      id: "mcp",
+      href: "/settings/mcp",
+      icon: <Wrench className="size-4" />,
+      label: t("settings.mcp.title", "MCP Servers"),
     },
     {
       id: "webui",

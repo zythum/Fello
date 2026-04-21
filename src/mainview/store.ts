@@ -86,6 +86,7 @@ export interface AppState {
   // ==========================================================================
   sidebarOpen: boolean;
   configuredAgents: SettingsInfo["agents"];
+  configuredMcpServers: SettingsInfo["mcpServers"];
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   webUIStatus: { enabled: boolean; url: string | null };
@@ -140,6 +141,7 @@ export interface AppState {
   // ==========================================================================
   setSidebarOpen: (v: boolean) => void;
   setConfiguredAgents: (agents: SettingsInfo["agents"]) => void;
+  setConfiguredMcpServers: (mcpServers: SettingsInfo["mcpServers"]) => void;
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
@@ -172,6 +174,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   sidebarOpen: true,
   configuredAgents: [],
+  configuredMcpServers: [],
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   webUIStatus: { enabled: false, url: null },
@@ -271,6 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
+  setConfiguredMcpServers: (mcpServers) => set({ configuredMcpServers: mcpServers }),
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),

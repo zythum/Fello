@@ -41,6 +41,13 @@ export interface SettingI18nInfo {
   language: string;
 }
 
+export interface SettingMcpServerInfo {
+  id: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
 /**
  * 应用的全局设置信息
  */
@@ -51,6 +58,8 @@ export interface SettingsInfo {
   theme: SettingThemeInfo;
   /** 国际化（语言）设置 */
   i18n: SettingI18nInfo;
+  /** MCP 服务器配置 */
+  mcpServers: SettingMcpServerInfo[];
 }
 
 /**
@@ -107,6 +116,10 @@ export interface SessionInfo {
   createdAt: number;
   /** 会话的最后更新时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
   updatedAt: number;
+  /**
+   * 当前会话使用的 MCP 服务器 ID 列表
+   */
+  mcpServers: string[];
 }
 
 /**
@@ -183,6 +196,8 @@ export type FelloIPCRequests = {
   respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
   /** 更新会话的标题 */
   updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
+  /** 更新会话的 MCP 服务器配置 */
+  updateSessionMcpServers: { params: { sessionId: string; mcpServers: string[] }; response: void };
   /** 更改会话的工作目录 */
   changeWorkDir: {
     params: { sessionId: string };

@@ -39,18 +39,7 @@ const execFileAsync = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const mcpServers: McpServer[] = [
-  {
-    name: "bmi",
-    command: process.argv0,
-    args: [join(__dirname, "../scripts/mcp-bmi/server.mjs")],
-    env: [
-      {
-        name: "ELECTRON_RUN_AS_NODE",
-        value: "1",
-      },
-    ],
-  },
+const builtinMcpServers: McpServer[] = [
   {
     name: "skills",
     command: process.argv0,
@@ -63,6 +52,25 @@ const mcpServers: McpServer[] = [
     ],
   },
 ];
+
+function buildMcpServersConfig(sessionMcpIds: string[]): McpServer[] {
+  const servers: McpServer[] = [...builtinMcpServers];
+  const globalSettings = storageOps.getSettings();
+
+  for (const id of sessionMcpIds) {
+    const config = globalSettings.mcpServers?.find((s) => s.id === id);
+    if (config) {
+      servers.push({
+        name: id,
+        command: config.command,
+        args: config.args,
+        env: Object.entries(config.env).map(([k, v]) => ({ name: k, value: v })),
+      });
+    }
+  }
+
+  return servers;
+}
 
 export const SEARCH_MAX_RESULTS = 10;
 export const SEARCH_FUSE_THRESHOLD = 0.4;
@@ -455,15 +463,21 @@ export const backendHandlers: {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
+
+    // Extract all global MCP servers
+    const globalSettings = storageOps.getSettings();
+    const sessionMcpIds = (globalSettings.mcpServers || []).map((s) => s.id);
+    const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
+
     const {
       sessionId: resumeId,
       models,
       modes,
     } = await b.newSession({
       cwd: project.cwd,
-      mcpServers: mcpServers,
+      mcpServers: activeMcpServers,
     });
-    const sessionId = storageOps.createSession(project.id, resumeId, agentId);
+    const sessionId = storageOps.createSession(project.id, resumeId, agentId, sessionMcpIds);
     sendEvent("sessions-changed", undefined);
     return {
       sessionId: sessionId,
@@ -479,10 +493,11 @@ export const backendHandlers: {
     if (!session) throw new Error("Session does not exist");
     sendEvent("session-clear", { sessionId: session.id });
     const b = await ensureBridge(session.agentId);
+    const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
     const { models, modes } = await b.loadSession({
       sessionId: session.resumeId,
       cwd: session.cwd,
-      mcpServers: mcpServers,
+      mcpServers: activeMcpServers,
     });
     return {
       sessionId: session.id,
@@ -605,6 +620,11 @@ export const backendHandlers: {
 
   async updateSessionTitle({ sessionId, title }) {
     storageOps.updateSessionTitle(sessionId, title);
+    sendEvent("sessions-changed", undefined);
+  },
+
+  async updateSessionMcpServers({ sessionId, mcpServers }) {
+    storageOps.updateSessionMcpServers(sessionId, mcpServers);
     sendEvent("sessions-changed", undefined);
   },
 

@@ -28,62 +28,58 @@ function parseEnvJson(raw: string): Record<string, string> | null {
   return env;
 }
 
-export function SettingsAgents() {
+export function SettingsMcp() {
   const { t } = useTranslation();
-  const { configuredAgents, setConfiguredAgents, pushGlobalErrorMessage } = useAppStore();
-  const [agents, setAgents] = useState<SettingsInfo["agents"]>([]);
+  const { configuredMcpServers, setConfiguredMcpServers, pushGlobalErrorMessage } = useAppStore();
+  const [mcpServers, setMcpServers] = useState<SettingsInfo["mcpServers"]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<SettingsInfo["agents"][number] | null>(null);
+  const [editForm, setEditForm] = useState<SettingsInfo["mcpServers"][number] | null>(null);
 
   const [envRaw, setEnvRaw] = useState<string>("");
   const [argsRaw, setArgsRaw] = useState<string>("");
 
   // Sync when mounted
   useEffect(() => {
-    setAgents(configuredAgents);
+    setMcpServers(configuredMcpServers);
     setEditingId(null);
     setEditForm(null);
     setEnvRaw("");
     setArgsRaw("");
-  }, [configuredAgents]);
+  }, [configuredMcpServers]);
 
-  const handleSave = async (updatedAgents: SettingsInfo["agents"]) => {
+  const handleSave = async (updatedMcpServers: SettingsInfo["mcpServers"]) => {
     try {
-      await request.updateSettings({ agents: updatedAgents });
-      setConfiguredAgents(updatedAgents);
+      await request.updateSettings({ mcpServers: updatedMcpServers });
+      setConfiguredMcpServers(updatedMcpServers);
     } catch (err) {
       pushGlobalErrorMessage(
         extractErrorMessage(err) ||
-          t("settings.agents.updateFailed", "Failed to update configuration."),
+          t("settings.mcp.updateFailed", "Failed to update configuration."),
       );
     }
   };
 
   const handleAdd = () => {
-    // Generate a temporary internal editing ID for the new item.
-    // The user will specify the actual Agent ID in the input field.
-    const internalEditingId = `__new_agent_${Date.now()}_${Math.floor(Math.random() * 1000)}__`;
+    const internalEditingId = `__new_mcp_${Date.now()}_${Math.floor(Math.random() * 1000)}__`;
 
-    const newAgent = { id: "", command: "", args: [], env: {} };
-    // Temporarily set the agent's ID to the internal editing ID so we can track it
-    // during the edit session. It will be replaced by the user's input when saved.
-    setAgents([...agents, { ...newAgent, id: internalEditingId }]);
+    const newMcp = { id: "", command: "", args: [], env: {} };
+    setMcpServers([...mcpServers, { ...newMcp, id: internalEditingId }]);
     setEditingId(internalEditingId);
-    setEditForm(newAgent);
+    setEditForm(newMcp);
     setEnvRaw("");
     setArgsRaw("");
   };
 
-  const handleEdit = (agent: SettingsInfo["agents"][number]) => {
-    setEditingId(agent.id);
-    setEditForm({ ...agent });
-    setEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
-    setArgsRaw(agent.args?.join(" ") || "");
+  const handleEdit = (mcp: SettingsInfo["mcpServers"][number]) => {
+    setEditingId(mcp.id);
+    setEditForm({ ...mcp });
+    setEnvRaw(Object.keys(mcp.env || {}).length > 0 ? JSON.stringify(mcp.env) : "");
+    setArgsRaw(mcp.args?.join(" ") || "");
   };
 
   const handleDelete = async (id: string) => {
-    const updated = agents.filter((a) => a.id !== id);
-    setAgents(updated);
+    const updated = mcpServers.filter((a) => a.id !== id);
+    setMcpServers(updated);
     if (editingId === id) {
       setEditingId(null);
       setEditForm(null);
@@ -94,38 +90,39 @@ export function SettingsAgents() {
   const handleSaveEdit = async () => {
     if (!editForm) return;
     if (!editForm.id.trim() || !editForm.command.trim()) {
-      pushGlobalErrorMessage(t("settings.agents.errorIdCommand"));
+      pushGlobalErrorMessage(t("settings.mcp.errorIdCommand", "ID and Command are required."));
       return;
     }
 
     if (
-      agents.some(
-        (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_agent_"),
+      mcpServers.some(
+        (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_mcp_"),
       )
     ) {
-      pushGlobalErrorMessage(t("settings.agents.errorDuplicateId"));
+      pushGlobalErrorMessage(
+        t("settings.mcp.errorDuplicateId", "A server with this ID already exists."),
+      );
       return;
     }
 
     const nextEnv = parseEnvJson(envRaw);
     if (!nextEnv) {
-      pushGlobalErrorMessage(t("settings.agents.errorEnvJson"));
+      pushGlobalErrorMessage(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
       return;
     }
 
     const nextArgs = argsRaw.split(/\s+/).filter(Boolean);
     const nextEditForm = { ...editForm, env: nextEnv, args: nextArgs };
-    const updated = agents.map((a) => (a.id === editingId ? nextEditForm : a));
-    setAgents(updated);
+    const updated = mcpServers.map((a) => (a.id === editingId ? nextEditForm : a));
+    setMcpServers(updated);
     setEditingId(null);
     setEditForm(null);
     await handleSave(updated);
   };
 
   const handleCancelEdit = () => {
-    // If the cancelled edit was a brand-new unsaved agent, remove it from the list
-    if (editingId && editingId.startsWith("__new_agent_")) {
-      setAgents(agents.filter((a) => a.id !== editingId));
+    if (editingId && editingId.startsWith("__new_mcp_")) {
+      setMcpServers(mcpServers.filter((a) => a.id !== editingId));
     }
     setEditingId(null);
     setEditForm(null);
@@ -135,7 +132,7 @@ export function SettingsAgents() {
     <div className="space-y-2 mb-2 pt-2">
       <div className="flex items-center justify-between p-1">
         <h3 className="text-xs text-foreground/50">
-          {t("settings.agents.description", "Configure agents")}
+          {t("settings.mcp.description", "Configure MCP Servers")}
         </h3>
         <Button
           variant="outline"
@@ -144,29 +141,29 @@ export function SettingsAgents() {
           className="h-7 text-xs text-foreground/70"
         >
           <Plus className="mr-1 size-3" />
-          {t("settings.agents.addAgent")}
+          {t("settings.mcp.addMcp", "Add MCP Server")}
         </Button>
       </div>
 
       <div className="border-t border-border -mx-4">
         <div className="space-y-1.5 m-3 pb-6">
-          {agents.map((agent) => (
+          {mcpServers.map((mcp) => (
             <div
-              key={agent.id}
+              key={mcp.id}
               className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
             >
-              {editingId === agent.id && editForm ? (
+              {editingId === mcp.id && editForm ? (
                 <div className="flex w-full flex-col gap-2">
                   <div className="flex flex-col gap-1">
                     <label
-                      htmlFor={`agent-id-${agent.id}`}
+                      htmlFor={`mcp-id-${mcp.id}`}
                       className="text-[11px] text-muted-foreground"
                     >
-                      {t("settings.agents.agentId")}
+                      {t("settings.mcp.mcpId", "MCP Server ID")}
                     </label>
                     <Input
-                      id={`agent-id-${agent.id}`}
-                      placeholder={t("settings.agents.agentId")}
+                      id={`mcp-id-${mcp.id}`}
+                      placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
                       value={editForm.id}
                       onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
                       className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
@@ -175,14 +172,14 @@ export function SettingsAgents() {
                   <div className="flex gap-2">
                     <div className="flex flex-1 flex-col gap-1">
                       <label
-                        htmlFor={`agent-command-${agent.id}`}
+                        htmlFor={`mcp-command-${mcp.id}`}
                         className="text-[11px] text-muted-foreground"
                       >
-                        {t("settings.agents.command")}
+                        {t("settings.mcp.command", "Command")}
                       </label>
                       <Input
-                        id={`agent-command-${agent.id}`}
-                        placeholder={t("settings.agents.command")}
+                        id={`mcp-command-${mcp.id}`}
+                        placeholder={t("settings.mcp.command", "Command")}
                         value={editForm.command}
                         onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
                         className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
@@ -190,14 +187,14 @@ export function SettingsAgents() {
                     </div>
                     <div className="flex flex-1 flex-col gap-1">
                       <label
-                        htmlFor={`agent-args-${agent.id}`}
+                        htmlFor={`mcp-args-${mcp.id}`}
                         className="text-[11px] text-muted-foreground"
                       >
-                        {t("settings.agents.args")}
+                        {t("settings.mcp.args", "Arguments")}
                       </label>
                       <Input
-                        id={`agent-args-${agent.id}`}
-                        placeholder={t("settings.agents.args")}
+                        id={`mcp-args-${mcp.id}`}
+                        placeholder={t("settings.mcp.args", "Arguments")}
                         value={argsRaw}
                         onChange={(e) => setArgsRaw(e.target.value)}
                         className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
@@ -206,14 +203,14 @@ export function SettingsAgents() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label
-                      htmlFor={`agent-env-${agent.id}`}
+                      htmlFor={`mcp-env-${mcp.id}`}
                       className="text-[11px] text-muted-foreground"
                     >
-                      {t("settings.agents.envVars")}
+                      {t("settings.mcp.envVars", "Environment Variables (JSON)")}
                     </label>
                     <Textarea
-                      id={`agent-env-${agent.id}`}
-                      placeholder={t("settings.agents.envJson")}
+                      id={`mcp-env-${mcp.id}`}
+                      placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
                       value={envRaw}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -233,10 +230,10 @@ export function SettingsAgents() {
                       onClick={handleCancelEdit}
                       className="h-7 text-xs"
                     >
-                      {t("settings.agents.cancel")}
+                      {t("settings.mcp.cancel", "Cancel")}
                     </Button>
                     <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
-                      {t("settings.agents.save")}
+                      {t("settings.mcp.save", "Save")}
                     </Button>
                   </div>
                 </div>
@@ -244,18 +241,18 @@ export function SettingsAgents() {
                 <div className="flex w-full flex-row items-center gap-2">
                   <div className="flex min-w-8 truncate">
                     <span className="font-bold text-xs ml-1 truncate max-w-24 select-none">
-                      {agent.id}
+                      {mcp.id}
                     </span>
                   </div>
                   <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                    {[agent.command, ...(agent.args || [])].join(" ")}
+                    {[mcp.command, ...(mcp.args || [])].join(" ")}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 opacity-50">
                     <Button
                       variant="ghost"
                       size="icon-xs"
                       className="size-6 text-foreground/80"
-                      onClick={() => handleEdit(agent)}
+                      onClick={() => handleEdit(mcp)}
                     >
                       <Pencil className="size-3.5" />
                     </Button>
@@ -263,7 +260,7 @@ export function SettingsAgents() {
                       variant="ghost"
                       size="icon-xs"
                       className="size-6 text-destructive/80 hover:text-destructive"
-                      onClick={() => handleDelete(agent.id)}
+                      onClick={() => handleDelete(mcp.id)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -272,9 +269,9 @@ export function SettingsAgents() {
               )}
             </div>
           ))}
-          {agents.length === 0 && (
+          {mcpServers.length === 0 && (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {t("settings.agents.noAgents")}
+              {t("settings.mcp.noMcpServers", "No MCP servers configured")}
             </div>
           )}
         </div>
@@ -285,9 +282,9 @@ export function SettingsAgents() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">{t("settings.agents.title", "Agents")}</h3>
+        <h3 className="text-lg font-medium">{t("settings.mcp.title", "MCP Servers")}</h3>
         <p className="text-sm text-muted-foreground">
-          {t("settings.agents.desc", "Manage agent configurations and startup commands.")}
+          {t("settings.mcp.desc", "Manage MCP server configurations and startup commands.")}
         </p>
       </div>
       {content}

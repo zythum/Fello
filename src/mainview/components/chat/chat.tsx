@@ -11,11 +11,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 import type { SessionInfo } from "../../../shared/schema";
 export function Chat({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
+  const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
 
   const handleRefreshSession = async () => {
     if (!session) return;
@@ -46,6 +51,24 @@ export function Chat({ session }: { session: SessionInfo }) {
     }
   };
 
+  const handleToggleMcpServer = async (mcpId: string) => {
+    if (!session) return;
+    const { pushGlobalErrorMessage } = useAppStore.getState();
+    const currentMcpServers = session.mcpServers || [];
+    const newMcpServers = currentMcpServers.includes(mcpId)
+      ? currentMcpServers.filter((id) => id !== mcpId)
+      : [...currentMcpServers, mcpId];
+    try {
+      await request.updateSessionMcpServers({
+        sessionId: session.id,
+        mcpServers: newMcpServers,
+      });
+    } catch (err) {
+      console.error("Failed to update MCP servers:", err);
+      pushGlobalErrorMessage(extractErrorMessage(err) || "Failed to update MCP servers");
+    }
+  };
+
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-background">
       {session ? (
@@ -70,7 +93,28 @@ export function Chat({ session }: { session: SessionInfo }) {
                 <DropdownMenuTrigger className="flex size-6 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors">
                   <MoreHorizontal className="size-3.5" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuContent align="end" className="w-48">
+                  {configuredMcpServers.length > 0 && (
+                    <>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+                          {t("settings.mcp.title", "MCP Servers")}
+                        </DropdownMenuLabel>
+                        {configuredMcpServers.map((mcp) => (
+                          <DropdownMenuCheckboxItem
+                            key={mcp.id}
+                            className="text-xs"
+                            checked={(session.mcpServers || []).includes(mcp.id)}
+                            onCheckedChange={() => handleToggleMcpServer(mcp.id)}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            {mcp.id}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onClick={handleRefreshSession}>
                     <RefreshCw className="size-3" />
                     {t("chatHeader.refresh")}

@@ -19,7 +19,6 @@ export default defineConfig({
       lib: {
         entry: {
           "electron-preload/preload": resolve(__dirname, "src/scripts/electron-preload/preload.ts"),
-          "mcp-bmi/server": resolve(__dirname, "src/scripts/mcp-bmi/server.ts"),
           "mcp-skills/server": resolve(__dirname, "src/scripts/mcp-skills/server.ts"),
         },
       },

@@ -21,6 +21,13 @@ interface SettingsMeta {
   i18n: {
     language: string;
   };
+  mcpServers: {
+    [id: string]: {
+      command: string;
+      args: string[];
+      env: Record<string, string>;
+    };
+  };
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -29,6 +36,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   i18n: {
     language: "en",
   },
+  mcpServers: {},
 };
 
 interface ProjectMeta {
@@ -46,6 +54,7 @@ interface SessionMeta {
   project_id: string;
   created_at: number;
   updated_at: number;
+  mcp_servers?: string[];
 }
 
 mkdirSync(PROJECTS_DIR, { recursive: true });
@@ -103,7 +112,28 @@ function readSettings(): SettingsMeta {
         ? { language: rawObj.i18n.language }
         : DEFAULT_SETTINGS.i18n;
 
-    return { agents, theme, i18n };
+    const rawMcpServers = rawObj && isObject(rawObj.mcpServers) ? rawObj.mcpServers : null;
+    const mcpServers: SettingsMeta["mcpServers"] = (() => {
+      if (!rawMcpServers) return DEFAULT_SETTINGS.mcpServers;
+      const next: SettingsMeta["mcpServers"] = {};
+      for (const [id, value] of Object.entries(rawMcpServers)) {
+        const cfg = isObject(value) ? value : null;
+        const command = typeof cfg?.command === "string" ? cfg.command : "";
+        const args = Array.isArray(cfg?.args) ? cfg.args.filter((v) => typeof v === "string") : [];
+        const env = (() => {
+          if (!isObject(cfg?.env)) return {};
+          const nextEnv: Record<string, string> = {};
+          for (const [k, v] of Object.entries(cfg.env)) {
+            nextEnv[k] = String(v);
+          }
+          return nextEnv;
+        })();
+        next[id] = { command, args, env };
+      }
+      return next;
+    })();
+
+    return { agents, theme, i18n, mcpServers };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -173,8 +203,11 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const created_at =
       typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
     const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
+    const mcp_servers = Array.isArray(raw.mcp_servers)
+      ? raw.mcp_servers.filter((v) => typeof v === "string")
+      : undefined;
     if (!id || !agent_id || !resume_id || !project_id) return null;
-    return { id, title, agent_id, resume_id, project_id, created_at, updated_at };
+    return { id, title, agent_id, resume_id, project_id, created_at, updated_at, mcp_servers };
   } catch {
     return null;
   }
@@ -222,6 +255,14 @@ export const storageOps = {
           env: Object.assign({}, agentMeta.env),
         };
       }),
+      mcpServers: Object.entries(meta.mcpServers).map(([id, srvMeta]) => {
+        return {
+          id,
+          command: srvMeta.command,
+          args: srvMeta.args.slice(),
+          env: Object.assign({}, srvMeta.env),
+        };
+      }),
       i18n: {
         language: meta.i18n.language,
       },
@@ -263,6 +304,20 @@ export const storageOps = {
         return {
           theme_mode: settings.theme.themeMode,
         };
+      })(),
+      mcpServers: (() => {
+        if (!settings.mcpServers) {
+          return prevMeta.mcpServers;
+        }
+        const nextMcpServers: SettingsMeta["mcpServers"] = {};
+        for (const srv of settings.mcpServers) {
+          nextMcpServers[srv.id] = {
+            command: srv.command,
+            args: srv.args.slice(),
+            env: Object.assign({}, srv.env),
+          };
+        }
+        return nextMcpServers;
       })(),
     };
     writeSettings(meta);
@@ -331,7 +386,7 @@ export const storageOps = {
     };
   },
 
-  createSession(projectId: string, resumeId: string, agentId: string) {
+  createSession(projectId: string, resumeId: string, agentId: string, mcpServers: string[] = []) {
     const project = readProjectMeta(projectId);
     if (!project) throw new Error("Project does not exist");
     const now = Math.floor(Date.now() / 1000);
@@ -344,8 +399,19 @@ export const storageOps = {
       project_id: projectId,
       created_at: now,
       updated_at: now,
+      mcp_servers: mcpServers,
     });
     return id;
+  },
+
+  updateSessionMcpServers(id: string, mcpServers: string[]) {
+    const session = this.getSession(id);
+    if (!session) return;
+    const meta = readSessionMeta(session.projectId, session.id);
+    if (!meta) return;
+    meta.mcp_servers = mcpServers;
+    meta.updated_at = Math.floor(Date.now() / 1000);
+    writeSessionMeta(meta);
   },
 
   updateSessionTitle(id: string, title: string) {
@@ -381,6 +447,7 @@ export const storageOps = {
           resumeId: session.resume_id,
           createdAt: session.created_at,
           updatedAt: session.updated_at,
+          mcpServers: session.mcp_servers ?? [],
         });
       }
     }
@@ -403,6 +470,7 @@ export const storageOps = {
         resumeId: meta.resume_id,
         createdAt: meta.created_at,
         updatedAt: meta.updated_at,
+        mcpServers: meta.mcp_servers ?? [],
       };
     }
     return null;

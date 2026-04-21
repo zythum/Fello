@@ -78,6 +78,26 @@
       "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
       "updateFailed": "更新配置失败。"
     },
+    "mcp": {
+      "desc": "管理 MCP 服务器的配置和启动命令。",
+      "description": "配置 MCP 服务器",
+      "title": "MCP 服务器",
+      "addMcp": "添加 MCP 服务器",
+      "editMcp": "编辑 MCP 服务器",
+      "mcpId": "MCP 服务器 ID (名称)",
+      "command": "命令",
+      "args": "参数",
+      "envVars": "环境变量 (JSON)",
+      "envJson": "环境变量 (JSON)",
+      "cancel": "取消",
+      "save": "保存",
+      "saveChanges": "保存更改",
+      "noMcpServers": "未配置任何 MCP 服务器",
+      "errorIdCommand": "ID 和命令不能为空。",
+      "errorDuplicateId": "已存在具有该 ID 的 MCP 服务器。",
+      "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
+      "updateFailed": "更新配置失败。"
+    },
     "webui": {
       "desc": "配置对 Fello 界面的远程访问。",
       "title": "WebUI",

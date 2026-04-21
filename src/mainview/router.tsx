@@ -11,6 +11,7 @@ import { Welcome } from "./components/welcome/welcome";
 import { SessionView } from "./components/session/session-view";
 import { SettingsGeneral } from "./components/settings/settings-general";
 import { SettingsAgents } from "./components/settings/settings-agents";
+import { SettingsMcp } from "./components/settings/settings-mcp";
 import { SettingsWebUI } from "./components/settings/settings-webui";
 
 function SessionWrapper() {
@@ -35,6 +36,7 @@ export function AppRouter() {
         <Route path="/settings" element={<SettingsLayout />}>
           <Route path="general" element={<SettingsGeneral />} />
           <Route path="agents" element={<SettingsAgents />} />
+          <Route path="mcp" element={<SettingsMcp />} />
           <Route path="webui" element={<SettingsWebUI />} />
         </Route>
       </Routes>

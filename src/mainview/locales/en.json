@@ -78,6 +78,26 @@
       "errorEnvJson": "Env must be a valid JSON object.",
       "updateFailed": "Failed to update configuration."
     },
+    "mcp": {
+      "desc": "Manage MCP server configurations and startup commands.",
+      "description": "Configure MCP Servers",
+      "title": "MCP Servers",
+      "addMcp": "Add MCP Server",
+      "editMcp": "Edit MCP Server",
+      "mcpId": "MCP Server ID (Name)",
+      "command": "Command",
+      "args": "Arguments",
+      "envVars": "Environment Variables (JSON)",
+      "envJson": "Environment Variables (JSON)",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saveChanges": "Save Changes",
+      "noMcpServers": "No MCP servers configured",
+      "errorIdCommand": "ID and Command are required.",
+      "errorDuplicateId": "An MCP server with this ID already exists.",
+      "errorEnvJson": "Env must be a valid JSON object.",
+      "updateFailed": "Failed to update configuration."
+    },
     "webui": {
       "desc": "Configure remote access to the Fello interface.",
       "title": "WebUI",

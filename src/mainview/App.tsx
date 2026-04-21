@@ -18,6 +18,8 @@ function AppContent() {
     globalErrorMessages,
     shiftGlobalErrorMessage,
     setConfiguredAgents,
+    setConfiguredMcpServers,
+    setWebUIStatus,
     setTheme,
     setI18n,
     isMacApp,
@@ -51,7 +53,8 @@ function AppContent() {
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
       setConfiguredAgents(settings.agents);
-      useAppStore.getState().setWebUIStatus(webUIStatus);
+      setConfiguredMcpServers(settings.mcpServers || []);
+      setWebUIStatus(webUIStatus);
       if (settings.theme) setTheme(settings.theme);
       if (settings.i18n) {
         setI18n(settings.i18n);
@@ -60,7 +63,16 @@ function AppContent() {
       setIsReady(true);
     }
     void loadData();
-  }, [setProjects, setSessions, setConfiguredAgents, setTheme, setI18n, i18n]);
+  }, [
+    setProjects,
+    setSessions,
+    setConfiguredAgents,
+    setConfiguredMcpServers,
+    setWebUIStatus,
+    setTheme,
+    setI18n,
+    i18n,
+  ]);
 
   useEffect(() => {
     let unlistenFullScreen: (() => void) | undefined;
