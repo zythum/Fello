@@ -6,9 +6,28 @@ import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
+
+function parseEnvJson(raw: string): Record<string, string> | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (typeof v !== "string") return null;
+    env[k] = v;
+  }
+  return env;
+}
 
 export function SettingsAgents() {
   const { t } = useTranslation();
@@ -85,19 +104,14 @@ export function SettingsAgents() {
       return;
     }
 
-    if (envRaw.trim()) {
-      try {
-        const parsed = JSON.parse(envRaw.trim());
-        if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
-          throw new Error(t("settings.agents.errorEnvJson"));
-        }
-      } catch {
-        pushGlobalErrorMessage(t("settings.agents.errorEnvJson"));
-        return;
-      }
+    const nextEnv = parseEnvJson(envRaw);
+    if (!nextEnv) {
+      pushGlobalErrorMessage(t("settings.agents.errorEnvJson"));
+      return;
     }
 
-    const updated = agents.map((a) => (a.id === editingId ? editForm : a));
+    const nextEditForm = { ...editForm, env: nextEnv };
+    const updated = agents.map((a) => (a.id === editingId ? nextEditForm : a));
     setAgents(updated);
     setEditingId(null);
     setEditForm(null);
@@ -130,8 +144,8 @@ export function SettingsAgents() {
         </Button>
       </div>
 
-      <ScrollArea className="h-80 border-t border-border -mx-4 -mb-6">
-        <div className="space-y-1.5 m-3">
+      <div className="border-t border-border -mx-4">
+        <div className="space-y-1.5 m-3 pb-6">
           {agents.map((agent) => (
             <div
               key={agent.id}
@@ -139,76 +153,90 @@ export function SettingsAgents() {
             >
               {editingId === agent.id && editForm ? (
                 <div className="flex w-full flex-col gap-2">
-                  <Input
-                    placeholder={t("settings.agents.agentId")}
-                    value={editForm.id}
-                    onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                  />
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`agent-id-${agent.id}`}
+                      className="text-[11px] text-muted-foreground"
+                    >
+                      {t("settings.agents.agentId")}
+                    </label>
                     <Input
-                      placeholder={t("settings.agents.command")}
-                      value={editForm.command}
-                      onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                      className="h-8 text-[11px]! font-mono flex-4 text-foreground/70 focus-visible:ring-0.5"
-                    />
-                    <Input
-                      placeholder={t("settings.agents.args")}
-                      value={editForm.args?.join(" ") || ""}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          args: e.target.value.split(/\s+/).filter(Boolean),
-                        })
-                      }
-                      className="h-8 text-[11px]! font-mono flex-1 text-foreground/70 focus-visible:ring-0.5"
+                      id={`agent-id-${agent.id}`}
+                      placeholder={t("settings.agents.agentId")}
+                      value={editForm.id}
+                      onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
+                      className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                     />
                   </div>
-                  <Input
-                    placeholder={t("settings.agents.envJson")}
-                    value={envRaw}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEnvRaw(val);
-                      const trimmed = val.trim();
-                      if (!trimmed) {
-                        setEditForm({ ...editForm, env: {} });
-                        return;
-                      }
-                      try {
-                        const parsed = JSON.parse(trimmed);
-                        if (
-                          typeof parsed === "object" &&
-                          !Array.isArray(parsed) &&
-                          parsed !== null
-                        ) {
-                          // Ensure all values are strings
-                          const stringifiedEnv: Record<string, string> = {};
-                          for (const [k, v] of Object.entries(parsed)) {
-                            stringifiedEnv[k] = String(v);
-                          }
-                          setEditForm({ ...editForm, env: stringifiedEnv });
+                  <div className="flex gap-2">
+                    <div className="flex flex-4 flex-col gap-1">
+                      <label
+                        htmlFor={`agent-command-${agent.id}`}
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t("settings.agents.command")}
+                      </label>
+                      <Input
+                        id={`agent-command-${agent.id}`}
+                        placeholder={t("settings.agents.command")}
+                        value={editForm.command}
+                        onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
+                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1">
+                      <label
+                        htmlFor={`agent-args-${agent.id}`}
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t("settings.agents.args")}
+                      </label>
+                      <Input
+                        id={`agent-args-${agent.id}`}
+                        placeholder={t("settings.agents.args")}
+                        value={editForm.args?.join(" ") || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            args: e.target.value.split(/\s+/).filter(Boolean),
+                          })
                         }
-                      } catch {
-                        // Let the user keep typing invalid JSON without throwing errors
-                      }
-                    }}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
+                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`agent-env-${agent.id}`}
+                      className="text-[11px] text-muted-foreground"
+                    >
+                      {t("settings.agents.envVars")}
+                    </label>
+                    <Textarea
+                      id={`agent-env-${agent.id}`}
+                      placeholder={t("settings.agents.envJson")}
+                      value={envRaw}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEnvRaw(val);
+                        const nextEnv = parseEnvJson(val);
+                        if (nextEnv) {
+                          setEditForm({ ...editForm, env: nextEnv });
+                        }
+                      }}
+                      className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                    />
+                  </div>
                   <div className="flex justify-end gap-2 mt-1">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={handleCancelEdit}
-                      className="h-7 text-xs text-foreground/70"
+                      className="h-7 text-xs"
                     >
                       {t("settings.agents.cancel")}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveEdit}
-                      className="h-7 text-xs text-foreground/70"
-                    >
+                    <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
                       {t("settings.agents.save")}
                     </Button>
                   </div>
@@ -254,7 +282,7 @@ export function SettingsAgents() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 

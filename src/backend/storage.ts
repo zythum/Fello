@@ -9,11 +9,12 @@ export const PROJECTS_DIR = join(FELLO_DIR, "projects");
 
 interface SettingsMeta {
   agents: {
-    id: string;
-    command: string;
-    args: string[];
-    env: Record<string, string>;
-  }[];
+    [id: string]: {
+      command: string;
+      args: string[];
+      env: Record<string, string>;
+    };
+  };
   theme: {
     theme_mode: "light" | "dark" | "system";
   };
@@ -23,7 +24,7 @@ interface SettingsMeta {
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
-  agents: [],
+  agents: {},
   theme: { theme_mode: "system" },
   i18n: {
     language: "en",
@@ -56,31 +57,52 @@ function settingsPath() {
 function readSettings(): SettingsMeta {
   try {
     if (!existsSync(settingsPath())) return DEFAULT_SETTINGS;
-    const raw: SettingsMeta = JSON.parse(readFileSync(settingsPath(), "utf-8"));
-    const agents = Array.isArray(raw.agents)
-      ? raw.agents.map((a) => {
-          // migration from old format
-          if (typeof a.command === "string" && !a.args) {
-            const parts = a.command.trim().split(/\s+/);
-            return {
-              ...a,
-              command: parts[0] || "",
-              args: parts.slice(1),
-              env: a.env || {},
-            };
+    const raw: unknown = JSON.parse(readFileSync(settingsPath(), "utf-8"));
+
+    const isObject = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null && !Array.isArray(value);
+
+    const rawObj = isObject(raw) ? raw : null;
+    const rawAgents = rawObj && isObject(rawObj.agents) ? rawObj.agents : null;
+
+    const agents: SettingsMeta["agents"] = (() => {
+      if (!rawAgents) return DEFAULT_SETTINGS.agents;
+      const next: SettingsMeta["agents"] = {};
+      for (const [id, value] of Object.entries(rawAgents)) {
+        const cfg = isObject(value) ? value : null;
+        const command = typeof cfg?.command === "string" ? cfg.command : "";
+        const args = Array.isArray(cfg?.args) ? cfg.args.filter((v) => typeof v === "string") : [];
+        const env = (() => {
+          if (!isObject(cfg?.env)) return {};
+          const nextEnv: Record<string, string> = {};
+          for (const [k, v] of Object.entries(cfg.env)) {
+            nextEnv[k] = String(v);
           }
-          return {
-            ...a,
-            command: a.command || "",
-            args: Array.isArray(a.args) ? a.args : [],
-            env: a.env || {},
-          };
-        })
-      : DEFAULT_SETTINGS.agents;
-    const theme = raw.theme?.theme_mode
-      ? { theme_mode: raw.theme.theme_mode }
-      : DEFAULT_SETTINGS.theme;
-    const i18n = raw.i18n?.language ? { language: raw.i18n.language } : DEFAULT_SETTINGS.i18n;
+          return nextEnv;
+        })();
+
+        next[id] = { command, args, env };
+      }
+      return next;
+    })();
+
+    const theme =
+      rawObj && isObject(rawObj.theme) && rawObj.theme.theme_mode
+        ? {
+            theme_mode:
+              rawObj.theme.theme_mode === "light" ||
+              rawObj.theme.theme_mode === "dark" ||
+              rawObj.theme.theme_mode === "system"
+                ? rawObj.theme.theme_mode
+                : DEFAULT_SETTINGS.theme.theme_mode,
+          }
+        : DEFAULT_SETTINGS.theme;
+
+    const i18n =
+      rawObj && isObject(rawObj.i18n) && typeof rawObj.i18n.language === "string"
+        ? { language: rawObj.i18n.language }
+        : DEFAULT_SETTINGS.i18n;
+
     return { agents, theme, i18n };
   } catch {
     return DEFAULT_SETTINGS;
@@ -192,9 +214,9 @@ export const storageOps = {
   getSettings(): SettingsInfo {
     const meta = readSettings();
     return {
-      agents: meta.agents.map((agentMeta) => {
+      agents: Object.entries(meta.agents).map(([id, agentMeta]) => {
         return {
-          id: agentMeta.id,
+          id,
           command: agentMeta.command,
           env: Object.assign({}, agentMeta.env),
           args: agentMeta.args.slice(),
@@ -216,14 +238,15 @@ export const storageOps = {
         if (!settings.agents) {
           return prevMeta.agents;
         }
-        return settings.agents.map((agent) => {
-          return {
-            id: agent.id,
+        const nextAgents: SettingsMeta["agents"] = {};
+        for (const agent of settings.agents) {
+          nextAgents[agent.id] = {
             command: agent.command,
             env: Object.assign({}, agent.env),
             args: agent.args.slice(),
           };
-        });
+        }
+        return nextAgents;
       })(),
       i18n: (() => {
         if (!settings.i18n) {
