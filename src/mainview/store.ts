@@ -2,13 +2,7 @@ import { create } from "zustand";
 import { useRef } from "react";
 import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
-import type {
-  ModelInfo,
-  SessionMode,
-  RequestPermissionRequest,
-  UsageUpdate,
-  InitializeResponse,
-} from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest, UsageUpdate } from "@agentclientprotocol/sdk";
 
 export type PermissionRequest = Omit<RequestPermissionRequest, "sessionId">;
 
@@ -37,11 +31,6 @@ export interface SessionState {
   isLoading: boolean;
   permissionRequests: PermissionRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
-  availableModels: ModelInfo[];
-  currentModelId: string | null;
-  availableModes: SessionMode[];
-  currentModeId: string | null;
-  agentInfo: InitializeResponse | null;
 }
 
 const emptySessionState = (): SessionState => ({
@@ -51,11 +40,6 @@ const emptySessionState = (): SessionState => ({
   isLoading: false,
   permissionRequests: [],
   activeToolCalls: new Map(),
-  availableModels: [],
-  currentModelId: null,
-  availableModes: [],
-  currentModeId: null,
-  agentInfo: null,
 });
 
 export interface AppState {
@@ -116,6 +100,7 @@ export interface AppState {
   updateProjectState: (id: string, updater: (state: ProjectState) => Partial<ProjectState>) => void;
   setProjects: (projects: ProjectInfo[]) => void;
   setSessions: (sessions: SessionInfo[]) => void;
+  updateSession: (session: SessionInfo) => void;
   setIsCreatingSession: (v: boolean) => void;
 
   // ==========================================================================
@@ -218,6 +203,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setProjects: (projects) => set({ projects }),
   setSessions: (sessions) => set({ sessions }),
+  updateSession: (session) =>
+    set((state) => {
+      const idx = state.sessions.findIndex((s) => s.id === session.id);
+      if (idx === -1) return state;
+      const next = [...state.sessions];
+      next[idx] = session;
+      next.sort((a, b) => b.updatedAt - a.updatedAt);
+      return { sessions: next };
+    }),
   setIsCreatingSession: (v) => set({ isCreatingSession: v }),
 
   // ==========================================================================

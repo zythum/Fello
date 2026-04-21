@@ -139,7 +139,8 @@ fello/
         ├── project.json
         └── sessions/
             └── <session-id>/
-                └── session.json
+                ├── session.json
+                └── messages.jsonl  # 历史会话流事件日志 (NDJSON)
 ```
 
 `settings.json` 字段：

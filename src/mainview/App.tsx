@@ -83,12 +83,6 @@ function AppContent() {
         // 1. Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
         pendingSessionUpdatesRef.current.delete(sid);
 
-        // 2. Drop updates if session no longer exists
-        const sessionExists = store.sessions.some((s) => s.id === sid);
-        if (!sessionExists) {
-          continue;
-        }
-
         let nextTitle: string | null = null;
         let processedCount = 0;
 
@@ -141,28 +135,18 @@ function AppContent() {
 
     const handleSessionClear = (detail: BackendEvents["session-clear"]) => {
       pendingSessionUpdatesRef.current.delete(detail.sessionId);
-      useAppStore.getState().updateSessionState(detail.sessionId, () => ({
+      useAppStore.getState().updateSessionState(detail.sessionId, (prev) => ({
         messages: [],
         usage: null,
         isStreaming: false,
+        isLoading: prev.isLoading,
         permissionRequests: [],
         activeToolCalls: new Map(),
-        availableModels: [],
-        currentModelId: null,
-        availableModes: [],
-        currentModeId: null,
-        agentInfo: null,
       }));
     };
 
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
-      const sessions = useAppStore.getState().sessions;
-      const targetSession = sessions.find((s) => s.id === detail.sessionId);
-
-      // Strict matching: Only process updates for the specific session indicated by the backend
-      // Do not fallback to activeSessionId to prevent cross-session data corruption
-      if (!targetSession) return;
-      const sid = targetSession.id;
+      const sid = detail.sessionId;
       const update = detail.notification.update;
 
       let pending = pendingSessionUpdatesRef.current.get(sid);
@@ -204,6 +188,10 @@ function AppContent() {
 
     const handleWebUIStatusChanged = (detail: BackendEvents["webui-status-changed"]) => {
       useAppStore.getState().setWebUIStatus(detail.status);
+    };
+
+    const handleSessionChanged = (detail: BackendEvents["session-changed"]) => {
+      useAppStore.getState().updateSession(detail.session);
     };
 
     let currentProjectsFetchId = 0;
@@ -264,6 +252,7 @@ function AppContent() {
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
     subscribe.on("sessions-changed", handleSessionsChanged);
+    subscribe.on("session-changed", handleSessionChanged);
 
     const fello = window.fello;
     if (isMacApp && fello?.onMacFullScreen) {
@@ -280,6 +269,7 @@ function AppContent() {
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);
       subscribe.off("sessions-changed", handleSessionsChanged);
+      subscribe.off("session-changed", handleSessionChanged);
       if (sessionUpdateFlushRafIdRef.current != null) {
         cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
         sessionUpdateFlushRafIdRef.current = null;

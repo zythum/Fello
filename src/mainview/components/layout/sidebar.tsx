@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
-import type { ModelInfo, SessionMode, InitializeResponse } from "@agentclientprotocol/sdk";
 import { useAppStore } from "../../store";
 import type { ProjectInfo, SessionInfo } from "../../../shared/schema";
 import { request, isWebUI } from "../../backend";
@@ -81,27 +80,6 @@ export function Sidebar() {
 
   if (!sidebarOpen) return null;
 
-  const applySessionState = (
-    payload: {
-      sessionId: string;
-      models: { availableModels: ModelInfo[]; currentModelId: string } | null;
-      modes: { availableModes: SessionMode[]; currentModeId: string } | null;
-      agentInfo: InitializeResponse | null;
-      isStreaming: boolean;
-    } | null,
-  ) => {
-    if (!payload) return;
-    useAppStore.getState().updateSessionState(payload.sessionId, (prev) => ({
-      ...prev,
-      availableModels: payload.models?.availableModels ?? [],
-      currentModelId: payload.models?.currentModelId ?? null,
-      availableModes: payload.modes?.availableModes ?? [],
-      currentModeId: payload.modes?.currentModeId ?? null,
-      agentInfo: payload.agentInfo,
-      isStreaming: payload.isStreaming,
-    }));
-  };
-
   const refreshData = async () => {
     const [nextProjects, nextSessions] = await Promise.all([
       request.listProjects(),
@@ -151,8 +129,10 @@ export function Sidebar() {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       useAppStore.getState().setIsCreatingSession(true);
-      const result = await request.newSession({ projectId, agentId });
-      applySessionState(result);
+      const result = await request.newSession({
+        projectId,
+        agentId,
+      });
       await refreshData();
       handleNavigate(`/session-view/${result.sessionId}`);
     } catch (err) {

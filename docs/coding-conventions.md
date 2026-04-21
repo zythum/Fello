@@ -38,8 +38,8 @@
 
 - **协议遵循**：所有功能开发必须遵循 ACP（Agent Client Protocol）协议规范（基于 `@agentclientprotocol/sdk`）。如果发现功能需求与 ACP 协议冲突，必须提出质疑并进行讨论，禁止强行绕过或违背协议。
 - **ID 映射规范**：与底层 ACP 服务（Agent 进程）交互时，必须使用 `session.resumeId` 而非 `session.id`。由于 ACP 接口声明中常将参数命名为 `sessionId`，极易与 Fello 自身的 `session.id` 混淆。牢记规则：**ACP 侧的 `sessionId` === Fello 侧的 `session.resumeId`**。
-- ACP 更新事件统一进入 `reduceSessionUpdate(currentState, update)`
-- 历史回放与实时流式共用同一处理逻辑，避免行为分叉
+- ACP 更新事件统一进入 `reduceSessionUpdate(currentState, update)`，主进程在接收到这些事件时，会先通过 `appendSessionMessage` 持久化到 `messages.jsonl` 文件。
+- 历史回放由 Fello 主进程直接读取本地日志驱动，不再依赖服务端提供历史，回放和实时流式事件共用同一 Reducer 处理逻辑，避免行为分叉。
 - 切换/恢复会话前先 `resetSessionState`，避免历史与旧状态混叠
 - tool call 状态更新必须同时同步到 `activeToolCalls` 与 `messages`
 

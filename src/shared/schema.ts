@@ -120,6 +120,12 @@ export interface SessionInfo {
    * 当前会话使用的 MCP 服务器 ID 列表
    */
   mcpServers: string[];
+  /** 缓存的 Model 配置状态，用于离线降级恢复 */
+  models: SessionModelState | null;
+  /** 缓存的 Mode 配置状态，用于离线降级恢复 */
+  modes: SessionModeState | null;
+  /** 缓存的代理初始化信息 */
+  initializeInfo: InitializeResponse | null;
 }
 
 /**
@@ -164,10 +170,15 @@ export type FelloIPCRequests = {
   newSession: {
     params: { projectId: string; agentId: string };
     response: {
+      /** Fello 侧的会话唯一标识 */
       sessionId: string;
-      agentInfo: InitializeResponse | null;
+      /** 代理的初始化信息（如支持的能力、名称、版本等） */
+      initializeInfo: InitializeResponse | null;
+      /** 该会话当前可用的模型状态（列表及选中项） */
       models: SessionModelState | null;
+      /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
+      /** 会话是否正在流式生成响应中 */
       isStreaming: boolean;
     };
   };
@@ -175,10 +186,15 @@ export type FelloIPCRequests = {
   loadSession: {
     params: { sessionId: string };
     response: {
+      /** Fello 侧的会话唯一标识 */
       sessionId: string;
-      agentInfo: InitializeResponse | null;
+      /** 代理的初始化信息（如支持的能力、名称、版本等） */
+      initializeInfo: InitializeResponse | null;
+      /** 该会话当前可用的模型状态（列表及选中项） */
       models: SessionModelState | null;
+      /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
+      /** 会话是否正在流式生成响应中 */
       isStreaming: boolean;
     };
   };
@@ -345,6 +361,8 @@ export type FelloIPCRequests = {
  * 包含从后端（Main）推送到前端（Renderer/Web）的所有事件及其载荷类型
  */
 export type FelloIPCEvents = {
+  /** 单个会话配置或元数据发生变更时触发（如改名、切换模型），用于前端进行原子级 UI 更新 */
+  "session-changed": { session: SessionInfo };
   /** 会话被清理的事件 */
   "session-clear": { sessionId: string };
   /** 会话状态更新的事件（如消息流、状态变更等） */

@@ -274,7 +274,7 @@ export function reduceSessionUpdate(
       break;
 
     case "current_mode_update":
-      nextState = { ...currentState, currentModeId: update.currentModeId ?? null };
+      // modes state is now updated via session-changed IPC
       break;
 
     default:

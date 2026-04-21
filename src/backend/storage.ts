@@ -1,8 +1,22 @@
 import { basename, join } from "path";
 import { homedir } from "os";
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  existsSync,
+  appendFileSync,
+} from "fs";
 import { createHash } from "crypto";
 import type { ProjectInfo, SessionInfo, SettingsInfo } from "../shared/schema";
+import type {
+  SessionNotification,
+  SessionModelState,
+  SessionModeState,
+  InitializeResponse,
+} from "@agentclientprotocol/sdk";
 
 export const FELLO_DIR = join(homedir(), ".fello");
 export const PROJECTS_DIR = join(FELLO_DIR, "projects");
@@ -55,6 +69,9 @@ interface SessionMeta {
   created_at: number;
   updated_at: number;
   mcp_servers?: string[];
+  models?: SessionModelState | null;
+  modes?: SessionModeState | null;
+  initialize_info?: InitializeResponse | null;
 }
 
 mkdirSync(PROJECTS_DIR, { recursive: true });
@@ -206,8 +223,23 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const mcp_servers = Array.isArray(raw.mcp_servers)
       ? raw.mcp_servers.filter((v) => typeof v === "string")
       : undefined;
+    const models = raw.models ?? null;
+    const modes = raw.modes ?? null;
+    const initialize_info = raw.initialize_info ?? null;
     if (!id || !agent_id || !resume_id || !project_id) return null;
-    return { id, title, agent_id, resume_id, project_id, created_at, updated_at, mcp_servers };
+    return {
+      id,
+      title,
+      agent_id,
+      resume_id,
+      project_id,
+      created_at,
+      updated_at,
+      mcp_servers,
+      models,
+      modes,
+      initialize_info,
+    };
   } catch {
     return null;
   }
@@ -386,40 +418,59 @@ export const storageOps = {
     };
   },
 
-  createSession(projectId: string, resumeId: string, agentId: string, mcpServers: string[] = []) {
+  createSession(
+    projectId: string,
+    resumeId: string,
+    agentId: string,
+    updates?: Partial<{
+      title: string;
+      mcpServers: string[];
+      models: SessionModelState | null;
+      modes: SessionModeState | null;
+      initializeInfo: InitializeResponse | null;
+    }>,
+  ) {
     const project = readProjectMeta(projectId);
     if (!project) throw new Error("Project does not exist");
     const now = Math.floor(Date.now() / 1000);
     const id = `${agentId}:${resumeId}`;
     writeSessionMeta({
       id: id,
-      title: "",
+      title: updates?.title ?? "",
       agent_id: agentId,
       resume_id: resumeId,
       project_id: projectId,
       created_at: now,
       updated_at: now,
-      mcp_servers: mcpServers,
+      mcp_servers: updates?.mcpServers ?? [],
+      models: updates?.models ?? null,
+      modes: updates?.modes ?? null,
+      initialize_info: updates?.initializeInfo ?? null,
     });
     return id;
   },
 
-  updateSessionMcpServers(id: string, mcpServers: string[]) {
+  updateSession(
+    id: string,
+    updates: Partial<{
+      title: string;
+      mcpServers: string[];
+      models: SessionModelState | null;
+      modes: SessionModeState | null;
+      initializeInfo: InitializeResponse | null;
+    }>,
+  ) {
     const session = this.getSession(id);
     if (!session) return;
     const meta = readSessionMeta(session.projectId, session.id);
     if (!meta) return;
-    meta.mcp_servers = mcpServers;
-    meta.updated_at = Math.floor(Date.now() / 1000);
-    writeSessionMeta(meta);
-  },
 
-  updateSessionTitle(id: string, title: string) {
-    const session = this.getSession(id);
-    if (!session) return;
-    const meta = readSessionMeta(session.projectId, session.id);
-    if (!meta) return;
-    meta.title = title;
+    if (updates.title !== undefined) meta.title = updates.title;
+    if (updates.mcpServers !== undefined) meta.mcp_servers = updates.mcpServers;
+    if (updates.models !== undefined) meta.models = updates.models;
+    if (updates.modes !== undefined) meta.modes = updates.modes;
+    if (updates.initializeInfo !== undefined) meta.initialize_info = updates.initializeInfo;
+
     meta.updated_at = Math.floor(Date.now() / 1000);
     writeSessionMeta(meta);
   },
@@ -448,6 +499,9 @@ export const storageOps = {
           createdAt: session.created_at,
           updatedAt: session.updated_at,
           mcpServers: session.mcp_servers ?? [],
+          models: session.models ?? null,
+          modes: session.modes ?? null,
+          initializeInfo: session.initialize_info ?? null,
         });
       }
     }
@@ -471,6 +525,9 @@ export const storageOps = {
         createdAt: meta.created_at,
         updatedAt: meta.updated_at,
         mcpServers: meta.mcp_servers ?? [],
+        models: meta.models ?? null,
+        modes: meta.modes ?? null,
+        initializeInfo: meta.initialize_info ?? null,
       };
     }
     return null;
@@ -483,6 +540,32 @@ export const storageOps = {
     if (!meta) return;
     meta.updated_at = Math.floor(Date.now() / 1000);
     writeSessionMeta(meta);
+  },
+
+  appendSessionMessage(id: string, notification: SessionNotification) {
+    const session = this.getSession(id);
+    if (!session) return;
+    const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
+    appendFileSync(filePath, JSON.stringify(notification) + "\n");
+  },
+
+  readSessionMessages(id: string): SessionNotification[] {
+    const session = this.getSession(id);
+    if (!session) return [];
+    const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
+    if (!existsSync(filePath)) return [];
+    const content = readFileSync(filePath, "utf-8");
+    return content
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as SessionNotification[];
   },
 };
 

@@ -74,7 +74,7 @@ export class ACPBridge {
   private onSessionUpdate: SessionUpdateCallback;
   private onPermissionRequest: PermissionRequestCallback;
   private _isConnected = false;
-  private _agentInfo: InitializeResponse | null = null;
+  private _initializeInfo: InitializeResponse | null = null;
   private _modelStates = new Map<string, SessionModelState>();
   private _modeStates = new Map<string, SessionModeState>();
   public terminalManager: AgentTerminalManager;
@@ -92,8 +92,8 @@ export class ACPBridge {
     return this._isConnected;
   }
 
-  get agentInfo() {
-    return this._agentInfo;
+  get initializeInfo() {
+    return this._initializeInfo;
   }
 
   /**
@@ -162,7 +162,6 @@ export class ACPBridge {
 
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
-    const modeStates = this._modeStates;
     const terminalManager = this.terminalManager;
     const client: Client = {
       async requestPermission(
@@ -171,12 +170,6 @@ export class ACPBridge {
         return onPermission(params);
       },
       async sessionUpdate(params: SessionNotification): Promise<void> {
-        if (params.update?.sessionUpdate === "current_mode_update") {
-          const existing = modeStates.get(params.sessionId);
-          if (existing) {
-            existing.currentModeId = params.update.currentModeId;
-          }
-        }
         onUpdate(params);
       },
       async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
@@ -244,7 +237,7 @@ export class ACPBridge {
       },
     });
     this._isConnected = true;
-    this._agentInfo = initResult;
+    this._initializeInfo = initResult;
     return initResult;
   }
 

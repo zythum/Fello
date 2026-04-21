@@ -104,6 +104,9 @@ const activeStreamingSessions = new Set<string>();
 // Track generation locks to prevent race conditions during concurrent sendMessage calls
 const sessionGenerationLocks = new Map<string, string>();
 
+// Track sessions that are currently being restored (via loadSession) to block duplicate/invalid replays from agent
+const restoringSessions = new Set<string>();
+
 type ManagedTerminal = {
   write: (data: string) => void;
   kill: () => void;
@@ -120,6 +123,11 @@ let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
   channel: K,
   payload: FelloIPCSchema["events"][K],
 ) => boolean = () => false;
+
+function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionNotification) {
+  storageOps.appendSessionMessage(sessionId, notification);
+  sendEvent("session-update", { sessionId, notification });
+}
 
 function markProjectFsDirty(projectId: string) {
   const nextVersion = (projectFsVersions.get(projectId) ?? 0) + 1;
@@ -171,6 +179,7 @@ export function initBackend(
     if (channel === "fs-changed") {
       markProjectFsDirty((payload as FelloIPCSchema["events"]["fs-changed"]).projectId);
     }
+
     broadcastWebUIEvent(channel, payload);
     return emitter(channel, payload);
   };
@@ -213,10 +222,22 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
     args: runtime.args,
     env: runtime.env,
     onSessionUpdate: (notification: SessionNotification) => {
-      sendEvent("session-update", {
-        sessionId: `${agentId}:${notification.sessionId}`,
-        notification,
-      });
+      const sessionId = `${agentId}:${notification.sessionId}`;
+      if (restoringSessions.has(sessionId)) {
+        return; // Block agent replay during loadSession
+      }
+
+      if (notification.update?.sessionUpdate === "current_mode_update") {
+        const session = storageOps.getSession(sessionId);
+        if (session && session.modes) {
+          session.modes.currentModeId = notification.update.currentModeId ?? null;
+          storageOps.updateSession(sessionId, { modes: session.modes });
+          const updated = storageOps.getSession(sessionId);
+          if (updated) sendEvent("session-changed", { session: updated });
+        }
+      }
+
+      broadcastAndSaveSessionUpdate(sessionId, notification);
     },
     onPermissionRequest: (request: RequestPermissionRequest) => {
       const toolCallId = request.toolCall.toolCallId;
@@ -477,11 +498,16 @@ export const backendHandlers: {
       cwd: project.cwd,
       mcpServers: activeMcpServers,
     });
-    const sessionId = storageOps.createSession(project.id, resumeId, agentId, sessionMcpIds);
+    const sessionId = storageOps.createSession(project.id, resumeId, agentId, {
+      mcpServers: sessionMcpIds,
+      models: models ?? null,
+      modes: modes ?? null,
+      initializeInfo: b.initializeInfo,
+    });
     sendEvent("sessions-changed", undefined);
     return {
       sessionId: sessionId,
-      agentInfo: b.agentInfo,
+      initializeInfo: b.initializeInfo,
       models: models ?? null,
       modes: modes ?? null,
       isStreaming: false,
@@ -494,16 +520,62 @@ export const backendHandlers: {
     sendEvent("session-clear", { sessionId: session.id });
     const b = await ensureBridge(session.agentId);
     const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
-    const { models, modes } = await b.loadSession({
-      sessionId: session.resumeId,
-      cwd: session.cwd,
-      mcpServers: activeMcpServers,
-    });
+
+    restoringSessions.add(session.id);
+    let loadResult;
+    try {
+      loadResult = await b.loadSession({
+        sessionId: session.resumeId,
+        cwd: session.cwd,
+        mcpServers: activeMcpServers,
+      });
+    } finally {
+      restoringSessions.delete(session.id);
+    }
+
+    const history = storageOps.readSessionMessages(session.id);
+    for (const notification of history) {
+      sendEvent("session-update", {
+        sessionId: session.id,
+        notification,
+      });
+    }
+
+    let finalModels = loadResult.models ?? null;
+    let finalModes = loadResult.modes ?? null;
+
+    let shouldUpdateCache = false;
+
+    if (finalModels) {
+      shouldUpdateCache = true;
+    } else {
+      finalModels = session.models;
+    }
+
+    if (finalModes) {
+      shouldUpdateCache = true;
+    } else {
+      finalModes = session.modes;
+    }
+
+    if (shouldUpdateCache || b.initializeInfo) {
+      storageOps.updateSession(session.id, {
+        models: finalModels,
+        modes: finalModes,
+        initializeInfo: b.initializeInfo,
+      });
+    }
+
+    const freshSession = storageOps.getSession(session.id);
+    if (freshSession) {
+      sendEvent("session-changed", { session: freshSession });
+    }
+
     return {
       sessionId: session.id,
-      agentInfo: b.agentInfo,
-      models: models ?? null,
-      modes: modes ?? null,
+      initializeInfo: b.initializeInfo,
+      models: finalModels,
+      modes: finalModes,
       isStreaming: activeStreamingSessions.has(session.id),
     };
   },
@@ -518,9 +590,8 @@ export const backendHandlers: {
       if (firstTextContent && firstTextContent.type === "text" && firstTextContent.text) {
         let fallbackTitle = firstTextContent.text.trim().split("\n")[0].substring(0, 30);
         if (firstTextContent.text.length > 30) fallbackTitle += "...";
-        storageOps.updateSessionTitle(sessionId, fallbackTitle);
-        // We don't need to explicitly broadcast session_info_update for title,
-        // because the 'sessions-changed' event below will trigger a sidebar refresh.
+        storageOps.updateSession(sessionId, { title: fallbackTitle });
+        // We emit session-changed below after touchSession anyway
       }
     }
 
@@ -528,7 +599,8 @@ export const backendHandlers: {
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     storageOps.touchSession(sessionId);
-    sendEvent("sessions-changed", undefined);
+    const updated = storageOps.getSession(sessionId);
+    if (updated) sendEvent("session-changed", { session: updated });
 
     // Generate a unique ID for this generation attempt to prevent race conditions
     const currentGenerationId = crypto.randomUUID();
@@ -544,23 +616,18 @@ export const backendHandlers: {
           content: content,
         },
       };
-      sendEvent("session-update", {
-        sessionId: session.id,
-        notification: notification,
-      });
+      broadcastAndSaveSessionUpdate(session.id, notification);
     }
 
     // Broadcast streaming start
-    sendEvent("session-update", {
-      sessionId: session.id,
-      notification: {
-        sessionId: session.resumeId,
-        update: {
-          sessionUpdate: "session_info_update",
-          _meta: { isStreaming: true },
-        },
+    const startNotification: SessionNotification = {
+      sessionId: session.resumeId,
+      update: {
+        sessionUpdate: "session_info_update",
+        _meta: { isStreaming: true },
       },
-    });
+    };
+    broadcastAndSaveSessionUpdate(session.id, startNotification);
 
     let promptResponse: PromptResponse | undefined;
     try {
@@ -576,20 +643,18 @@ export const backendHandlers: {
         activeStreamingSessions.delete(sessionId);
 
         // Broadcast streaming end
-        sendEvent("session-update", {
-          sessionId: session.id,
-          notification: {
-            sessionId: session.resumeId,
-            update: {
-              sessionUpdate: "session_info_update",
-              _meta: {
-                isStreaming: false,
-                usage: promptResponse?.usage,
-                stopReason: promptResponse?.stopReason,
-              },
+        const endNotification: SessionNotification = {
+          sessionId: session.resumeId,
+          update: {
+            sessionUpdate: "session_info_update",
+            _meta: {
+              isStreaming: false,
+              usage: promptResponse?.usage,
+              stopReason: promptResponse?.stopReason,
             },
           },
-        });
+        };
+        broadcastAndSaveSessionUpdate(session.id, endNotification);
       }
     }
   },
@@ -619,13 +684,15 @@ export const backendHandlers: {
   },
 
   async updateSessionTitle({ sessionId, title }) {
-    storageOps.updateSessionTitle(sessionId, title);
-    sendEvent("sessions-changed", undefined);
+    storageOps.updateSession(sessionId, { title });
+    const session = storageOps.getSession(sessionId);
+    if (session) sendEvent("session-changed", { session });
   },
 
   async updateSessionMcpServers({ sessionId, mcpServers }) {
-    storageOps.updateSessionMcpServers(sessionId, mcpServers);
-    sendEvent("sessions-changed", undefined);
+    storageOps.updateSession(sessionId, { mcpServers });
+    const session = storageOps.getSession(sessionId);
+    if (session) sendEvent("session-changed", { session });
   },
 
   async changeWorkDir() {
@@ -748,6 +815,14 @@ export const backendHandlers: {
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     await b.setSessionModel({ sessionId: session.resumeId, modelId });
+
+    // Update local cache
+    if (session.models) {
+      session.models.currentModelId = modelId;
+      storageOps.updateSession(session.id, { models: session.models });
+      const updated = storageOps.getSession(session.id);
+      if (updated) sendEvent("session-changed", { session: updated });
+    }
   },
 
   async getModes({ sessionId }) {
@@ -766,6 +841,14 @@ export const backendHandlers: {
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     await b.setSessionMode({ sessionId: session.resumeId, modeId });
+
+    // Update local cache
+    if (session.modes) {
+      session.modes.currentModeId = modeId;
+      storageOps.updateSession(session.id, { modes: session.modes });
+      const updated = storageOps.getSession(session.id);
+      if (updated) sendEvent("session-changed", { session: updated });
+    }
   },
 
   async searchFiles({ projectId, query }) {

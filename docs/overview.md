@@ -56,9 +56,9 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent，使用 ID 作为唯一标识并自定义其启动命令。
 - MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器，并在会话菜单中随时启停，为 Agent 动态扩展能力。
 - 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）。
-- 从 ACP 模型状态读取可用模型列表与模式（Mode）列表
+- 从 ACP 模型状态读取可用模型列表与模式（Mode）列表，这些配置被持久化并隔离在每个独立会话（Session）的元数据中，切换会话时 UI 无缝更新。
 - 支持在下拉菜单中显示模型和模式的描述信息
-- 支持在会话运行中随时切换模型与模式
+- 支持在会话运行中随时切换模型与模式，并通过 `session-changed` 事件进行细粒度的原子级 UI 更新。
 - 在输入区显示 token 统计（input/output/total/think）
 
 ### WebUI 远程访问
@@ -78,8 +78,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 数据与安全边界
 
-- 本地保存：项目与会话元数据（`~/.fello/projects/` 下），以及全局配置文件（`~/.fello/settings.json`）
-- 不本地保存：完整对话事件日志（由 ACP 服务端持有）
+- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、全局配置文件（`~/.fello/settings.json`），以及完整对话事件日志（在会话目录下的 `messages.jsonl` 文件中）。
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 
 ## 运行环境

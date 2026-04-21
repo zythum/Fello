@@ -17,9 +17,8 @@ export const ThinkingBubble = memo(function ThinkingBubble({
 
   return (
     <details
-      className={cn("w-full", prevBubbleRole != null && "mt-3")}
+      className={cn("w-full pointer-events-auto", prevBubbleRole != null && "mt-3")}
       open={isStreaming}
-      pointer-events-auto
     >
       <summary className="cursor-pointer flex select-none items-center gap-2 px-0 py-1 text-[11px] text-muted-foreground/90 hover:text-muted-foreground pointer-events-auto">
         <Lightbulb className={`size-3.5 ${isStreaming ? "animate-pulse" : ""}`} />

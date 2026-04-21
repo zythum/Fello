@@ -66,6 +66,7 @@ Main/preload changes typically require restarting the dev process.
 ## Features
 
 - **Local AI Collaboration**: Connect to local agents via ACP (e.g. `kiro-cli acp`).
+- **Per-Session Configuration**: Models, modes, and agent capabilities (`initializeInfo`) are persistent and isolated per session, ensuring a stable UI when switching between different contexts.
 - **MCP Server Support**: Configure and toggle multiple Model Context Protocol (MCP) servers to extend agent capabilities dynamically within sessions.
 - **WebUI Remote Access**: Expose the interface to a browser over the local network via WebSocket, enabling remote collaboration. (Enable in Settings > WebUI).
 - **Chat Attachments**: Attach images/files from the chat input (agent capability aware) with preview and drag-and-drop support.

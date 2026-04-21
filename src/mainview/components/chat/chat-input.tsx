@@ -85,8 +85,12 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addMessage, setIsStreaming } = useAppStore();
-  const { isStreaming, availableModels, currentModelId, availableModes, currentModeId, agentInfo } =
-    useSessionState(session.id);
+  const { isStreaming } = useSessionState(session.id);
+  const availableModels = session.models?.availableModels ?? [];
+  const currentModelId = session.models?.currentModelId ?? null;
+  const availableModes = session.modes?.availableModes ?? [];
+  const currentModeId = session.modes?.currentModeId ?? null;
+  const initializeInfo = session.initializeInfo;
 
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const attachmentsRef = useRef<StagedAttachment[]>([]);
@@ -131,7 +135,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const isImage = file.type.startsWith("image/");
 
       let type: "image" | "file" = "file";
-      if (isImage && agentInfo?.agentCapabilities?.promptCapabilities?.image) {
+      if (isImage && initializeInfo?.agentCapabilities?.promptCapabilities?.image) {
         type = "image";
       }
 
@@ -279,8 +283,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       e.stopPropagation();
       setIsDragOver(false);
 
-      const supportsImage = agentInfo?.agentCapabilities?.promptCapabilities?.image;
-      const supportsEmbedded = agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
+      const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
+      const supportsEmbedded =
+        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
       const supportsFiles = supportsImage || supportsEmbedded;
 
       // Handle files drop
@@ -325,14 +330,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         // ignore malformed data
       }
     },
-    [agentInfo?.agentCapabilities?.promptCapabilities],
+    [initializeInfo?.agentCapabilities?.promptCapabilities],
   );
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
       const supportsFiles =
-        agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-        agentInfo?.agentCapabilities?.promptCapabilities?.image;
+        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+        initializeInfo?.agentCapabilities?.promptCapabilities?.image;
 
       // Must always preventDefault on dragover to allow drop
       if (
@@ -350,7 +355,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         setIsDragOver(true);
       }
     },
-    [agentInfo?.agentCapabilities?.promptCapabilities],
+    [initializeInfo?.agentCapabilities?.promptCapabilities],
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -517,14 +522,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   <Select
                     value={currentModeId ?? ""}
                     onValueChange={async (modeId) => {
-                      if (modeId === null) {
-                        return;
-                      }
+                      if (!modeId) return;
                       const sid = session.id;
                       if (!sid) return;
-                      useAppStore
-                        .getState()
-                        .updateSessionState(sid, () => ({ currentModeId: modeId }));
+                      // Optimistic UI update
+                      useAppStore.getState().updateSession({
+                        ...session,
+                        modes: { ...session.modes!, currentModeId: modeId },
+                      });
                       try {
                         await request.setMode({
                           sessionId: sid,
@@ -532,11 +537,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                         });
                       } catch (err) {
                         console.error("Failed to set mode:", err);
+                        // Revert optimistic update
+                        useAppStore.getState().updateSession(session);
                       }
                     }}
                   >
                     <SelectTrigger size="sm">
-                      <SelectValue placeholder={t("chatInput.mode", "Mode")} />
+                      <SelectValue placeholder={t("chatInput.mode", "Mode")}>
+                        {availableModes.find((m) => m.id === currentModeId)?.name ?? currentModeId}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} className="w-60">
                       {availableModes.map((mode) => (
@@ -553,8 +562,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </Select>
                 </>
               )}
-              {agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-              agentInfo?.agentCapabilities?.promptCapabilities?.image ? (
+              {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+              initializeInfo?.agentCapabilities?.promptCapabilities?.image ? (
                 <>
                   <input
                     type="file"
@@ -563,8 +572,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     className="hidden"
                     onChange={handleFileSelect}
                     accept={[
-                      agentInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
-                      agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
+                      initializeInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
+                      initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
                         ? "*/*"
                         : "",
                     ]
@@ -579,7 +588,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     aria-label={t("chatInput.attach", "Attach file")}
                     disabled={disabled}
                   >
-                    {agentInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
+                    {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
                       <Paperclip className="size-3.5" />
                     ) : (
                       <ImageIcon className="size-3.5" />
@@ -593,14 +602,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 <Select
                   value={currentModelId ?? ""}
                   onValueChange={async (modelId) => {
-                    if (modelId === null) {
-                      return;
-                    }
+                    if (!modelId) return;
                     const sid = session.id;
                     if (!sid) return;
-                    useAppStore
-                      .getState()
-                      .updateSessionState(sid, () => ({ currentModelId: modelId }));
+                    // Optimistic UI update
+                    useAppStore.getState().updateSession({
+                      ...session,
+                      models: { ...session.models!, currentModelId: modelId },
+                    });
                     try {
                       await request.setModel({
                         sessionId: sid,
@@ -608,20 +617,27 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       });
                     } catch (err) {
                       console.error("Failed to set model:", err);
+                      // Revert optimistic update
+                      useAppStore.getState().updateSession(session);
                     }
                   }}
                 >
                   <SelectTrigger size="sm">
-                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")} />
+                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")}>
+                      {availableModels.find((m) => m.modelId === currentModelId)?.name ??
+                        currentModelId}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} className="w-60">
                     {availableModels.map((m) => (
                       <SelectItem key={m.modelId} value={m.modelId}>
                         <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                           <span>{m.name}</span>
-                          <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
-                            {m.modelId}
-                          </span>
+                          {m.description && (
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
+                              {m.description}
+                            </span>
+                          )}
                         </div>
                       </SelectItem>
                     ))}

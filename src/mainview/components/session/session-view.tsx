@@ -36,15 +36,11 @@ export function SessionView({ session }: { session: SessionInfo }) {
     if (!sessionId) return;
     const sessionState = useAppStore.getState().getSessionState(sessionId);
     // Don't auto load if we are currently creating a session or if it's already loaded
-    if (sessionState.agentInfo || isCreatingSession) {
+    if (sessionState.messages.length > 0 || isCreatingSession || sessionState.isLoading) {
       return;
     }
 
-    // prevent concurrent loads
-    if (sessionState.isLoading) {
-      return;
-    }
-
+    // Also use a flag to track if a load request is already inflight for this session
     const loadSession = async () => {
       useAppStore.getState().updateSessionState(sessionId, (prev) => ({
         ...reduceFlushStreaming(prev),
@@ -54,11 +50,6 @@ export function SessionView({ session }: { session: SessionInfo }) {
         const result = await request.loadSession({ sessionId });
         useAppStore.getState().updateSessionState(sessionId, (prev) => ({
           ...prev,
-          availableModels: result.models?.availableModels ?? [],
-          currentModelId: result.models?.currentModelId ?? null,
-          availableModes: result.modes?.availableModes ?? [],
-          currentModeId: result.modes?.currentModeId ?? null,
-          agentInfo: result.agentInfo,
           isStreaming: result.isStreaming,
         }));
       } catch (err) {

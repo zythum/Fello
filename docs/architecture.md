@@ -99,10 +99,8 @@ ACP sessionUpdate
 - `configuredAgents`：用户在设置中自定义的可用 Agent 及启动命令
 - `theme`：UI 主题配置（深色、浅色、跟随系统）
 - `language`：应用语言配置（英语、简体中文）
-- `availableModels` / `currentModelId`：当前连接环境可用的模型及所选模型
-- `availableModes` / `currentModeId`：当前连接环境可用的模式及所选模式
 
-切换会话时只切换 `activeSessionId`，避免跨会话状态污染，同时全局状态会自动同步为当前会话的模型与模式。
+此外，模型与模式（`models` / `modes`）以及 Agent 初始化信息（`initializeInfo`）现在作为 `SessionInfo` 的一部分直接与每个独立的会话元数据绑定，前端会根据当前会话的 `SessionInfo` 直接渲染，避免了全局状态同步带来的界面闪烁问题。
 
 ### 4) 主进程统一托管系统能力
 
@@ -182,6 +180,6 @@ Renderer: createTerminal(sessionId, cwd)
 
 ## 持久化边界
 
-- 客户端本地保存项目元数据与会话元数据
-- 聊天历史与事件日志不落盘，由 ACP 服务端负责持有与重放
-- 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话）
+- 客户端本地保存项目元数据、会话元数据（`session.json`）
+- 聊天历史与事件流通过主进程进行落盘拦截，每个会话在其独立目录下维护完整的 `messages.jsonl` 事件流文件（NDJSON 格式）
+- 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话和日志）

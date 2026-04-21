@@ -12,9 +12,10 @@ IPC
 - Electron-only native API: src/mainview/electron.ts (safely wraps window.fello calls)
 
 Sessions & Persistence
-- Session metadata persistence: src/backend/storage.ts
+- Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, and initializeInfo)
+- Fine-grained session updates: Uses `session-changed` IPC event to update single sessions atomically in the frontend store
 - MCP Server support allows dynamic capability extension via Model Context Protocol servers
-- Message history is replayed from the ACP server when resuming a session
+- Message history is intercepted by the backend and persisted locally in messages.jsonl files within each session's directory, enabling robust offline recovery without depending on the ACP server to hold history
 - Renderer state store: src/mainview/store.ts
 - Routing: src/mainview/router.tsx (uses react-router-dom HashRouter)
 - ChatMessage polymorphic interface: src/mainview/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
