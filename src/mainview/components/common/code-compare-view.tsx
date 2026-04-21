@@ -80,6 +80,9 @@ export const CodeCompareView = memo(function CodeCompareView({
               diffViewerColor: "#ffffff",
             },
           },
+          gutter: {
+            textAlign: 'right',
+          },
           diffContainer: {
             minWidth: "auto",
           },
