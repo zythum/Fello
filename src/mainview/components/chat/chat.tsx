@@ -97,7 +97,7 @@ export function Chat({ session }: { session: SessionInfo }) {
                   {configuredMcpServers.length > 0 && (
                     <>
                       <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+                        <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground">
                           {t("settings.mcp.title", "MCP Servers")}
                         </DropdownMenuLabel>
                         {configuredMcpServers.map((mcp) => (
