@@ -218,8 +218,8 @@ export const storageOps = {
         return {
           id,
           command: agentMeta.command,
-          env: Object.assign({}, agentMeta.env),
           args: agentMeta.args.slice(),
+          env: Object.assign({}, agentMeta.env),
         };
       }),
       i18n: {
@@ -242,8 +242,8 @@ export const storageOps = {
         for (const agent of settings.agents) {
           nextAgents[agent.id] = {
             command: agent.command,
-            env: Object.assign({}, agent.env),
             args: agent.args.slice(),
+            env: Object.assign({}, agent.env),
           };
         }
         return nextAgents;
