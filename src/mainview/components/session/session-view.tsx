@@ -15,8 +15,8 @@ export function SessionView({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isCreatingSession = useAppStore((s) => s.isCreatingSession);
-  const isLoading = useAppStore(
-    (s) => (sessionId ? s.sessionStates.get(sessionId)?.isLoading ?? false : false),
+  const isLoading = useAppStore((s) =>
+    sessionId ? (s.sessionStates.get(sessionId)?.isLoading ?? false) : false,
   );
   const activeProjectId = session.projectId;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");

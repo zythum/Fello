@@ -46,13 +46,13 @@ Main/preload changes typically require restarting the dev process.
 │   │   ├── main.ts         # Electron main process
 │   │   └── preload.ts      # Preload (contextBridge)
 │   └── mainview/
-│       ├── App.tsx         # React app component (with MessageProvider & ThemeProvider)
+│       ├── App.tsx         # React app root (with ThemeProvider, MessageProvider & HashRouter)
+│       ├── router.tsx      # Routing configuration
 │       ├── main.tsx        # React entry point
-│       ├── components/     # UI components (bubbles, content-blocks, shadcn/ui, etc.)
 │       ├── store.ts        # Zustand state management
 │       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
 │       ├── lib/            # Utilities (session-state-reducer.ts, etc.)
-│       ├── components/common/ # Shared components (CodeView, CodeCompareView, ImageView, ReadonlyTerminal, ShikiHighlighter)
+│       ├── components/     # UI components (chat, session, layout, settings, etc.)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── electron.ts     # Native Electron-only API wrapper
 │       ├── i18n.ts         # i18next configuration
@@ -73,6 +73,7 @@ Main/preload changes typically require restarting the dev process.
 ## Customizing
 
 - **React components**: Edit files in `src/mainview/`
+- **Routing**: Edit `src/mainview/router.tsx`
 - **i18n Translation**: Edit `src/mainview/locales/*.json` and configure languages in `src/mainview/i18n.ts`
 - **Window / app lifecycle**: Edit `src/electron/main.ts`
 - **Backend logic**: Edit `src/backend/backend.ts` and `src/backend/acp-bridge.ts`

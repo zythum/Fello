@@ -454,10 +454,10 @@ export function Sidebar() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (configuredAgents.length === 1) {
-                        void handleNewChat(project.id, configuredAgents[0].id);
-                      } else {
-                        handleNavigate("/settings/agents");
-                      }
+                          void handleNewChat(project.id, configuredAgents[0].id);
+                        } else {
+                          handleNavigate("/settings/agents");
+                        }
                       }}
                       className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                       aria-label={t("sidebar.createChatInProject", {

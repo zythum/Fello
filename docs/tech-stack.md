@@ -27,6 +27,7 @@
 | 技术 | 版本 | 说明 |
 | --- | --- | --- |
 | Tailwind CSS | ^4.2.2 | 原子化样式体系 |
+| react-router-dom | ^7.14.1 | 客户端路由控制 (HashRouter) |
 | @base-ui/react | ^1.3.0 | 基础无样式交互 primitives（shadcn 基座） |
 | shadcn | ^4.1.2 | 项目内 UI 基础组件生成与组合 |
 | Lucide React | ^1.7.0 | 图标系统 |

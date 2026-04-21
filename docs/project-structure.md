@@ -22,7 +22,8 @@ fello/
 │   │   └── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
 │   │
 │   └── mainview/                     # Renderer（React SPA）
-│       ├── App.tsx                   # 根组件，订阅全局事件，挂载 MessageProvider
+│       ├── App.tsx                   # 根组件，订阅全局事件，挂载路由与全局上下文
+│       ├── router.tsx                # 路由配置 (基于 react-router-dom HashRouter)
 │       ├── main.tsx                  # React 挂载入口
 │       ├── index.css                 # 全局样式与主题变量
 │       ├── index.html                # renderer HTML 模板
@@ -43,31 +44,34 @@ fello/
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
 │       ├── components/
-│           ├── bubbles/              # 各类消息气泡实现
-│           │   ├── user-bubble.tsx
-│           │   ├── agent-bubble.tsx
-│           │   ├── thinking-bubble.tsx
-│           │   ├── tool-bubble.tsx
-│           │   ├── plan-bubble.tsx
-│           │   ├── system-bubble.tsx
-│           │   └── message-bubble.tsx    # 根据 role 分发到对应 bubble
-│           ├── common/               # 公用组件 (stream-markdown, code-view, code-compare-view, image-view, readonly-terminal, shiki-highlighter 等)
-│           ├── content-blocks/       # ContentBlock 多模态内容组件 (text, image, audio 等)
-│           ├── session-view.tsx      # 主工作区（左 Chat，右 Files/Terminal）
-│           ├── settings-agents-dialog.tsx# 全局设置弹窗（配置 Agent 等）
-│           ├── settings-webui-dialog.tsx # WebUI 设置弹窗
-│           ├── sidebar.tsx           # 项目分组侧边栏与项目/会话操作
-│           ├── chat.tsx              # Chat 容器 + 权限浮层挂载
-│           ├── chat-area.tsx         # 消息渲染与滚动控制
-│           ├── chat-timeline.tsx     # 聊天时间线导航
-│           ├── chat-input.tsx        # 输入、提及、模型切换、发送控制
-│           ├── file-panel.tsx        # 文件树、拖拽、右键菜单、导入
-│           ├── file-preview.tsx      # 文件内容与图片预览组件（入口，渲染 common 视图）
-│           ├── global-text-context-menu.tsx # 全局文本选中上下文菜单
-│           ├── terminal-panel.tsx    # 多终端页签（xterm + node-pty）
-│           ├── permission-dialog.tsx # 工具权限请求弹层
-│           ├── message.tsx           # 全局对话框与 Toast 队列 (MessageProvider)
-│           ├── theme-provider.tsx    # 基于 next-themes 的主题切换上下文
+│           ├── chat/                 # 聊天核心区域与气泡组件
+│           │   ├── bubbles/          # 各类角色消息气泡 (user/agent/system/tool 等)
+│           │   ├── chat.tsx          # 聊天主容器
+│           │   ├── chat-area.tsx     # 消息流渲染与滚动控制
+│           │   ├── chat-input.tsx    # 底部输入框 (文件拖拽、提及、发送)
+│           │   └── chat-timeline.tsx # 聊天时间线导航
+│           ├── session/              # 会话主工作区相关组件
+│           │   ├── session-view.tsx  # 主工作区布局 (左 Chat，右 Files/Terminal)
+│           │   ├── file-panel.tsx    # 文件树、重命名、拖拽移动等
+│           │   ├── file-preview.tsx  # 文件内容与图片预览
+│           │   └── terminal-panel.tsx# 多终端标签与内容区
+│           ├── layout/               # 整体布局组件
+│           │   └── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
+│           ├── settings/             # 设置相关页面组件
+│           │   ├── settings-layout.tsx   # 设置页侧边导航布局
+│           │   ├── settings-general.tsx  # 通用设置
+│           │   ├── settings-agents.tsx   # Agents 配置页面
+│           │   └── settings-webui.tsx    # WebUI 配置页面
+│           ├── global/               # 全局浮层与菜单
+│           │   ├── global-text-context-menu.tsx # 文本选中全局右键菜单
+│           │   └── permission-dialog.tsx        # 权限确认弹层
+│           ├── providers/            # 全局上下文 Provider
+│           │   ├── message.tsx       # 全局消息/Toast 提示管理
+│           │   └── theme.tsx         # 基于 next-themes 的主题控制
+│           ├── welcome/              # 欢迎页面
+│           │   └── welcome.tsx
+│           ├── common/               # 通用业务组件 (stream-markdown, code-view, image-view 等)
+│           ├── content-blocks/       # 多模态消息内容渲染组件 (text, image, audio 等)
 │           └── ui/                   # shadcn/base-ui 基础组件
 │               ├── badge.tsx
 │               ├── button.tsx
@@ -122,7 +126,8 @@ fello/
 - 纯前端视图与状态管理，依赖 `window.fello` 调用主进程能力
 - 事件订阅统一在 `backend.ts`，避免组件直接绑定 Electron API
 - 对于只存在于 Electron 桌面端的原生交互功能（如使用访达打开、移动至废纸篓），需要封装在 `electron.ts` 中，并且组件中需要通过 `isWebUI` 变量对对应的触发 UI 元素进行隐藏，以兼容 WebUI 远端协作模式
-- 页面逻辑围绕“项目 + 会话”展开，聊天状态仍以 sessionId 隔离
+- 页面逻辑围绕“项目 + 会话”展开，使用 `react-router-dom` 统一管理页面路由（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings` 设置页等）。
+- 聊天状态仍以 sessionId 隔离
 
 ## 数据目录（运行时）
 
