@@ -9,14 +9,15 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { Loader2, FolderTree, SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { request } from "../../backend";
-import { useSessionState } from "../../store";
 import type { SessionInfo } from "../../../shared/schema";
 
 export function SessionView({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
-  const { isCreatingSession } = useAppStore();
-  const { isLoading } = useSessionState(sessionId);
+  const isCreatingSession = useAppStore((s) => s.isCreatingSession);
+  const isLoading = useAppStore(
+    (s) => (sessionId ? s.sessionStates.get(sessionId)?.isLoading ?? false : false),
+  );
   const activeProjectId = session.projectId;
   const [rightTab, setRightTab] = useState<"files" | "terminal">("files");
 
@@ -195,7 +196,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
                   <div
                     className={cn("h-full min-h-0", rightTab === "terminal" ? "block" : "hidden")}
                   >
-                    {activeProjectId && (
+                    {activeProjectId && rightTab === "terminal" && (
                       <TerminalPanel
                         isActive={rightTab === "terminal"}
                         projectId={activeProjectId}

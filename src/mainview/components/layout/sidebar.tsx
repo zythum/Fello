@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { ModelInfo, SessionMode, InitializeResponse } from "@agentclientprotocol/sdk";
@@ -41,8 +41,24 @@ export function Sidebar() {
   const { t, i18n: _i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
+
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOptimisticPath(null);
+  }, [location.pathname]);
+
+  const handleNavigate = (path: string) => {
+    setOptimisticPath(path);
+    setTimeout(() => {
+      navigate(path);
+    }, 0);
+  };
+
+  const currentPath = optimisticPath ?? location.pathname;
+  const matchSession = currentPath.match(/^\/session-view\/(.+)$/);
   const activeSessionId = matchSession ? matchSession[1] : null;
+
   const {
     isMacApp,
     isFullScreen,
@@ -139,7 +155,7 @@ export function Sidebar() {
       const result = await request.newSession({ projectId, agentId });
       applySessionState(result);
       await refreshData();
-      navigate(`/session-view/${result.sessionId}`);
+      handleNavigate(`/session-view/${result.sessionId}`);
     } catch (err) {
       console.error("Failed to create new chat:", err);
       pushGlobalErrorMessage(
@@ -151,7 +167,7 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
-    navigate(`/session-view/${session.id}`);
+    handleNavigate(`/session-view/${session.id}`);
   };
 
   const handleDeleteSession = async (session: SessionInfo) => {
@@ -173,9 +189,9 @@ export function Sidebar() {
             if (activeSessionId === session.id) {
               const next = updated.length > 0 ? updated[0] : null;
               if (next) {
-                navigate(`/session-view/${next.id}`);
+                handleNavigate(`/session-view/${next.id}`);
               } else {
-                navigate("/");
+                handleNavigate("/");
               }
             }
             return "deleted";
@@ -236,9 +252,9 @@ export function Sidebar() {
             if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
               const next = updated.length > 0 ? updated[0] : null;
               if (next) {
-                navigate(`/session-view/${next.id}`);
+                handleNavigate(`/session-view/${next.id}`);
               } else {
-                navigate("/");
+                handleNavigate("/");
               }
             }
             return "confirm";
@@ -281,9 +297,9 @@ export function Sidebar() {
       ></div>
       <div className="px-2 pt-2 pb-1">
         <div
-          onClick={() => navigate("/")}
+          onClick={() => handleNavigate("/")}
           className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
-            location.pathname === "/"
+            currentPath === "/"
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
           }`}
@@ -438,10 +454,10 @@ export function Sidebar() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (configuredAgents.length === 1) {
-                          void handleNewChat(project.id, configuredAgents[0].id);
-                        } else {
-                          navigate("/settings/agents");
-                        }
+                        void handleNewChat(project.id, configuredAgents[0].id);
+                      } else {
+                        handleNavigate("/settings/agents");
+                      }
                       }}
                       className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
                       aria-label={t("sidebar.createChatInProject", {
@@ -549,10 +565,10 @@ export function Sidebar() {
       <div className="mt-auto border-t border-border/60 p-2">
         <Button
           variant="ghost"
-          onClick={() => navigate("/settings/general")}
+          onClick={() => handleNavigate("/settings/general")}
           className={cn(
             "flex w-full font-normal items-center justify-between gap-2 rounded-md p-2 text-xs h-9",
-            location.pathname.startsWith("/settings")
+            currentPath.startsWith("/settings")
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
           )}

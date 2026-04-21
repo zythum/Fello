@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useRef } from "react";
 import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
 import type {
@@ -283,17 +284,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Selector: derive current session's state for use in components
 export function useSessionState(sessionId: string | null) {
-  const sessionStates = useAppStore((s) => s.sessionStates);
-  if (!sessionId) {
-    return emptySessionState();
+  const fallbackRef = useRef<SessionState | null>(null);
+  if (!fallbackRef.current) {
+    fallbackRef.current = emptySessionState();
   }
-  return sessionStates.get(sessionId) ?? emptySessionState();
+  return useAppStore(
+    (s) => (sessionId ? s.sessionStates.get(sessionId) : undefined) ?? fallbackRef.current!,
+  );
 }
 
 export function useProjectState(projectId: string | null) {
-  const projectStates = useAppStore((s) => s.projectStates);
-  if (!projectId) {
-    return emptyProjectState();
+  const fallbackRef = useRef<ProjectState | null>(null);
+  if (!fallbackRef.current) {
+    fallbackRef.current = emptyProjectState();
   }
-  return projectStates.get(projectId) ?? emptyProjectState();
+  return useAppStore(
+    (s) => (projectId ? s.projectStates.get(projectId) : undefined) ?? fallbackRef.current!,
+  );
 }

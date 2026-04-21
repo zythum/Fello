@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
 import { request, subscribe, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { useAppStore } from "../../store";
@@ -348,7 +348,7 @@ export interface FilePanelProps {
   projectId: string;
 }
 
-export function FilePanel({ projectId }: FilePanelProps) {
+export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -1453,7 +1453,7 @@ export function FilePanel({ projectId }: FilePanelProps) {
       {gitSummary}
     </div>
   );
-}
+});
 
 function insertTemp(tree: TreeNode[], parentId: string, node: TreeNode): TreeNode[] {
   return tree.map((n) => {
