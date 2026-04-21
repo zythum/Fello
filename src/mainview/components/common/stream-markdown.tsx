@@ -50,6 +50,10 @@ export function StreamMarkdown({
         animated={{ sep: "char" }}
         linkSafety={{ enabled: false }}
         remarkPlugins={remarkPlugins}
+        controls={{
+          table: { fullscreen: false },
+          mermaid: { fullscreen: false },
+        }}
       >
         {children}
       </Streamdown>

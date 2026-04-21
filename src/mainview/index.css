@@ -136,6 +136,10 @@ body,
 [data-streamdown="code-block-actions"] {
   margin-top: -3px !important;
 }
+[data-streamdown="code-block-actions"] button,
+[data-streamdown="table-wrapper"] > div button {
+  transform: scale(0.85);
+}
 [data-streamdown="table"] {
   margin: 0 !important;
 }

@@ -55,13 +55,12 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
-  const isLive = status === "in_progress" || status === "pending";
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
 
   return (
     <details
       className="text-xs min-w-0 overflow-hidden group"
-      open={isLive || message.terminalId != null}
+      open={(message.content && message.content.length > 0) || message.terminalId != null}
     >
       <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary group-open:bg-secondary">
         {kindIcon}
@@ -114,7 +113,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
               return (
                 <div
                   key={index}
-                  className="h-64 border-b border-border last:border-b-0 flex flex-col"
+                  className="border-b border-border last:border-b-0 flex flex-col"
                 >
                   <div className="px-3 py-1 bg-muted/50 border-b border-border text-[10px] font-mono text-muted-foreground truncate">
                     {content.path}
@@ -139,8 +138,8 @@ export function ToolItem({ session, message }: ToolItemProps) {
             return null;
           })}
         {message.terminalId && <ReadonlyTerminal terminalId={message.terminalId} />}
-        {message.rawInput != null && (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all p-2 text-xs leading-relaxed text-muted-foreground">
+        {(!message.content || message.content.length === 0) && message.rawInput != null && (
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all p-2 text-[10px] leading-relaxed text-muted-foreground">
             {typeof message.rawInput === "string"
               ? message.rawInput
               : toYamlString(message.rawInput)}

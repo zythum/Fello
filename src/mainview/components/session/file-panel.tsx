@@ -180,7 +180,7 @@ function TreeItem({
             }
           }}
           className={cn(
-            "flex h-7 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
+            "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
             isSelected
               ? "bg-accent text-accent-foreground"
               : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
@@ -1192,7 +1192,7 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
             <span className="truncate">{gitStatus.branch}</span>
           </div>
           {hasChanges && (
-            <div className="ml-2 mr-1 flex shrink-0 gap-1.5 text-[10px] font-normal tracking-tighter">
+            <div className="ml-2 mr-1 flex shrink-0 gap-1.5 text-[10px] font-normal">
               {GIT_SUMMARY_BADGES.map(({ key, color }) =>
                 counts[key] > 0 ? (
                   <span key={key} className={cn(color, "font-medium")}>
