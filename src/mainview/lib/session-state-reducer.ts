@@ -58,7 +58,7 @@ function calculateUserMessageChunk(
         role: "user_message",
         contents: [content],
         _meta: update._meta,
-        displayId: crypto.randomUUID(),
+        displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
       },
     ],
   };
@@ -67,8 +67,9 @@ function calculateUserMessageChunk(
 function calculateAgentChunk(
   state: SessionState,
   role: "agent_message" | "agent_thought",
-  block: ContentBlock,
+  update: UpdatePayload<"agent_message_chunk"> | UpdatePayload<"agent_thought_chunk">,
 ): SessionState {
+  const block = update.content;
   const msgs = [...state.messages];
   const last = msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
 
@@ -90,7 +91,7 @@ function calculateAgentChunk(
     msgs.push({
       role,
       contents: [block],
-      displayId: crypto.randomUUID(),
+      displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
     } satisfies ChatMessage);
   }
   return { ...state, messages: msgs };
@@ -119,7 +120,7 @@ function calculateToolCall(
       status: "completed",
       content: [],
       locations: [],
-      displayId: crypto.randomUUID(),
+      displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
     } satisfies ToolCallMessage);
 
   const data: Partial<ToolCallMessage> = {};
@@ -194,13 +195,13 @@ export function reduceSessionUpdate(
 
     case "agent_message_chunk":
       if (update.content) {
-        nextState = calculateAgentChunk(currentState, "agent_message", update.content);
+        nextState = calculateAgentChunk(currentState, "agent_message", update);
       }
       break;
 
     case "agent_thought_chunk":
       if (update.content) {
-        nextState = calculateAgentChunk(currentState, "agent_thought", update.content);
+        nextState = calculateAgentChunk(currentState, "agent_thought", update);
       }
       break;
 
