@@ -81,10 +81,31 @@ export const CodeCompareView = memo(function CodeCompareView({
             },
           },
           gutter: {
-            textAlign: 'right',
+            fontSize: '12px',
+            padding: '0 6px',
+            'pre': {
+              textAlign: "right",
+            }
           },
           diffContainer: {
             minWidth: "auto",
+            ...(shouldUseSplitView
+              ? {
+                  "&>colgroup>col:nth-child(1)": {
+                    width: "32px !important",
+                  },
+                  "&>colgroup>col:nth-child(4)": {
+                    width: "32px !important",
+                  },
+                }
+              : {
+                  "&>colgroup>col:nth-child(1)": {
+                    width: "32px !important",
+                  },
+                  "&>colgroup>col:nth-child(2)": {
+                    width: "32px !important",
+                  },
+                }),
           },
         }}
       />

@@ -10,9 +10,13 @@ import {
   appendFileSync,
 } from "fs";
 import { createHash } from "crypto";
-import type { ProjectInfo, SessionInfo, SettingsInfo } from "../shared/schema";
 import type {
-  SessionNotification,
+  ProjectInfo,
+  SessionInfo,
+  SettingsInfo,
+  SessionNotificationFelloExt,
+} from "../shared/schema";
+import type {
   SessionModelState,
   SessionModeState,
   InitializeResponse,
@@ -542,14 +546,14 @@ export const storageOps = {
     writeSessionMeta(meta);
   },
 
-  appendSessionMessage(id: string, notification: SessionNotification) {
+  appendSessionMessage(id: string, notification: SessionNotificationFelloExt) {
     const session = this.getSession(id);
     if (!session) return;
     const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
     appendFileSync(filePath, JSON.stringify(notification) + "\n");
   },
 
-  readSessionMessages(id: string): SessionNotification[] {
+  readSessionMessages(id: string): SessionNotificationFelloExt[] {
     const session = this.getSession(id);
     if (!session) return [];
     const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
@@ -565,7 +569,7 @@ export const storageOps = {
           return null;
         }
       })
-      .filter(Boolean) as SessionNotification[];
+      .filter(Boolean) as SessionNotificationFelloExt[];
   },
 };
 

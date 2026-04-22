@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { useRef } from "react";
-import type { SessionInfo, ProjectInfo, SettingsInfo } from "../shared/schema";
+import type {
+  SessionInfo,
+  ProjectInfo,
+  SettingsInfo,
+  SessionNotificationFelloExt,
+} from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
 import type { RequestPermissionRequest, UsageUpdate } from "@agentclientprotocol/sdk";
 
@@ -31,6 +36,7 @@ export interface SessionState {
   isLoading: boolean;
   permissionRequests: PermissionRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
+  pendingUpdates: SessionNotificationFelloExt["update"][];
 }
 
 const emptySessionState = (): SessionState => ({
@@ -40,6 +46,7 @@ const emptySessionState = (): SessionState => ({
   isLoading: false,
   permissionRequests: [],
   activeToolCalls: new Map(),
+  pendingUpdates: [],
 });
 
 export interface AppState {

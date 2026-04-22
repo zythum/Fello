@@ -30,7 +30,7 @@ import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
-import type { FelloIPCSchema } from "../shared/schema";
+import type { SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
 
@@ -125,8 +125,21 @@ let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
 ) => boolean = () => false;
 
 function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionNotification) {
-  storageOps.appendSessionMessage(sessionId, notification);
-  sendEvent("session-update", { sessionId, notification });
+  const enrichedNotification: SessionNotificationFelloExt = {
+    ...notification,
+    update: {
+      ...notification.update,
+      _meta: {
+        ...notification.update?._meta,
+        fello: {
+          receivedAt: Date.now(),
+          displayId: crypto.randomUUID(),
+        },
+      },
+    },
+  };
+  storageOps.appendSessionMessage(sessionId, enrichedNotification);
+  sendEvent("session-update", { sessionId, notification: enrichedNotification });
 }
 
 function markProjectFsDirty(projectId: string) {
@@ -517,7 +530,6 @@ export const backendHandlers: {
   async loadSession({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    sendEvent("session-clear", { sessionId: session.id });
     const b = await ensureBridge(session.agentId);
     const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
 
@@ -531,14 +543,6 @@ export const backendHandlers: {
       });
     } finally {
       restoringSessions.delete(session.id);
-    }
-
-    const history = storageOps.readSessionMessages(session.id);
-    for (const notification of history) {
-      sendEvent("session-update", {
-        sessionId: session.id,
-        notification,
-      });
     }
 
     let finalModels = loadResult.models ?? null;
@@ -580,6 +584,16 @@ export const backendHandlers: {
     };
   },
 
+  async getSessionHistory({ sessionId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const messages = storageOps.readSessionMessages(sessionId);
+    return {
+      messages,
+      isStreaming: activeStreamingSessions.has(sessionId),
+    };
+  },
+
   async sendMessage({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
@@ -595,9 +609,18 @@ export const backendHandlers: {
       }
     }
 
-    const connectPromise = bridgePool.get(session.agentId);
-    if (!connectPromise) throw new Error("Agent bridge not found for session");
-    const b = await connectPromise;
+    const b = await ensureBridge(session.agentId);
+
+    if (!b.isSessionLoaded(session.resumeId)) {
+      console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
+      const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
+      await b.loadSession({
+        sessionId: session.resumeId,
+        cwd: session.cwd,
+        mcpServers: activeMcpServers,
+      });
+    }
+
     storageOps.touchSession(sessionId);
     const updated = storageOps.getSession(sessionId);
     if (updated) sendEvent("session-changed", { session: updated });

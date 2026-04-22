@@ -1,4 +1,5 @@
-import type { SessionNotification, ContentBlock } from "@agentclientprotocol/sdk";
+import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type { SessionNotificationFelloExt } from "../../shared/schema";
 import i18n from "../i18n";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
@@ -7,8 +8,8 @@ import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
 // Pure Functions for State Calculation
 // ---------------------------------------------------------------------------
 
-type UpdatePayload<T extends SessionNotification["update"]["sessionUpdate"]> = Extract<
-  SessionNotification["update"],
+type UpdatePayload<T extends SessionNotificationFelloExt["update"]["sessionUpdate"]> = Extract<
+  SessionNotificationFelloExt["update"],
   { sessionUpdate: T }
 >;
 
@@ -180,7 +181,7 @@ function calculateUsageUpdate(
 
 export function reduceSessionUpdate(
   currentState: SessionState,
-  update: SessionNotification["update"],
+  update: SessionNotificationFelloExt["update"],
 ): SessionState {
   let nextState: SessionState = currentState;
 

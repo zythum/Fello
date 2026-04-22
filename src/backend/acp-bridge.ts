@@ -77,6 +77,7 @@ export class ACPBridge {
   private _initializeInfo: InitializeResponse | null = null;
   private _modelStates = new Map<string, SessionModelState>();
   private _modeStates = new Map<string, SessionModeState>();
+  private _loadedSessions = new Set<string>();
   public terminalManager: AgentTerminalManager;
 
   constructor(
@@ -94,6 +95,10 @@ export class ACPBridge {
 
   get initializeInfo() {
     return this._initializeInfo;
+  }
+
+  isSessionLoaded(sessionId: string): boolean {
+    return this._loadedSessions.has(sessionId);
   }
 
   /**
@@ -248,6 +253,7 @@ export class ACPBridge {
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
+    this._loadedSessions.add(result.sessionId);
     return result;
   }
 
@@ -268,6 +274,7 @@ export class ACPBridge {
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(params.sessionId, models);
     if (modes) this._modeStates.set(params.sessionId, modes);
+    this._loadedSessions.add(params.sessionId);
     return result;
   }
 
@@ -304,6 +311,7 @@ export class ACPBridge {
     this._isConnected = false;
     this._modelStates.clear();
     this._modeStates.clear();
+    this._loadedSessions.clear();
     this.connection = null;
 
     if (this.process) {

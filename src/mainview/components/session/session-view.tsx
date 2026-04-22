@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { reduceFlushStreaming } from "../../lib/session-state-reducer";
+import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
 import { Chat } from "../chat/chat";
 import { FilePanel } from "./file-panel";
@@ -36,32 +36,75 @@ export function SessionView({ session }: { session: SessionInfo }) {
     if (!sessionId) return;
     const sessionState = useAppStore.getState().getSessionState(sessionId);
     // Don't auto load if we are currently creating a session or if it's already loaded
-    if (sessionState.messages.length > 0 || isCreatingSession || sessionState.isLoading) {
+    if (sessionState.messages.length > 0 || isCreatingSession) {
       return;
     }
 
-    // Also use a flag to track if a load request is already inflight for this session
-    const loadSession = async () => {
+    let isCurrent = true;
+
+    const fetchHistory = async () => {
       useAppStore.getState().updateSessionState(sessionId, (prev) => ({
         ...reduceFlushStreaming(prev),
         isLoading: true,
       }));
+
       try {
-        const result = await request.loadSession({ sessionId });
-        useAppStore.getState().updateSessionState(sessionId, (prev) => ({
-          ...prev,
-          isStreaming: result.isStreaming,
-        }));
+        const result = await request.getSessionHistory({ sessionId });
+
+        if (!isCurrent) {
+          useAppStore
+            .getState()
+            .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        let state = useAppStore.getState().getSessionState(sessionId);
+        state = { ...state, messages: [], activeToolCalls: new Map() };
+
+        // Load static history
+        for (const notification of result.messages) {
+          if (!notification?.update) continue;
+          state = reduceSessionUpdate(state, notification.update);
+        }
+
+        // Deduplicate and apply pending updates that arrived while fetching history
+        const displayIds = new Set(
+          result.messages.map((m) => m?.update?._meta?.fello?.displayId).filter(Boolean),
+        );
+        for (const update of state.pendingUpdates) {
+          const did = update._meta?.fello?.displayId;
+          if (did && displayIds.has(did)) {
+            continue; // Skip duplicate
+          }
+          state = reduceSessionUpdate(state, update);
+        }
+
+        state.isStreaming = result.isStreaming;
+        state.isLoading = false;
+        state.pendingUpdates = [];
+
+        useAppStore.getState().updateSessionState(sessionId, () => state);
+
+        // Silently warm up the bridge (get models/modes)
+        request.loadSession({ sessionId }).catch(console.error);
       } catch (err) {
-        console.error("Failed to auto load session", err);
-      } finally {
-        useAppStore
-          .getState()
-          .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+        console.error("Failed to fetch session history", err);
+        if (isCurrent) {
+          useAppStore
+            .getState()
+            .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+        }
       }
     };
 
-    void loadSession();
+    void fetchHistory();
+
+    return () => {
+      isCurrent = false;
+      useAppStore
+        .getState()
+        .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+    };
   }, [sessionId, isCreatingSession]);
 
   const openPreviewFile = useCallback((file: { projectId: string; relativePath: string }) => {

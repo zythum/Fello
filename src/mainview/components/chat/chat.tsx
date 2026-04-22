@@ -1,7 +1,7 @@
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { useAppStore } from "../../store";
-import { reduceFlushStreaming } from "../../lib/session-state-reducer";
+import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
 import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -33,12 +33,33 @@ export function Chat({ session }: { session: SessionInfo }) {
       updateSessionState(session.id, (prev) => reduceFlushStreaming(prev));
       resetSessionState(session.id);
       updateSessionState(session.id, () => ({ isLoading: true }));
-      const result = await request.loadSession({ sessionId: session.id });
+      const result = await request.getSessionHistory({ sessionId: session.id });
       if (!result) return;
-      updateSessionState(session.id, (prev) => ({
-        ...prev,
-        isStreaming: result.isStreaming,
-      }));
+
+      let state = useAppStore.getState().getSessionState(session.id);
+      state = { ...state, messages: [], activeToolCalls: new Map() };
+      for (const notification of result.messages) {
+        if (!notification?.update) continue;
+        state = reduceSessionUpdate(state, notification.update);
+      }
+
+      const displayIds = new Set(
+        result.messages.map((m) => m?.update?._meta?.fello?.displayId).filter(Boolean),
+      );
+      for (const update of state.pendingUpdates) {
+        const did = update._meta?.fello?.displayId;
+        if (did && displayIds.has(did)) continue;
+        state = reduceSessionUpdate(state, update);
+      }
+
+      state.isStreaming = result.isStreaming;
+      state.pendingUpdates = [];
+      state.isLoading = false;
+
+      updateSessionState(session.id, () => state);
+
+      // Warm up bridge silently
+      request.loadSession({ sessionId: session.id }).catch(console.error);
     } catch (err) {
       console.error("Failed to load session:", err);
       const message =

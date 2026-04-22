@@ -133,21 +133,21 @@ function AppContent() {
       sessionUpdateFlushRafIdRef.current = requestAnimationFrame(flushPendingSessionUpdates);
     };
 
-    const handleSessionClear = (detail: BackendEvents["session-clear"]) => {
-      pendingSessionUpdatesRef.current.delete(detail.sessionId);
-      useAppStore.getState().updateSessionState(detail.sessionId, (prev) => ({
-        messages: [],
-        usage: null,
-        isStreaming: false,
-        isLoading: prev.isLoading,
-        permissionRequests: [],
-        activeToolCalls: new Map(),
-      }));
-    };
-
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sid = detail.sessionId;
       const update = detail.notification.update;
+
+      const store = useAppStore.getState();
+
+      if (!store.sessionStates.has(sid)) {
+        return; // Hibernated, discard
+      }
+
+      const sessionState = store.sessionStates.get(sid);
+      if (sessionState?.isLoading) {
+        store.updateSessionState(sid, (s) => ({ pendingUpdates: [...s.pendingUpdates, update] }));
+        return;
+      }
 
       let pending = pendingSessionUpdatesRef.current.get(sid);
       if (!pending) {
@@ -244,7 +244,6 @@ function AppContent() {
       }
     };
 
-    subscribe.on("session-clear", handleSessionClear);
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
     subscribe.on("permission-resolved", handlePermissionResolved);
@@ -261,7 +260,6 @@ function AppContent() {
 
     return () => {
       if (unlistenFullScreen) unlistenFullScreen();
-      subscribe.off("session-clear", handleSessionClear);
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
       subscribe.off("permission-resolved", handlePermissionResolved);

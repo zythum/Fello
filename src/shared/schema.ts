@@ -8,6 +8,21 @@ import type {
 } from "@agentclientprotocol/sdk";
 
 /**
+ * 扩展 SessionNotification 结构
+ * 包含 Fello 注入的元数据，用于前后端消息去重、时间戳等功能
+ */
+export interface SessionNotificationFelloExt extends SessionNotification {
+  update: SessionNotification["update"] & {
+    _meta?: SessionNotification["update"]["_meta"] & {
+      fello?: {
+        receivedAt: number;
+        displayId: string;
+      };
+    };
+  };
+}
+
+/**
  * 代理（Agent）的配置信息
  * 描述了如何启动或连接到一个特定的代理
  */
@@ -198,6 +213,14 @@ export type FelloIPCRequests = {
       isStreaming: boolean;
     };
   };
+  /** 获取会话历史记录 */
+  getSessionHistory: {
+    params: { sessionId: string };
+    response: {
+      messages: SessionNotificationFelloExt[];
+      isStreaming: boolean;
+    };
+  };
   /** 向会话发送用户消息 */
   sendMessage: {
     params: {
@@ -363,10 +386,8 @@ export type FelloIPCRequests = {
 export type FelloIPCEvents = {
   /** 单个会话配置或元数据发生变更时触发（如改名、切换模型），用于前端进行原子级 UI 更新 */
   "session-changed": { session: SessionInfo };
-  /** 会话被清理的事件 */
-  "session-clear": { sessionId: string };
   /** 会话状态更新的事件（如消息流、状态变更等） */
-  "session-update": { sessionId: string; notification: SessionNotification };
+  "session-update": { sessionId: string; notification: SessionNotificationFelloExt };
   /** 代理发出权限请求的事件 */
   "permission-request": { sessionId: string; request: RequestPermissionRequest };
   /** 代理权限请求已解决的事件（用于多端同步关闭弹窗） */
