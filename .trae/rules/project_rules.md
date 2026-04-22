@@ -1,27 +1,24 @@
 ## Automation Expectations
 
-- Before finishing a coding task, run: npm run typecheck, npm run lint. Run npm run format only when you changed code formatting or added new files.
-- Keep docs in sync when changes are meaningful (architecture, project structure, tech stack, conventions). Otherwise do not change docs.
+- Finish task: run `npm run typecheck` and `npm run lint`; run `npm run format` only if needed.
+- Update docs only for meaningful architecture/structure/stack changes.
 
 ## Code Conventions
 
 - Indentation: 2 spaces, no tabs.
-- UI: prefer existing shadcn/ui components over custom markup when possible.
-- Language & i18n: All user-facing UI text MUST be extracted to locale files (`src/mainview/locales/`) using `react-i18next` (`useTranslation`). Do not use hardcoded strings in components.
-- Backend: All backend code MUST be stateless.
-- TypeScript Types: Prefer `unknown` over `any` for untyped variables to enforce type checking before use. Prefer the `satisfies` operator over type assertions (`as`) to preserve exact type inference while ensuring type compatibility.
-- Mainview: Code MUST be compatible with both Electron and Web UI environments. Any UI element that invokes Electron-specific native APIs (i.e., `electron.xxx` methods like `revealInFinder` or `trashFile`) MUST be hidden when running in Web UI mode (`isWebUI === true`).
-- Path Handling: To ensure cross-platform compatibility (especially on Windows), all IPC interfaces must accept and return POSIX-style paths (`/`) for relative project paths. The only exception is `getSystemFilePath`, which is specifically designed to return the native OS path format (e.g., `\` on Windows).
-- ACP Protocol Adherence: This project is an ACP (`https://agentclientprotocol.com/`) client, using `@agentclientprotocol/sdk` as the protocol specification. All feature development MUST adhere to the ACP protocol. If a proposed feature conflicts with the ACP protocol, you MUST raise concerns and initiate a discussion before proceeding.
-- ACP Integration: When interacting with the underlying ACP service (Agent process), you MUST use `session.resumeId` instead of `session.id`. The ACP interface declaration often names its parameter `sessionId`, which can easily be confused with Fello's own `session.id`. Remember: ACP side's `sessionId` === Fello side's `session.resumeId`.
+- UI: prefer existing shadcn/ui components.
+- i18n: no hardcoded UI text; use `react-i18next` + locale files in `src/mainview/locales/`.
+- Backend must be stateless.
+- TypeScript: prefer `unknown` over `any`, `satisfies` over `as`.
+- Mainview supports Electron + Web UI; hide Electron-native actions when `isWebUI === true`.
+- IPC relative paths use POSIX (`/`); only `getSystemFilePath` may return OS-native paths.
+- Follow ACP (`@agentclientprotocol/sdk`); if conflicts appear, raise first.
+- ACP `sessionId` = `session.resumeId`.
 
 ## Repo Structure
 
-- Backend logic: src/backend (backend.ts, acp-bridge.ts, ipc-schema.ts, storage.ts)
-- Electron code: src/electron (main.ts, preload.ts)
-- Renderer code: src/mainview (React + Vite)
+- Backend `src/backend`; Electron `src/electron`; Renderer `src/mainview`.
 
 ## Documentation
 
-- Refer to the documentation in the `docs` directory to understand the project.
-- Rules Maintenance: When adding new rules to `project_rules.md`, maintain a consistent description style and language with the existing document.
+- Refer to `docs/`; keep new `project_rules.md` entries consistent in style/language.
