@@ -1,4 +1,3 @@
-import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { SessionNotificationFelloExt } from "../../shared/schema";
 import i18n from "../i18n";
 import type { SessionState } from "../store";
@@ -59,6 +58,7 @@ function calculateUserMessageChunk(
         contents: [content],
         _meta: update._meta,
         displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+        receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
       },
     ],
   };
@@ -92,6 +92,7 @@ function calculateAgentChunk(
       role,
       contents: [block],
       displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+      receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
     } satisfies ChatMessage);
   }
   return { ...state, messages: msgs };
@@ -121,6 +122,7 @@ function calculateToolCall(
       content: [],
       locations: [],
       displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+      receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
     } satisfies ToolCallMessage);
 
   const data: Partial<ToolCallMessage> = {};
@@ -219,7 +221,8 @@ export function reduceSessionUpdate(
             role: "plan",
             entries: update.entries ?? [],
             _meta: update._meta,
-            displayId: crypto.randomUUID(),
+            displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+            receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
           } satisfies PlanMessage,
         ],
       };
@@ -251,7 +254,8 @@ export function reduceSessionUpdate(
               {
                 role: "system_message",
                 kind: "info",
-                displayId: crypto.randomUUID(),
+                displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+                receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
                 contents: [
                   i18n.t("session.usageSummary", {
                     total: usage.totalTokens,

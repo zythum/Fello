@@ -567,7 +567,7 @@ export const backendHandlers: {
         models: finalModels,
         modes: finalModes,
         initializeInfo: b.initializeInfo,
-      });
+      }, false);
     }
 
     const freshSession = storageOps.getSession(session.id);

@@ -3,7 +3,7 @@ import { ChatInput } from "./chat-input";
 import { useAppStore } from "../../store";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
-import { formatSessionTime, extractErrorMessage } from "@/lib/utils";
+import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { request } from "../../backend";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
@@ -106,7 +106,7 @@ export function Chat({ session }: { session: SessionInfo }) {
                 {session.title || t("sidebar.newChat", "New Chat")}
               </span>
               <span className="ml-auto shrink-0 text-xs text-sidebar-foreground/85 whitespace-nowrap">
-                {formatSessionTime(session.updatedAt)}
+                {formatUpdatedTime(session.updatedAt)}
               </span>
             </div>
             <div className="ml-2 flex items-center shrink-0" style={{ WebkitAppRegion: "no-drag" }}>

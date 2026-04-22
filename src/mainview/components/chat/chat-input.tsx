@@ -220,6 +220,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       role: "user_message",
       contents,
       displayId: displayId,
+      receivedAt: Date.now(),
     } satisfies ChatMessage;
 
     // 1. Optimistic Update: clear input and add message to screen instantly

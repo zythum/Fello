@@ -212,7 +212,8 @@
     "thinking": "思考中...",
     "scrollToBottom": "滚动到底部",
     "copyGroup": "复制",
-    "copiedGroup": "已复制"
+    "copiedGroup": "已复制",
+    "duration": "用时 {{duration}}"
   },
   "chatTimeline": {
     "userMessageIndex": "第 {{index}} 条用户消息",

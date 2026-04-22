@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatSessionTime(updatedAtSeconds: number): string {
-  const date = new Date(updatedAtSeconds * 1000);
+export function formatUpdatedTime(updatedAt: number): string {
+  const date = new Date(updatedAt);
   const now = new Date();
 
   const isSameYear = date.getFullYear() === now.getFullYear();
@@ -30,6 +30,18 @@ export function formatSessionTime(updatedAtSeconds: number): string {
 
   const year = date.getFullYear();
   return `${year}-${month}-${day} ${timeStr}`;
+}
+
+export function formatDuration(ms: number): string {
+  if (ms < 0) return "0s";
+  if (ms < 1000) return `${ms}ms`;
+
+  const seconds = Math.floor(ms / 1000);
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
 }
 
 export function extractErrorMessage(error: unknown): string {

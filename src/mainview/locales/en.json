@@ -212,7 +212,8 @@
     "thinking": "Thinking...",
     "scrollToBottom": "Scroll to bottom",
     "copyGroup": "Copy",
-    "copiedGroup": "Copied"
+    "copiedGroup": "Copied",
+    "duration": "Took {{duration}}"
   },
   "chatTimeline": {
     "userMessageIndex": "User message {{index}}",

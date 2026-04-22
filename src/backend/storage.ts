@@ -196,7 +196,7 @@ function readProjectMeta(projectId: string): ProjectMeta | null {
     const title = String(raw.title || "");
     const cwd = String(raw.cwd || "");
     const created_at =
-      typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
+      typeof raw.created_at === "number" ? raw.created_at : Date.now();
     if (!id || !title || !cwd) return null;
     return { id, title, cwd, created_at };
   } catch {
@@ -222,7 +222,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const resume_id = String(raw.resume_id);
     const project_id = String(raw.project_id);
     const created_at =
-      typeof raw.created_at === "number" ? raw.created_at : Math.floor(Date.now() / 1000);
+      typeof raw.created_at === "number" ? raw.created_at : Date.now();
     const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
     const mcp_servers = Array.isArray(raw.mcp_servers)
       ? raw.mcp_servers.filter((v) => typeof v === "string")
@@ -382,7 +382,7 @@ export const storageOps = {
         created: false,
       };
     }
-    const now = Math.floor(Date.now() / 1000);
+    const now = Date.now();
     const title = basename(cwd) || cwd;
     const meta: ProjectMeta = { id: projectId, title, cwd, created_at: now };
     writeProjectMeta(meta);
@@ -436,7 +436,7 @@ export const storageOps = {
   ) {
     const project = readProjectMeta(projectId);
     if (!project) throw new Error("Project does not exist");
-    const now = Math.floor(Date.now() / 1000);
+    const now = Date.now();
     const id = `${agentId}:${resumeId}`;
     writeSessionMeta({
       id: id,
@@ -463,6 +463,7 @@ export const storageOps = {
       modes: SessionModeState | null;
       initializeInfo: InitializeResponse | null;
     }>,
+    updateTime: boolean = true,
   ) {
     const session = this.getSession(id);
     if (!session) return;
@@ -475,7 +476,9 @@ export const storageOps = {
     if (updates.modes !== undefined) meta.modes = updates.modes;
     if (updates.initializeInfo !== undefined) meta.initialize_info = updates.initializeInfo;
 
-    meta.updated_at = Math.floor(Date.now() / 1000);
+    if (updateTime) {
+      meta.updated_at = Date.now();
+    }
     writeSessionMeta(meta);
   },
 
@@ -542,7 +545,7 @@ export const storageOps = {
     if (!session) return;
     const meta = readSessionMeta(session.projectId, session.id);
     if (!meta) return;
-    meta.updated_at = Math.floor(Date.now() / 1000);
+    meta.updated_at = Date.now();
     writeSessionMeta(meta);
   },
 

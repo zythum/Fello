@@ -107,6 +107,7 @@ export const request = new Proxy(
 
 export const subscribe = { on, off };
 
+bridge.on("session-changed", (payload) => emit("session-changed", payload));
 bridge.on("session-update", (payload) => emit("session-update", payload));
 bridge.on("permission-request", (payload) => emit("permission-request", payload));
 bridge.on("permission-resolved", (payload) => emit("permission-resolved", payload));

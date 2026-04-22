@@ -91,7 +91,7 @@ export interface ProjectInfo {
   title: string;
   /** 项目的当前工作目录（绝对路径） */
   cwd: string;
-  /** 项目的创建时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
+  /** 项目的创建时间（毫秒级时间戳，如 Date.now()） */
   createdAt: number;
 }
 
@@ -127,9 +127,9 @@ export interface SessionInfo {
    * 切记：ACP 侧的 sessionId === Fello 侧的 session.resumeId
    */
   resumeId: string;
-  /** 会话的创建时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
+  /** 会话的创建时间（毫秒级时间戳，如 Date.now()） */
   createdAt: number;
-  /** 会话的最后更新时间（秒级时间戳，如 Math.floor(Date.now() / 1000)） */
+  /** 会话的最后更新时间（毫秒级时间戳，如 Date.now()） */
   updatedAt: number;
   /**
    * 当前会话使用的 MCP 服务器 ID 列表

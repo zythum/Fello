@@ -7,6 +7,7 @@ import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotoc
 export interface BaseMessage<T extends string> {
   role: T;
   readonly displayId: string;
+  readonly receivedAt: number;
   _meta?: { [key: string]: unknown } | null;
 }
 

@@ -8,7 +8,7 @@ import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, Check, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
 import type { SessionInfo } from "../../../shared/schema";
 export function ChatArea({ session }: { session: SessionInfo }) {
@@ -298,6 +298,18 @@ export function ChatArea({ session }: { session: SessionInfo }) {
           const groupText = getAgentText(group.contentMessages);
           const groupHasText = groupText.trim().length > 0;
 
+          // 计算耗时：找出最后一条消息的时间与 userMessage 收到时间之差
+          let durationMs: number | null = null;
+          if (group.userMessage && group.contentMessages.length > 0) {
+            const lastMsg = group.contentMessages[group.contentMessages.length - 1];
+            if (lastMsg.receivedAt && group.userMessage.receivedAt) {
+              const diff = lastMsg.receivedAt - group.userMessage.receivedAt;
+              if (diff > 0) {
+                durationMs = diff;
+              }
+            }
+          }
+
           return (
             <div
               key={group.key}
@@ -388,7 +400,13 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
               {(isLastGroup ? !isStreaming : true) && (
                 <div className="flex items-center relative border-b border-foreground/10 border-dashed py-1.5 group/separator pointer-events-auto">
-                  <div className="flex-1 flex items-center"></div>
+                  <div className="flex-1 flex items-center">
+                    {durationMs !== null && (
+                      <span className="text-xs text-muted-foreground/40 select-none">
+                        {t("chatArea.duration", { duration: formatDuration(durationMs) })}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center">
                     {groupHasText && (
                       <Button
