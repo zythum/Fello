@@ -29,19 +29,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
-
-    // Auto-reload on Vite dynamic import errors
-    const isDynamicImportError =
-      error.message.includes("Failed to fetch dynamically imported module") ||
-      error.message.includes("Importing a module script failed");
-
-    if (isDynamicImportError) {
-      const reloadCount = parseInt(sessionStorage.getItem("vite-chunk-reload") || "0", 10);
-      if (reloadCount < 2) {
-        sessionStorage.setItem("vite-chunk-reload", (reloadCount + 1).toString());
-        window.location.reload();
-      }
-    }
   }
 
   private handleReset = () => {
@@ -52,9 +39,13 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground p-4">
+        <div className="flex relative h-screen w-full flex-col items-center justify-center bg-background text-foreground p-4">
+          <div
+            className={"absolute left-0 top-0 right-0 h-12"}
+            style={{ WebkitAppRegion: "drag" }}
+          ></div>
           <h1 className="text-2xl font-bold mb-2">{i18n.t("errorBoundary.title")}</h1>
-          <pre className="text-xs whitespace-pre-line mb-6 w-[80%]">
+          <pre className="text-xs whitespace-pre-line mb-6 w-[80%] bg-accent rounded p-2 m-2 border border-border min-h-50">
             {this.state.error?.message || i18n.t("errorBoundary.defaultMessage")}
           </pre>
           <Button onClick={this.handleReset}>{i18n.t("errorBoundary.reload")}</Button>
