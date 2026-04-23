@@ -31,7 +31,6 @@ fello/
 │       ├── electron.ts               # 纯客户端专属原生系统交互 API 封装，屏蔽 WebUI 的调用
 │       ├── global.d.ts               # window.fello 类型声明
 │       ├── store.ts                  # Zustand store（按 session 分桶）
-│       ├── chat-message.ts           # 多态消息类型定义与 ContentBlock 鉴别器
 │       ├── i18n.ts                   # i18next 多语言配置初始化
 │       │
 │       ├── locales/                  # 多语言 JSON 字典文件
@@ -40,21 +39,25 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── session-state-reducer.ts      # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
+│       │   ├── chat-message.ts       # 多态消息类型定义与 ContentBlock 鉴别器
 │       │   ├── remark-filepath.ts    # Markdown 文件路径转换为可点击链接的 remark 插件
 │       │   └── utils.ts              # cn()、formatSessionTime 等工具函数
 │       │
 │       ├── components/
-│           ├── chat/                 # 聊天核心区域与气泡组件
-│           │   ├── bubbles/          # 各类角色消息气泡 (user/agent/system/tool 等)
-│           │   ├── chat.tsx          # 聊天主容器
-│           │   ├── chat-area.tsx     # 消息流渲染与滚动控制
-│           │   ├── chat-input.tsx    # 底部输入框 (文件拖拽、提及、发送)
-│           │   └── chat-timeline.tsx # 聊天时间线导航
 │           ├── session/              # 会话主工作区相关组件
+│           │   ├── chat/             # 聊天核心区域与气泡组件
+│           │   │   ├── bubbles/      # 各类角色消息气泡 (user/agent/system/tool 等)
+│           │   │   ├── chat.tsx      # 聊天主容器
+│           │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
+│           │   │   ├── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
+│           │   │   └── chat-timeline.tsx # 聊天时间线导航
 │           │   ├── session-view.tsx  # 主工作区布局 (左 Chat，右 Files/Terminal)
-│           │   ├── file-panel.tsx    # 文件树、重命名、拖拽移动等
-│           │   ├── file-preview.tsx  # 文件内容与图片预览
-│           │   └── terminal-panel.tsx# 多终端标签与内容区
+│           │   ├── panel.tsx         # 通用面板组件容器
+│           │   ├── file-panel/       # 文件面板目录
+│           │   │   ├── file-panel.tsx    # 文件树、重命名、拖拽移动等
+│           │   │   └── file-preview.tsx  # 文件内容与图片预览
+│           │   └── terminal-panel/   # 终端面板目录
+│           │       └── terminal-panel.tsx# 多终端标签与内容区
 │           ├── layout/               # 整体布局组件
 │           │   └── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
 │           ├── settings/             # 设置相关页面组件

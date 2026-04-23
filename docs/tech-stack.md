@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | 桌面容器 | Electron | ^37.2.0 | 承载桌面窗口、菜单、系统能力调用 |
 | 主进程运行时 | Node.js | 跟随 Electron | 执行 ACP、FS、PTY、IPC handlers |
-| 前端框架 | React / React DOM | ^19.1.0 | Renderer UI 构建 |
+| 前端框架 | React / React DOM | ^19.2.5 | Renderer UI 构建 |
 | 构建工具 | electron-vite | ^5.0.0 | 一体化构建 main/preload/renderer |
 | Renderer Bundler | Vite | ^7.1.9 | 开发 HMR 与生产构建 |
 | 语言 | TypeScript | ^5.9.3 | 主渲染全链路类型系统 |
@@ -28,11 +28,11 @@
 | --- | --- | --- |
 | Tailwind CSS | ^4.2.2 | 原子化样式体系 |
 | react-router-dom | ^7.14.1 | 客户端路由控制 (HashRouter) |
-| @base-ui/react | ^1.3.0 | 基础无样式交互 primitives（shadcn 基座） |
+| @base-ui/react | ^1.4.0 | 基础无样式交互 primitives（shadcn 基座） |
 | shadcn | ^4.1.2 | 项目内 UI 基础组件生成与组合 |
-| Lucide React | ^1.7.0 | 图标系统 |
+| Lucide React | ^1.8.0 | 图标系统 |
 | i18next + react-i18next | - | 前端多语言 (i18n) 解决方案 |
-| react-resizable-panels | ^4.9.0 | 主视图左右分栏可拖拽布局 |
+| react-resizable-panels | ^4.10.0 | 主视图左右分栏可拖拽布局 |
 | react-mentions | ^4.4.10 | 输入框文件提及（`#` 触发） |
 | class-variance-authority | ^0.7.1 | 组件变体管理 |
 | clsx + tailwind-merge | ^2.1.1 / ^3.5.0 | className 拼接与冲突消解 |
@@ -63,6 +63,9 @@
 | --- | --- | --- |
 | streamdown | ^2.5.0 | 流式 Markdown 渲染 |
 | @streamdown/code | ^1.1.1 | 代码高亮扩展 |
+| @streamdown/cjk | ^1.0.3 | CJK 中日韩字符优化扩展 |
+| @streamdown/math | ^1.0.2 | 数学公式扩展 |
+| @streamdown/mermaid | ^1.0.2 | Mermaid 图表扩展 |
 | react-diff-viewer-continued | ^4.2.0 | 代码 Diff 双栏/单栏对比视图 |
 | shiki | ^1.0.0 | 代码高亮底层引擎，通过 `shiki-highlighter.ts` 统一管理 |
 
@@ -70,6 +73,6 @@
 
 | 技术 | 版本 | 说明 |
 | --- | --- | --- |
-| oxlint | ^1.58.0 | 静态检查 |
-| oxfmt | ^0.43.0 | 代码格式化 |
+| oxlint | ^1.60.0 | 静态检查 |
+| oxfmt | ^0.45.0 | 代码格式化 |
 | TypeScript tsc | ^5.9.3 | 双配置类型检查（renderer + node） |

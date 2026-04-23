@@ -45,9 +45,9 @@
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
-  - `chat.tsx`：聊天区容器 + 权限对话框
-  - `file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
-  - `terminal-panel.tsx`：多终端标签、输出订阅、窗口 resize 自适配
+  - `session/chat/chat.tsx`：聊天区容器 + 权限对话框
+  - `session/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
+  - `session/terminal-panel/terminal-panel.tsx`：多终端标签、输出订阅、窗口 resize 自适配
 
 ### ACP Server（`kiro-cli acp`）
 
@@ -91,12 +91,13 @@ ACP sessionUpdate
 - permission 请求队列
 - activeToolCalls
 
-所有的消息通过 `src/mainview/chat-message.ts` 中的 `StreamableMessage` 等接口实现了多态结构（基于 `ContentBlock` 数组），并且依靠 Zustand 的 Immutable 更新保证 React 流式渲染性能。
+所有的消息通过 `src/mainview/lib/chat-message.ts` 中的 `StreamableMessage` 等接口实现了多态结构（基于 `ContentBlock` 数组），并且依靠 Zustand 的 Immutable 更新保证 React 流式渲染性能。
 - isStreaming
 
 全局共享状态则直接挂载于 store 根层级：
 
 - `configuredAgents`：用户在设置中自定义的可用 Agent 及启动命令
+- `configuredMcpServers`：用户在设置中自定义的可用 MCP 服务器配置
 - `theme`：UI 主题配置（深色、浅色、跟随系统）
 - `language`：应用语言配置（英语、简体中文）
 

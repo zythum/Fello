@@ -50,8 +50,7 @@ Main/preload changes typically require restarting the dev process.
 │       ├── router.tsx      # Routing configuration
 │       ├── main.tsx        # React entry point
 │       ├── store.ts        # Zustand state management
-│       ├── chat-message.ts # ChatMessage types and ContentBlock discriminators
-│       ├── lib/            # Utilities (session-state-reducer.ts, etc.)
+│       ├── lib/            # Utilities (session-state-reducer.ts, chat-message.ts, etc.)
 │       ├── components/     # UI components (chat, session, layout, settings, etc.)
 │       ├── backend.ts      # IPC client wrapper & WebSocket fallback for WebUI
 │       ├── electron.ts     # Native Electron-only API wrapper
@@ -81,7 +80,7 @@ Main/preload changes typically require restarting the dev process.
 - **Backend logic**: Edit `src/backend/backend.ts` and `src/backend/acp-bridge.ts`
 - **Renderer ↔ main bridge**: Edit `src/electron/preload.ts`, `src/mainview/backend.ts` and `src/mainview/electron.ts`
 - **IPC types**: Edit `src/shared/schema.ts`
-- **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `src/shared/schema.ts`
+- **Settings & Storage**: Modify `SettingsMeta` schema in `src/backend/storage.ts` and `SettingsInfo` in `src/shared/schema.ts`
 - **Build settings**: Edit `electron.vite.config.ts`
 
 ## Docs

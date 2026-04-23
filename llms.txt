@@ -18,12 +18,12 @@ Sessions & Persistence
 - Message history is intercepted by the backend and persisted locally in messages.jsonl files within each session's directory, enabling robust offline recovery without depending on the ACP server to hold history
 - Renderer state store: src/mainview/store.ts
 - Routing: src/mainview/router.tsx (uses react-router-dom HashRouter)
-- ChatMessage polymorphic interface: src/mainview/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
+- ChatMessage polymorphic interface: src/mainview/lib/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
 - Content block rendering: src/mainview/components/content-blocks/
 - Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, ReadonlyTerminal)
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
-- Chat input attachments (staged): src/mainview/components/chat/chat-input.tsx (supports file picker + drag-and-drop; filters by agent promptCapabilities)
-- Chat timeline dots + scroll tracking: src/mainview/components/chat/chat-area.tsx and src/mainview/components/chat/chat-timeline.tsx
+- Chat input attachments (staged): src/mainview/components/session/chat/chat-input.tsx (supports file picker + drag-and-drop; filters by agent promptCapabilities)
+- Chat timeline dots + scroll tracking: src/mainview/components/session/chat/chat-area.tsx and src/mainview/components/session/chat/chat-timeline.tsx
 
 Dev / Build Commands
 - npm run dev (electron-vite dev; Vite server on http://localhost:5173)
