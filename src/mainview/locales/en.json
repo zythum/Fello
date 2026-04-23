@@ -239,6 +239,11 @@
   "permission": {
     "title": "Permission Required"
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "defaultMessage": "An unexpected error occurred in the application.",
+    "reload": "Reload Application"
+  },
   "contentBlock": {
     "unsupported": "Unsupported block type: {{type}}",
     "download": "Download",

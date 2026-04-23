@@ -239,6 +239,11 @@
   "permission": {
     "title": "需要权限"
   },
+  "errorBoundary": {
+    "title": "出了点问题",
+    "defaultMessage": "应用程序发生意外错误。",
+    "reload": "重新加载应用"
+  },
   "contentBlock": {
     "unsupported": "不支持的内容块：{{type}}",
     "download": "下载",

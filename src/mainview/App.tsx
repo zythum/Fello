@@ -8,6 +8,7 @@ import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
 import { PermissionDialog } from "./components/global/permission-dialog";
 import { GlobalTextContextMenu } from "./components/global/global-text-context-menu";
+import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
 
@@ -290,13 +291,15 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <MessageProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
-      </MessageProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <MessageProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </MessageProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

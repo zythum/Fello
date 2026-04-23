@@ -56,7 +56,6 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
-  console.log(message);
   return (
     <details
       className="text-xs min-w-0 overflow-hidden group"

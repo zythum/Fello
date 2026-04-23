@@ -5,7 +5,14 @@ import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { FilePanel } from "./file-panel/file-panel";
 import { TerminalPanel } from "./terminal-panel/terminal-panel";
-import { Loader2, Folders, SquareTerminal, MoreHorizontal, RefreshCw, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  Folders,
+  SquareTerminal,
+  MoreHorizontal,
+  RefreshCw,
+  ChevronDown,
+} from "lucide-react";
 import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../backend";
 import { Badge } from "@/components/ui/badge";
