@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionState } from "../../store";
-import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../lib/chat-message";
+import { useSessionState } from "../../../store";
+import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
 import { MessageBubble } from "./bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowDown, Check, Copy } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 
-import type { SessionInfo } from "../../../shared/schema";
+import type { SessionInfo } from "../../../../shared/schema";
 export function ChatArea({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
@@ -399,10 +399,10 @@ export function ChatArea({ session }: { session: SessionInfo }) {
               </div>
 
               {(isLastGroup ? !isStreaming : true) && (
-                <div className="flex items-center relative border-b border-foreground/10 border-dashed py-1.5 group/separator pointer-events-auto">
+                <div className="flex items-center relative border-b border-muted-foreground/50 border-dashed py-1.5 group/separator pointer-events-auto">
                   <div className="flex-1 flex items-center">
                     {durationMs !== null && (
-                      <span className="text-xs text-muted-foreground/40 select-none">
+                      <span className="text-xs text-muted-foreground/50 select-none">
                         {t("chatArea.duration", { duration: formatDuration(durationMs) })}
                       </span>
                     )}
@@ -412,7 +412,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/60 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
                         onClick={async (e) => {
                           e.stopPropagation();
                           const ok = await copyText(groupText);

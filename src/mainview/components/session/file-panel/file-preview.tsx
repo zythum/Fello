@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
-import { request } from "../../backend";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { request } from "../../../backend";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { File, XIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { File } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CodeView } from "../common/code-view";
-import { CodeCompareView } from "../common/code-compare-view";
-import { StreamMarkdown } from "../common/stream-markdown";
-import { ImageView } from "../common/image-view";
-import { useAppStore } from "../../store";
+import { CodeView } from "../../common/code-view";
+import { CodeCompareView } from "../../common/code-compare-view";
+import { StreamMarkdown } from "../../common/stream-markdown";
+import { ImageView } from "../../common/image-view";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -20,26 +17,16 @@ import {
 } from "@/components/ui/context-menu";
 import { MessageSquarePlus, Copy } from "lucide-react";
 
-export interface FilePreviewSheetProps {
-  open: boolean;
+export interface FilePreviewProps {
   projectId: string | null;
   relativePath: string | null;
-  onClose: () => void;
-  panelWidth: number;
 }
 
 type FileKind = "image" | "markdown" | "text";
 type ViewMode = "preview" | "code" | "compare";
 
-export function FilePreviewSheet({
-  open,
-  projectId,
-  relativePath,
-  onClose,
-  panelWidth = 300,
-}: FilePreviewSheetProps) {
+export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
   const { t } = useTranslation();
-  const { isMacApp, isFullScreen } = useAppStore();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
   const [fileKind, setFileKind] = useState<FileKind | null>(null);
@@ -51,8 +38,6 @@ export function FilePreviewSheet({
   const [selectedLineRange, setSelectedLineRange] = useState<{ start: number; end: number } | null>(
     null,
   );
-
-  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
   useEffect(() => {
     setFileKind(null);
@@ -235,132 +220,97 @@ export function FilePreviewSheet({
   };
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      modal={false}
-      disablePointerDismissal={true}
-    >
-      <SheetContent
-        side="left"
-        className="p-0 flex flex-col gap-0"
-        style={{ width: panelWidth ? `calc(100vw - ${panelWidth}px)` : "90%", maxWidth: "none" }}
-        showCloseButton={false}
-        showOverlay={false}
-      >
-        <SheetHeader
-          className="h-12 border-b grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-0"
-          style={{ WebkitAppRegion: "drag" }}
-        >
-          <SheetTitle className="flex flex-row items-center" title={relativePath || ""}>
-            <div className={showMacTrafficLightSpace ? "w-17" : "w-0"} />
-            <div className="min-w-0 flex items-center gap-1.5">
-              <File className="size-4 shrink-0 text-muted-foreground/80" />
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs truncate leading-tight text-foreground/90">
-                  {fileName}
-                </span>
-                {fileName !== relativePath && (
-                  <span className="text-[10px] text-muted-foreground/80 truncate leading-tight">
-                    {relativePath}
-                  </span>
-                )}
-              </div>
+    <div className="flex flex-col w-full h-full min-w-0 relative overflow-hidden">
+      <div className="h-10 shrink-0 border-b flex items-center justify-between gap-2 px-4 py-1 bg-[#ffffff] dark:bg-[#24292e]">
+        <div className="flex items-center min-w-0 flex-1">
+          <div className="min-w-0 flex items-center gap-1.5">
+            <File className="size-4 shrink-0 text-muted-foreground/80" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs truncate leading-tight text-foreground/60">
+                {relativePath}
+              </span>
             </div>
-          </SheetTitle>
-          <Tabs
-            value={viewMode}
-            onValueChange={(v: ViewMode) => setViewMode(v)}
-            className={cn("h-8", {
-              "pointer-events-none opacity-50 transition-all": !showTabs,
-            })}
-            style={{ WebkitAppRegion: "no-drag" }}
-          >
-            <TabsList className="h-8">
-              {fileKind === "markdown" && (
-                <TabsTrigger value="preview" className="text-xs">
-                  {t("filePreview.preview")}
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="code" className="text-xs">
-                {t("filePreview.code")}
-              </TabsTrigger>
-              <TabsTrigger value="compare" disabled={!canCompare} className="text-xs">
-                {t("filePreview.compare")}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-              className="h-8 w-8 shrink-0 -mr-3"
-              style={{ WebkitAppRegion: "no-drag" }}
-            >
-              <XIcon className="size-4" />
-              <span className="sr-only">{t("filePreview.close")}</span>
-            </Button>
           </div>
-        </SheetHeader>
-        <ScrollArea className="flex-1 w-full h-0">
-          {loading ? (
-            <div className="text-muted-foreground text-center mt-10">
-              {t("filePreview.loading")}
-            </div>
-          ) : errorMsg ? (
-            <div className="text-muted-foreground text-center mt-10">{errorMsg}</div>
-          ) : fileKind === "image" ? (
-            <ImageView src={imageBase64} filename={fileName} />
-          ) : viewMode === "compare" ? (
-            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono">
-              <CodeCompareView
-                oldContent={gitContent ?? ""}
-                newContent={content}
-                filename={fileName}
-              />
-            </div>
-          ) : fileKind === "markdown" && viewMode === "preview" ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans">
-              <StreamMarkdown>{content}</StreamMarkdown>
-            </div>
-          ) : (
-            <ContextMenu
-              onOpenChange={(open) => {
-                if (!open) {
-                  setSelectedLineRange(null);
-                  setSelectedText("");
-                }
-              }}
+        </div>
+      </div>
+      <ScrollArea className="flex-1 w-full h-0">
+        {loading ? (
+          <div className="text-sm text-muted-foreground text-center mt-10">
+            {t("filePreview.loading")}
+          </div>
+        ) : errorMsg ? (
+          <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
+        ) : fileKind === "image" ? (
+          <ImageView src={imageBase64} filename={fileName} />
+        ) : viewMode === "compare" ? (
+          <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
+            <CodeCompareView
+              oldContent={gitContent ?? ""}
+              newContent={content}
+              filename={fileName}
+            />
+          </div>
+        ) : fileKind === "markdown" && viewMode === "preview" ? (
+          <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
+            <StreamMarkdown>{content}</StreamMarkdown>
+          </div>
+        ) : (
+          <ContextMenu
+            onOpenChange={(open) => {
+              if (!open) {
+                setSelectedLineRange(null);
+                setSelectedText("");
+              }
+            }}
+          >
+            <ContextMenuTrigger
+              className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 pb-20"
+              onContextMenu={handleContextMenu}
             >
-              <ContextMenuTrigger
-                className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 -my-2"
-                onContextMenu={handleContextMenu}
-              >
-                <CodeView content={content} filename={fileName} />
-              </ContextMenuTrigger>
-              {(selectedLineRange || selectedText) && (
-                <ContextMenuContent>
-                  {selectedText && (
-                    <ContextMenuItem onClick={handleCopy}>
-                      <Copy />
-                      {t("userBubble.copy")}
-                    </ContextMenuItem>
-                  )}
-                  {selectedLineRange && (
-                    <ContextMenuItem onClick={handleAddToChat}>
-                      <MessageSquarePlus />
-                      {t("filePanel.addToChat")}
-                    </ContextMenuItem>
-                  )}
-                </ContextMenuContent>
-              )}
-            </ContextMenu>
-          )}
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+              <CodeView content={content} filename={fileName} />
+            </ContextMenuTrigger>
+            {(selectedLineRange || selectedText) && (
+              <ContextMenuContent>
+                {selectedText && (
+                  <ContextMenuItem onClick={handleCopy}>
+                    <Copy />
+                    {t("userBubble.copy")}
+                  </ContextMenuItem>
+                )}
+                {selectedLineRange && (
+                  <ContextMenuItem onClick={handleAddToChat}>
+                    <MessageSquarePlus />
+                    {t("filePanel.addToChat")}
+                  </ContextMenuItem>
+                )}
+              </ContextMenuContent>
+            )}
+          </ContextMenu>
+        )}
+      </ScrollArea>
+      <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center pointer-events-none">
+        <Tabs
+          value={viewMode}
+          onValueChange={(v: ViewMode) => setViewMode(v)}
+          className={cn("pointer-events-auto", {
+            "pointer-events-none opacity-50 transition-all": !showTabs,
+          })}
+        >
+          <TabsList className="h-8 border border-border shadow-lg">
+            {fileKind === "markdown" && (
+              <TabsTrigger value="preview" className="text-xs min-w-18">
+                {t("filePreview.preview")}
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="code" className="text-xs min-w-18">
+              {t("filePreview.code")}
+            </TabsTrigger>
+            <TabsTrigger value="compare" disabled={!canCompare} className="text-xs min-w-18">
+              {t("filePreview.compare")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+    </div>
   );
 }

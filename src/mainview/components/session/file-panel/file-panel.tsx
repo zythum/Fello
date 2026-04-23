@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
-import { request, subscribe, isWebUI } from "../../backend";
-import { electron } from "../../electron";
-import { useAppStore } from "../../store";
+import { request, subscribe, isWebUI } from "../../../backend";
+import { electron } from "../../../electron";
+import { useAppStore } from "../../../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -34,8 +34,12 @@ import {
   GitBranch,
   Copy,
   MessageSquarePlus,
+  Folders,
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
+
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { FilePreview } from "./file-preview";
 
 interface TreeNode {
   id: string;
@@ -67,12 +71,12 @@ const GIT_FOLDER_STATUS = {
 } as const;
 
 const GIT_SUMMARY_BADGES = [
-  { key: "A", color: "text-emerald-500/90" },
-  { key: "U", color: "text-cyan-500/90" },
-  { key: "M", color: "text-amber-500/90" },
-  { key: "R", color: "text-orange-500/90" },
-  { key: "C", color: "text-yellow-500/90" },
-  { key: "D", color: "text-red-500/90" },
+  { key: "A", color: "text-emerald-500" },
+  { key: "U", color: "text-cyan-500" },
+  { key: "M", color: "text-amber-500" },
+  { key: "R", color: "text-orange-500" },
+  { key: "C", color: "text-yellow-500" },
+  { key: "D", color: "text-red-500" },
 ] as const;
 
 type GitSummaryKey = (typeof GIT_SUMMARY_BADGES)[number]["key"];
@@ -182,8 +186,8 @@ function TreeItem({
           className={cn(
             "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
             isSelected
-              ? "bg-accent text-accent-foreground"
-              : "text-foreground/70 hover:bg-accent/50 hover:text-foreground",
+              ? "bg-primary/8 text-accent-foreground"
+              : "text-foreground/60 hover:bg-primary/5 hover:text-foreground",
             isDragOver && "relative ring-1 ring-primary bg-primary/5",
           )}
           style={{ paddingLeft: `${depth * 16 + 6}px` }}
@@ -193,9 +197,6 @@ function TreeItem({
             if (node.isFolder && !e.metaKey && !e.shiftKey) {
               actions.toggle(node);
             }
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
             if (!node.isFolder) {
               actions.previewFile(node.id);
             }
@@ -346,9 +347,10 @@ function TreeItem({
 
 export interface FilePanelProps {
   projectId: string;
+  previewFile?: { projectId: string; relativePath: string } | null;
 }
 
-export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) {
+export const FilePanel = memo(function FilePanel({ projectId, previewFile }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -373,7 +375,6 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
   const cwd = useMemo(() => {
     return projects.find((p) => p.id === projectId)?.cwd ?? "";
   }, [projectId, projects]);
-  const cwdFolderName = cwd ? (cwd.split(/[/\\]/).pop() ?? cwd) : "";
 
   useEffect(() => {
     refreshSeqRef.current += 1;
@@ -1241,9 +1242,12 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
                       GIT_SUMMARY_BADGES.find((b) => b.key === "D")?.color || statusColor;
                   }
 
-                  const slashIdx = relPath.lastIndexOf("/");
+                  let slashIdx = relPath.lastIndexOf("/");
+                  if (slashIdx > 0 && slashIdx === relPath.length - 1) {
+                    slashIdx = relPath.slice(0, slashIdx).lastIndexOf("/");
+                  }
                   const folderPath = slashIdx !== -1 ? relPath.slice(0, slashIdx) : "";
-                  const fileName = slashIdx !== -1 ? relPath.slice(slashIdx + 1) : relPath;
+                  const name = slashIdx !== -1 ? relPath.slice(slashIdx + 1) : relPath;
 
                   return (
                     <DropdownMenuItem
@@ -1260,9 +1264,9 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
                       <div className="flex w-full items-center gap-2">
                         <span
                           className={cn("truncate text-sx font-normal", statusColor)}
-                          title={fileName}
+                          title={name}
                         >
-                          {fileName}
+                          {name}
                         </span>
                         <span
                           className="truncate flex-1 text-sx text-muted-foreground/50"
@@ -1329,12 +1333,18 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
     actions,
   };
 
-  return (
-    <div ref={containerRef} className="flex h-full min-h-0 flex-col text-xs">
+  const treeContent = (
+    <div
+      ref={containerRef}
+      className="flex h-full min-h-0 flex-col text-xs w-full text-sidebar-foreground bg-sidebar"
+    >
       {/* Header: folder name left, buttons right */}
-      <div className="flex items-center gap-0.5 border-b border-border px-1.5 py-1">
-        <span className="truncate text-xs text-foreground/70 uppercase">{cwdFolderName}</span>
-        <div className="ml-auto flex items-center gap-0.5">
+      <div className="flex h-10 items-center gap-0.5 border-b border-border py-1">
+        <div className="flex text-muted-foreground items-center gap-1 px-3">
+          <Folders className="size-4" />
+          <span className="text-xs font-medium text-nowrap">{t("filePanel.title")}</span>
+        </div>
+        <div className="ml-auto mr-2 flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
@@ -1452,6 +1462,36 @@ export const FilePanel = memo(function FilePanel({ projectId }: FilePanelProps) 
 
       {gitSummary}
     </div>
+  );
+
+  return (
+    <ResizablePanelGroup className="flex h-full min-h-0">
+      <ResizablePanel
+        groupResizeBehavior="preserve-pixel-size"
+        defaultSize={260}
+        minSize={200}
+        maxSize={500}
+        className="flex h-full min-h-0"
+        id="file-tree"
+      >
+        {treeContent}
+      </ResizablePanel>
+      <ResizableHandle className="bg-border/70" />
+      <ResizablePanel className="flex h-full min-h-0 bg-background" id="file-preview">
+        {previewFile ? (
+          <FilePreview projectId={previewFile.projectId} relativePath={previewFile.relativePath} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-2">
+              <File className="size-8 opacity-20" />
+              <span className="text-sm opacity-50">
+                {t("filePanel.noActiveSession", "No file selected")}
+              </span>
+            </div>
+          </div>
+        )}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 });
 

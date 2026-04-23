@@ -267,7 +267,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground pointer-events-auto">
       <div
         className={showMacTrafficLightSpace ? "h-10" : "h-0"}
         style={{ WebkitAppRegion: "drag" }}
@@ -539,19 +539,19 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <div className="mt-auto border-t border-border/60 p-2">
+      <div className="mt-auto border-t border-border/60">
         <Button
           variant="ghost"
           onClick={() => handleNavigate("/settings/general")}
           className={cn(
-            "flex w-full font-normal items-center justify-between gap-2 rounded-md p-2 text-xs h-9",
+            "flex w-full font-normal items-center justify-between gap-2 rounded-none border-0 text-xs h-8",
             currentPath.startsWith("/settings")
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/90 outline-none",
           )}
         >
           <div className="flex items-center gap-2">
-            <Settings className="size-4" />
+            <Settings className="size-3.5" />
             {t("sidebar.settings")}
           </div>
           {webUIStatus.enabled && (

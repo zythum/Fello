@@ -563,11 +563,15 @@ export const backendHandlers: {
     }
 
     if (shouldUpdateCache || b.initializeInfo) {
-      storageOps.updateSession(session.id, {
-        models: finalModels,
-        modes: finalModes,
-        initializeInfo: b.initializeInfo,
-      }, false);
+      storageOps.updateSession(
+        session.id,
+        {
+          models: finalModels,
+          modes: finalModes,
+          initializeInfo: b.initializeInfo,
+        },
+        false,
+      );
     }
 
     const freshSession = storageOps.getSession(session.id);

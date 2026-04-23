@@ -20,7 +20,7 @@ const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 
 if (isDev) {
   app.commandLine.appendSwitch("no-sandbox");
-  app.disableHardwareAcceleration();
+  // app.disableHardwareAcceleration();
 }
 
 let mainWindow: BrowserWindow | null = null;

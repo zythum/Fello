@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Check, Loader2, ChevronUp, ChevronDown, Minus } from "lucide-react";
 import type { BaseBubbleProps } from "./types";
-import type { PlanMessage } from "../../../lib/chat-message";
+import type { PlanMessage } from "../../../../lib/chat-message";
 
 export const PlanBubble = memo(function PlanBubble({
   session: _session,

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../../content-blocks/content-blocks";
-import type { AgentMessage } from "../../../lib/chat-message";
+import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import type { AgentMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./types";
 
 export const AgentBubble = memo(function AssistantBubble({

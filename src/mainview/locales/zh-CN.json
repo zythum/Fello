@@ -1,6 +1,6 @@
 {
   "sidebar": {
-    "welcome": "欢迎",
+    "welcome": "欢迎使用",
     "projects": "项目",
     "noProjects": "暂无项目",
     "revealInFinder": "在访达中显示",
@@ -162,11 +162,12 @@
     "errorLoading": "加载文件失败",
     "loading": "加载中...",
     "preview": "预览",
-    "code": "代码",
+    "code": "源码",
     "compare": "对比",
     "close": "关闭"
   },
   "filePanel": {
+    "title": "文件",
     "emptyDirectory": "空目录",
     "newFile": "新建文件",
     "newFolder": "新建文件夹",
@@ -231,6 +232,7 @@
     "usageSummaryCached": "  ↻ {{cached}}"
   },
   "terminalPanel": {
+    "title": "终端",
     "noTerminalSelected": "未选择终端",
     "addTerminal": "添加终端"
   },

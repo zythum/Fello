@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, SquareTerminal, X, Circle } from "lucide-react";
-import { request, clientId } from "../../backend";
-import { useAppStore, useProjectState } from "../../store";
-import { getOrCreateTerminalInstance, destroyTerminalInstance } from "../../lib/terminal-manager";
+import { request, clientId } from "../../../backend";
+import { useAppStore, useProjectState } from "../../../store";
+import {
+  getOrCreateTerminalInstance,
+  destroyTerminalInstance,
+} from "../../../lib/terminal-manager";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -205,8 +208,12 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-0.5 border-b border-border px-1.5 py-1">
-        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+      <div className="h-10 flex shrink-0 items-center gap-0.5 border-b border-border mr-10">
+        <div className="flex text-muted-foreground items-center gap-1 px-3">
+          <SquareTerminal className="size-4" />
+          <span className="text-xs font-medium text-nowrap">{t("sessionView.terminal")}</span>
+        </div>
+        <div className="flex h-full min-w-0 items-center gap-0.5 overflow-x-auto">
           {terminals.map((terminal) => (
             <div
               key={terminal.id}
@@ -225,7 +232,7 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
                     activeTerminalId: terminal.id,
                   }))
                 }
-                className="flex h-6 items-center gap-1 px-2"
+                className="flex h-6 items-center gap-1 pl-2"
               >
                 <Circle
                   className={cn(
@@ -242,7 +249,7 @@ export function TerminalPanel({ isActive, projectId }: TerminalPanelProps) {
                 onClick={() => void deleteTerminal(terminal.id, terminal.projectId)}
                 className="rounded p-0.5 hover:bg-background/70"
               >
-                <X className="size-3" />
+                <X className="size-2.5 text-muted-foreground" />
               </button>
             </div>
           ))}

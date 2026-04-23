@@ -195,8 +195,7 @@ function readProjectMeta(projectId: string): ProjectMeta | null {
     const id = String(raw.id || "");
     const title = String(raw.title || "");
     const cwd = String(raw.cwd || "");
-    const created_at =
-      typeof raw.created_at === "number" ? raw.created_at : Date.now();
+    const created_at = typeof raw.created_at === "number" ? raw.created_at : Date.now();
     if (!id || !title || !cwd) return null;
     return { id, title, cwd, created_at };
   } catch {
@@ -221,8 +220,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const agent_id = String(raw.agent_id);
     const resume_id = String(raw.resume_id);
     const project_id = String(raw.project_id);
-    const created_at =
-      typeof raw.created_at === "number" ? raw.created_at : Date.now();
+    const created_at = typeof raw.created_at === "number" ? raw.created_at : Date.now();
     const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
     const mcp_servers = Array.isArray(raw.mcp_servers)
       ? raw.mcp_servers.filter((v) => typeof v === "string")

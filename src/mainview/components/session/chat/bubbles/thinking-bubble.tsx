@@ -2,8 +2,8 @@ import { memo } from "react";
 import { Lightbulb } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../../content-blocks/content-blocks";
-import type { AgentThoughtMessage } from "../../../lib/chat-message";
+import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import type { AgentThoughtMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./types";
 
 export const ThinkingBubble = memo(function ThinkingBubble({

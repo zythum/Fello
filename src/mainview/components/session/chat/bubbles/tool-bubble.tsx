@@ -17,13 +17,13 @@ import {
   Wrench,
 } from "lucide-react";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
-import { ReadonlyTerminal } from "../../common/readonly-terminal";
-import { ContentBlocks } from "../../content-blocks/content-blocks";
-import { CodeView } from "../../common/code-view";
-import { CodeCompareView } from "../../common/code-compare-view";
-import type { ToolCallMessage } from "../../../lib/chat-message";
+import { ReadonlyTerminal } from "../../../common/readonly-terminal";
+import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import { CodeView } from "../../../common/code-view";
+import { CodeCompareView } from "../../../common/code-compare-view";
+import type { ToolCallMessage } from "../../../../lib/chat-message";
 import type { ToolCallStatus } from "@agentclientprotocol/sdk";
-import type { SessionInfo } from "../../../../shared/schema";
+import type { SessionInfo } from "../../../../../shared/schema";
 import type { BaseBubbleProps } from "./types";
 
 const kindIcons: Record<string, React.ReactNode> = {
@@ -78,7 +78,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                   type="button"
                   variant="secondary"
                   size="xs"
-                  className="shrink-0 h-5 gap-1 rounded px-1.5 text-[10px] font-normal text-secondary-foreground/80 hover:text-secondary-foreground"
+                  className="shrink-0 h-5 gap-1 rounded px-1.5 font-normal text-secondary-foreground/80 hover:text-secondary-foreground"
                   title={loc.path}
                   onClick={(e) => {
                     e.preventDefault();

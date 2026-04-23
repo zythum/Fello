@@ -81,11 +81,11 @@ export const CodeCompareView = memo(function CodeCompareView({
             },
           },
           gutter: {
-            fontSize: '12px',
-            padding: '0 6px',
-            'pre': {
+            fontSize: "12px",
+            padding: "0 6px",
+            pre: {
               textAlign: "right",
-            }
+            },
           },
           diffContainer: {
             minWidth: "auto",

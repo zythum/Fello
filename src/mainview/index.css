@@ -156,6 +156,10 @@ body,
   font-weight: normal !important;
 }
 
+[data-base-ui-portal] {
+  pointer-events: auto;
+}
+
 .dark {
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);

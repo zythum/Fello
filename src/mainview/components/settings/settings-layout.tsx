@@ -68,7 +68,7 @@ export function SettingsLayout() {
             ))}
           </nav>
         </aside>
-        <main className="flex-1 overflow-y-auto bg-background p-8">
+        <main className="flex-1 overflow-y-auto bg-background py-4 px-6">
           <div className="mx-auto max-w-2xl">
             <Outlet />
           </div>

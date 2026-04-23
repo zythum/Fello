@@ -1,10 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { MentionsInput, Mention } from "react-mentions";
-import { useAppStore, useSessionState } from "../../store";
-import type { ChatMessage } from "../../lib/chat-message";
-import { request } from "../../backend";
-import { reduceFlushStreaming } from "../../lib/session-state-reducer";
+import { useAppStore, useSessionState } from "../../../store";
+import type { ChatMessage } from "../../../lib/chat-message";
+import { request } from "../../../backend";
+import { reduceFlushStreaming } from "../../../lib/session-state-reducer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,7 +16,8 @@ import {
 import { ArrowUp, Square, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
+import type { SessionInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
 // Define an interface for the staged file
@@ -76,7 +77,6 @@ function resolveMentions(value: string): string {
   return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
 }
 
-import type { SessionInfo } from "../../../shared/schema";
 export function ChatInput({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
@@ -724,6 +724,7 @@ const mentionsInputStyle = {
 const mentionStyle = {
   backgroundColor: "var(--secondary)",
   boxShadow: "0 0 0 1px var(--ring)",
+  opacity: 0.5,
   borderRadius: 3,
   margin: -1.5,
   padding: 1.5,

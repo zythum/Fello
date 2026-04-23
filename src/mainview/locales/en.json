@@ -167,6 +167,7 @@
     "close": "Close"
   },
   "filePanel": {
+    "title": "Files",
     "emptyDirectory": "Empty directory",
     "newFile": "New File",
     "newFolder": "New Folder",
@@ -231,6 +232,7 @@
     "usageSummaryCached": "  ↻ {{cached}}"
   },
   "terminalPanel": {
+    "title": "Terminal",
     "noTerminalSelected": "No terminal selected",
     "addTerminal": "Add terminal"
   },

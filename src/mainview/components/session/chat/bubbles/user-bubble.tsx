@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronsUpDown, ChevronsDownUp, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../../content-blocks/content-blocks";
-import type { UserMessage } from "../../../lib/chat-message";
+import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import type { UserMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./types";
 
 export const UserBubble = memo(function UserBubble({

@@ -1,4 +1,4 @@
-import type { SessionInfo } from "../../../../shared/schema";
+import type { SessionInfo } from "../../../../../shared/schema";
 
 export interface BaseBubbleProps<T> {
   session: SessionInfo;
