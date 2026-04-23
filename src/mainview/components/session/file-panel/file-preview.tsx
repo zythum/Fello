@@ -19,13 +19,13 @@ import { MessageSquarePlus, Copy } from "lucide-react";
 
 export interface FilePreviewProps {
   projectId: string | null;
-  relativePath: string | null;
+  file: string | null;
 }
 
 type FileKind = "image" | "markdown" | "text";
 type ViewMode = "preview" | "code" | "compare";
 
-export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
+export function FilePreview({ projectId, file }: FilePreviewProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
@@ -42,13 +42,13 @@ export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
   useEffect(() => {
     setFileKind(null);
     setViewMode("code");
-  }, [relativePath]);
+  }, [projectId, file]);
 
   useEffect(() => {
-    if (!projectId || !relativePath) return;
+    if (!projectId || !file) return;
     let active = true;
 
-    async function load() {
+    async function load(projectId: string, file: string) {
       setLoading(true);
       setErrorMsg("");
       setImageBase64("");
@@ -57,8 +57,8 @@ export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
       setFileKind(null);
       setViewMode("code");
       try {
-        const safeProjectId = projectId!;
-        const safeRelativePath = relativePath!;
+        const safeProjectId = projectId;
+        const safeRelativePath = file;
         const info = await request.getFileInfo({
           projectId: safeProjectId,
           relativePath: safeRelativePath,
@@ -121,13 +121,13 @@ export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
         if (active) setLoading(false);
       }
     }
-    load();
+    load(projectId, file);
     return () => {
       active = false;
     };
-  }, [projectId, relativePath]);
+  }, [projectId, file]);
 
-  const fileName = relativePath?.split("/").pop() ?? "";
+  const fileName = file?.split("/").pop() ?? "";
   const canCompare = gitContent != null;
   const showTabs = !loading && !errorMsg && fileKind !== null && fileKind !== "image";
 
@@ -204,10 +204,10 @@ export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
   };
 
   const handleAddToChat = () => {
-    if (!relativePath || !selectedLineRange) return;
+    if (!file || !selectedLineRange) return;
     const { start, end } = selectedLineRange;
     const suffix = start === end ? `${start}` : `${start}-${end}`;
-    const nodeId = `${relativePath}:${suffix}`;
+    const nodeId = `${file}:${suffix}`;
     const nodeName = `${fileName}:${suffix}`;
     const nodesPayloads = [{ id: nodeId, name: nodeName, isFolder: false }];
     document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
@@ -226,9 +226,7 @@ export function FilePreview({ projectId, relativePath }: FilePreviewProps) {
           <div className="min-w-0 flex items-center gap-1.5">
             <File className="size-4 shrink-0 text-muted-foreground/80" />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs truncate leading-tight text-foreground/60">
-                {relativePath}
-              </span>
+              <span className="text-xs truncate leading-tight text-foreground/60">{file}</span>
             </div>
           </div>
         </div>

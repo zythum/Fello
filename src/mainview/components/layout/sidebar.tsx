@@ -267,7 +267,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border/60 bg-sidebar text-sidebar-foreground pointer-events-auto">
+    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto">
       <div
         className={showMacTrafficLightSpace ? "h-10" : "h-0"}
         style={{ WebkitAppRegion: "drag" }}
@@ -539,7 +539,7 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <div className="mt-auto border-t border-border/60">
+      <div className="mt-auto border-t border-border">
         <Button
           variant="ghost"
           onClick={() => handleNavigate("/settings/general")}

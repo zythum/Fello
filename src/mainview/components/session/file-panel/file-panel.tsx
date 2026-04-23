@@ -84,6 +84,7 @@ type GitSummaryKey = (typeof GIT_SUMMARY_BADGES)[number]["key"];
 function TreeItem({
   node,
   depth,
+  previewId,
   selectedIds,
   openFolders,
   editingId,
@@ -97,6 +98,7 @@ function TreeItem({
 }: {
   node: TreeNode;
   depth: number;
+  previewId: string | null;
   selectedIds: Set<string>;
   openFolders: Set<string>;
   editingId: string | null;
@@ -184,21 +186,26 @@ function TreeItem({
             }
           }}
           className={cn(
-            "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none",
-            isSelected
-              ? "bg-primary/8 text-accent-foreground"
-              : "text-foreground/60 hover:bg-primary/5 hover:text-foreground",
+            "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none text-foreground/60",
+            node.id === previewId
+              ? "bg-primary/8 hover:bg-primary/10"
+              : "hover:bg-primary/5 hover:text-foreground",
+            isSelected ? "text-foreground bg-primary/6" : "",
             isDragOver && "relative ring-1 ring-primary bg-primary/5",
           )}
           style={{ paddingLeft: `${depth * 16 + 6}px` }}
           onClick={(e) => {
             e.stopPropagation();
-            actions.select(node.id, e);
-            if (node.isFolder && !e.metaKey && !e.shiftKey) {
-              actions.toggle(node);
+            if (e.metaKey) {
+              actions.select(node.id, e);
+              return;
             }
-            if (!node.isFolder) {
+            if (node.isFolder) {
+              actions.toggle(node);
+              actions.select(node.id, e);
+            } else {
               actions.previewFile(node.id);
+              actions.select(node.id, e);
             }
           }}
         >
@@ -339,7 +346,13 @@ function TreeItem({
       {node.isFolder &&
         isOpen &&
         node.children?.map((child) => (
-          <TreeItem key={child.id} node={child} depth={depth + 1} {...childProps} />
+          <TreeItem
+            key={child.id}
+            node={child}
+            previewId={previewId}
+            depth={depth + 1}
+            {...childProps}
+          />
         ))}
     </>
   );
@@ -347,10 +360,10 @@ function TreeItem({
 
 export interface FilePanelProps {
   projectId: string;
-  previewFile?: { projectId: string; relativePath: string } | null;
+  file: string | null;
 }
 
-export const FilePanel = memo(function FilePanel({ projectId, previewFile }: FilePanelProps) {
+export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -1432,7 +1445,7 @@ export const FilePanel = memo(function FilePanel({ projectId, previewFile }: Fil
             }}
           >
             {data.map((node) => (
-              <TreeItem key={node.id} node={node} depth={0} {...sharedProps} />
+              <TreeItem key={node.id} previewId={file} node={node} depth={0} {...sharedProps} />
             ))}
             {data.length === 0 && (
               <div className="py-6 text-center text-xs text-muted-foreground">
@@ -1478,8 +1491,8 @@ export const FilePanel = memo(function FilePanel({ projectId, previewFile }: Fil
       </ResizablePanel>
       <ResizableHandle className="bg-border/70" />
       <ResizablePanel className="flex h-full min-h-0 bg-background" id="file-preview">
-        {previewFile ? (
-          <FilePreview projectId={previewFile.projectId} relativePath={previewFile.relativePath} />
+        {file ? (
+          <FilePreview projectId={projectId} file={file} />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <div className="flex flex-col items-center gap-2">

@@ -56,13 +56,13 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = message.kind ? kindIcons[message.kind] : null;
-
+  console.log(message);
   return (
     <details
       className="text-xs min-w-0 overflow-hidden group"
       open={(message.content && message.content.length > 0) || message.terminalId != null}
     >
-      <summary className="flex select-none items-center gap-2 px-3 py-2 hover:bg-secondary group-open:bg-secondary">
+      <summary className="flex select-none items-center gap-2 px-2.5 py-2 hover:bg-secondary group-open:bg-secondary">
         {kindIcon}
         <span className="min-w-0 flex-1 font-normal text-foreground truncate">
           {message.title || t("toolBubble.tool")}
@@ -105,7 +105,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
           message.content.map((content, index) => {
             if (content.type === "content") {
               return (
-                <div key={index} className="px-3 py-2 text-muted-foreground">
+                <div key={index} className="px-2 text-muted-foreground">
                   <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
                 </div>
               );

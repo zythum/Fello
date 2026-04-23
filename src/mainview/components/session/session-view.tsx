@@ -5,7 +5,7 @@ import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { FilePanel } from "./file-panel/file-panel";
 import { TerminalPanel } from "./terminal-panel/terminal-panel";
-import { Loader2, Folders, SquareTerminal, MoreHorizontal, RefreshCw, XIcon } from "lucide-react";
+import { Loader2, Folders, SquareTerminal, MoreHorizontal, RefreshCw, ChevronDown } from "lucide-react";
 import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../backend";
 import { Badge } from "@/components/ui/badge";
@@ -41,10 +41,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [previewFile, setPreviewFile] = useState<{
-    projectId: string;
-    relativePath: string;
-  } | null>(null);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
   const previewCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto load session if not loaded
@@ -141,15 +138,21 @@ export function SessionView({ session }: { session: SessionInfo }) {
     }
   }, [terminalOpen]);
 
-  const openPreviewFile = useCallback((file: { projectId: string; relativePath: string }) => {
-    if (previewCloseTimeoutRef.current) {
-      clearTimeout(previewCloseTimeoutRef.current);
-      previewCloseTimeoutRef.current = null;
-    }
-    setPreviewFile(file);
-    setTerminalOpen(false);
-    setFilesOpen(true);
-  }, []);
+  const openPreviewFile = useCallback(
+    (file: { projectId: string; relativePath: string }) => {
+      if (currentProjectId !== file.projectId) {
+        return;
+      }
+      if (previewCloseTimeoutRef.current) {
+        clearTimeout(previewCloseTimeoutRef.current);
+        previewCloseTimeoutRef.current = null;
+      }
+      setPreviewFile(file.relativePath);
+      setTerminalOpen(false);
+      setFilesOpen(true);
+    },
+    [currentProjectId],
+  );
 
   useEffect(() => {
     setPreviewFile(null);
@@ -237,153 +240,146 @@ export function SessionView({ session }: { session: SessionInfo }) {
   };
 
   return (
-    <>
-      <main ref={containerRef} className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
-        {!sessionId && (isLoading || isCreatingSession) ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
-            <div
-              className="absolute left-0 top-0 right-0 h-12"
-              style={{ WebkitAppRegion: "drag" }}
-            />
-            <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="text-sm font-normal text-muted-foreground/60">
-              {t("sessionView.connecting")}
-            </p>
-          </div>
-        ) : sessionId ? (
-          <div className="relative flex h-full flex-col flex-1 min-h-0">
-            <div
-              className="flex h-12 items-center border-b border-border gap-2 pl-2.5 pr-2.5"
-              style={{ WebkitAppRegion: "drag" }}
-            >
-              <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">
-                {session.agentId}
-              </Badge>
-              <div className="flex flex-1 min-w-0 items-baseline gap-2">
-                <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
-                  {session.title || t("sidebar.newChat", "New Chat")}
-                </span>
-                <span className="flex-1 text-[10px] text-muted-foreground truncate">
-                  {currentProjectInfo?.cwd}
-                </span>
-                <span className="shrink-0 text-xs text-sidebar-foreground/70 whitespace-nowrap">
-                  {formatUpdatedTime(session.updatedAt)}
-                </span>
-              </div>
-              <div
-                className="ml-1 flex items-center shrink-0 gap-1"
-                style={{ WebkitAppRegion: "no-drag" }}
-              >
-                <button
-                  type="button"
-                  onClick={handleToggleFiles}
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-md outline-none transition-colors",
-                    filesOpen
-                      ? "bg-sidebar-accent/50 text-sidebar-foreground"
-                      : "text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70",
-                  )}
-                >
-                  <Folders className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleToggleTerminal}
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-md outline-none transition-colors",
-                    terminalOpen
-                      ? "bg-sidebar-accent/50 text-sidebar-foreground"
-                      : "text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70",
-                  )}
-                >
-                  <SquareTerminal className="size-4" />
-                </button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors">
-                    <MoreHorizontal className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {configuredMcpServers.length > 0 && (
-                      <>
-                        <DropdownMenuGroup>
-                          <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground">
-                            {t("settings.mcp.title", "MCP Servers")}
-                          </DropdownMenuLabel>
-                          {configuredMcpServers.map((mcp) => (
-                            <DropdownMenuCheckboxItem
-                              key={mcp.id}
-                              className="text-xs"
-                              checked={(session.mcpServers || []).includes(mcp.id)}
-                              onCheckedChange={() => handleToggleMcpServer(mcp.id)}
-                              onSelect={(e) => e.preventDefault()}
-                            >
-                              {mcp.id}
-                            </DropdownMenuCheckboxItem>
-                          ))}
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem onClick={handleRefreshSession}>
-                      <RefreshCw className="size-3" />
-                      {t("chatHeader.refresh", "Refresh")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+    <main ref={containerRef} className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
+      {!sessionId && (isLoading || isCreatingSession) ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
+          <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-sm font-normal text-muted-foreground/60">
+            {t("sessionView.connecting")}
+          </p>
+        </div>
+      ) : sessionId ? (
+        <div className="relative flex h-full flex-col flex-1 min-h-0">
+          <div
+            className="relative z-30 flex h-12 items-center border-b border-border gap-2 pl-2.5 pr-2.5 bg-background"
+            style={{ WebkitAppRegion: "drag" }}
+          >
+            <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">
+              {session.agentId}
+            </Badge>
+            <div className="flex flex-1 min-w-0 items-baseline gap-2">
+              <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
+                {session.title || t("sidebar.newChat", "New Chat")}
+              </span>
+              <span className="flex-1 text-[10px] text-muted-foreground truncate">
+                {currentProjectInfo?.cwd}
+              </span>
+              <span className="shrink-0 text-xs text-sidebar-foreground/70 whitespace-nowrap">
+                {formatUpdatedTime(session.updatedAt)}
+              </span>
             </div>
+            <div
+              className="ml-1 flex items-center shrink-0 gap-1"
+              style={{ WebkitAppRegion: "no-drag" }}
+            >
+              <button
+                type="button"
+                onClick={handleToggleFiles}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-md outline-none transition-colors",
+                  filesOpen
+                    ? "bg-sidebar-accent/50 text-sidebar-foreground"
+                    : "text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70",
+                )}
+              >
+                <Folders className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleTerminal}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-md outline-none transition-colors",
+                  terminalOpen
+                    ? "bg-sidebar-accent/50 text-sidebar-foreground"
+                    : "text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70",
+                )}
+              >
+                <SquareTerminal className="size-4" />
+              </button>
 
-            <Chat session={session} />
-            {(isLoading || isCreatingSession) && (
-              <div className="absolute inset-0 top-12 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
-                <Loader2 className="size-8 animate-spin text-primary" />
-                <p className="text-sm font-normal text-foreground/50">
-                  {t("sessionView.connecting")}
-                </p>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors">
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {configuredMcpServers.length > 0 && (
+                    <>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground">
+                          {t("settings.mcp.title", "MCP Servers")}
+                        </DropdownMenuLabel>
+                        {configuredMcpServers.map((mcp) => (
+                          <DropdownMenuCheckboxItem
+                            key={mcp.id}
+                            className="text-xs"
+                            checked={(session.mcpServers || []).includes(mcp.id)}
+                            onCheckedChange={() => handleToggleMcpServer(mcp.id)}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            {mcp.id}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={handleRefreshSession}>
+                    <RefreshCw className="size-3" />
+                    {t("chatHeader.refresh", "Refresh")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <Chat session={session} />
+          {(isLoading || isCreatingSession) && (
+            <div className="absolute inset-0 top-12 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
+              <Loader2 className="size-8 animate-spin text-primary" />
+              <p className="text-sm font-normal text-foreground/50">
+                {t("sessionView.connecting")}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      <Panel open={filesOpen}>
+        <div className="h-full relative overflow-hidden">
+          <div className="h-full overflow-hidden bg-background">
+            {currentProjectId && <FilePanel projectId={currentProjectId} file={previewFile} />}
+          </div>
+          <div className="absolute right-2.5 top-1.5 z-10">
+            <button
+              type="button"
+              onClick={() => setFilesOpen(false)}
+              className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
+            >
+              <ChevronDown className="size-4" />
+            </button>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel open={terminalOpen}>
+        <div className="h-full relative overflow-hidden">
+          <div className="h-full overflow-hidden bg-background">
+            {currentProjectId && (
+              <TerminalPanel isActive={terminalOpen} projectId={currentProjectId} />
             )}
           </div>
-        ) : null}
-
-        <Panel open={filesOpen}>
-          <div className="h-full relative overflow-hidden">
-            <div className="h-full overflow-hidden bg-background">
-              {currentProjectId && (
-                <FilePanel projectId={currentProjectId} previewFile={previewFile} />
-              )}
-            </div>
-            <div className="absolute right-2.5 top-1.5 z-10">
-              <button
-                type="button"
-                onClick={() => setFilesOpen(false)}
-                className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
-              >
-                <XIcon className="size-4" />
-              </button>
-            </div>
+          <div className="absolute right-2.5 top-1.5 z-10">
+            <button
+              type="button"
+              onClick={() => setTerminalOpen(false)}
+              className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
+            >
+              <ChevronDown className="size-4" />
+            </button>
           </div>
-        </Panel>
-
-        <Panel open={terminalOpen}>
-          <div className="h-full relative overflow-hidden">
-            <div className="h-full overflow-hidden bg-background">
-              {currentProjectId && (
-                <TerminalPanel isActive={terminalOpen} projectId={currentProjectId} />
-              )}
-            </div>
-            <div className="absolute right-2.5 top-1.5 z-10">
-              <button
-                type="button"
-                onClick={() => setTerminalOpen(false)}
-                className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
-              >
-                <XIcon className="size-4" />
-              </button>
-            </div>
-          </div>
-        </Panel>
-      </main>
-    </>
+        </div>
+      </Panel>
+    </main>
   );
 }

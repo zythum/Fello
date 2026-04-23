@@ -135,6 +135,9 @@ body,
 }
 [data-streamdown="code-block-actions"] {
   margin-top: -3px !important;
+  margin-right: 8px !important;
+  padding: 0 !important;
+  transform: scale(0.9);
 }
 [data-streamdown="code-block-actions"] button,
 [data-streamdown="table-wrapper"] > div button {

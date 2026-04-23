@@ -41,13 +41,13 @@ export function SettingsLayout() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background relative">
       <div
-        className="h-12 shrink-0 border-b border-border/60 flex items-center px-6"
+        className="h-12 shrink-0 border-b border-border flex items-center px-6"
         style={{ WebkitAppRegion: "drag" }}
       >
         <h1 className="text-sm font-medium">{t("settings.title", "Settings")}</h1>
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-48 shrink-0 border-r border-border/60 bg-muted/10">
+        <aside className="w-48 shrink-0 border-r border-border bg-muted/10">
           <nav className="flex flex-col gap-1 p-4">
             {tabs.map((tab) => (
               <NavLink

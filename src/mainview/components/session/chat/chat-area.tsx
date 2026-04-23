@@ -399,7 +399,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
               </div>
 
               {(isLastGroup ? !isStreaming : true) && (
-                <div className="flex items-center relative border-b border-muted-foreground/50 border-dashed py-1.5 group/separator pointer-events-auto">
+                <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed pt-1.5 my-4 group/separator pointer-events-auto">
                   <div className="flex-1 flex items-center">
                     {durationMs !== null && (
                       <span className="text-xs text-muted-foreground/50 select-none">
