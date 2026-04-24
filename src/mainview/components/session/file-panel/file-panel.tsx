@@ -1481,7 +1481,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     <ResizablePanelGroup className="flex h-full min-h-0">
       <ResizablePanel
         groupResizeBehavior="preserve-pixel-size"
-        defaultSize={260}
+        defaultSize={200}
         minSize={200}
         maxSize={500}
         className="flex h-full min-h-0"
