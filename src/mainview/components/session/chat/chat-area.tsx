@@ -7,7 +7,7 @@ import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, Check, Copy } from "lucide-react";
+import { ArrowDown, Check, Copy, Bot } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 
 import type { SessionInfo } from "../../../../shared/schema";
@@ -356,6 +356,10 @@ export function ChatArea({ session }: { session: SessionInfo }) {
               )}
 
               <div className="message-content pb-4">
+                <div className="flex items-center gap-1.5 mt-4 -mb-2 text-accent-foreground/90">
+                  <Bot className="size-6 -translate-y-px"/>
+                  <span className="text-md font-medium">{session.agentId}</span>
+                </div>
                 {group.contentMessages.map((msg, i, arr) => {
                   const isLastInGroup = i === arr.length - 1;
                   const isLastRendered = isLastGroup && isLastInGroup;
