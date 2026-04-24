@@ -42,7 +42,9 @@ const TextResourceBlock = memo(function TextResourceBlock({
       <details>
         <summary className="flex h-8 cursor-pointer items-center gap-1 py-1 px-2 hover:bg-muted/50 select-none">
           <FileText className="size-3.5 text-blue-400 shrink-0" />
-          <span className="text-xs font-medium min-w-40 truncate flex-1">{getBasename(resource.uri)}</span>
+          <span className="text-xs font-medium min-w-40 truncate flex-1">
+            {getBasename(resource.uri)}
+          </span>
           <Button
             variant="ghost"
             size="icon-xs"

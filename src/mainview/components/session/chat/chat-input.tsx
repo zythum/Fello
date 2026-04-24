@@ -431,7 +431,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       <div className="mx-auto max-w-200">
         <div
           ref={containerRef}
-          className={`rounded-xl border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${
+          className={`rounded-lg border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${
             isDragOver ? "border-primary ring-0.5 ring-primary bg-primary/5" : "border-input"
           }`}
           onDrop={handleDrop}
@@ -493,7 +493,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             disabled={disabled}
             aria-label={t("chatInput.messageInput", "Message input")}
             style={mentionsInputStyle}
-            allowSuggestionsAboveCursor
+            className="chat-mentions-input"
             autoCorrect="off"
             autoComplete="off"
             spellCheck={false}
@@ -506,6 +506,18 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               displayTransform={(_id, display) => `#${display}`}
               style={mentionStyle}
               appendSpaceOnAdd
+              renderSuggestion={(suggestion) => {
+                const name = String(suggestion.id).split("/").pop();
+                return (
+                  <div className="flex items-center gap-1">
+                    <FileText className="size-3.5"/>
+                    <span className="text-xs text-foreground">{name}</span>
+                    <span className="ml-1 text-[10px] text-muted-foreground/50 truncate">
+                      {suggestion.display}
+                    </span>
+                  </div>
+                );
+              }}
             />
           </MentionsInput>
           {/* Bottom bar: model selector + send button */}
@@ -704,11 +716,18 @@ const mentionsInputStyle = {
     },
   },
   suggestions: {
+    zIndex: 30,
+    left: -1,
+    right: -1,
+    top: 'auto',
+    bottom: '100%',
+    marginBottom: 4,
+    marginTop: 0,
     backgroundColor: "transparent",
     list: {
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
-      borderRadius: 8,
+      borderRadius: 7.2,
       fontSize: 12,
       overflow: "hidden",
     },

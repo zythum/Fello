@@ -73,7 +73,7 @@ function calculateAgentChunk(
   const msgs = [...state.messages];
   const last = msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
 
-  if (last && last.role === role && state.isStreaming) {
+  if (last && last.role === role) {
     const oldContents = last.contents || [];
     const lastBlock = oldContents[oldContents.length - 1];
 
