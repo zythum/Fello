@@ -16,16 +16,17 @@ export interface AgentTerminalProcess {
 export class AgentTerminalManager {
   private terminals = new Map<string, AgentTerminalProcess>();
 
-  constructor(private emitOutput: (terminalId: string, data: string) => void) {}
+  constructor(private emitOutput: (sessionId: string, terminalId: string, data: string) => void) {}
 
   create(
+    sessionId: string,
     command: string,
     args: string[],
     cwd: string,
     env: Record<string, string>,
     outputByteLimit: number,
   ): string {
-    const id = "term_" + randomBytes(6).toString("hex");
+    const terminalId = "term_" + randomBytes(6).toString("hex");
 
     const proc = spawn(command, args, {
       cwd,
@@ -34,7 +35,7 @@ export class AgentTerminalManager {
     });
 
     const terminal: AgentTerminalProcess = {
-      id,
+      id: terminalId,
       process: proc,
       outputBuffer: Buffer.alloc(0),
       outputByteLimit,
@@ -52,7 +53,7 @@ export class AgentTerminalManager {
         newBuffer = newBuffer.subarray(newBuffer.length - terminal.outputByteLimit);
       }
       terminal.outputBuffer = newBuffer;
-      this.emitOutput(id, chunk.toString("utf-8"));
+      this.emitOutput(sessionId, terminalId, chunk.toString("utf-8"));
     };
 
     proc.stdout?.on("data", handleData);
@@ -69,14 +70,14 @@ export class AgentTerminalManager {
       handleData(Buffer.from(`\n[Error: ${err.message}]\n`));
     });
 
-    this.terminals.set(id, terminal);
-    return id;
+    this.terminals.set(terminalId, terminal);
+    return terminalId;
   }
 
-  getOutput(id: string): { output: string; truncated: boolean } {
-    const terminal = this.terminals.get(id);
+  getOutput(terminalId: string): { output: string; truncated: boolean } {
+    const terminal = this.terminals.get(terminalId);
     if (!terminal) {
-      throw new Error(`Terminal ${id} not found`);
+      throw new Error(`Terminal ${terminalId} not found`);
     }
     // We don't track true truncated state perfectly yet, but we can assume if buffer equals limit it might be truncated.
     // For now, return false or check if we ever truncated. Let's just say false for simplicity unless we add a flag.
@@ -90,10 +91,12 @@ export class AgentTerminalManager {
     return this.terminals.get(terminalId);
   }
 
-  async waitForExit(id: string): Promise<{ exitCode: number | null; signal: string | null }> {
-    const terminal = this.terminals.get(id);
+  async waitForExit(
+    terminalId: string,
+  ): Promise<{ exitCode: number | null; signal: string | null }> {
+    const terminal = this.terminals.get(terminalId);
     if (!terminal) {
-      throw new Error(`Terminal ${id} not found`);
+      throw new Error(`Terminal ${terminalId} not found`);
     }
     if (terminal.isFinished) {
       return { exitCode: terminal.exitCode, signal: terminal.signal };
@@ -107,20 +110,20 @@ export class AgentTerminalManager {
     });
   }
 
-  kill(id: string): void {
-    const terminal = this.terminals.get(id);
+  kill(terminalId: string): void {
+    const terminal = this.terminals.get(terminalId);
     if (!terminal) return;
     if (!terminal.isFinished) {
       terminal.process.kill("SIGTERM");
     }
   }
 
-  release(id: string): void {
-    const terminal = this.terminals.get(id);
+  release(terminalId: string): void {
+    const terminal = this.terminals.get(terminalId);
     if (!terminal) return;
     if (!terminal.isFinished) {
       terminal.process.kill("SIGKILL");
     }
-    this.terminals.delete(id);
+    this.terminals.delete(terminalId);
   }
 }

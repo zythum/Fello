@@ -34,6 +34,7 @@ export interface SessionState {
   usage: UsageUpdate | null;
   isStreaming: boolean;
   isLoading: boolean;
+  terminalLogs: Record<string, string>;
   permissionRequests: PermissionRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
   pendingUpdates: SessionNotificationFelloExt["update"][];
@@ -44,6 +45,7 @@ const emptySessionState = (): SessionState => ({
   usage: null,
   isStreaming: false,
   isLoading: false,
+  terminalLogs: {},
   permissionRequests: [],
   activeToolCalls: new Map(),
   pendingUpdates: [],
@@ -87,12 +89,6 @@ export interface AppState {
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
-  /**
-   * Global cache for terminal logs.
-   * Kept flat and global to avoid deep updates in SessionState and to persist
-   * across session refreshes. Keyed by globally unique terminalId.
-   */
-  terminalLogs: Record<string, string>;
 
   // ==========================================================================
   // Selectors
@@ -124,8 +120,8 @@ export interface AppState {
   // ==========================================================================
   // Terminal log mutators
   // ==========================================================================
-  appendTerminalLog: (terminalId: string, chunk: string) => void;
-  setTerminalLog: (terminalId: string, fullLog: string) => void;
+  appendTerminalLog: (sessionId: string, terminalId: string, chunk: string) => void;
+  setTerminalLog: (sessionId: string, terminalId: string, fullLog: string) => void;
 
   // ==========================================================================
   // Global mutators
@@ -172,7 +168,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
-  terminalLogs: {},
 
   // ==========================================================================
   // Selectors
@@ -250,20 +245,49 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // Terminal log mutators
   // ==========================================================================
-  appendTerminalLog: (terminalId, chunk) =>
-    set((state) => ({
+  appendTerminalLog: (sessionId, terminalId, chunk) =>
+    get().updateSessionState(sessionId, (state) => ({
       terminalLogs: {
         ...state.terminalLogs,
         [terminalId]: (state.terminalLogs[terminalId] || "") + chunk,
       },
     })),
-  setTerminalLog: (terminalId, fullLog) =>
-    set((state) => ({
-      terminalLogs: {
-        ...state.terminalLogs,
-        [terminalId]: fullLog,
-      },
-    })),
+  setTerminalLog: (sessionId, terminalId, fullLog) =>
+    get().updateSessionState(sessionId, (state) => {
+      const currentLog = state.terminalLogs[terminalId] || "";
+      if (!currentLog) {
+        return {
+          terminalLogs: {
+            ...state.terminalLogs,
+            [terminalId]: fullLog,
+          },
+        };
+      }
+
+      if (fullLog.endsWith(currentLog)) {
+        return { terminalLogs: { ...state.terminalLogs, [terminalId]: fullLog } };
+      }
+      if (currentLog.startsWith(fullLog)) {
+        return {};
+      }
+
+      let overlap = 0;
+      const maxOverlapCheck = 8192;
+      const minLen = Math.min(fullLog.length, currentLog.length, maxOverlapCheck);
+      for (let i = minLen; i > 0; i--) {
+        if (fullLog.endsWith(currentLog.substring(0, i))) {
+          overlap = i;
+          break;
+        }
+      }
+
+      return {
+        terminalLogs: {
+          ...state.terminalLogs,
+          [terminalId]: fullLog + currentLog.substring(overlap),
+        },
+      };
+    }),
 
   // ==========================================================================
   // Global mutators

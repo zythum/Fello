@@ -111,13 +111,9 @@ export function Sidebar() {
         selectedPath = p;
       }
 
-      const result = await request.addProject(selectedPath);
-      if (!result.created) {
-        toast.error(t("sidebar.projectExists", "Project already exists."));
-        return;
-      }
+      const projectInfo = await request.addProject(selectedPath);
       await refreshData();
-      setExpandedProjects((prev) => ({ ...prev, [result.project.id]: true }));
+      setExpandedProjects((prev) => ({ ...prev, [projectInfo.id]: true }));
     } catch (err) {
       const message = getErrorMessage(err, t("sidebar.addProjectFailed", "Failed to add project."));
       if (message === "Project selection was canceled") return;

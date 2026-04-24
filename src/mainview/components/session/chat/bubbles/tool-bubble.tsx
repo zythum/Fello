@@ -17,7 +17,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
-import { ReadonlyTerminal } from "../../../common/readonly-terminal";
+import { AgentTerminalOutput } from "../../../common/agent-terminal-output";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
 import { CodeView } from "../../../common/code-view";
 import { CodeCompareView } from "../../../common/code-compare-view";
@@ -133,7 +133,9 @@ export function ToolItem({ session, message }: ToolItemProps) {
             }
             return null;
           })}
-        {message.terminalId && <ReadonlyTerminal terminalId={message.terminalId} />}
+        {message.terminalId && (
+          <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId} />
+        )}
         {(!message.content || message.content.length === 0) && message.rawInput != null && (
           <pre className="overflow-x-auto whitespace-pre-wrap break-all p-2 text-[10px] leading-relaxed text-muted-foreground">
             {typeof message.rawInput === "string"

@@ -184,7 +184,11 @@ function AppContent() {
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
-      useAppStore.getState().appendTerminalLog(detail.terminalId, detail.data);
+      const store = useAppStore.getState();
+      if (!store.sessionStates.has(detail.sessionId)) {
+        return; // Hibernated, discard
+      }
+      store.appendTerminalLog(detail.sessionId, detail.terminalId, detail.data);
     };
 
     const handleWebUIStatusChanged = (detail: BackendEvents["webui-status-changed"]) => {

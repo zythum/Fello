@@ -46,7 +46,11 @@ export type SessionUpdateCallback = (update: SessionNotification) => void;
 export type PermissionRequestCallback = (
   params: RequestPermissionRequest,
 ) => Promise<RequestPermissionResponse>;
-export type AgentTerminalOutputCallback = (terminalId: string, data: string) => void;
+export type AgentTerminalOutputCallback = (
+  sessionId: string,
+  terminalId: string,
+  data: string,
+) => void;
 
 export interface ACPBridgeOptions {
   command: string;
@@ -189,6 +193,7 @@ export class ACPBridge {
       },
       async createTerminal(params: CreateTerminalRequest): Promise<CreateTerminalResponse> {
         const id = terminalManager.create(
+          params.sessionId,
           params.command,
           params.args || [],
           params.cwd || homedir(),

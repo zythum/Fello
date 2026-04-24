@@ -175,7 +175,7 @@ export type FelloIPCRequests = {
   /** 获取所有项目列表 */
   listProjects: { params: void; response: ProjectInfo[] };
   /** 添加新项目（通常通过选择目录） */
-  addProject: { params: string; response: { project: ProjectInfo; created: boolean } };
+  addProject: { params: string; response: ProjectInfo };
   /** 重命名项目 */
   renameProject: { params: { projectId: string; title: string }; response: void };
   /** 删除项目 */
@@ -362,7 +362,7 @@ export type FelloIPCRequests = {
     response: { ok: boolean };
   };
   /** 获取代理专属终端的输出内容 */
-  getAgentTerminalOutput: { params: { terminalId: string }; response: string };
+  getAgentTerminalOutput: { params: { sessionId: string; terminalId: string }; response: string };
 
   /**
    * 获取项目目录下的 Git 状态（当前分支、文件变更等）
@@ -397,7 +397,7 @@ export type FelloIPCEvents = {
   /** 终端退出的事件 */
   "terminal-exit": { terminalId: string; exitCode: number | null };
   /** 代理专属终端输出数据的事件 */
-  "agent-terminal-output": { terminalId: string; data: string };
+  "agent-terminal-output": { sessionId: string; terminalId: string; data: string };
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
   /**

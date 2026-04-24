@@ -3,7 +3,7 @@ import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { useTranslation } from "react-i18next";
 
-export function ReadonlyTerminal({
+export function AgentTerminalOutput({
   sessionId,
   terminalId,
 }: {

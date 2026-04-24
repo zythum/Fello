@@ -289,8 +289,14 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
         });
       });
     },
-    onAgentTerminalOutput: (terminalId: string, data: string) => {
-      sendEvent("agent-terminal-output", { terminalId, data });
+    onAgentTerminalOutput: (resumeId: string, terminalId: string, data: string) => {
+      const sessionId = `${agentId}:${resumeId}`;
+      try {
+        storageOps.appendTerminalOutput(sessionId, terminalId, data);
+      } catch (err) {
+        console.error("write terminal output error: ", { sessionId, terminalId, err });
+      }
+      sendEvent("agent-terminal-output", { sessionId, terminalId, data });
     },
   });
 
@@ -471,13 +477,13 @@ export const backendHandlers: {
   },
 
   async addProject(cwd: string) {
-    const result = storageOps.addProject(cwd);
-    if (!projectFsVersions.has(result.project.id)) {
-      projectFsVersions.set(result.project.id, 0);
+    const ProjectInfo = storageOps.addProject(cwd);
+    if (!projectFsVersions.has(ProjectInfo.id)) {
+      projectFsVersions.set(ProjectInfo.id, 0);
     }
     syncWatchers();
     sendEvent("projects-changed", undefined);
-    return result;
+    return ProjectInfo;
   },
 
   async renameProject({ projectId, title }) {
@@ -511,7 +517,7 @@ export const backendHandlers: {
       cwd: project.cwd,
       mcpServers: activeMcpServers,
     });
-    const sessionId = storageOps.createSession(project.id, resumeId, agentId, {
+    const sessionInfo = storageOps.createSession(project.id, resumeId, agentId, {
       mcpServers: sessionMcpIds,
       models: models ?? null,
       modes: modes ?? null,
@@ -519,7 +525,7 @@ export const backendHandlers: {
     });
     sendEvent("sessions-changed", undefined);
     return {
-      sessionId: sessionId,
+      sessionId: sessionInfo.id,
       initializeInfo: b.initializeInfo,
       models: models ?? null,
       modes: modes ?? null,
@@ -1133,7 +1139,7 @@ export const backendHandlers: {
     return { ok: true };
   },
 
-  async getAgentTerminalOutput({ terminalId }) {
+  async getAgentTerminalOutput({ sessionId, terminalId }) {
     for (const connectPromise of bridgePool.values()) {
       try {
         const b = await connectPromise;
@@ -1143,7 +1149,7 @@ export const backendHandlers: {
         continue;
       }
     }
-    return "";
+    return storageOps.readTerminalOutput(sessionId, terminalId) || "";
   },
 
   async getGitStatus({ projectId, cwd }) {

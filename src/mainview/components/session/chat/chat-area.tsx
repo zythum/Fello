@@ -356,9 +356,9 @@ export function ChatArea({ session }: { session: SessionInfo }) {
               )}
 
               <div className="message-content pb-4">
-                <div className="flex items-center gap-1.5 mt-4 -mb-2 text-accent-foreground/90">
-                  <Bot className="size-6 -translate-y-px"/>
-                  <span className="text-md font-medium">{session.agentId}</span>
+                <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
+                  <Bot className="size-5 -translate-y-px" />
+                  <span className="text-sm font-medium">{session.agentId}</span>
                 </div>
                 {group.contentMessages.map((msg, i, arr) => {
                   const isLastInGroup = i === arr.length - 1;

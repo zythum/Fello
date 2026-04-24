@@ -188,7 +188,13 @@ function sessionMetaPath(projectId: string, sessionId: string) {
   return join(sessionDir(projectId, sessionId), "session.json");
 }
 
+const projectMetaCache = new Map<string, ProjectMeta>();
+const sessionMetaCache = new Map<string, SessionMeta>();
+
 function readProjectMeta(projectId: string): ProjectMeta | null {
+  const cached = projectMetaCache.get(projectId);
+  if (cached) return cached;
+
   try {
     const raw: ProjectMeta = JSON.parse(readFileSync(projectMetaPath(projectId), "utf-8"));
     if (!raw) return null;
@@ -197,7 +203,9 @@ function readProjectMeta(projectId: string): ProjectMeta | null {
     const cwd = String(raw.cwd || "");
     const created_at = typeof raw.created_at === "number" ? raw.created_at : Date.now();
     if (!id || !title || !cwd) return null;
-    return { id, title, cwd, created_at };
+    const meta = { id, title, cwd, created_at };
+    projectMetaCache.set(id, meta);
+    return meta;
   } catch {
     return null;
   }
@@ -207,9 +215,35 @@ function writeProjectMeta(meta: ProjectMeta) {
   mkdirSync(projectDir(meta.id), { recursive: true });
   mkdirSync(projectSessionsDir(meta.id), { recursive: true });
   writeFileSync(projectMetaPath(meta.id), JSON.stringify(meta, null, 2));
+  projectMetaCache.set(meta.id, meta);
+}
+
+function deleteProjectMeta(projectId: string) {
+  const dir = projectDir(projectId);
+  if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  projectMetaCache.delete(projectId);
+  // 清理属于该 project 的 session 缓存
+  for (const [id, meta] of sessionMetaCache.entries()) {
+    if (meta.project_id === projectId) {
+      sessionMetaCache.delete(id);
+    }
+  }
+}
+
+function getProjectMeta(projectId: string): ProjectMeta | null {
+  return projectMetaCache.get(projectId) ?? null;
+}
+
+function listProjectMetas(): ProjectMeta[] {
+  const projects = Array.from(projectMetaCache.values());
+  projects.sort((a, b) => b.created_at - a.created_at);
+  return projects;
 }
 
 function readSessionMeta(projectId: string, sessionId: string): SessionMeta | null {
+  const cached = sessionMetaCache.get(sessionId);
+  if (cached) return cached;
+
   try {
     const raw: SessionMeta = JSON.parse(
       readFileSync(sessionMetaPath(projectId, sessionId), "utf-8"),
@@ -229,7 +263,8 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const modes = raw.modes ?? null;
     const initialize_info = raw.initialize_info ?? null;
     if (!id || !agent_id || !resume_id || !project_id) return null;
-    return {
+
+    const meta: SessionMeta = {
       id,
       title,
       agent_id,
@@ -242,6 +277,8 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
       modes,
       initialize_info,
     };
+    sessionMetaCache.set(id, meta);
+    return meta;
   } catch {
     return null;
   }
@@ -250,32 +287,48 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
 function writeSessionMeta(meta: SessionMeta) {
   mkdirSync(sessionDir(meta.project_id, meta.id), { recursive: true });
   writeFileSync(sessionMetaPath(meta.project_id, meta.id), JSON.stringify(meta, null, 2));
+  sessionMetaCache.set(meta.id, meta);
 }
 
-function listProjectMetas() {
-  if (!existsSync(PROJECTS_DIR)) return [];
-  const dirs = readdirSync(PROJECTS_DIR);
-  const projects: ProjectMeta[] = [];
-  for (const dir of dirs) {
-    const project = readProjectMeta(dir);
-    if (project) projects.push(project);
-  }
-  projects.sort((a, b) => b.created_at - a.created_at);
-  return projects;
+function deleteSessionMeta(sessionId: string) {
+  const sessionMeta = sessionMetaCache.get(sessionId);
+  if (!sessionMeta) return;
+  const dir = sessionDir(sessionMeta.project_id, sessionId);
+  if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  sessionMetaCache.delete(sessionId);
 }
 
-function listSessionMetasByProject(projectId: string) {
-  const sessionsPath = projectSessionsDir(projectId);
-  if (!existsSync(sessionsPath)) return [];
-  const dirs = readdirSync(sessionsPath);
-  const sessions: SessionMeta[] = [];
-  for (const dir of dirs) {
-    const session = readSessionMeta(projectId, dir);
-    if (session) sessions.push(session);
-  }
+function getSessionMeta(sessionId: string): SessionMeta | null {
+  return sessionMetaCache.get(sessionId) ?? null;
+}
+
+function listSessionMetas(): SessionMeta[] {
+  const sessions = Array.from(sessionMetaCache.values());
   sessions.sort((a, b) => b.updated_at - a.updated_at);
   return sessions;
 }
+
+function initMetaCache() {
+  if (!existsSync(PROJECTS_DIR)) return;
+  const dirs = readdirSync(PROJECTS_DIR);
+  for (const dir of dirs) {
+    readProjectMeta(dir);
+  }
+  const projects = listProjectMetas();
+  for (const project of projects) {
+    const sessionsPath = projectSessionsDir(project.id);
+    if (!existsSync(sessionsPath)) continue;
+    const dirs = readdirSync(sessionsPath);
+    for (const dir of dirs) {
+      const meta = readSessionMeta(project.id, dir);
+      if (meta) {
+        sessionMetaCache.set(meta.id, meta);
+      }
+    }
+  }
+}
+// 启动时立刻执行初始化
+initMetaCache();
 
 export const storageOps = {
   getSettings(): SettingsInfo {
@@ -366,18 +419,15 @@ export const storageOps = {
     }));
   },
 
-  addProject(cwd: string) {
+  addProject(cwd: string): ProjectInfo {
     const projectId = hashCwd(cwd);
-    const existing = readProjectMeta(projectId);
+    const existing = getProjectMeta(projectId);
     if (existing) {
       return {
-        project: {
-          id: existing.id,
-          title: existing.title,
-          cwd: existing.cwd,
-          createdAt: existing.created_at,
-        },
-        created: false,
+        id: existing.id,
+        title: existing.title,
+        cwd: existing.cwd,
+        createdAt: existing.created_at,
       };
     }
     const now = Date.now();
@@ -385,18 +435,15 @@ export const storageOps = {
     const meta: ProjectMeta = { id: projectId, title, cwd, created_at: now };
     writeProjectMeta(meta);
     return {
-      project: {
-        id: meta.id,
-        title: meta.title,
-        cwd: meta.cwd,
-        createdAt: meta.created_at,
-      },
-      created: true,
+      id: meta.id,
+      title: meta.title,
+      cwd: meta.cwd,
+      createdAt: meta.created_at,
     };
   },
 
   updateProjectTitle(projectId: string, title: string) {
-    const project = readProjectMeta(projectId);
+    const project = getProjectMeta(projectId);
     if (!project) return;
     const nextTitle = title.trim();
     if (!nextTitle) return;
@@ -405,12 +452,11 @@ export const storageOps = {
   },
 
   deleteProject(projectId: string) {
-    const dir = projectDir(projectId);
-    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+    deleteProjectMeta(projectId);
   },
 
   getProject(projectId: string): ProjectInfo | null {
-    const project = readProjectMeta(projectId);
+    const project = getProjectMeta(projectId);
     if (!project) return null;
     return {
       id: project.id,
@@ -431,12 +477,12 @@ export const storageOps = {
       modes: SessionModeState | null;
       initializeInfo: InitializeResponse | null;
     }>,
-  ) {
+  ): SessionInfo {
     const project = readProjectMeta(projectId);
     if (!project) throw new Error("Project does not exist");
     const now = Date.now();
     const id = `${agentId}:${resumeId}`;
-    writeSessionMeta({
+    const meta: SessionMeta = {
       id: id,
       title: updates?.title ?? "",
       agent_id: agentId,
@@ -448,12 +494,13 @@ export const storageOps = {
       models: updates?.models ?? null,
       modes: updates?.modes ?? null,
       initialize_info: updates?.initializeInfo ?? null,
-    });
-    return id;
+    };
+    writeSessionMeta(meta);
+    return this.getSession(id)!;
   },
 
   updateSession(
-    id: string,
+    sessionId: string,
     updates: Partial<{
       title: string;
       mcpServers: string[];
@@ -463,9 +510,7 @@ export const storageOps = {
     }>,
     updateTime: boolean = true,
   ) {
-    const session = this.getSession(id);
-    if (!session) return;
-    const meta = readSessionMeta(session.projectId, session.id);
+    const meta = getSessionMeta(sessionId);
     if (!meta) return;
 
     if (updates.title !== undefined) meta.title = updates.title;
@@ -480,66 +525,63 @@ export const storageOps = {
     writeSessionMeta(meta);
   },
 
-  deleteSession(id: string) {
-    const session = this.getSession(id);
-    if (!session) return;
-    const dir = sessionDir(session.projectId, id);
-    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  deleteSession(sessionId: string) {
+    deleteSessionMeta(sessionId);
   },
 
   listSessions(): SessionInfo[] {
-    const projects = listProjectMetas();
-    const sessions: SessionInfo[] = [];
-    for (const project of projects) {
-      const byProject = listSessionMetasByProject(project.id);
-      for (const session of byProject) {
-        sessions.push({
-          id: session.id,
-          title: session.title,
+    const metas = listSessionMetas();
+
+    const result: SessionInfo[] = [];
+    for (const meta of metas) {
+      const project = readProjectMeta(meta.project_id);
+      if (project) {
+        result.push({
+          id: meta.id,
+          title: meta.title,
           cwd: project.cwd,
-          projectId: session.project_id,
+          projectId: meta.project_id,
           projectTitle: project.title,
-          agentId: session.agent_id,
-          resumeId: session.resume_id,
-          createdAt: session.created_at,
-          updatedAt: session.updated_at,
-          mcpServers: session.mcp_servers ?? [],
-          models: session.models ?? null,
-          modes: session.modes ?? null,
-          initializeInfo: session.initialize_info ?? null,
+          agentId: meta.agent_id,
+          resumeId: meta.resume_id,
+          createdAt: meta.created_at,
+          updatedAt: meta.updated_at,
+          mcpServers: meta.mcp_servers ?? [],
+          models: meta.models ?? null,
+          modes: meta.modes ?? null,
+          initializeInfo: meta.initialize_info ?? null,
         });
       }
     }
-    sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-    return sessions;
+    return result;
   },
 
-  getSession(id: string): SessionInfo | null {
-    const projects = listProjectMetas();
-    for (const project of projects) {
-      const meta = readSessionMeta(project.id, id);
-      if (!meta) continue;
-      return {
-        id: meta.id,
-        title: meta.title,
-        cwd: project.cwd,
-        projectId: meta.project_id,
-        projectTitle: project.title,
-        agentId: meta.agent_id,
-        resumeId: meta.resume_id,
-        createdAt: meta.created_at,
-        updatedAt: meta.updated_at,
-        mcpServers: meta.mcp_servers ?? [],
-        models: meta.models ?? null,
-        modes: meta.modes ?? null,
-        initializeInfo: meta.initialize_info ?? null,
-      };
-    }
-    return null;
+  getSession(sessionId: string): SessionInfo | null {
+    const meta = getSessionMeta(sessionId);
+    if (!meta) return null;
+
+    const project = readProjectMeta(meta.project_id);
+    if (!project) return null;
+
+    return {
+      id: meta.id,
+      title: meta.title,
+      cwd: project.cwd,
+      projectId: meta.project_id,
+      projectTitle: project.title,
+      agentId: meta.agent_id,
+      resumeId: meta.resume_id,
+      createdAt: meta.created_at,
+      updatedAt: meta.updated_at,
+      mcpServers: meta.mcp_servers ?? [],
+      models: meta.models ?? null,
+      modes: meta.modes ?? null,
+      initializeInfo: meta.initialize_info ?? null,
+    };
   },
 
-  touchSession(id: string) {
-    const session = this.getSession(id);
+  touchSession(sessionId: string) {
+    const session = this.getSession(sessionId);
     if (!session) return;
     const meta = readSessionMeta(session.projectId, session.id);
     if (!meta) return;
@@ -547,17 +589,17 @@ export const storageOps = {
     writeSessionMeta(meta);
   },
 
-  appendSessionMessage(id: string, notification: SessionNotificationFelloExt) {
-    const session = this.getSession(id);
+  appendSessionMessage(sessionId: string, notification: SessionNotificationFelloExt) {
+    const session = this.getSession(sessionId);
     if (!session) return;
-    const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
+    const filePath = join(sessionDir(session.projectId, sessionId), "messages.jsonl");
     appendFileSync(filePath, JSON.stringify(notification) + "\n");
   },
 
-  readSessionMessages(id: string): SessionNotificationFelloExt[] {
-    const session = this.getSession(id);
+  readSessionMessages(sessionId: string): SessionNotificationFelloExt[] {
+    const session = this.getSession(sessionId);
     if (!session) return [];
-    const filePath = join(sessionDir(session.projectId, id), "messages.jsonl");
+    const filePath = join(sessionDir(session.projectId, sessionId), "messages.jsonl");
     if (!existsSync(filePath)) return [];
     const content = readFileSync(filePath, "utf-8");
     return content
@@ -571,6 +613,32 @@ export const storageOps = {
         }
       })
       .filter(Boolean) as SessionNotificationFelloExt[];
+  },
+
+  appendTerminalOutput(sessionId: string, terminalId: string, data: string) {
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(terminalId)) {
+      throw new Error("Invalid terminalId");
+    }
+    const session = this.getSession(sessionId);
+    if (!session) return;
+    const sessionTerminalsDir = join(sessionDir(session.projectId, sessionId), "terminals");
+    if (!existsSync(sessionTerminalsDir)) {
+      mkdirSync(sessionTerminalsDir, { recursive: true });
+    }
+    const filePath = join(sessionTerminalsDir, `${terminalId}.log`);
+    appendFileSync(filePath, data);
+  },
+
+  readTerminalOutput(sessionId: string, terminalId: string): string | null {
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(terminalId)) {
+      throw new Error("Invalid terminalId");
+    }
+    const session = this.getSession(sessionId);
+    if (!session) return null;
+    const sessionTerminalsDir = join(sessionDir(session.projectId, sessionId), "terminals");
+    const filePath = join(sessionTerminalsDir, `${terminalId}.log`);
+    if (!existsSync(filePath)) return null;
+    return readFileSync(filePath, "utf-8");
   },
 };
 
