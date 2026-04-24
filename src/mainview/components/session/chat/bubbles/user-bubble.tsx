@@ -80,12 +80,12 @@ export const UserBubble = memo(function UserBubble({
             </Button>
           </div>
         )}
-        <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary px-3 py-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
+        <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary p-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
           <div className="relative flex">
             <div
               className={cn(
                 "flex-1 min-w-0",
-                !isExpanded ? "line-clamp-2" : "max-h-45",
+                !isExpanded ? "line-clamp-2 max-h-16" : "max-h-45",
                 (isOverflowing || isExpanded) && "pr-4",
               )}
             >

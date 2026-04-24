@@ -62,7 +62,7 @@ export const ImageBlock = memo(function ImageBlock({
   const src = data && mimeType ? `data:${mimeType};base64,${data}` : undefined;
 
   return (
-    <Card className="relative group max-w-xs overflow-hidden shadow-none p-0">
+    <Card className="relative group max-w-xs overflow-hidden shadow-none">
       {src ? (
         <img
           src={src}

@@ -38,25 +38,25 @@ const TextResourceBlock = memo(function TextResourceBlock({
   };
 
   return (
-    <Card className="group overflow-hidden shadow-none">
+    <Card className="group shadow-none">
       <details>
-        <summary className="flex cursor-pointer items-center gap-2 p-2 hover:bg-muted/50 select-none">
-          <FileText className="h-4 w-4 text-blue-400 shrink-0" />
-          <span className="text-xs font-medium truncate flex-1">{getBasename(resource.uri)}</span>
+        <summary className="flex h-8 cursor-pointer items-center gap-1 py-1 px-2 hover:bg-muted/50 select-none">
+          <FileText className="size-3.5 text-blue-400 shrink-0" />
+          <span className="text-xs font-medium min-w-40 truncate flex-1">{getBasename(resource.uri)}</span>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            size="icon-xs"
+            className="shrink-0 opacity-30 group-hover:opacity-60 transition-opacity"
             onClick={(e) => {
               e.preventDefault();
               handleDownload();
             }}
             title={t("contentBlock.download")}
           >
-            <Download className="h-3 w-3" />
+            <Download className="size-3.5" />
           </Button>
         </summary>
-        <div className="p-2 border-t border-border bg-muted/20 text-xs">
+        <div className="p-2 border-t border-border bg-muted/20">
           <StreamMarkdown>{resource.text}</StreamMarkdown>
         </div>
       </details>

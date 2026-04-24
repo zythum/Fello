@@ -1,4 +1,5 @@
 import { spawn, execFileSync, type ChildProcess } from "child_process";
+import { writeFile, readFile } from "fs/promises";
 import { homedir } from "os";
 import { Writable, Readable } from "stream";
 import {
@@ -182,13 +183,11 @@ export class ACPBridge {
         onUpdate(params);
       },
       async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
-        const { writeFile } = await import("fs/promises");
-        await writeFile(params.path, "");
+        await writeFile(params.path, params.content, "utf8");
         return {};
       },
       async readTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
-        const { readFile } = await import("fs/promises");
-        const content = await readFile(params.path, "utf-8");
+        const content = await readFile(params.path, "utf8");
         return { content };
       },
       async createTerminal(params: CreateTerminalRequest): Promise<CreateTerminalResponse> {
