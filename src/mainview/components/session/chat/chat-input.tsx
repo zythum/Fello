@@ -510,7 +510,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 const name = String(suggestion.id).split("/").pop();
                 return (
                   <div className="flex items-center gap-1">
-                    <FileText className="size-3.5"/>
+                    <FileText className="size-3.5" />
                     <span className="text-xs text-foreground">{name}</span>
                     <span className="ml-1 text-[10px] text-muted-foreground/50 truncate">
                       {suggestion.display}
@@ -719,8 +719,8 @@ const mentionsInputStyle = {
     zIndex: 30,
     left: -1,
     right: -1,
-    top: 'auto',
-    bottom: '100%',
+    top: "auto",
+    bottom: "100%",
     marginBottom: 4,
     marginTop: 0,
     backgroundColor: "transparent",

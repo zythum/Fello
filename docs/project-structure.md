@@ -66,6 +66,7 @@ fello/
 │           │   ├── settings-agents.tsx   # Agents 配置页面
 │           │   └── settings-webui.tsx    # WebUI 配置页面
 │           ├── global/               # 全局浮层与菜单
+│           │   ├── error-boundary.tsx           # 全局错误边界与异常提示
 │           │   ├── global-text-context-menu.tsx # 文本选中全局右键菜单
 │           │   └── permission-dialog.tsx        # 权限确认弹层
 │           ├── providers/            # 全局上下文 Provider
@@ -73,7 +74,7 @@ fello/
 │           │   └── theme.tsx         # 基于 next-themes 的主题控制
 │           ├── welcome/              # 欢迎页面
 │           │   └── welcome.tsx
-│           ├── common/               # 通用业务组件 (stream-markdown, code-view, image-view 等)
+│           ├── common/               # 通用业务组件 (agent-terminal-output, code-view, image-view 等)
 │           ├── content-blocks/       # 多模态消息内容渲染组件 (text, image, audio 等)
 │           └── ui/                   # shadcn/base-ui 基础组件
 │               ├── badge.tsx

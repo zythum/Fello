@@ -165,14 +165,11 @@ export function buildSkillRoots(projectRoots?: string[]): string[] {
       roots.push(path.join(root, ".agents", "skills"));
       roots.push(path.join(root, ".claude", "skills"));
     }
-  } else {
-    const cwd = process.cwd();
-    roots.push(path.join(cwd, ".agents", "skills"));
-    roots.push(path.join(cwd, ".claude", "skills"));
   }
 
   // User-level: always included
   const home = os.homedir();
+  roots.push(path.join(home, ".fello", "skills"));
   roots.push(path.join(home, ".agents", "skills"));
   roots.push(path.join(home, ".claude", "skills"));
 

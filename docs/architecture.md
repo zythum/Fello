@@ -167,8 +167,8 @@ ACP requestPermission
 ```
 Renderer: createTerminal(sessionId, cwd)
   → Main: node-pty spawn shell
-  → Main event: terminal-output / terminal-exit
-  → Renderer subscribe 更新 xterm 实例
+  → Main event: terminal-output / terminal-exit (同时持久化到 sessionDir/terminals/ 下)
+  → Renderer subscribe 更新 xterm 实例 (或通过 AgentTerminalOutput 渲染)
   → 用户输入 onData → writeTerminal 回传 PTY
 ```
 

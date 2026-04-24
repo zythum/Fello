@@ -70,6 +70,7 @@ Main/preload changes typically require restarting the dev process.
 - **WebUI Remote Access**: Expose the interface to a browser over the local network via WebSocket, enabling remote collaboration. (Enable in Settings > WebUI).
 - **Chat Attachments**: Attach images/files from the chat input (agent capability aware) with preview and drag-and-drop support.
 - **Chat Timeline**: Jump between user messages using the timeline dots in the chat view.
+- **Terminal Persistence**: Agent terminal outputs are automatically saved to the session directory and seamlessly restored when revisiting a session.
 
 ## Customizing
 

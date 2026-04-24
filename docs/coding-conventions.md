@@ -67,6 +67,7 @@
 ## 错误处理约定
 
 - 异常信息尽量标准化为可读 message，再反馈给 UI
+- 全局未捕获组件渲染异常统一由 `ErrorBoundary` 组件拦截并提供用户友好的反馈界面
 - 面向用户的提示与交互（Alert/Confirm/Prompt/Toast）必须统一通过 `useMessage` Hook 调起，避免直接使用原生或散落的 Dialog 组件
 - 关键异步流程应有 `try/catch/finally`，避免 loading 状态悬挂
 - 面向用户的错误优先通过 `useMessage` 的 `toast.error` 等方式提示，不静默吞错
