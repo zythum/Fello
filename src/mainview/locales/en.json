@@ -54,7 +54,7 @@
     "viewSkill": "View SKILL.md",
     "uninstall": "Uninstall",
     "uninstallTitle": "Uninstall Skill",
-    "uninstallConfirm": "Are you sure you want to uninstall {{name}}? This will delete the skill directory.",
+    "uninstallConfirm": "Are you sure you want to uninstall {{name}}? ",
     "cancel": "Cancel",
     "uninstalledSuccess": "Skill {{name}} uninstalled",
     "uninstallFailed": "Failed to uninstall: {{message}}",

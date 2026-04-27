@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
-import { Package, Store } from "lucide-react";
+import { Library, PackageSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +15,13 @@ export function SkillsLayout() {
     {
       id: "installed",
       href: "/skills/installed",
-      icon: <Package className="size-4" />,
+      icon: <Library className="size-4" />,
       label: t("skills.installed"),
     },
     {
       id: "store",
       href: "/skills/store",
-      icon: <Store className="size-4" />,
+      icon: <PackageSearch className="size-4" />,
       label: t("skills.store"),
     },
   ];
