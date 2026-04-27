@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "welcome": "欢迎使用",
+    "skills": "技能",
     "projects": "项目",
     "noProjects": "暂无项目",
     "revealInFinder": "在访达中显示",
@@ -42,6 +43,27 @@
     "projectActions": "项目操作：{{title}}",
     "createChatInProject": "在 {{title}} 中创建会话",
     "chatActions": "会话操作：{{title}}"
+  },
+  "skills": {
+    "title": "Skills",
+    "installed": "已安装",
+    "store": "skills.sh",
+    "other": "其他",
+    "noDescription": "暂无描述。",
+    "revealInFinder": "在访达中显示",
+    "viewSkill": "查看 SKILL.md",
+    "uninstall": "卸载",
+    "uninstallTitle": "卸载 Skill",
+    "uninstallConfirm": "确定要卸载 {{name}} 吗？这将会删除该 skill 目录。",
+    "cancel": "取消",
+    "uninstalledSuccess": "Skill {{name}} 已卸载",
+    "uninstallFailed": "卸载失败：{{message}}",
+    "revealFailed": "在访达中显示失败：{{message}}",
+    "loadFailed": "加载技能失败",
+    "loadContentFailed": "加载技能内容出错：{{message}}",
+    "noSkills": "暂无安装的 skills。",
+    "storeTitle": "探索 skills.sh",
+    "storeDesc": "敬请期待。可直接从 skills.sh 搜索并安装 skills。"
   },
   "contextMenu": {
     "cut": "剪切",

@@ -3,7 +3,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
-import { getSkillsCatalog, parseSkillFrontmatter, listSkillFiles } from "./skills";
+import {
+  getSkillsCatalog,
+  getSkillSystemPathFromId,
+  parseSkillFrontmatter,
+  listSkillFiles,
+  SKILL_FILENAME,
+} from "../../backend/skills";
 
 const server = new McpServer({
   name: "Agent Skills",
@@ -14,17 +20,19 @@ const server = new McpServer({
 server.registerTool(
   "list_skills",
   {
-    description:
-      "List all available agent skills with their names and descriptions.\n\nScans project-level and user-level skill directories for SKILL.md files.\nReturns a JSON array of objects with name, description, and path for each skill.",
+    description: `List all available agent skills with their names and descriptions.
+
+Scans project-level and user-level skill directories for SKILL.md files.
+Returns a JSON array of objects with name, description, and path for each skill.`,
     inputSchema: z.object({
-      project_roots: z
-        .array(z.string())
+      project_root: z
+        .string()
         .optional()
-        .describe("Optional list of project root directories to scan for project-level skills."),
+        .describe("Optional list of project root directory to scan for project-level skills."),
     }),
   },
-  async ({ project_roots }) => {
-    const catalog = getSkillsCatalog(project_roots);
+  async ({ project_root }) => {
+    const catalog = getSkillsCatalog(project_root);
     const results = [];
 
     for (const name of Object.keys(catalog).sort()) {
@@ -32,7 +40,7 @@ server.registerTool(
       results.push({
         name: info.name,
         description: info.description,
-        path: info.path,
+        id: info.id,
       });
     }
 
@@ -44,8 +52,7 @@ server.registerTool(
             text: JSON.stringify(
               {
                 skills: [],
-                message:
-                  "No skills found. Create SKILL.md files in ~/.agents/skills/<skill-name>/ or .agents/skills/<skill-name>/ in your project.",
+                message: "No skills found. Create SKILL.md files in ~/.agents/skills/<skill-name>/",
               },
               null,
               2,
@@ -67,16 +74,19 @@ server.registerTool(
   "activate_skill",
   {
     description:
-      "Activate a skill by name, loading its full instructions and listing supporting files.",
+      "Activate a skill by id, loading its full instructions and listing supporting files.",
     inputSchema: z.object({
-      name: z.string().describe("The name of the skill to activate (as returned by list_skills)."),
-      project_roots: z.array(z.string()).optional(),
+      id: z.string().describe("The id of the skill to activate (as returned by list_skills)."),
+      project_root: z
+        .string()
+        .optional()
+        .describe("Optional list of project root directory to scan for project-level skills."),
     }),
   },
-  async ({ name, project_roots }) => {
-    const catalog = getSkillsCatalog(project_roots);
+  async ({ id, project_root }) => {
+    const catalog = getSkillsCatalog(project_root);
 
-    if (!catalog[name]) {
+    if (!catalog[id]) {
       const available = Object.keys(catalog).sort();
       return {
         content: [
@@ -84,7 +94,7 @@ server.registerTool(
             type: "text",
             text: JSON.stringify(
               {
-                error: `Skill '${name}' not found.`,
+                error: `Skill '${id}' not found.`,
                 available_skills: available,
               },
               null,
@@ -95,27 +105,36 @@ server.registerTool(
       };
     }
 
-    const info = catalog[name];
+    const info = catalog[id];
     let body = "";
     try {
-      const parsed = parseSkillFrontmatter(info.path);
+      const skillDir = getSkillSystemPathFromId(info.id, project_root);
+      if (!skillDir) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: `Failed to read skill '${id}'` }, null, 2),
+            },
+          ],
+        };
+      }
+      const skillFile = path.join(skillDir, SKILL_FILENAME);
+      const text = fs.readFileSync(skillFile, "utf8");
+      const parsed = parseSkillFrontmatter(text);
       body = parsed.body;
     } catch (e: any) {
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              { error: `Failed to read skill '${name}': ${e.message}` },
-              null,
-              2,
-            ),
+            text: JSON.stringify({ error: `Failed to read skill '${id}': ${e.message}` }, null, 2),
           },
         ],
       };
     }
 
-    const supporting_files = listSkillFiles(info.base_dir);
+    const supporting_files = listSkillFiles(info.id, project_root);
 
     const result: any = {
       name: info.name,
@@ -138,37 +157,25 @@ server.registerTool(
   {
     description: "Read a supporting file from a skill's directory.",
     inputSchema: z.object({
-      skill_name: z.string().describe("The name of the skill that owns the file."),
+      id: z.string().describe("The id of the skill that owns the file."),
       file_path: z
         .string()
         .describe("Path to the file relative to the skill directory (e.g. 'scripts/extract.py')."),
-      project_roots: z.array(z.string()).optional(),
+      project_root: z.string().optional(),
     }),
   },
-  async ({ skill_name, file_path, project_roots }) => {
-    const catalog = getSkillsCatalog(project_roots);
-
-    if (!catalog[skill_name]) {
-      const available = Object.keys(catalog).sort();
+  async ({ id, file_path, project_root }) => {
+    const skillDir = getSkillSystemPathFromId(id, project_root);
+    if (!skillDir) {
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                error: `Skill '${skill_name}' not found.`,
-                available_skills: available,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify({ error: `Failed to read skill '${id}'` }, null, 2),
           },
         ],
       };
     }
-
-    const info = catalog[skill_name];
-    const skillDir = path.resolve(info.base_dir);
 
     let requested;
     try {
@@ -198,14 +205,14 @@ server.registerTool(
     }
 
     if (!fs.existsSync(requested) || !fs.statSync(requested).isFile()) {
-      const available = listSkillFiles(info.base_dir);
+      const available = listSkillFiles(id, project_root);
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify(
               {
-                error: `File '${file_path}' not found in skill '${skill_name}'.`,
+                error: `File '${file_path}' not found in skill '${id}'.`,
                 available_files: available,
               },
               null,
@@ -224,7 +231,7 @@ server.registerTool(
             type: "text",
             text: JSON.stringify(
               {
-                skill_name,
+                id,
                 file_path,
                 content,
               },

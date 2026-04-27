@@ -1,10 +1,10 @@
+import { useMemo } from "react";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { mermaid } from "@streamdown/mermaid";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
 import remarkBreaks from "remark-breaks";
-import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface StreamMarkdownProps {
@@ -13,6 +13,9 @@ export interface StreamMarkdownProps {
   children?: string;
   forceBreaks?: boolean;
 }
+
+const FRONTMATTER_REGEX = /^---\s*([\s\S]*?)\s*---/;
+
 const baseClasses = "max-w-none wrap-anywhere whitespace-pre-wrap";
 
 const typographyClasses = cn(
@@ -41,8 +44,26 @@ export function StreamMarkdown({
     return forceBreaks ? [remarkBreaks] : undefined;
   }, [forceBreaks]);
 
+  const { frontmatter, content } = useMemo(() => {
+    const matched = children?.match(FRONTMATTER_REGEX);
+    if (matched) {
+      const frontmatter = matched[1];
+      const content = children?.slice(matched[0].length);
+      return {
+        frontmatter: frontmatter.trim(),
+        content: content?.trim(),
+      };
+    }
+    return { frontmatter: undefined, content: children };
+  }, [children]);
+
   return (
     <div className={className ?? typographyClasses}>
+      {frontmatter && (
+        <div className="whitespace-pre-wrap text-foreground/80 rounded bg-sidebar border border-border p-2 mb-4 text-xs leading-relaxed">
+          {frontmatter}
+        </div>
+      )}
       <Streamdown
         plugins={{ code, mermaid, math, cjk }}
         shikiTheme={["github-light", "github-dark"]}
@@ -55,7 +76,7 @@ export function StreamMarkdown({
           mermaid: { fullscreen: false },
         }}
       >
-        {children}
+        {content}
       </Streamdown>
     </div>
   );

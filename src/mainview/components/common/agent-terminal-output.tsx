@@ -39,7 +39,7 @@ export function AgentTerminalOutput({
   return (
     <pre
       ref={containerRef}
-      className="max-h-75 bg-black text-gray-200 p-2 whitespace-pre-wrap break-all font-mono text-xs overflow-auto"
+      className="max-h-75 bg-sidebar text-foreground/80 p-2 whitespace-pre-wrap break-all font-mono text-xs overflow-auto"
     >
       <code>{log || t("readonlyTerminal.waitingForOutput")}</code>
     </pre>

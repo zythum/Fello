@@ -33,6 +33,7 @@ import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
+import { getSkillsCatalog, getSkillSystemPathFromId, SKILL_FILENAME } from "./skills";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
@@ -444,6 +445,50 @@ export const backendHandlers: {
 } = {
   async getWebUIStatus() {
     return getWebUIStatus();
+  },
+
+  async getSkillsCatalog() {
+    const catalog = getSkillsCatalog();
+    return Object.values(catalog).map((s) => ({
+      scope: s.scope,
+      level: s.level,
+      id: s.id,
+      name: s.name,
+      description: s.description,
+    }));
+  },
+
+  async readSkillFile({ skillId, projectId }) {
+    try {
+      return await fsReadFile(
+        await this.getSkillFileSystemFilePath({ skillId, projectId }),
+        "utf-8",
+      );
+    } catch (err: any) {
+      throw new Error(`Failed to read skill: ${err.message}`);
+    }
+  },
+
+  async getSkillFileSystemFilePath({ skillId, projectId }) {
+    const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
+    const skillDir = getSkillSystemPathFromId(skillId, projectRoot);
+    if (!skillDir) {
+      throw new Error(`Failed to read skill: ${skillId}`);
+    }
+    return join(skillDir, SKILL_FILENAME);
+  },
+
+  async uninstallSkill({ skillId, projectId }) {
+    const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
+    const skillDir = getSkillSystemPathFromId(skillId, projectRoot);
+    if (!skillDir) {
+      throw new Error(`Failed to read skill: ${skillId}`);
+    }
+    try {
+      await rm(skillDir, { recursive: true, force: true });
+    } catch (err: any) {
+      throw new Error(`Failed to uninstall skill: ${err.message}`);
+    }
   },
 
   async startWebUIServer({ port, token }) {

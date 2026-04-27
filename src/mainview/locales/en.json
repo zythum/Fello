@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "welcome": "Welcome",
+    "skills": "Skills",
     "projects": "Projects",
     "noProjects": "No projects yet",
     "revealInFinder": "Reveal in Finder",
@@ -42,6 +43,27 @@
     "projectActions": "Project actions for {{title}}",
     "createChatInProject": "Create chat in {{title}}",
     "chatActions": "Chat actions for {{title}}"
+  },
+  "skills": {
+    "title": "Skills",
+    "installed": "Installed",
+    "store": "skills.sh",
+    "other": "Other",
+    "noDescription": "No description provided.",
+    "revealInFinder": "Reveal in Finder",
+    "viewSkill": "View SKILL.md",
+    "uninstall": "Uninstall",
+    "uninstallTitle": "Uninstall Skill",
+    "uninstallConfirm": "Are you sure you want to uninstall {{name}}? This will delete the skill directory.",
+    "cancel": "Cancel",
+    "uninstalledSuccess": "Skill {{name}} uninstalled",
+    "uninstallFailed": "Failed to uninstall: {{message}}",
+    "revealFailed": "Failed to reveal in Finder: {{message}}",
+    "loadFailed": "Failed to load skills",
+    "loadContentFailed": "Error loading skill content: {{message}}",
+    "noSkills": "No skills installed.",
+    "storeTitle": "Explore skills.sh",
+    "storeDesc": "Coming soon. Search and install skills directly from skills.sh."
   },
   "contextMenu": {
     "cut": "Cut",

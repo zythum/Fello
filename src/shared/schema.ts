@@ -154,6 +154,17 @@ export interface WebUIStatus {
 }
 
 /**
+ * Skill 的基本信息
+ */
+export interface SkillInfo {
+  scope: "agents" | "claude" | "fello";
+  level: "user" | "project";
+  name: string;
+  description: string;
+  id: string;
+}
+
+/**
  * 进程间通信（IPC）的请求定义
  * 包含从前端（Renderer/Web）发送到后端（Main）的所有方法及其参数和返回值类型
  */
@@ -169,6 +180,18 @@ export type FelloIPCRequests = {
   stopWebUIServer: { params: void; response: WebUIStatus };
   /** 获取当前 Web UI 服务的状态 */
   getWebUIStatus: { params: void; response: WebUIStatus };
+
+  /** 获取所有已安装的 Skills */
+  getSkillsCatalog: {
+    params: void;
+    response: SkillInfo[];
+  };
+  /** 读取 Skill 文件内容 */
+  readSkillFile: { params: { skillId: string; projectId?: string }; response: string };
+  /** 获取 Skill 的本地文件系统路径 */
+  getSkillFileSystemFilePath: { params: { skillId: string; projectId?: string }; response: string };
+  /** 卸载 Skill */
+  uninstallSkill: { params: { skillId: string; projectId?: string }; response: void };
 
   /** 获取所有会话列表 */
   listSessions: { params: void; response: SessionInfo[] };

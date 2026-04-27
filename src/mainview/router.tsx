@@ -13,6 +13,9 @@ import { SettingsGeneral } from "./components/settings/settings-general";
 import { SettingsAgents } from "./components/settings/settings-agents";
 import { SettingsMcp } from "./components/settings/settings-mcp";
 import { SettingsWebUI } from "./components/settings/settings-webui";
+import { SkillsLayout } from "./components/skills/skills-layout";
+import { SkillsInstalled } from "./components/skills/skills-installed";
+import { SkillsStore } from "./components/skills/skills-store";
 
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -38,6 +41,10 @@ export function AppRouter() {
           <Route path="agents" element={<SettingsAgents />} />
           <Route path="mcp" element={<SettingsMcp />} />
           <Route path="webui" element={<SettingsWebUI />} />
+        </Route>
+        <Route path="/skills" element={<SkillsLayout />}>
+          <Route path="installed" element={<SkillsInstalled />} />
+          <Route path="store" element={<SkillsStore />} />
         </Route>
       </Routes>
     </div>
