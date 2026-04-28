@@ -192,6 +192,10 @@ export type FelloIPCRequests = {
   getSkillFileSystemFilePath: { params: { skillId: string; projectId?: string }; response: string };
   /** 卸载 Skill */
   uninstallSkill: { params: { skillId: string; projectId?: string }; response: void };
+  /** 搜索在线 Skills */
+  searchSkills: { params: { query: string }; response: Array<{ name: string; source: string; installs: number; skillId: string }> };
+  /** 下载并安装 Skill */
+  installSkill: { params: { source: string; slug: string }; response: void };
 
   /** 获取所有会话列表 */
   listSessions: { params: void; response: SessionInfo[] };

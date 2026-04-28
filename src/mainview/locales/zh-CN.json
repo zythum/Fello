@@ -47,7 +47,7 @@
   "skills": {
     "title": "技能",
     "installed": "已安装",
-    "store": "skills.sh",
+    "store": "发现",
     "other": "其他",
     "noDescription": "暂无描述。",
     "revealInFinder": "在访达中显示",
@@ -62,8 +62,17 @@
     "loadFailed": "加载技能失败",
     "loadContentFailed": "加载技能内容出错：{{message}}",
     "noSkills": "暂无安装的技能",
-    "storeTitle": "探索 skills.sh",
-    "storeDesc": "敬请期待。可直接从 skills.sh 搜索并安装技能。"
+    "storeTitle": "探索技能",
+    "storeDesc": "浏览并安装社区提供的技能，以增强你的 Agent 能力。",
+    "searchPlaceholder": "搜索技能（例如：pr-review, react-best-practices）...",
+    "install": "安装",
+    "installing": "安装中...",
+    "installSuccess": "技能 {{name}} 已安装",
+    "installFailed": "安装失败",
+    "noResults": "未找到相关技能",
+    "installs": "{{count}} 次安装",
+    "installedStatus": "已安装",
+    "authorPrefix": "作者: "
   },
   "contextMenu": {
     "cut": "剪切",

@@ -47,7 +47,7 @@
   "skills": {
     "title": "Skills",
     "installed": "Installed",
-    "store": "skills.sh",
+    "store": "Store",
     "other": "Other",
     "noDescription": "No description provided.",
     "revealInFinder": "Reveal in Finder",
@@ -62,8 +62,17 @@
     "loadFailed": "Failed to load skills",
     "loadContentFailed": "Error loading skill content: {{message}}",
     "noSkills": "No skills installed.",
-    "storeTitle": "Explore skills.sh",
-    "storeDesc": "Coming soon. Search and install skills directly from skills.sh."
+    "storeTitle": "Discover Skills",
+    "storeDesc": "Explore and install community skills to enhance your agents.",
+    "searchPlaceholder": "Search skills (e.g. pr-review, react-best-practices)...",
+    "install": "Install",
+    "installing": "Installing...",
+    "installSuccess": "Skill {{name}} installed",
+    "installFailed": "Install failed",
+    "noResults": "No skills found",
+    "installs": "{{count}} installs",
+    "installedStatus": "Installed",
+    "authorPrefix": "by "
   },
   "contextMenu": {
     "cut": "Cut",

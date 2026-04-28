@@ -33,7 +33,7 @@ import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
-import { getSkillsCatalog, getSkillSystemPathFromId, SKILL_FILENAME } from "./skills";
+import { getSkillsCatalog, getSkillSystemPathFromId, SKILL_FILENAME, searchSkills, installSkill } from "./skills";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
@@ -488,6 +488,22 @@ export const backendHandlers: {
       await rm(skillDir, { recursive: true, force: true });
     } catch (err: any) {
       throw new Error(`Failed to uninstall skill: ${err.message}`);
+    }
+  },
+
+  async searchSkills({ query }) {
+    try {
+      return await searchSkills(query);
+    } catch (err: any) {
+      throw new Error(`Failed to search skills: ${err.message}`);
+    }
+  },
+
+  async installSkill({ source, slug }) {
+    try {
+      await installSkill(source, slug);
+    } catch (err: any) {
+      throw new Error(`Failed to install skill: ${err.message}`);
     }
   },
 

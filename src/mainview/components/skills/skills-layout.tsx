@@ -22,7 +22,7 @@ export function SkillsLayout() {
       id: "store",
       href: "/skills/store",
       icon: <PackageSearch className="size-4" />,
-      label: t("skills.store"),
+      label: `${t("skills.store")} skills.sh`,
     },
   ];
 
@@ -56,10 +56,8 @@ export function SkillsLayout() {
             ))}
           </nav>
         </aside>
-        <main className="flex-1 overflow-y-auto bg-background py-4 px-6">
-          <div className="mx-auto max-w-4xl">
-            <Outlet />
-          </div>
+        <main className="flex-1 flex flex-col bg-background">
+          <Outlet />
         </main>
       </div>
     </div>

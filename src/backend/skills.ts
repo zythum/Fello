@@ -190,3 +190,49 @@ export function getSkillsCatalog(projectRoot?: string): Record<string, SkillInfo
 
   return skills;
 }
+
+export async function searchSkills(query: string) {
+  const url = `https://skills.sh/api/search?q=${encodeURIComponent(query)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to search skills: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.skills || [];
+}
+
+export async function installSkill(source: string, slug: string) {
+  const parts = source.split("/");
+  const owner = parts[0];
+  const repo = parts[1];
+
+  if (!owner || !repo) {
+    throw new Error(`Invalid source format: ${source}`);
+  }
+
+  const url = `https://skills.sh/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(slug)}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to download skill: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.files || !Array.isArray(data.files)) {
+    throw new Error("Invalid download response format");
+  }
+
+  // Install to ~/.fello/skills/<slug>
+  const targetDir = path.join(os.homedir(), ".fello", "skills", slug);
+
+  await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+  await fs.promises.mkdir(targetDir, { recursive: true });
+
+  for (const file of data.files) {
+    const filePath = path.join(targetDir, file.path);
+    if (!filePath.startsWith(targetDir)) continue;
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, file.contents, "utf-8");
+  }
+}
