@@ -5,6 +5,7 @@ import type { SkillInfo } from "../shared/schema";
 import { toPosixPath } from "./utils";
 
 export const SKILL_FILENAME = "SKILL.md";
+const SKILLS_SH_API_BASE = "https://skills.sh/api";
 
 const scopes: { scopeName: SkillInfo["scope"]; scopePath: string }[] = [
   { scopeName: "fello", scopePath: ".fello/skills" },
@@ -128,13 +129,17 @@ export function listSkillFiles(id: string, projectRoot?: string): string[] {
   return files.sort();
 }
 
-export function getSkillsCatalog(projectRoot?: string): Record<string, SkillInfo> {
+export function getSkillsCatalog(
+  projectRoot?: string,
+  all: boolean = false,
+): Record<string, SkillInfo> {
   const roots: { level: SkillInfo["level"]; rootPath: string }[] = [];
   if (projectRoot) {
     roots.push({ level: "project", rootPath: projectRoot });
   }
   roots.push({ level: "user", rootPath: os.homedir() });
 
+  const skillScene = new Set<string>();
   const skills: Record<string, SkillInfo> = {};
 
   for (const { level, rootPath } of roots) {
@@ -159,7 +164,12 @@ export function getSkillsCatalog(projectRoot?: string): Record<string, SkillInfo
         if (!child.isDirectory()) {
           continue;
         }
-        const skillDir = path.join(skillsDir, child.name);
+        const skillId = child.name;
+        if (all === false && skillScene.has(skillId)) {
+          continue;
+        }
+        skillScene.add(skillId);
+        const skillDir = path.join(skillsDir, skillId);
         const skillFile = path.join(skillDir, SKILL_FILENAME);
         if (!fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) {
           continue;
@@ -176,7 +186,7 @@ export function getSkillsCatalog(projectRoot?: string): Record<string, SkillInfo
 
         const name = metadata["name"] || path.basename(skillDir);
         const description = metadata["description"] || "";
-        const id = toSkillId(level, scope, child.name);
+        const id = toSkillId(level, scope, skillId);
         skills[id] = {
           description,
           id,
@@ -192,12 +202,26 @@ export function getSkillsCatalog(projectRoot?: string): Record<string, SkillInfo
 }
 
 export async function searchSkills(query: string) {
-  const url = `https://skills.sh/api/search?q=${encodeURIComponent(query)}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to search skills: ${response.statusText}`);
+  if (query.length <= 2) {
+    return [];
   }
-  const data = await response.json();
+  const url = `${SKILLS_SH_API_BASE}/search?q=${encodeURIComponent(query)}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    return [];
+  }
+  const data = (await response.json()) as {
+    query: string;
+    searchType: string;
+    skills: {
+      id: string;
+      skillId: string;
+      name: string;
+      installs: number;
+      source: string;
+    }[];
+  };
   return data.skills || [];
 }
 
@@ -210,14 +234,20 @@ export async function installSkill(source: string, slug: string) {
     throw new Error(`Invalid source format: ${source}`);
   }
 
-  const url = `https://skills.sh/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(slug)}`;
+  const url = `${SKILLS_SH_API_BASE}/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(slug)}`;
   const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to download skill: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    files: {
+      path: string;
+      contents: string;
+    }[];
+    hash: string;
+  };
 
   if (!data.files || !Array.isArray(data.files)) {
     throw new Error("Invalid download response format");

@@ -23,7 +23,7 @@ export function SkillsInstalled() {
   const fetchSkills = async () => {
     setIsLoading(true);
     try {
-      const catalog = await request.getSkillsCatalog();
+      const catalog = await request.getSkillsCatalog({ all: true });
       setSkills(catalog);
     } catch (err: any) {
       toast.error(err.message || t("skills.loadFailed"));
@@ -112,71 +112,71 @@ export function SkillsInstalled() {
     <div className="flex-1 flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-hidden">
         <div className="p-8 space-y-8">
-        {Object.entries(groups).map(([groupName, groupSkills]) => {
-          if (groupSkills.length === 0) return null;
-          return (
-            <div key={groupName} className="space-y-4">
-              <h3 className="text-xs text-muted-foreground/60 uppercase tracking-wider">
-                {groupName}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 xxl:grid-cols-3 gap-4">
-                {groupSkills.map((skill) => {
-                  const isFello = skill.scope === "fello";
-                  return (
-                    <Card key={`${skill.scope}:${skill.id}`} className="flex flex-col">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base truncate" title={skill.name}>
-                          {skill.name}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                        <div className="line-clamp-2 text-xs">
-                          {skill.description || t("skills.noDescription")}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => handleViewSkill(skill)}
-                          title={t("skills.viewSkill")}
-                        >
-                          <FileText className="size-3.5" />
-                        </Button>
-                        {!isWebUI && (
+          {Object.entries(groups).map(([groupName, groupSkills]) => {
+            if (groupSkills.length === 0) return null;
+            return (
+              <div key={groupName} className="space-y-4">
+                <h3 className="text-xs text-muted-foreground/60 uppercase tracking-wider">
+                  {groupName}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 xxl:grid-cols-3 gap-4">
+                  {groupSkills.map((skill) => {
+                    const isFello = skill.scope === "fello";
+                    return (
+                      <Card key={`${skill.scope}:${skill.id}`} className="flex flex-col">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base truncate" title={skill.name}>
+                            {skill.name}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                          <div className="line-clamp-2 text-xs">
+                            {skill.description || t("skills.noDescription")}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-end">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            onClick={() => handleReveal(skill)}
-                            title={t("skills.revealInFinder")}
+                            onClick={() => handleViewSkill(skill)}
+                            title={t("skills.viewSkill")}
                           >
-                            <FolderOpen className="size-3.5" />
+                            <FileText className="size-3.5" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={
-                            isFello
-                              ? "size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              : "size-8 opacity-50 cursor-not-allowed"
-                          }
-                          disabled={!isFello}
-                          onClick={() => handleUninstall(skill)}
-                          title={t("skills.uninstall")}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
+                          {!isWebUI && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() => handleReveal(skill)}
+                              title={t("skills.revealInFinder")}
+                            >
+                              <FolderOpen className="size-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={
+                              isFello
+                                ? "size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                : "size-8 opacity-50 cursor-not-allowed"
+                            }
+                            disabled={!isFello}
+                            onClick={() => handleUninstall(skill)}
+                            title={t("skills.uninstall")}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         </div>
       </ScrollArea>
       {skills.length === 0 && (

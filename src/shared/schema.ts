@@ -183,7 +183,7 @@ export type FelloIPCRequests = {
 
   /** 获取所有已安装的 Skills */
   getSkillsCatalog: {
-    params: void;
+    params: { all?: boolean; projectId?: string };
     response: SkillInfo[];
   };
   /** 读取 Skill 文件内容 */
@@ -193,7 +193,10 @@ export type FelloIPCRequests = {
   /** 卸载 Skill */
   uninstallSkill: { params: { skillId: string; projectId?: string }; response: void };
   /** 搜索在线 Skills */
-  searchSkills: { params: { query: string }; response: Array<{ name: string; source: string; installs: number; skillId: string }> };
+  searchSkills: {
+    params: { query: string };
+    response: Array<{ name: string; source: string; installs: number; skillId: string }>;
+  };
   /** 下载并安装 Skill */
   installSkill: { params: { source: string; slug: string }; response: void };
 

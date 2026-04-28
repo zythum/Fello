@@ -33,7 +33,13 @@ import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
-import { getSkillsCatalog, getSkillSystemPathFromId, SKILL_FILENAME, searchSkills, installSkill } from "./skills";
+import {
+  getSkillsCatalog,
+  getSkillSystemPathFromId,
+  SKILL_FILENAME,
+  searchSkills,
+  installSkill,
+} from "./skills";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
@@ -447,8 +453,9 @@ export const backendHandlers: {
     return getWebUIStatus();
   },
 
-  async getSkillsCatalog() {
-    const catalog = getSkillsCatalog();
+  async getSkillsCatalog({ all, projectId }) {
+    const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
+    const catalog = getSkillsCatalog(projectRoot, all);
     return Object.values(catalog).map((s) => ({
       scope: s.scope,
       level: s.level,

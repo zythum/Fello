@@ -27,9 +27,12 @@ export function SkillsStore() {
 
   useEffect(() => {
     // Load installed skills to check status
-    request.getSkillsCatalog().then((catalog) => {
-      setInstalledSkills(catalog);
-    }).catch(console.error);
+    request
+      .getSkillsCatalog({})
+      .then((catalog) => {
+        setInstalledSkills(catalog);
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export function SkillsStore() {
       await request.installSkill({ source: item.source, slug: item.skillId });
       toast.success(t("skills.installSuccess", { name: item.name }));
       // Refresh installed catalog
-      const newCatalog = await request.getSkillsCatalog();
+      const newCatalog = await request.getSkillsCatalog({});
       setInstalledSkills(newCatalog);
     } catch (error: any) {
       console.error("Install failed:", error);
@@ -77,7 +80,7 @@ export function SkillsStore() {
 
   const isInstalled = (skillId: string) => {
     return installedSkills.some(
-      (s) => s.id === `user://fello/${skillId}` || s.id === `project://fello/${skillId}`
+      (s) => s.id === `user://fello/${skillId}` || s.id === `project://fello/${skillId}`,
     );
   };
 
@@ -107,9 +110,7 @@ export function SkillsStore() {
                 <PackageSearch className="size-8 text-primary" />
               </div>
               <h2 className="text-xl font-semibold tracking-tight">{t("skills.storeTitle")}</h2>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                {t("skills.storeDesc")}
-              </p>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("skills.storeDesc")}</p>
             </div>
           ) : results.length > 0 ? (
             <div className="grid pb-6">
@@ -118,11 +119,17 @@ export function SkillsStore() {
                 const isInstalling = installingId === item.skillId;
 
                 return (
-                  <Card key={index} className="flex p-4 flex-row items-center justify-between gap-4 border-0">
+                  <Card
+                    key={index}
+                    className="flex p-4 flex-row items-center justify-between gap-4 border-0"
+                  >
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate text-foreground/90">{item.name}</h3>
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                        <span className="truncate">{t("skills.authorPrefix")}{item.source}</span>
+                        <span className="truncate">
+                          {t("skills.authorPrefix")}
+                          {item.source}
+                        </span>
                         <span className="flex items-center gap-1 shrink-0">
                           <Download className="size-3" />
                           {t("skills.installs", { count: item.installs.toLocaleString() })}
@@ -131,7 +138,11 @@ export function SkillsStore() {
                     </div>
                     <div className="shrink-0">
                       {installed ? (
-                        <Button variant="secondary" disabled className="w-16 h-8 text-xs font-medium">
+                        <Button
+                          variant="secondary"
+                          disabled
+                          className="w-16 h-8 text-xs font-medium"
+                        >
                           {t("skills.installedStatus")}
                         </Button>
                       ) : (
