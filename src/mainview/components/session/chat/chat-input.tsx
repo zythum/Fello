@@ -13,11 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
+import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Library } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
-import type { SessionInfo } from "../../../../shared/schema";
+import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
 // Define an interface for the staged file
@@ -74,7 +74,7 @@ const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
 
 /** Replace all mention markup with the raw absolute path */
 function resolveMentions(value: string): string {
-  return value.replace(MENTION_REGEX, (_match, _display: string, id: string) => id);
+  return value.replace(MENTION_REGEX, (_match, display: string, _id: string) => display);
 }
 
 export function ChatInput({ session }: { session: SessionInfo }) {
@@ -95,6 +95,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const attachmentsRef = useRef<StagedAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skillsCacheRef = useRef<Map<string, SkillInfo>>(new Map());
 
   // Sync attachments to ref for cleanup
   useEffect(() => {
@@ -169,7 +170,26 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       }
       request
         .searchFiles({ projectId, query: search || undefined })
-        .then((results) => callback(results))
+        .then((results) => callback(results.map(({ id, display }) => ({ id, display: `#${display}` }))))
+        .catch(() => callback([]));
+    },
+    [session],
+  );
+
+  /** Fetch skill suggestions from backend */
+  const fetchSkillSuggestions = useCallback(
+    (_search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
+      request
+        .getSkillsCatalog({ projectId: session?.projectId })
+        .then((results: SkillInfo[]) => {
+          // Cache skills for renderSuggestion lookup
+          skillsCacheRef.current = new Map(results.map((s) => [s.id, s]));
+          const skills = results.map((s) => ({
+            id: s.id,
+            display: `@skills:${s.name}`,
+          }));
+          callback(skills);
+        })
         .catch(() => callback([]));
     },
     [session],
@@ -412,7 +432,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           });
           if (info) {
             const name = relPath.replace(/\\/g, "/").split("/").pop() || relPath;
-            insertText = `@[${name}](${absPath}) `;
+            insertText = `@[#${name}](${absPath}) `;
           }
         } catch {
           // ignore
@@ -503,17 +523,37 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               trigger="#"
               data={fetchFileSuggestions}
               markup={MENTION_MARKUP}
-              displayTransform={(_id, display) => `#${display}`}
+              displayTransform={(_id, display) => display}
               style={mentionStyle}
               appendSpaceOnAdd
               renderSuggestion={(suggestion) => {
                 const name = String(suggestion.id).split("/").pop();
                 return (
                   <div className="flex items-center gap-1">
-                    <FileText className="size-3.5" />
-                    <span className="text-xs text-foreground">{name}</span>
-                    <span className="ml-1 text-[10px] text-muted-foreground/50 truncate">
-                      {suggestion.display}
+                    <FileText className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs whitespace-nowrap text-foreground">{name}</span>
+                    <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
+                      {suggestion.display?.slice(1)}
+                    </span>
+                  </div>
+                );
+              }}
+            />
+            <Mention
+              trigger="@"
+              data={fetchSkillSuggestions}
+              markup={MENTION_MARKUP}
+              displayTransform={(_id, display) => display}
+              style={mentionStyle}
+              appendSpaceOnAdd
+              renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, focused) => {
+                const skill = skillsCacheRef.current.get(String(suggestion.id));
+                return (
+                  <div className="flex items-center gap-1">
+                    <Library className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs whitespace-nowrap text-foreground">{skill?.name ?? skill?.id}</span>
+                    <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
+                      {skill?.description}
                     </span>
                   </div>
                 );
