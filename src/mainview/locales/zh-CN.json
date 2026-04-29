@@ -142,7 +142,8 @@
       "accessDesc": "注意：此地址包含临时访问令牌，应用重启后将失效。",
       "copy": "复制",
       "note": "注意：此地址包含临时访问令牌，应用重启后将失效。",
-      "updateFailed": "更新配置失败。"
+      "updateFailed": "更新配置失败。",
+      "disabledInWebUI": "WebUI 配置在浏览器中不可用。"
     }
   },
   "chat": {

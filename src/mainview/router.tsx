@@ -15,7 +15,7 @@ import { SettingsMcp } from "./components/settings/settings-mcp";
 import { SettingsWebUI } from "./components/settings/settings-webui";
 import { SkillsLayout } from "./components/skills/skills-layout";
 import { SkillsInstalled } from "./components/skills/skills-installed";
-import { SkillsStore } from "./components/skills/skills-store";
+import { SkillsSkillsSh } from "./components/skills/skills-skill-sh";
 
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -44,7 +44,7 @@ export function AppRouter() {
         </Route>
         <Route path="/skills" element={<SkillsLayout />}>
           <Route path="installed" element={<SkillsInstalled />} />
-          <Route path="store" element={<SkillsStore />} />
+          <Route path="store" element={<SkillsSkillsSh />} />
         </Route>
       </Routes>
     </div>

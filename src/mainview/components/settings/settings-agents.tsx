@@ -6,6 +6,7 @@ import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../providers/message";
@@ -133,166 +134,165 @@ export function SettingsAgents() {
     setEditForm(null);
   };
 
-  const content = (
-    <div className="space-y-2 mb-2 pt-2">
-      <div className="flex items-center justify-between p-1">
-        <h3 className="text-xs text-foreground/50">
-          {t("settings.agents.description", "Configure agents")}
-        </h3>
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={handleAdd}
-          className="h-7 text-xs text-foreground/70"
-        >
-          <Plus className="mr-1 size-3" />
-          {t("settings.agents.addAgent")}
-        </Button>
-      </div>
-
-      <div className="border-t border-border -mx-4">
-        <div className="space-y-1.5 m-3 pb-6">
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
-            >
-              {editingId === agent.id && editForm ? (
-                <div className="flex w-full flex-col gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`agent-id-${agent.id}`}
-                      className="text-[11px] text-muted-foreground"
-                    >
-                      {t("settings.agents.agentId")}
-                    </label>
-                    <Input
-                      id={`agent-id-${agent.id}`}
-                      placeholder={t("settings.agents.agentId")}
-                      value={editForm.id}
-                      onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                      className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex flex-1 flex-col gap-1">
-                      <label
-                        htmlFor={`agent-command-${agent.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.agents.command")}
-                      </label>
-                      <Input
-                        id={`agent-command-${agent.id}`}
-                        placeholder={t("settings.agents.command")}
-                        value={editForm.command}
-                        onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                    <div className="flex flex-1 flex-col gap-1">
-                      <label
-                        htmlFor={`agent-args-${agent.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.agents.args")}
-                      </label>
-                      <Input
-                        id={`agent-args-${agent.id}`}
-                        placeholder={t("settings.agents.args")}
-                        value={argsRaw}
-                        onChange={(e) => setArgsRaw(e.target.value)}
-                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`agent-env-${agent.id}`}
-                      className="text-[11px] text-muted-foreground"
-                    >
-                      {t("settings.agents.envVars")}
-                    </label>
-                    <Textarea
-                      id={`agent-env-${agent.id}`}
-                      placeholder={t("settings.agents.envJson")}
-                      value={envRaw}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEnvRaw(val);
-                        const nextEnv = parseEnvJson(val);
-                        if (nextEnv) {
-                          setEditForm({ ...editForm, env: nextEnv });
-                        }
-                      }}
-                      className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2 mt-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCancelEdit}
-                      className="h-7 text-xs"
-                    >
-                      {t("settings.agents.cancel")}
-                    </Button>
-                    <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
-                      {t("settings.agents.save")}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex w-full flex-row items-center gap-2">
-                  <div className="flex min-w-8 truncate">
-                    <span className="font-bold text-xs ml-1 truncate max-w-24 select-none">
-                      {agent.id}
-                    </span>
-                  </div>
-                  <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                    {[agent.command, ...(agent.args || [])].join(" ")}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 opacity-50">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="size-6 text-foreground/80"
-                      onClick={() => handleEdit(agent)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="size-6 text-destructive/80 hover:text-destructive"
-                      onClick={() => handleDelete(agent.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {agents.length === 0 && (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              {t("settings.agents.noAgents")}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="px-5 py-4 w-full max-w-4xl mx-auto">
         <h3 className="text-lg font-medium">{t("settings.agents.title", "Agents")}</h3>
         <p className="text-sm text-muted-foreground">
           {t("settings.agents.desc", "Manage agent configurations and startup commands.")}
         </p>
       </div>
-      {content}
+
+      <div className="space-y-2 px-5 w-full max-w-4xl mx-auto">
+        <div className="flex items-center justify-between p-1">
+          <h3 className="text-xs text-foreground/50">
+            {t("settings.agents.description", "Configure agents")}
+          </h3>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={handleAdd}
+            className="h-7 text-xs text-foreground/70"
+          >
+            <Plus className="mr-1 size-3" />
+            {t("settings.agents.addAgent")}
+          </Button>
+        </div>
+        <div className="border-t border-border -mx-4"></div>
+      </div>
+      <ScrollArea className="flex-1 w-full overflow-hidden">
+        <div className="w-full max-w-4xl mx-auto">
+          <div className="space-y-1.5 m-3 pb-6">
+            {agents.map((agent) => (
+              <div
+                key={agent.id}
+                className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
+              >
+                {editingId === agent.id && editForm ? (
+                  <div className="flex w-full flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`agent-id-${agent.id}`}
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t("settings.agents.agentId")}
+                      </label>
+                      <Input
+                        id={`agent-id-${agent.id}`}
+                        placeholder={t("settings.agents.agentId")}
+                        value={editForm.id}
+                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
+                        className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex flex-1 flex-col gap-1">
+                        <label
+                          htmlFor={`agent-command-${agent.id}`}
+                          className="text-[11px] text-muted-foreground"
+                        >
+                          {t("settings.agents.command")}
+                        </label>
+                        <Input
+                          id={`agent-command-${agent.id}`}
+                          placeholder={t("settings.agents.command")}
+                          value={editForm.command}
+                          onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
+                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                        />
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1">
+                        <label
+                          htmlFor={`agent-args-${agent.id}`}
+                          className="text-[11px] text-muted-foreground"
+                        >
+                          {t("settings.agents.args")}
+                        </label>
+                        <Input
+                          id={`agent-args-${agent.id}`}
+                          placeholder={t("settings.agents.args")}
+                          value={argsRaw}
+                          onChange={(e) => setArgsRaw(e.target.value)}
+                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`agent-env-${agent.id}`}
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t("settings.agents.envVars")}
+                      </label>
+                      <Textarea
+                        id={`agent-env-${agent.id}`}
+                        placeholder={t("settings.agents.envJson")}
+                        value={envRaw}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnvRaw(val);
+                          const nextEnv = parseEnvJson(val);
+                          if (nextEnv) {
+                            setEditForm({ ...editForm, env: nextEnv });
+                          }
+                        }}
+                        className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 mt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                        className="h-7 text-xs"
+                      >
+                        {t("settings.agents.cancel")}
+                      </Button>
+                      <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
+                        {t("settings.agents.save")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex w-full flex-row items-center gap-2">
+                    <div className="flex min-w-8 truncate">
+                      <span className="font-bold text-xs ml-1 truncate max-w-24 select-none">
+                        {agent.id}
+                      </span>
+                    </div>
+                    <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
+                      {[agent.command, ...(agent.args || [])].join(" ")}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 opacity-50">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="size-6 text-foreground/80"
+                        onClick={() => handleEdit(agent)}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="size-6 text-destructive/80 hover:text-destructive"
+                        onClick={() => handleDelete(agent.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {agents.length === 0 && (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                {t("settings.agents.noAgents")}
+              </div>
+            )}
+          </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }

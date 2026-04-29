@@ -498,7 +498,7 @@ export const backendHandlers: {
     }
   },
 
-  async searchSkills({ query }) {
+  async searchSkillsFromSkillsSh({ query }) {
     try {
       return await searchSkills(query);
     } catch (err: any) {
@@ -506,7 +506,7 @@ export const backendHandlers: {
     }
   },
 
-  async installSkill({ source, slug }) {
+  async installSkillFromSkillsSh({ source, slug }) {
     try {
       await installSkill(source, slug);
     } catch (err: any) {

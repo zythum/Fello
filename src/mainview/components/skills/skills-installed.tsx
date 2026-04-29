@@ -111,12 +111,12 @@ export function SkillsInstalled() {
   return (
     <div className="flex-1 flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-hidden">
-        <div className="p-8 space-y-8">
+        <div className="space-y-6 px-5 py-4 w-full max-w-4xl mx-auto">
           {Object.entries(groups).map(([groupName, groupSkills]) => {
             if (groupSkills.length === 0) return null;
             return (
               <div key={groupName} className="space-y-4">
-                <h3 className="text-xs text-muted-foreground/60 uppercase tracking-wider">
+                <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                   {groupName}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 xxl:grid-cols-3 gap-4">

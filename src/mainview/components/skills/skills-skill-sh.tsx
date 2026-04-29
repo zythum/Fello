@@ -16,7 +16,7 @@ type SearchResult = {
   skillId: string;
 };
 
-export function SkillsStore() {
+export function SkillsSkillsSh() {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -52,7 +52,7 @@ export function SkillsStore() {
     setIsLoading(true);
     setHasSearched(true);
     try {
-      const data = await request.searchSkills({ query: searchQuery });
+      const data = await request.searchSkillsFromSkillsSh({ query: searchQuery });
       setResults(data);
     } catch (error) {
       console.error("Search failed:", error);
@@ -65,7 +65,7 @@ export function SkillsStore() {
   const handleInstall = async (item: SearchResult) => {
     setInstallingId(item.skillId);
     try {
-      await request.installSkill({ source: item.source, slug: item.skillId });
+      await request.installSkillFromSkillsSh({ source: item.source, slug: item.skillId });
       toast.success(t("skills.installSuccess", { name: item.name }));
       // Refresh installed catalog
       const newCatalog = await request.getSkillsCatalog({});
@@ -85,9 +85,10 @@ export function SkillsStore() {
   };
 
   return (
-    <div className="flex flex-1 flex-col h-full p-8">
+    <div className="flex flex-1 flex-col h-full">
       {/* Search Bar */}
-      <div className="relative shrink-0 z-1">
+      <div className="p-4 w-full max-w-4xl mx-auto">
+        <div className="relative z-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           placeholder={t("skills.searchPlaceholder")}
@@ -99,11 +100,12 @@ export function SkillsStore() {
         {isLoading && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
         )}
+        </div>
       </div>
 
       {/* Content Area */}
-      <ScrollArea className="flex-1 overflow-hidden -m-8 -mt-1">
-        <div className="px-6 py-4">
+      <ScrollArea className="flex-1 w-full -mt-4 overflow-hidden">
+        <div className="p-2 w-full max-w-4xl mx-auto">
           {!hasSearched ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
@@ -121,7 +123,7 @@ export function SkillsStore() {
                 return (
                   <Card
                     key={index}
-                    className="flex p-4 flex-row items-center justify-between gap-4 border-0"
+                    className="flex p-4 flex-row items-center bg-transparent justify-between gap-4 border-0"
                   >
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate text-foreground/90">{item.name}</h3>

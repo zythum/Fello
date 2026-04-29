@@ -179,7 +179,7 @@ function createMainWindow() {
     width: 1100,
     height: 800,
     minWidth: 800,
-    minHeight: 600,
+    minHeight: 100,
     backgroundColor,
     show: false, // Don't show until ready-to-show
     ...(process.platform === "darwin"
