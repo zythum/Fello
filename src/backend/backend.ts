@@ -4,6 +4,7 @@ import type {
   SessionNotification,
   PromptResponse,
   McpServer,
+  ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
 import { homedir } from "os";
@@ -114,6 +115,50 @@ const sessionGenerationLocks = new Map<string, string>();
 // Track sessions that are currently being restored (via loadSession) to block duplicate/invalid replays from agent
 const restoringSessions = new Set<string>();
 
+// In-memory cache for pending tool_call updates to avoid writing frequent in_progress updates to disk.
+// Key: sessionId + ":" + toolCallId
+// Value: the last merged ToolCallUpdate for this tool call.
+const pendingToolCalls = new Map<string, ToolCallUpdate>();
+
+function getPendingToolCallKey(sessionId: string, toolCallId: string) {
+  return `${sessionId}:${toolCallId}`;
+}
+
+/**
+ * Merge a tool_call_update into a base ToolCallUpdate.
+ * Mirrors the logic in mainview/lib/session-state-reducer.ts calculateToolCall.
+ */
+function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, update: T): T {
+  const merged: ToolCallUpdate = { ...base };
+
+  if (Object.prototype.hasOwnProperty.call(update, "title")) {
+    merged.title = update.title;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
+    merged.status = update.status;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "content")) {
+    merged.content = update.content;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
+    merged.kind = update.kind;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "rawInput")) {
+    merged.rawInput = update.rawInput;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "locations")) {
+    merged.locations = update.locations;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "rawOutput")) {
+    merged.rawOutput = update.rawOutput;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, "_meta")) {
+    merged._meta = update._meta;
+  }
+
+  return merged as T;
+}
+
 type ManagedTerminal = {
   write: (data: string) => void;
   kill: () => void;
@@ -145,7 +190,32 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
       },
     },
   };
-  storageOps.appendSessionMessage(sessionId, enrichedNotification);
+
+  const sessionUpdate = enrichedNotification.update.sessionUpdate;
+
+  if (sessionUpdate === "tool_call_update") {
+    const toolCallId = enrichedNotification.update.toolCallId;
+    const key = getPendingToolCallKey(sessionId, toolCallId);
+    const base = pendingToolCalls.get(key);
+
+    if (enrichedNotification.update.status === 'in_progress') {
+      if (base) {
+        const mergedUpdate = mergeToolCallUpdate(base, enrichedNotification.update);
+        pendingToolCalls.set(key, mergedUpdate);
+      } else {
+        pendingToolCalls.set(key, { ...enrichedNotification.update });
+      }
+    } else {
+      if (base) {
+        enrichedNotification.update = mergeToolCallUpdate(base, enrichedNotification.update);
+        pendingToolCalls.delete(key);
+      }
+      storageOps.appendSessionMessage(sessionId, enrichedNotification);
+    }
+  } else {
+    storageOps.appendSessionMessage(sessionId, enrichedNotification);
+  }
+
   sendEvent("session-update", { sessionId, notification: enrichedNotification });
 }
 
