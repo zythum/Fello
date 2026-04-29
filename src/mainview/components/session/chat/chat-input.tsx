@@ -28,6 +28,30 @@ interface StagedAttachment {
   previewUrl?: string; // object URL for images
 }
 
+interface SearchFileItem {
+  id: string;
+  filename: string;
+}
+
+interface SuggestItem {
+  id: string;
+  display: string;
+}
+
+function skillInfoToSuggestItem(s: SkillInfo): SuggestItem {
+  return {
+    id: s.id,
+    display: `@skill:${s.name}`,
+  };
+};
+
+function searchFileItemItemToSuggestItem(f: SearchFileItem): SuggestItem {
+   return {
+    id: f.id,
+    display: `#file:${f.filename}`,
+  };
+}
+
 async function processAttachments(staged: StagedAttachment[]): Promise<ContentBlock[]> {
   const blocks: ContentBlock[] = [];
   for (const att of staged) {
@@ -95,7 +119,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const attachmentsRef = useRef<StagedAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const skillsCacheRef = useRef<Map<string, SkillInfo>>(new Map());
+
+  const skillsCacheRef = useRef<SkillInfo[]>([]);
+  const skillsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skillsRequestIdRef = useRef<number>(0);
+
+  const searchFileCacheRef = useRef<SearchFileItem[]>([]);
+  const searchFileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchFileRequestIdRef = useRef<number>(0);
+
 
   // Sync attachments to ref for cleanup
   useEffect(() => {
@@ -162,35 +194,68 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
-    (search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
-      const projectId = session?.projectId;
-      if (!projectId) {
-        callback([]);
-        return;
+    (search: string, callback: (data: { id: string; display: string }[]) => void) => {
+      callback(searchFileCacheRef.current.map(f => searchFileItemItemToSuggestItem(f)));
+
+      if (searchFileTimeoutRef.current) {
+        clearTimeout(searchFileTimeoutRef.current);
       }
-      request
-        .searchFiles({ projectId, query: search || undefined })
-        .then((results) => callback(results.map(({ id, display }) => ({ id, display: `#${display}` }))))
-        .catch(() => callback([]));
+
+      const requestId = ++searchFileRequestIdRef.current;
+      searchFileTimeoutRef.current = setTimeout(() => {
+        request
+          .searchFiles({ projectId: session.projectId, query: search || undefined })
+          .then(results => {
+            if (requestId !== searchFileRequestIdRef.current) return;
+            searchFileCacheRef.current = results;
+            const suggests = results.map(f => searchFileItemItemToSuggestItem(f));
+            callback(suggests);
+          })
+          .catch(() => {
+            if (requestId !== searchFileRequestIdRef.current) return;
+            const results: SearchFileItem[] = [];
+            searchFileCacheRef.current = results;
+            callback(results.map(f => searchFileItemItemToSuggestItem(f)));
+          });
+      }, 100);
     },
     [session],
   );
 
-  /** Fetch skill suggestions from backend */
+  /** Fetch skill suggestions from backend (cached and filtered locally) */
   const fetchSkillSuggestions = useCallback(
-    (_search: string, callback: (data: Array<{ id: string; display: string }>) => void) => {
+    (search: string, callback: (data: { id: string; display: string }[]) => void) => {
+
+      callback(skillsCacheRef.current.map(s => skillInfoToSuggestItem(s)));
+
+      if (skillsTimeoutRef.current) {
+        clearTimeout(skillsTimeoutRef.current);
+      }
+
+      const requestId = ++skillsRequestIdRef.current;
+      skillsTimeoutRef.current = setTimeout(() => {
       request
-        .getSkillsCatalog({ projectId: session?.projectId })
-        .then((results: SkillInfo[]) => {
-          // Cache skills for renderSuggestion lookup
-          skillsCacheRef.current = new Map(results.map((s) => [s.id, s]));
-          const skills = results.map((s) => ({
-            id: s.id,
-            display: `@skills:${s.name}`,
-          }));
-          callback(skills);
+        .getSkillsCatalog({ projectId: session.projectId })
+        .then(results => {
+          if (requestId !== skillsRequestIdRef.current) return;
+
+          const lowerSearch = (search || "").toLowerCase();
+          const filtered = results.filter(
+            (s) =>
+              !search ||
+              s.name.toLowerCase().includes(lowerSearch) ||
+              s.description?.toLowerCase().includes(lowerSearch)
+          );
+          skillsCacheRef.current = filtered;
+          callback(filtered.map(s => skillInfoToSuggestItem(s)));
         })
-        .catch(() => callback([]));
+        .catch(() => {
+          if (requestId !== skillsRequestIdRef.current) return;
+          const results: SkillInfo[] = [];
+          skillsCacheRef.current = results;
+          callback(results.map(s => skillInfoToSuggestItem(s)));
+        });
+      }, 100);
     },
     [session],
   );
@@ -432,7 +497,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           });
           if (info) {
             const name = relPath.replace(/\\/g, "/").split("/").pop() || relPath;
-            insertText = `@[#${name}](${absPath}) `;
+            insertText = `@[#file:${name}](${absPath}) `;
           }
         } catch {
           // ignore
@@ -546,8 +611,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               displayTransform={(_id, display) => display}
               style={mentionStyle}
               appendSpaceOnAdd
-              renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, focused) => {
-                const skill = skillsCacheRef.current.get(String(suggestion.id));
+              renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, _focused) => {
+                const skill = skillsCacheRef.current.find(skillInfo => skillInfo.id === suggestion.id);
                 return (
                   <div className="flex items-center gap-1">
                     <Library className="size-3.5 text-muted-foreground" />

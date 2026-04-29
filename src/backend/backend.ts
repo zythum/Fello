@@ -84,8 +84,8 @@ export const SEARCH_MAX_RESULTS = 10;
 export const SEARCH_FUSE_THRESHOLD = 0.4;
 const SEARCH_CACHE_TTL_MS = 60_000;
 
-type SearchFileItem = { id: string; display: string };
-type SearchCacheEntry = {
+type SearchFileItem = { id: string; filename: string };
+type SearchFileCacheEntry = {
   version: number;
   builtAt: number;
   files: SearchFileItem[];
@@ -93,7 +93,7 @@ type SearchCacheEntry = {
 };
 
 const projectFsVersions = new Map<string, number>();
-const searchFileCache = new Map<string, SearchCacheEntry>();
+const searchFileCache = new Map<string, SearchFileCacheEntry>();
 
 type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
@@ -250,7 +250,7 @@ async function buildSearchIndex(cwd: string): Promise<SearchFileItem[]> {
       if (fileScene.has(full)) continue;
       const rel = relative(cwd, full);
       const posixRel = toPosixPath(rel);
-      allFiles.push({ id: posixRel, display: rel });
+      allFiles.push({ id: posixRel, filename: rel });
       if (s.isDirectory()) await collect(full);
     }
   }
@@ -1033,7 +1033,7 @@ export const backendHandlers: {
 
     if (!query || query.trim() === "") {
       const entries = await readdir(cwd).catch(() => []);
-      const results: Array<{ id: string; display: string }> = [];
+      const results: Array<{ id: string; filename: string }> = [];
       for (const name of entries) {
         const full = join(cwd, name);
         if (isIgnorePath(full, cwd)) continue;
@@ -1041,17 +1041,17 @@ export const backendHandlers: {
         if (fileScene.has(full)) continue;
         fileScene.add(full);
         const rel = relative(cwd, full);
-        results.push({ id: toPosixPath(rel), display: rel });
+        results.push({ id: toPosixPath(rel), filename: rel });
         if (results.length >= SEARCH_MAX_RESULTS) break;
       }
-      results.sort((a, b) => a.display.localeCompare(b.display));
+      results.sort((a, b) => a.filename.localeCompare(b.filename));
       return results;
     }
 
     const normalizedQuery = toPosixPath(query);
     const currentVersion = getProjectFsVersion(projectId);
     const cached = searchFileCache.get(projectId);
-    let entry: SearchCacheEntry;
+    let entry: SearchFileCacheEntry;
     if (
       cached &&
       cached.version === currentVersion &&
@@ -1065,7 +1065,7 @@ export const backendHandlers: {
         builtAt: Date.now(),
         files,
         fuse: new Fuse(files, {
-          keys: ["display"],
+          keys: ["filename"],
           threshold: SEARCH_FUSE_THRESHOLD,
         }),
       };

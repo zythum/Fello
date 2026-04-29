@@ -318,11 +318,11 @@ export type FelloIPCRequests = {
    * 搜索项目中的文件
    * 注意：为了保证跨平台的稳定匹配，前端发送的 `query` 在底层会被标准化为 POSIX 路径（`/` 分隔）。
    * 返回的 `id` 统一为 POSIX 相对路径，用于组件间传递及 API 调用。
-   * 返回的 `display` 保持原生操作系统的相对路径分隔符，专门用于 UI 展示。
+   * 返回的 `filename` 保持原生操作系统的相对路径分隔符，专门用于 UI 展示。
    */
   searchFiles: {
     params: { projectId: string; query?: string };
-    response: Array<{ id: string; display: string }>;
+    response: Array<{ id: string; filename: string }>;
   };
   /**
    * 读取目录内容
