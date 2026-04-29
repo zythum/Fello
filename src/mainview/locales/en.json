@@ -42,7 +42,18 @@
     "newChat": "New Chat",
     "projectActions": "Project actions for {{title}}",
     "createChatInProject": "Create chat in {{title}}",
-    "chatActions": "Chat actions for {{title}}"
+    "chatActions": "Chat actions for {{title}}",
+    "newSessionDialog": {
+      "title": "Create session",
+      "agent": "Agent",
+      "selectAgent": "Select an agent",
+      "mcp": "MCP",
+      "noMcp": "No MCP servers configured",
+      "permission": "Permission",
+      "permissionAsk": "Ask",
+      "permissionAllowAll": "Allow all",
+      "create": "Create"
+    }
   },
   "skills": {
     "title": "Skills",

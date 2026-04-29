@@ -14,6 +14,21 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessage } from "../providers/message";
@@ -68,6 +83,7 @@ export function Sidebar() {
     setSessions,
     sidebarOpen,
     configuredAgents,
+    configuredMcpServers,
     sessionStates,
     webUIStatus,
   } = useAppStore();
@@ -78,7 +94,6 @@ export function Sidebar() {
   );
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
-  const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const { prompt, confirm, toast } = useMessage();
 
@@ -127,22 +142,59 @@ export function Sidebar() {
     }
   };
 
-  const handleNewChat = async (projectId: string, agentId: string) => {
+  const handleNewChat = async (
+    projectId: string,
+    agentId: string,
+    params?: { mcpServers?: string[]; permissionMode?: "ask" | "allow-all" },
+  ): Promise<boolean> => {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       useAppStore.getState().setIsCreatingSession(true);
       const result = await request.newSession({
         projectId,
         agentId,
+        mcpServers: params?.mcpServers,
+        permissionMode: params?.permissionMode,
       });
       await refreshData();
       handleNavigate(`/session-view/${result.sessionId}`);
+      return true;
     } catch (err) {
       console.error("Failed to create new chat:", err);
       toast.error(getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")));
+      return false;
     } finally {
       useAppStore.getState().setIsCreatingSession(false);
     }
+  };
+
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
+  const [newSessionAgentId, setNewSessionAgentId] = useState<string>("");
+  const [newSessionMcpIds, setNewSessionMcpIds] = useState<Set<string>>(new Set());
+  const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">(
+    "ask",
+  );
+
+  const openNewSessionDialog = (projectId: string) => {
+    if (enabledAgents.length === 0) {
+      handleNavigate("/settings/agents");
+      return;
+    }
+    setNewSessionProjectId(projectId);
+    setNewSessionAgentId(enabledAgents[0]?.id ?? "");
+    setNewSessionMcpIds(new Set(configuredMcpServers.filter((s) => !s.disabled).map((s) => s.id)));
+    setNewSessionPermissionMode("ask");
+    setNewSessionDialogOpen(true);
+  };
+
+  const handleCreateNewSession = async () => {
+    if (!newSessionProjectId || !newSessionAgentId) return;
+    const ok = await handleNewChat(newSessionProjectId, newSessionAgentId, {
+      mcpServers: Array.from(newSessionMcpIds),
+      permissionMode: newSessionPermissionMode,
+    });
+    if (ok) setNewSessionDialogOpen(false);
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
@@ -325,7 +377,7 @@ export function Sidebar() {
                 <div
                   onClick={() => toggleProject(project.id)}
                   className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
-                    openProjectMenuId === project.id || openAgentMenuProjectId === project.id
+                    openProjectMenuId === project.id
                       ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                       : ""
                   }`}
@@ -398,68 +450,20 @@ export function Sidebar() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {enabledAgents.length > 1 ? (
-                    <DropdownMenu
-                      onOpenChange={(open) => {
-                        setOpenAgentMenuProjectId((prev) =>
-                          open ? project.id : prev === project.id ? null : prev,
-                        );
-                      }}
-                    >
-                      <DropdownMenuTrigger
-                        onClick={(e) => e.stopPropagation()}
-                        className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
-                          openAgentMenuProjectId === project.id
-                            ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
-                            : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                        }`}
-                        aria-label={t("sidebar.createChatInProject", {
-                          defaultValue: "Create chat in {{title}}",
-                          title: project.title,
-                        })}
-                      >
-                        <MessageCirclePlus />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        side="right"
-                        align="start"
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-28"
-                      >
-                        {enabledAgents.map((agent) => (
-                          <DropdownMenuItem
-                            key={agent.id}
-                            onClick={() => {
-                              void handleNewChat(project.id, agent.id);
-                            }}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <span>{agent.id}</span>
-                            </div>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (enabledAgents.length === 1) {
-                          void handleNewChat(project.id, enabledAgents[0].id);
-                        } else {
-                          handleNavigate("/settings/agents");
-                        }
-                      }}
-                      className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                      aria-label={t("sidebar.createChatInProject", {
-                        defaultValue: "Create chat in {{title}}",
-                        title: project.title,
-                      })}
-                    >
-                      <MessageCirclePlus />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNewSessionDialog(project.id);
+                    }}
+                    className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                    aria-label={t("sidebar.createChatInProject", {
+                      defaultValue: "Create chat in {{title}}",
+                      title: project.title,
+                    })}
+                  >
+                    <MessageCirclePlus />
+                  </button>
                 </div>
                 {expanded &&
                   projectSessions.map((session) => (
@@ -576,6 +580,128 @@ export function Sidebar() {
           )}
         </Button>
       </div>
+
+      <Dialog open={newSessionDialogOpen} onOpenChange={setNewSessionDialogOpen}>
+        <DialogContent className="max-w-lg!">
+          <DialogHeader>
+            <DialogTitle>
+              {t("sidebar.newSessionDialog.title", { defaultValue: "Create session" })}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-row gap-2">
+              <div className="flex-2 flex flex-col gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {t("sidebar.newSessionDialog.agent", { defaultValue: "Agent" })}
+                </div>
+                <Select
+                  value={newSessionAgentId}
+                  onValueChange={(v) => {
+                    if (typeof v === "string") setNewSessionAgentId(v);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-full" disabled={enabledAgents.length <= 1}>
+                    <SelectValue
+                      placeholder={t("sidebar.newSessionDialog.selectAgent", {
+                        defaultValue: "Select an agent",
+                      })}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {enabledAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 flex flex-col gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {t("sidebar.newSessionDialog.permission", { defaultValue: "Permission" })}
+                </div>
+                <Select
+                  value={newSessionPermissionMode}
+                  onValueChange={(v) => {
+                    if (v === "ask" || v === "allow-all") setNewSessionPermissionMode(v);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-full">
+                    <SelectValue>
+                      {(value: string) => {
+                        if (value === "ask") return t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" });
+                        if (value === "allow-all") return t("sidebar.newSessionDialog.permissionAllowAll", { defaultValue: "Allow all" })
+                        return value;
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ask">
+                      {t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" })}
+                    </SelectItem>
+                    <SelectItem value="allow-all">
+                      {t("sidebar.newSessionDialog.permissionAllowAll", {
+                        defaultValue: "Allow all",
+                      })}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-muted-foreground">
+                {t("sidebar.newSessionDialog.mcp", { defaultValue: "MCP" })}
+              </div>
+              <div className="flex flex-col gap-1">
+                {configuredMcpServers.map((mcp) => (
+                  <div
+                    key={mcp.id}
+                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                  >
+                    <div
+                      className={cn(
+                        "text-xs truncate",
+                        !newSessionMcpIds.has(mcp.id) ? "text-muted-foreground/50" : "text-muted-foreground",
+                      )}
+                      title={mcp.id}
+                    >
+                      {mcp.id}
+                    </div>
+                    <Switch
+                      size="sm"
+                      checked={newSessionMcpIds.has(mcp.id)}
+                      onCheckedChange={(checked) => {
+                        setNewSessionMcpIds((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(mcp.id);
+                          else next.delete(mcp.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </div>
+                ))}
+                {configuredMcpServers.length === 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {t("sidebar.newSessionDialog.noMcp", {
+                      defaultValue: "No MCP servers configured",
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" className="h-8 text-xs" variant="outline" onClick={() => setNewSessionDialogOpen(false)}>
+              {t("sidebar.cancel")}
+            </Button>
+            <Button size="sm" className="h-8 text-xs" variant="default" onClick={handleCreateNewSession}>
+              {t("sidebar.newSessionDialog.create", { defaultValue: "Create" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

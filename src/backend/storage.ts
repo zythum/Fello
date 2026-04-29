@@ -75,6 +75,7 @@ interface SessionMeta {
   created_at: number;
   updated_at: number;
   mcp_servers?: string[];
+  permission_mode?: "ask" | "allow-all";
   models?: SessionModelState | null;
   modes?: SessionModeState | null;
   initialize_info?: InitializeResponse | null;
@@ -262,6 +263,10 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
     const mcp_servers = Array.isArray(raw.mcp_servers)
       ? raw.mcp_servers.filter((v) => typeof v === "string")
       : undefined;
+    const permission_mode =
+      raw.permission_mode === "allow-all" || raw.permission_mode === "ask"
+        ? raw.permission_mode
+        : "ask";
     const models = raw.models ?? null;
     const modes = raw.modes ?? null;
     const initialize_info = raw.initialize_info ?? null;
@@ -276,6 +281,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
       created_at,
       updated_at,
       mcp_servers,
+      permission_mode,
       models,
       modes,
       initialize_info,
@@ -480,6 +486,7 @@ export const storageOps = {
     updates?: Partial<{
       title: string;
       mcpServers: string[];
+      permissionMode: "ask" | "allow-all";
       models: SessionModelState | null;
       modes: SessionModeState | null;
       initializeInfo: InitializeResponse | null;
@@ -498,6 +505,7 @@ export const storageOps = {
       created_at: now,
       updated_at: now,
       mcp_servers: updates?.mcpServers ?? [],
+      permission_mode: updates?.permissionMode ?? "ask",
       models: updates?.models ?? null,
       modes: updates?.modes ?? null,
       initialize_info: updates?.initializeInfo ?? null,
@@ -511,6 +519,7 @@ export const storageOps = {
     updates: Partial<{
       title: string;
       mcpServers: string[];
+      permissionMode: "ask" | "allow-all";
       models: SessionModelState | null;
       modes: SessionModeState | null;
       initializeInfo: InitializeResponse | null;
@@ -522,6 +531,7 @@ export const storageOps = {
 
     if (updates.title !== undefined) meta.title = updates.title;
     if (updates.mcpServers !== undefined) meta.mcp_servers = updates.mcpServers;
+    if (updates.permissionMode !== undefined) meta.permission_mode = updates.permissionMode;
     if (updates.models !== undefined) meta.models = updates.models;
     if (updates.modes !== undefined) meta.modes = updates.modes;
     if (updates.initializeInfo !== undefined) meta.initialize_info = updates.initializeInfo;
@@ -554,6 +564,7 @@ export const storageOps = {
           createdAt: meta.created_at,
           updatedAt: meta.updated_at,
           mcpServers: meta.mcp_servers ?? [],
+          permissionMode: meta.permission_mode ?? "ask",
           models: meta.models ?? null,
           modes: meta.modes ?? null,
           initializeInfo: meta.initialize_info ?? null,
@@ -581,6 +592,7 @@ export const storageOps = {
       createdAt: meta.created_at,
       updatedAt: meta.updated_at,
       mcpServers: meta.mcp_servers ?? [],
+      permissionMode: meta.permission_mode ?? "ask",
       models: meta.models ?? null,
       modes: meta.modes ?? null,
       initializeInfo: meta.initialize_info ?? null,

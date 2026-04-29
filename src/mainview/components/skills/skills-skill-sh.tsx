@@ -141,18 +141,20 @@ export function SkillsSkillsSh() {
                     <div className="shrink-0">
                       {installed ? (
                         <Button
+                          size="sm"
                           variant="secondary"
                           disabled
-                          className="w-16 h-8 text-xs font-medium"
+                          className="w-16 text-xs font-normal"
                         >
                           {t("skills.installedStatus")}
                         </Button>
                       ) : (
                         <Button
-                          variant="default"
+                          size="sm"
+                          variant="outline"
+                          className="w-16 text-xs font-normal text-accent-foreground"
                           onClick={() => handleInstall(item)}
                           disabled={isInstalling || installingId !== null}
-                          className="w-16 h-8 text-xs"
                         >
                           {isInstalling ? (
                             <Loader2 className="size-3 animate-spin" />

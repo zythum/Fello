@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, CircleSmall, ChevronUp, ChevronDown, Minus, Notebook } from "lucide-react";
+import { Check, Pickaxe, CircleSmall, ChevronUp, ChevronDown, Minus, Notebook } from "lucide-react";
 import type { BaseBubbleProps } from "./types";
 import type { PlanMessage } from "../../../../lib/chat-message";
 
@@ -42,7 +42,7 @@ export const PlanBubble = memo(function PlanBubble({
                   {entry.status === "completed" ? (
                     <Check className="size-3 text-green-500" />
                   ) : entry.status === "in_progress" ? (
-                    <Loader2 className="size-3 animate-spin text-primary" />
+                    <Pickaxe className="size-3 text-primary" />
                   ) : (
                     <CircleSmall className="size-3 text-muted-foreground/50" />
                   )}

@@ -42,7 +42,18 @@
     "newChat": "新会话",
     "projectActions": "项目操作：{{title}}",
     "createChatInProject": "在 {{title}} 中创建会话",
-    "chatActions": "会话操作：{{title}}"
+    "chatActions": "会话操作：{{title}}",
+    "newSessionDialog": {
+      "title": "新建会话",
+      "agent": "智能体",
+      "selectAgent": "选择智能体",
+      "mcp": "MCP",
+      "noMcp": "未配置 MCP 服务器",
+      "permission": "权限",
+      "permissionAsk": "每次询问",
+      "permissionAllowAll": "全部允许",
+      "create": "创建"
+    }
   },
   "skills": {
     "title": "技能",

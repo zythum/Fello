@@ -306,10 +306,10 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
       <Toaster />
 
       <Dialog open={isOpen} onOpenChange={handleClose} disablePointerDismissal>
-        <DialogContent showCloseButton={false} className="sm:max-w-105 p-3 gap-0.5">
+        <DialogContent showCloseButton={false} className="sm:max-w-105 gap-0.5">
           {activeDialog?.title && (
-            <DialogHeader className="mb-2 gap-1">
-              <DialogTitle className="flex items-center gap-1 text-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
                 {activeDialog.icon && <span className="shrink-0 size-4">{activeDialog.icon}</span>}
                 {activeDialog.title}
               </DialogTitle>
@@ -355,7 +355,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
           </div>
 
           {activeDialog?.buttons && activeDialog.buttons.length > 0 && (
-            <DialogFooter className="-m-3 mt-2 p-3 sm:justify-end gap-2 sm:space-x-0">
+            <DialogFooter>
               {activeDialog.buttons.map((btn, idx) => (
                 <DialogButton
                   key={idx}

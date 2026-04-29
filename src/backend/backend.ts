@@ -331,10 +331,22 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
     },
     onPermissionRequest: (request: RequestPermissionRequest) => {
       const toolCallId = request.toolCall.toolCallId;
-      const sent = sendEvent("permission-request", {
-        sessionId: `${agentId}:${request.sessionId}`,
-        request,
-      });
+      const sessionId = `${agentId}:${request.sessionId}`;
+      const session = storageOps.getSession(sessionId);
+      if (session?.permissionMode === "allow-all") {
+        const allowOption =
+          request.options.find((o) => o.kind === "allow_always") ??
+          request.options.find((o) => o.kind === "allow_once") ??
+          request.options[0];
+        return Promise.resolve({
+          outcome: {
+            outcome: "selected",
+            optionId: allowOption?.optionId ?? "deny",
+          },
+        } satisfies RequestPermissionResponse);
+      }
+
+      const sent = sendEvent("permission-request", { sessionId, request });
       if (!sent) {
         return Promise.resolve({
           outcome: { outcome: "selected", optionId: "deny" },
@@ -362,7 +374,7 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
         pendingPermissions.set(toolCallId, {
           resolve,
           timeoutId,
-          sessionId: `${agentId}:${request.sessionId}`,
+          sessionId,
         });
       });
     },
@@ -637,16 +649,18 @@ export const backendHandlers: {
     sendEvent("sessions-changed", undefined);
   },
 
-  async newSession({ projectId, agentId }) {
+  async newSession({ projectId, agentId, mcpServers, permissionMode }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
 
     // Extract enabled global MCP servers
     const globalSettings = storageOps.getSettings();
-    const sessionMcpIds = (globalSettings.mcpServers || [])
+    const enabledGlobalMcpIds = (globalSettings.mcpServers || [])
       .filter((s) => !s.disabled)
       .map((s) => s.id);
+    const desiredMcpIds = new Set(mcpServers ?? enabledGlobalMcpIds);
+    const sessionMcpIds = enabledGlobalMcpIds.filter((id) => desiredMcpIds.has(id));
     const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
 
     const {
@@ -659,6 +673,7 @@ export const backendHandlers: {
     });
     const sessionInfo = storageOps.createSession(project.id, resumeId, agentId, {
       mcpServers: sessionMcpIds,
+      permissionMode: permissionMode ?? "ask",
       models: models ?? null,
       modes: modes ?? null,
       initializeInfo: b.initializeInfo,

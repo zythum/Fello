@@ -138,6 +138,7 @@ export interface SessionInfo {
    * 当前会话使用的 MCP 服务器 ID 列表
    */
   mcpServers: string[];
+  permissionMode: "ask" | "allow-all";
   /** 缓存的 Model 配置状态，用于离线降级恢复 */
   models: SessionModelState | null;
   /** 缓存的 Mode 配置状态，用于离线降级恢复 */
@@ -216,7 +217,12 @@ export type FelloIPCRequests = {
 
   /** 创建新会话 */
   newSession: {
-    params: { projectId: string; agentId: string };
+    params: {
+      projectId: string;
+      agentId: string;
+      mcpServers?: string[];
+      permissionMode?: "ask" | "allow-all";
+    };
     response: {
       /** Fello 侧的会话唯一标识 */
       sessionId: string;
