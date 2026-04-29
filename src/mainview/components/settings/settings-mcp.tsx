@@ -7,7 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Plus, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../providers/message";
 
@@ -35,19 +51,17 @@ export function SettingsMcp() {
   const { configuredMcpServers, setConfiguredMcpServers } = useAppStore();
   const { toast } = useMessage();
   const [mcpServers, setMcpServers] = useState<SettingsInfo["mcpServers"]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<SettingsInfo["mcpServers"][number] | null>(null);
 
-  const [envRaw, setEnvRaw] = useState<string>("");
-  const [argsRaw, setArgsRaw] = useState<string>("");
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogItem, setDialogItem] = useState<SettingsInfo["mcpServers"][number] | null>(null);
+  const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
+  const [dialogEnvRaw, setDialogEnvRaw] = useState("");
+  const [dialogArgsRaw, setDialogArgsRaw] = useState("");
 
   // Sync when mounted
   useEffect(() => {
     setMcpServers(configuredMcpServers);
-    setEditingId(null);
-    setEditForm(null);
-    setEnvRaw("");
-    setArgsRaw("");
   }, [configuredMcpServers]);
 
   const handleSave = async (updatedMcpServers: SettingsInfo["mcpServers"]) => {
@@ -62,71 +76,84 @@ export function SettingsMcp() {
     }
   };
 
-  const handleAdd = () => {
-    const internalEditingId = `__new_mcp_${Date.now()}_${Math.floor(Math.random() * 1000)}__`;
-
-    const newMcp = { id: "", command: "", args: [], env: {} };
-    setMcpServers([...mcpServers, { ...newMcp, id: internalEditingId }]);
-    setEditingId(internalEditingId);
-    setEditForm(newMcp);
-    setEnvRaw("");
-    setArgsRaw("");
+  const openAddDialog = () => {
+    const newMcp: SettingsInfo["mcpServers"][number] = {
+      id: "",
+      command: "",
+      args: [],
+      env: {},
+      disabled: false,
+    };
+    setDialogItem(newMcp);
+    setDialogOriginalId(null);
+    setDialogEnvRaw("");
+    setDialogArgsRaw("");
+    setDialogOpen(true);
   };
 
-  const handleEdit = (mcp: SettingsInfo["mcpServers"][number]) => {
-    setEditingId(mcp.id);
-    setEditForm({ ...mcp });
-    setEnvRaw(Object.keys(mcp.env || {}).length > 0 ? JSON.stringify(mcp.env) : "");
-    setArgsRaw(mcp.args?.join(" ") || "");
+  const openEditDialog = (mcp: SettingsInfo["mcpServers"][number]) => {
+    setDialogItem({ ...mcp });
+    setDialogOriginalId(mcp.id);
+    setDialogEnvRaw(Object.keys(mcp.env || {}).length > 0 ? JSON.stringify(mcp.env) : "");
+    setDialogArgsRaw(mcp.args?.join(" ") || "");
+    setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const updated = mcpServers.filter((a) => a.id !== id);
-    setMcpServers(updated);
-    if (editingId === id) {
-      setEditingId(null);
-      setEditForm(null);
-    }
-    await handleSave(updated);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editForm) return;
-    if (!editForm.id.trim() || !editForm.command.trim()) {
+  const handleDialogSave = async () => {
+    if (!dialogItem) return;
+    if (!dialogItem.id.trim() || !dialogItem.command.trim()) {
       toast.error(t("settings.mcp.errorIdCommand", "ID and Command are required."));
       return;
     }
 
-    if (
-      mcpServers.some(
-        (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_mcp_"),
-      )
-    ) {
+    const isNew = dialogOriginalId === null;
+    const duplicate = mcpServers.some(
+      (a) => a.id === dialogItem.id && a.id !== dialogOriginalId && !a.id.startsWith("__new_mcp_"),
+    );
+    if (duplicate) {
       toast.error(t("settings.mcp.errorDuplicateId", "A server with this ID already exists."));
       return;
     }
 
-    const nextEnv = parseEnvJson(envRaw);
+    const nextEnv = parseEnvJson(dialogEnvRaw);
     if (!nextEnv) {
       toast.error(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
       return;
     }
 
-    const nextArgs = argsRaw.split(/\s+/).filter(Boolean);
-    const nextEditForm = { ...editForm, env: nextEnv, args: nextArgs };
-    const updated = mcpServers.map((a) => (a.id === editingId ? nextEditForm : a));
+    const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
+    const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
+
+    let updated: SettingsInfo["mcpServers"];
+    if (isNew) {
+      updated = [...mcpServers, finalItem];
+    } else {
+      updated = mcpServers.map((a) => (a.id === dialogOriginalId ? finalItem : a));
+    }
+
     setMcpServers(updated);
-    setEditingId(null);
-    setEditForm(null);
+    setDialogOpen(false);
+    setDialogItem(null);
+    setDialogOriginalId(null);
     await handleSave(updated);
   };
 
-  const handleCancelEdit = () => {
-    if (editingId && editingId.startsWith("__new_mcp_")) {
-      setMcpServers(mcpServers.filter((a) => a.id !== editingId));
-    }
-    setEditingId(null);
-    setEditForm(null);
+  const handleDialogCancel = () => {
+    setDialogOpen(false);
+    setDialogItem(null);
+    setDialogOriginalId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    const updated = mcpServers.filter((a) => a.id !== id);
+    setMcpServers(updated);
+    await handleSave(updated);
+  };
+
+  const handleToggleDisabled = async (id: string, disabled: boolean) => {
+    const updated = mcpServers.map((a) => (a.id === id ? { ...a, disabled } : a));
+    setMcpServers(updated);
+    await handleSave(updated);
   };
 
   return (
@@ -146,7 +173,7 @@ export function SettingsMcp() {
           <Button
             variant="outline"
             size="xs"
-            onClick={handleAdd}
+            onClick={openAddDialog}
             className="h-7 text-xs text-foreground/70"
           >
             <Plus className="mr-1 size-3" />
@@ -155,130 +182,47 @@ export function SettingsMcp() {
         </div>
         <div className="border-t border-border -mx-4"></div>
       </div>
+
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
-          <div className="space-y-1.5 m-3 pb-6">
+          <div className="space-y-3 m-3 pb-6">
             {mcpServers.map((mcp) => (
-              <div
-                key={mcp.id}
-                className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
-              >
-                {editingId === mcp.id && editForm ? (
-                  <div className="flex w-full flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label
-                        htmlFor={`mcp-id-${mcp.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.mcp.mcpId", "MCP Server ID")}
-                      </label>
-                      <Input
-                        id={`mcp-id-${mcp.id}`}
-                        placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
-                        value={editForm.id}
-                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                        className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex flex-1 flex-col gap-1">
-                        <label
-                          htmlFor={`mcp-command-${mcp.id}`}
-                          className="text-[11px] text-muted-foreground"
+              <ContextMenu key={mcp.id}>
+                <ContextMenuTrigger>
+                  <div className="flex items-center justify-between rounded-lg border p-1.5 h-10 text-sm bg-secondary/50 cursor-default select-none">
+                    <div className="flex w-full flex-row items-center gap-2">
+                      <div className="flex min-w-8 truncate">
+                        <span
+                          className={`font-bold text-xs ml-1 truncate max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                         >
-                          {t("settings.mcp.command", "Command")}
-                        </label>
-                        <Input
-                          id={`mcp-command-${mcp.id}`}
-                          placeholder={t("settings.mcp.command", "Command")}
-                          value={editForm.command}
-                          onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                        />
+                          {mcp.id}
+                        </span>
                       </div>
-                      <div className="flex flex-1 flex-col gap-1">
-                        <label
-                          htmlFor={`mcp-args-${mcp.id}`}
-                          className="text-[11px] text-muted-foreground"
-                        >
-                          {t("settings.mcp.args", "Arguments")}
-                        </label>
-                        <Input
-                          id={`mcp-args-${mcp.id}`}
-                          placeholder={t("settings.mcp.args", "Arguments")}
-                          value={argsRaw}
-                          onChange={(e) => setArgsRaw(e.target.value)}
-                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
+                        {[mcp.command, ...(mcp.args || [])].join(" ")}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Switch
+                          size="sm"
+                          checked={!mcp.disabled}
+                          onCheckedChange={(checked) => handleToggleDisabled(mcp.id, !checked)}
                         />
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label
-                        htmlFor={`mcp-env-${mcp.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.mcp.envVars", "Environment Variables (JSON)")}
-                      </label>
-                      <Textarea
-                        id={`mcp-env-${mcp.id}`}
-                        placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
-                        value={envRaw}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEnvRaw(val);
-                          const nextEnv = parseEnvJson(val);
-                          if (nextEnv) {
-                            setEditForm({ ...editForm, env: nextEnv });
-                          }
-                        }}
-                        className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 mt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                        className="h-7 text-xs"
-                      >
-                        {t("settings.mcp.cancel", "Cancel")}
-                      </Button>
-                      <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
-                        {t("settings.mcp.save", "Save")}
-                      </Button>
-                    </div>
                   </div>
-                ) : (
-                  <div className="flex w-full flex-row items-center gap-2">
-                    <div className="flex min-w-8 truncate">
-                      <span className="font-bold text-xs ml-1 truncate max-w-24 select-none">
-                        {mcp.id}
-                      </span>
-                    </div>
-                    <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                      {[mcp.command, ...(mcp.args || [])].join(" ")}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 opacity-50">
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 text-foreground/80"
-                        onClick={() => handleEdit(mcp)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 text-destructive/80 hover:text-destructive"
-                        onClick={() => handleDelete(mcp.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-32">
+                  <ContextMenuItem onClick={() => openEditDialog(mcp)}>
+                    <Pencil className="size-3" />
+                    {t("common.edit", "Edit")}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem variant="destructive" onClick={() => handleDelete(mcp.id)}>
+                    <Trash2 className="size-3" />
+                    {t("common.delete", "Delete")}
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {mcpServers.length === 0 && (
               <div className="py-8 text-center text-sm text-muted-foreground">
@@ -288,6 +232,96 @@ export function SettingsMcp() {
           </div>
         </div>
       </ScrollArea>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {dialogOriginalId
+                ? t("settings.mcp.editMcp", "Edit MCP Server")
+                : t("settings.mcp.addMcp", "Add MCP Server")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                "settings.mcp.dialogDesc",
+                "Configure the MCP server ID, command, arguments and environment variables.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {dialogItem && (
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-muted-foreground">
+                  {t("settings.mcp.mcpId", "MCP Server ID")}
+                </label>
+                <Input
+                  placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
+                  value={dialogItem.id}
+                  onChange={(e) => setDialogItem({ ...dialogItem, id: e.target.value })}
+                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">
+                    {t("settings.mcp.command", "Command")}
+                  </label>
+                  <Input
+                    placeholder={t("settings.mcp.command", "Command")}
+                    value={dialogItem.command}
+                    onChange={(e) => setDialogItem({ ...dialogItem, command: e.target.value })}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">
+                    {t("settings.mcp.args", "Arguments")}
+                  </label>
+                  <Input
+                    placeholder={t("settings.mcp.args", "Arguments")}
+                    value={dialogArgsRaw}
+                    onChange={(e) => setDialogArgsRaw(e.target.value)}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-muted-foreground">
+                  {t("settings.mcp.envVars", "Environment Variables (JSON)")}
+                </label>
+                <Textarea
+                  placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
+                  value={dialogEnvRaw}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDialogEnvRaw(val);
+                    const nextEnv = parseEnvJson(val);
+                    if (nextEnv) {
+                      setDialogItem({ ...dialogItem, env: nextEnv });
+                    }
+                  }}
+                  className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDialogCancel}
+              className="h-7 text-xs"
+            >
+              {t("settings.mcp.cancel", "Cancel")}
+            </Button>
+            <Button size="sm" onClick={handleDialogSave} className="h-7 text-xs">
+              {t("settings.mcp.save", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

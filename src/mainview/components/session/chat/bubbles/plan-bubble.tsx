@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, ChevronUp, ChevronDown, Minus } from "lucide-react";
+import { Check, Loader2, CircleSmall, ChevronUp, ChevronDown, Minus, Notebook } from "lucide-react";
 import type { BaseBubbleProps } from "./types";
 import type { PlanMessage } from "../../../../lib/chat-message";
 
@@ -19,12 +19,13 @@ export const PlanBubble = memo(function PlanBubble({
   return (
     <details
       className={cn(
-        "mx-4 border border-border bg-card rounded-md pointer-events-auto",
+        "border border-border bg-card rounded-md pointer-events-auto",
         prevBubbleRole != null && "mt-4",
       )}
       open
     >
-      <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+      <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
+        <Notebook className="size-3 text-muted-foreground" />
         <span className="flex-1 text-foreground">{t("planBubble.title")}</span>
         {total > 0 && (
           <span className="text-[10px] text-muted-foreground">
@@ -37,18 +38,13 @@ export const PlanBubble = memo(function PlanBubble({
           <div className="flex flex-col gap-3">
             {message.entries.map((entry, idx) => (
               <div key={idx} className="flex items-start gap-2 text-xs">
-                <span className="mt-0.5 shrink-0">
+                <span className="mt-1 shrink-0">
                   {entry.status === "completed" ? (
-                    <Check className="size-3.5 text-green-500" />
+                    <Check className="size-3 text-green-500" />
+                  ) : entry.status === "in_progress" ? (
+                    <Loader2 className="size-3 animate-spin text-primary" />
                   ) : (
-                    <Loader2
-                      className={cn(
-                        "size-3.5",
-                        entry.status === "in_progress"
-                          ? "animate-spin text-primary"
-                          : "text-muted-foreground/50",
-                      )}
-                    />
+                    <CircleSmall className="size-3 text-muted-foreground/50" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col gap-1">

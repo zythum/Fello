@@ -7,7 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Plus, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../providers/message";
 
@@ -35,19 +51,17 @@ export function SettingsAgents() {
   const { configuredAgents, setConfiguredAgents } = useAppStore();
   const { toast } = useMessage();
   const [agents, setAgents] = useState<SettingsInfo["agents"]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<SettingsInfo["agents"][number] | null>(null);
 
-  const [envRaw, setEnvRaw] = useState<string>("");
-  const [argsRaw, setArgsRaw] = useState<string>("");
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogItem, setDialogItem] = useState<SettingsInfo["agents"][number] | null>(null);
+  const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
+  const [dialogEnvRaw, setDialogEnvRaw] = useState("");
+  const [dialogArgsRaw, setDialogArgsRaw] = useState("");
 
   // Sync when mounted
   useEffect(() => {
     setAgents(configuredAgents);
-    setEditingId(null);
-    setEditForm(null);
-    setEnvRaw("");
-    setArgsRaw("");
   }, [configuredAgents]);
 
   const handleSave = async (updatedAgents: SettingsInfo["agents"]) => {
@@ -62,76 +76,85 @@ export function SettingsAgents() {
     }
   };
 
-  const handleAdd = () => {
-    // Generate a temporary internal editing ID for the new item.
-    // The user will specify the actual Agent ID in the input field.
-    const internalEditingId = `__new_agent_${Date.now()}_${Math.floor(Math.random() * 1000)}__`;
-
-    const newAgent = { id: "", command: "", args: [], env: {} };
-    // Temporarily set the agent's ID to the internal editing ID so we can track it
-    // during the edit session. It will be replaced by the user's input when saved.
-    setAgents([...agents, { ...newAgent, id: internalEditingId }]);
-    setEditingId(internalEditingId);
-    setEditForm(newAgent);
-    setEnvRaw("");
-    setArgsRaw("");
+  const openAddDialog = () => {
+    const newAgent: SettingsInfo["agents"][number] = {
+      id: "",
+      command: "",
+      args: [],
+      env: {},
+      disabled: false,
+    };
+    setDialogItem(newAgent);
+    setDialogOriginalId(null);
+    setDialogEnvRaw("");
+    setDialogArgsRaw("");
+    setDialogOpen(true);
   };
 
-  const handleEdit = (agent: SettingsInfo["agents"][number]) => {
-    setEditingId(agent.id);
-    setEditForm({ ...agent });
-    setEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
-    setArgsRaw(agent.args?.join(" ") || "");
+  const openEditDialog = (agent: SettingsInfo["agents"][number]) => {
+    setDialogItem({ ...agent });
+    setDialogOriginalId(agent.id);
+    setDialogEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
+    setDialogArgsRaw(agent.args?.join(" ") || "");
+    setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const updated = agents.filter((a) => a.id !== id);
-    setAgents(updated);
-    if (editingId === id) {
-      setEditingId(null);
-      setEditForm(null);
-    }
-    await handleSave(updated);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editForm) return;
-    if (!editForm.id.trim() || !editForm.command.trim()) {
+  const handleDialogSave = async () => {
+    if (!dialogItem) return;
+    if (!dialogItem.id.trim() || !dialogItem.command.trim()) {
       toast.error(t("settings.agents.errorIdCommand"));
       return;
     }
 
-    if (
-      agents.some(
-        (a) => a.id === editForm.id && a.id !== editingId && !a.id.startsWith("__new_agent_"),
-      )
-    ) {
+    const isNew = dialogOriginalId === null;
+    const duplicate = agents.some(
+      (a) =>
+        a.id === dialogItem.id && a.id !== dialogOriginalId && !a.id.startsWith("__new_agent_"),
+    );
+    if (duplicate) {
       toast.error(t("settings.agents.errorDuplicateId"));
       return;
     }
 
-    const nextEnv = parseEnvJson(envRaw);
+    const nextEnv = parseEnvJson(dialogEnvRaw);
     if (!nextEnv) {
       toast.error(t("settings.agents.errorEnvJson"));
       return;
     }
 
-    const nextArgs = argsRaw.split(/\s+/).filter(Boolean);
-    const nextEditForm = { ...editForm, env: nextEnv, args: nextArgs };
-    const updated = agents.map((a) => (a.id === editingId ? nextEditForm : a));
+    const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
+    const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
+
+    let updated: SettingsInfo["agents"];
+    if (isNew) {
+      updated = [...agents, finalItem];
+    } else {
+      updated = agents.map((a) => (a.id === dialogOriginalId ? finalItem : a));
+    }
+
     setAgents(updated);
-    setEditingId(null);
-    setEditForm(null);
+    setDialogOpen(false);
+    setDialogItem(null);
+    setDialogOriginalId(null);
     await handleSave(updated);
   };
 
-  const handleCancelEdit = () => {
-    // If the cancelled edit was a brand-new unsaved agent, remove it from the list
-    if (editingId && editingId.startsWith("__new_agent_")) {
-      setAgents(agents.filter((a) => a.id !== editingId));
-    }
-    setEditingId(null);
-    setEditForm(null);
+  const handleDialogCancel = () => {
+    setDialogOpen(false);
+    setDialogItem(null);
+    setDialogOriginalId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    const updated = agents.filter((a) => a.id !== id);
+    setAgents(updated);
+    await handleSave(updated);
+  };
+
+  const handleToggleDisabled = async (id: string, disabled: boolean) => {
+    const updated = agents.map((a) => (a.id === id ? { ...a, disabled } : a));
+    setAgents(updated);
+    await handleSave(updated);
   };
 
   return (
@@ -151,7 +174,7 @@ export function SettingsAgents() {
           <Button
             variant="outline"
             size="xs"
-            onClick={handleAdd}
+            onClick={openAddDialog}
             className="h-7 text-xs text-foreground/70"
           >
             <Plus className="mr-1 size-3" />
@@ -160,130 +183,47 @@ export function SettingsAgents() {
         </div>
         <div className="border-t border-border -mx-4"></div>
       </div>
+
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
-          <div className="space-y-1.5 m-3 pb-6">
+          <div className="space-y-3 m-3 pb-6">
             {agents.map((agent) => (
-              <div
-                key={agent.id}
-                className="flex items-center justify-between rounded-lg border p-1.5 text-sm bg-secondary/50"
-              >
-                {editingId === agent.id && editForm ? (
-                  <div className="flex w-full flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label
-                        htmlFor={`agent-id-${agent.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.agents.agentId")}
-                      </label>
-                      <Input
-                        id={`agent-id-${agent.id}`}
-                        placeholder={t("settings.agents.agentId")}
-                        value={editForm.id}
-                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                        className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex flex-1 flex-col gap-1">
-                        <label
-                          htmlFor={`agent-command-${agent.id}`}
-                          className="text-[11px] text-muted-foreground"
+              <ContextMenu key={agent.id}>
+                <ContextMenuTrigger>
+                  <div className="flex items-center justify-between rounded-lg border p-1.5 h-10 text-sm bg-secondary/50 cursor-default select-none">
+                    <div className="flex w-full flex-row items-center gap-2">
+                      <div className="flex min-w-8 truncate">
+                        <span
+                          className={`font-bold text-xs ml-1 truncate max-w-24 select-none ${agent.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                         >
-                          {t("settings.agents.command")}
-                        </label>
-                        <Input
-                          id={`agent-command-${agent.id}`}
-                          placeholder={t("settings.agents.command")}
-                          value={editForm.command}
-                          onChange={(e) => setEditForm({ ...editForm, command: e.target.value })}
-                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                        />
+                          {agent.id}
+                        </span>
                       </div>
-                      <div className="flex flex-1 flex-col gap-1">
-                        <label
-                          htmlFor={`agent-args-${agent.id}`}
-                          className="text-[11px] text-muted-foreground"
-                        >
-                          {t("settings.agents.args")}
-                        </label>
-                        <Input
-                          id={`agent-args-${agent.id}`}
-                          placeholder={t("settings.agents.args")}
-                          value={argsRaw}
-                          onChange={(e) => setArgsRaw(e.target.value)}
-                          className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
+                        {[agent.command, ...(agent.args || [])].join(" ")}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Switch
+                          size="sm"
+                          checked={!agent.disabled}
+                          onCheckedChange={(checked) => handleToggleDisabled(agent.id, !checked)}
                         />
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label
-                        htmlFor={`agent-env-${agent.id}`}
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.agents.envVars")}
-                      </label>
-                      <Textarea
-                        id={`agent-env-${agent.id}`}
-                        placeholder={t("settings.agents.envJson")}
-                        value={envRaw}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEnvRaw(val);
-                          const nextEnv = parseEnvJson(val);
-                          if (nextEnv) {
-                            setEditForm({ ...editForm, env: nextEnv });
-                          }
-                        }}
-                        className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 mt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                        className="h-7 text-xs"
-                      >
-                        {t("settings.agents.cancel")}
-                      </Button>
-                      <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
-                        {t("settings.agents.save")}
-                      </Button>
-                    </div>
                   </div>
-                ) : (
-                  <div className="flex w-full flex-row items-center gap-2">
-                    <div className="flex min-w-8 truncate">
-                      <span className="font-bold text-xs ml-1 truncate max-w-24 select-none">
-                        {agent.id}
-                      </span>
-                    </div>
-                    <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                      {[agent.command, ...(agent.args || [])].join(" ")}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 opacity-50">
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 text-foreground/80"
-                        onClick={() => handleEdit(agent)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 text-destructive/80 hover:text-destructive"
-                        onClick={() => handleDelete(agent.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-32">
+                  <ContextMenuItem onClick={() => openEditDialog(agent)}>
+                    <Pencil className="size-3" />
+                    {t("common.edit", "Edit")}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem variant="destructive" onClick={() => handleDelete(agent.id)}>
+                    <Trash2 className="size-3" />
+                    {t("common.delete", "Delete")}
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {agents.length === 0 && (
               <div className="py-8 text-center text-sm text-muted-foreground">
@@ -293,6 +233,96 @@ export function SettingsAgents() {
           </div>
         </div>
       </ScrollArea>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {dialogOriginalId
+                ? t("settings.agents.editAgent", "Edit Agent")
+                : t("settings.agents.addAgent", "Add Agent")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                "settings.agents.dialogDesc",
+                "Configure the agent ID, command, arguments and environment variables.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {dialogItem && (
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-muted-foreground">
+                  {t("settings.agents.agentId")}
+                </label>
+                <Input
+                  placeholder={t("settings.agents.agentId")}
+                  value={dialogItem.id}
+                  onChange={(e) => setDialogItem({ ...dialogItem, id: e.target.value })}
+                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.command")}
+                  </label>
+                  <Input
+                    placeholder={t("settings.agents.command")}
+                    value={dialogItem.command}
+                    onChange={(e) => setDialogItem({ ...dialogItem, command: e.target.value })}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.args")}
+                  </label>
+                  <Input
+                    placeholder={t("settings.agents.args")}
+                    value={dialogArgsRaw}
+                    onChange={(e) => setDialogArgsRaw(e.target.value)}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-muted-foreground">
+                  {t("settings.agents.envVars")}
+                </label>
+                <Textarea
+                  placeholder={t("settings.agents.envJson")}
+                  value={dialogEnvRaw}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDialogEnvRaw(val);
+                    const nextEnv = parseEnvJson(val);
+                    if (nextEnv) {
+                      setDialogItem({ ...dialogItem, env: nextEnv });
+                    }
+                  }}
+                  className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDialogCancel}
+              className="h-7 text-xs"
+            >
+              {t("settings.agents.cancel")}
+            </Button>
+            <Button size="sm" onClick={handleDialogSave} className="h-7 text-xs">
+              {t("settings.agents.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

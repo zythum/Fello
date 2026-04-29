@@ -55,12 +55,9 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
-  const kindIcon = message.kind ? kindIcons[message.kind] : null;
+  const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
   return (
-    <details
-      className="text-xs min-w-0 overflow-hidden group"
-      open={(message.content && message.content.length > 0) || message.terminalId != null}
-    >
+    <details className="text-xs min-w-0 overflow-hidden group" open={false}>
       <summary className="flex select-none items-center gap-2 px-2.5 py-2 hover:bg-secondary group-open:bg-secondary">
         {kindIcon}
         <span className="min-w-0 flex-1 font-normal text-foreground truncate">

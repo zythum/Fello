@@ -38,6 +38,8 @@ export interface SettingAgentInfo {
   args: string[];
   /** 运行该代理时需要的环境变量字典 */
   env: Record<string, string>;
+  /** 是否停用代理 */
+  disabled: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ export interface SettingMcpServerInfo {
   command: string;
   args: string[];
   env: Record<string, string>;
+  disabled: boolean;
 }
 
 /**

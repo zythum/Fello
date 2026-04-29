@@ -71,6 +71,11 @@ export function Sidebar() {
     sessionStates,
     webUIStatus,
   } = useAppStore();
+
+  const enabledAgents = useMemo(
+    () => configuredAgents.filter((a) => !a.disabled),
+    [configuredAgents],
+  );
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openAgentMenuProjectId, setOpenAgentMenuProjectId] = useState<string | null>(null);
@@ -393,7 +398,7 @@ export function Sidebar() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {configuredAgents.length > 1 ? (
+                  {enabledAgents.length > 1 ? (
                     <DropdownMenu
                       onOpenChange={(open) => {
                         setOpenAgentMenuProjectId((prev) =>
@@ -421,7 +426,7 @@ export function Sidebar() {
                         onClick={(e) => e.stopPropagation()}
                         className="w-28"
                       >
-                        {configuredAgents.map((agent) => (
+                        {enabledAgents.map((agent) => (
                           <DropdownMenuItem
                             key={agent.id}
                             onClick={() => {
@@ -440,8 +445,8 @@ export function Sidebar() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (configuredAgents.length === 1) {
-                          void handleNewChat(project.id, configuredAgents[0].id);
+                        if (enabledAgents.length === 1) {
+                          void handleNewChat(project.id, enabledAgents[0].id);
                         } else {
                           handleNavigate("/settings/agents");
                         }

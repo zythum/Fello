@@ -314,7 +314,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
             <div
               key={group.key}
               className={cn(
-                "message-group max-w-3xl mx-auto flex flex-col relative pointer-events-none px-10",
+                "message-group max-w-5xl mx-auto flex flex-col relative pointer-events-none px-10",
                 {
                   "pt-4": !isFirstGroup,
                   "min-h-full": isLastGroup,

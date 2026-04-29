@@ -66,7 +66,7 @@ function buildMcpServersConfig(sessionMcpIds: string[]): McpServer[] {
 
   for (const id of sessionMcpIds) {
     const config = globalSettings.mcpServers?.find((s) => s.id === id);
-    if (config) {
+    if (config && !config.disabled) {
       servers.push({
         name: id,
         command: config.command,
@@ -572,9 +572,11 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
 
-    // Extract all global MCP servers
+    // Extract enabled global MCP servers
     const globalSettings = storageOps.getSettings();
-    const sessionMcpIds = (globalSettings.mcpServers || []).map((s) => s.id);
+    const sessionMcpIds = (globalSettings.mcpServers || [])
+      .filter((s) => !s.disabled)
+      .map((s) => s.id);
     const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
 
     const {

@@ -31,6 +31,7 @@ interface SettingsMeta {
       command: string;
       args: string[];
       env: Record<string, string>;
+      disabled: boolean;
     };
   };
   theme: {
@@ -44,6 +45,7 @@ interface SettingsMeta {
       command: string;
       args: string[];
       env: Record<string, string>;
+      disabled: boolean;
     };
   };
 }
@@ -110,8 +112,8 @@ function readSettings(): SettingsMeta {
           }
           return nextEnv;
         })();
-
-        next[id] = { command, args, env };
+        const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
+        next[id] = { command, args, env, disabled };
       }
       return next;
     })();
@@ -149,7 +151,8 @@ function readSettings(): SettingsMeta {
           }
           return nextEnv;
         })();
-        next[id] = { command, args, env };
+        const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
+        next[id] = { command, args, env, disabled };
       }
       return next;
     })();
@@ -340,6 +343,7 @@ export const storageOps = {
           command: agentMeta.command,
           args: agentMeta.args.slice(),
           env: Object.assign({}, agentMeta.env),
+          disabled: agentMeta.disabled,
         };
       }),
       mcpServers: Object.entries(meta.mcpServers).map(([id, srvMeta]) => {
@@ -348,6 +352,7 @@ export const storageOps = {
           command: srvMeta.command,
           args: srvMeta.args.slice(),
           env: Object.assign({}, srvMeta.env),
+          disabled: srvMeta.disabled,
         };
       }),
       i18n: {
@@ -372,6 +377,7 @@ export const storageOps = {
             command: agent.command,
             args: agent.args.slice(),
             env: Object.assign({}, agent.env),
+            disabled: agent.disabled,
           };
         }
         return nextAgents;
@@ -402,6 +408,7 @@ export const storageOps = {
             command: srv.command,
             args: srv.args.slice(),
             env: Object.assign({}, srv.env),
+            disabled: srv.disabled,
           };
         }
         return nextMcpServers;

@@ -89,17 +89,17 @@ export function SkillsSkillsSh() {
       {/* Search Bar */}
       <div className="p-4 w-full max-w-4xl mx-auto">
         <div className="relative z-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder={t("skills.searchPlaceholder")}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="pl-9 h-10 bg-accent focus-visible:ring-0.5"
-          autoFocus
-        />
-        {isLoading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-        )}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder={t("skills.searchPlaceholder")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9 h-10 bg-accent focus-visible:ring-0.5"
+            autoFocus
+          />
+          {isLoading && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+          )}
         </div>
       </div>
 

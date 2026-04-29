@@ -427,8 +427,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   );
 
   return (
-    <div className="p-4 -mt-4 relative">
-      <div className="mx-auto max-w-200">
+    <div className="p-6 -mt-6 relative">
+      <div className="mx-auto max-w-5xl">
         <div
           ref={containerRef}
           className={`rounded-lg border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${
