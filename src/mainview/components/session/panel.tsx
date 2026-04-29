@@ -41,7 +41,7 @@ export function Panel({ open, children, className }: PanelProps) {
     <>
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 top-11 -mt-px flex flex-col border-t border-border bg-background overflow-hidden transition-transform duration-300 ease-in-out",
+          "absolute bottom-0 left-0 right-0 top-11 -mt-px flex flex-col border-t border-border bg-background overflow-hidden transition-transform duration-300 ease-in-out transform-gpu",
           isVisible ? "z-10 translate-y-0" : "z-9 translate-y-full",
           className,
         )}
