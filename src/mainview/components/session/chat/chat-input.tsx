@@ -149,9 +149,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const customEvent = e as CustomEvent;
       const nodes = customEvent.detail as { id: string; name: string; isFolder: boolean }[];
       if (!nodes || nodes.length === 0) return;
-      const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
+      const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
       setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
-
       // Focus the textarea
       requestAnimationFrame(() => {
         containerRef.current?.querySelector("textarea")?.focus();
@@ -405,7 +404,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       try {
         const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
         if (nodes.length === 0) return;
-        const mentions = nodes.map((n) => `@[${n.name}](${n.id})`).join(" ");
+        const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
         setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
         // Focus the textarea after drop

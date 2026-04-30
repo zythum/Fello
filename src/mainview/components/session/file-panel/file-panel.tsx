@@ -1479,17 +1479,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
 
   return (
     <ResizablePanelGroup className="flex h-full min-h-0">
-      <ResizablePanel
-        groupResizeBehavior="preserve-pixel-size"
-        defaultSize={200}
-        minSize={200}
-        maxSize={500}
-        className="flex h-full min-h-0"
-        id="file-tree"
-      >
-        {treeContent}
-      </ResizablePanel>
-      <ResizableHandle className="bg-border/70" />
       <ResizablePanel className="flex h-full min-h-0 bg-background" id="file-preview">
         {file ? (
           <FilePreview projectId={projectId} file={file} />
@@ -1503,6 +1492,17 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
             </div>
           </div>
         )}
+      </ResizablePanel>
+      <ResizableHandle className="bg-border/70" />
+      <ResizablePanel
+        groupResizeBehavior="preserve-pixel-size"
+        defaultSize={200}
+        minSize={200}
+        maxSize={500}
+        className="flex h-full min-h-0"
+        id="file-tree"
+      >
+        {treeContent}
       </ResizablePanel>
     </ResizablePanelGroup>
   );

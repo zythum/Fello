@@ -46,6 +46,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
 
   const [filesOpen, setFilesOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const panelOpen = filesOpen || terminalOpen;
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [previewFile, setPreviewFile] = useState<string | null>(null);
@@ -340,53 +341,46 @@ export function SessionView({ session }: { session: SessionInfo }) {
             </div>
           </div>
 
-          <Chat session={session} />
-          {(isLoading || isCreatingSession) && (
-            <div className="absolute inset-0 top-12 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
-              <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm font-normal text-foreground/50">
-                {t("sessionView.connecting")}
-              </p>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      <Panel open={filesOpen}>
-        <div className="h-full relative overflow-hidden">
-          <div className="h-full overflow-hidden bg-background">
-            {currentProjectId && <FilePanel projectId={currentProjectId} file={previewFile} />}
-          </div>
-          <div className="absolute right-2.5 top-1.5 z-10">
-            <button
-              type="button"
-              onClick={() => setFilesOpen(false)}
-              className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
+          <div className="relative flex flex-1 min-h-0 overflow-hidden">
+            <div
+              className={cn(
+                "relative flex h-full min-h-0 flex-col flex-none w-full duration-350 ease-in-out",
+                "min-[1400px]:transition-[width]",
+                panelOpen ? "min-[1400px]:w-[480px]" : "min-[1400px]:w-full",
+              )}
             >
-              <ChevronDown className="size-4" />
-            </button>
-          </div>
-        </div>
-      </Panel>
+              <Chat session={session} />
+            </div>
 
-      <Panel open={terminalOpen}>
-        <div className="h-full relative overflow-hidden">
-          <div className="h-full overflow-hidden bg-background">
-            {currentProjectId && (
-              <TerminalPanel isActive={terminalOpen} projectId={currentProjectId} />
+            <Panel open={filesOpen} className="min-[1400px]:left-[480px]">
+              <div className="h-full relative overflow-hidden">
+                <div className="h-full overflow-hidden bg-background">
+                  {currentProjectId && <FilePanel projectId={currentProjectId} file={previewFile} />}
+                </div>
+              </div>
+            </Panel>
+
+            <Panel open={terminalOpen} className="min-[1400px]:left-[480px] min-[1600px]:border-l min-[1600px]:border-t-0">
+              <div className="h-full relative overflow-hidden">
+                <div className="h-full overflow-hidden bg-background">
+                  {currentProjectId && (
+                    <TerminalPanel isActive={terminalOpen} projectId={currentProjectId} />
+                  )}
+                </div>
+              </div>
+            </Panel>
+
+            {(isLoading || isCreatingSession) && (
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
+                <Loader2 className="size-8 animate-spin text-primary" />
+                <p className="text-sm font-normal text-foreground/50">
+                  {t("sessionView.connecting")}
+                </p>
+              </div>
             )}
           </div>
-          <div className="absolute right-2.5 top-1.5 z-10">
-            <button
-              type="button"
-              onClick={() => setTerminalOpen(false)}
-              className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors"
-            >
-              <ChevronDown className="size-4" />
-            </button>
-          </div>
         </div>
-      </Panel>
+      ) : null}
     </main>
   );
 }

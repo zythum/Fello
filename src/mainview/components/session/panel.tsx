@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface PanelProps {
@@ -10,29 +10,42 @@ interface PanelProps {
 export function Panel({ open, children, className }: PanelProps) {
   const [isRendered, setIsRendered] = useState(open);
   const [isVisible, setIsVisible] = useState(false);
-  const timerRef = useRef<any>(null);
+  const durationMs = 350;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
     if (open) {
       setIsRendered(true);
-      // Ensure the element is rendered before triggering the animation
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+    } else {
+      setIsVisible(false);
+      timerRef.current = setTimeout(() => setIsRendered(false), durationMs);
+    }
+
+    return () => {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      timerRef.current = setTimeout(() => {
-        setIsVisible(true);
-      }, 100);
-    } else {
-      setIsVisible(false);
-      timerRef.current = setTimeout(() => setIsRendered(false), 300); // match transition duration
-      return () => {
-        if (timerRef.current !== null) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-      };
-    }
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
   }, [open]);
 
   if (!isRendered) return null;
@@ -41,8 +54,10 @@ export function Panel({ open, children, className }: PanelProps) {
     <>
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 top-11 -mt-px flex flex-col border-t border-border bg-background overflow-hidden transition-transform duration-300 ease-in-out transform-gpu",
-          isVisible ? "z-10 translate-y-0" : "z-9 translate-y-full",
+          "absolute inset-0 flex -m-px flex-col border-t border-l border-border bg-background overflow-hidden transition-all duration-350 ease-in-out",
+          isVisible
+            ? "z-10 translate-y-0 min-[1400px]:translate-y-0 min-[1400px]:translate-x-0"
+            : "z-9 translate-y-full min-[1400px]:translate-y-0 min-[1400px]:translate-x-full",
           className,
         )}
       >
