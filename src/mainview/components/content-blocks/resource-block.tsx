@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Download, FileText, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { downloadDataUrl, getBasename } from "../../lib/utils";
 import { StreamMarkdown } from "../common/stream-markdown";
 import { request } from "../../backend";
@@ -39,8 +40,12 @@ const TextResourceBlock = memo(function TextResourceBlock({
 
   return (
     <Card className="group shadow-none">
-      <details>
-        <summary className="flex h-8 cursor-pointer items-center gap-1 py-1 px-2 hover:bg-muted/50 select-none">
+      <Collapsible>
+        <CollapsibleTrigger
+          render={<div />}
+          nativeButton={false}
+          className="flex h-8 cursor-pointer items-center gap-1 py-1 px-2 hover:bg-muted/50 select-none"
+        >
           <FileText className="size-3.5 text-blue-400 shrink-0" />
           <span className="text-xs font-medium min-w-40 truncate flex-1">
             {getBasename(resource.uri)}
@@ -51,17 +56,18 @@ const TextResourceBlock = memo(function TextResourceBlock({
             className="shrink-0 opacity-30 group-hover:opacity-60 transition-opacity"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               handleDownload();
             }}
             title={t("contentBlock.download")}
           >
             <Download className="size-3.5" />
           </Button>
-        </summary>
-        <div className="p-2 border-t border-border bg-muted/20">
+        </CollapsibleTrigger>
+        <CollapsibleContent className="p-2 border-t border-border bg-muted/20">
           <StreamMarkdown>{resource.text}</StreamMarkdown>
-        </div>
-      </details>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 });

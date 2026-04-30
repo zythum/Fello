@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, Pickaxe, CircleSmall, ChevronUp, ChevronDown, Minus, Notebook } from "lucide-react";
 import type { BaseBubbleProps } from "./types";
 import type { PlanMessage } from "../../../../lib/chat-message";
@@ -17,14 +18,14 @@ export const PlanBubble = memo(function PlanBubble({
   const completed = message.entries?.filter((e) => e.status === "completed").length || 0;
 
   return (
-    <details
+    <Collapsible
       className={cn(
         "border border-border bg-card rounded-md pointer-events-auto",
         prevBubbleRole != null && "mt-4",
       )}
-      open
+      defaultOpen
     >
-      <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
+      <CollapsibleTrigger className="w-full bg-transparent border-0 flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
         <Notebook className="size-3 text-muted-foreground" />
         <span className="flex-1 text-foreground">{t("planBubble.title")}</span>
         {total > 0 && (
@@ -32,9 +33,9 @@ export const PlanBubble = memo(function PlanBubble({
             {t("planBubble.summary", { completed, total })}
           </span>
         )}
-      </summary>
+      </CollapsibleTrigger>
       {total > 0 && (
-        <div className="border-t border-border px-3 py-2">
+        <CollapsibleContent className="border-t border-border px-3 py-2">
           <div className="flex flex-col gap-3">
             {message.entries.map((entry, idx) => (
               <div key={idx} className="flex items-start gap-2 text-xs">
@@ -81,8 +82,8 @@ export const PlanBubble = memo(function PlanBubble({
               </div>
             ))}
           </div>
-        </div>
+        </CollapsibleContent>
       )}
-    </details>
+    </Collapsible>
   );
 });
