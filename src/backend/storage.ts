@@ -34,6 +34,7 @@ interface SettingsMeta {
       args: string[];
       env: Record<string, string>;
       disabled: boolean;
+      order: number;
     };
   };
   theme: {
@@ -48,6 +49,7 @@ interface SettingsMeta {
       args: string[];
       env: Record<string, string>;
       disabled: boolean;
+      order: number;
     };
   };
 }
@@ -118,7 +120,8 @@ function readSettings(): SettingsMeta {
           return nextEnv;
         })();
         const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
-        next[id] = { command, args, env, disabled };
+        const order = typeof cfg?.order === "number" ? cfg.order : 0;
+        next[id] = { command, args, env, disabled, order };
       }
       return next;
     })();
@@ -157,7 +160,8 @@ function readSettings(): SettingsMeta {
           return nextEnv;
         })();
         const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
-        next[id] = { command, args, env, disabled };
+        const order = typeof cfg?.order === "number" ? cfg.order : 0;
+        next[id] = { command, args, env, disabled, order };
       }
       return next;
     })();
@@ -347,24 +351,28 @@ export const storageOps = {
   getSettings(): SettingsInfo {
     const meta = readSettings();
     return {
-      agents: Object.entries(meta.agents).map(([id, agentMeta]) => {
-        return {
-          id,
-          command: agentMeta.command,
-          args: agentMeta.args.slice(),
-          env: Object.assign({}, agentMeta.env),
-          disabled: agentMeta.disabled,
-        };
-      }),
-      mcpServers: Object.entries(meta.mcpServers).map(([id, srvMeta]) => {
-        return {
-          id,
-          command: srvMeta.command,
-          args: srvMeta.args.slice(),
-          env: Object.assign({}, srvMeta.env),
-          disabled: srvMeta.disabled,
-        };
-      }),
+      agents: Object.entries(meta.agents)
+        .map(([id, agentMeta]) => {
+          return {
+            id,
+            command: agentMeta.command,
+            args: agentMeta.args.slice(),
+            env: Object.assign({}, agentMeta.env),
+            disabled: agentMeta.disabled,
+          };
+        })
+        .sort((a, b) => meta.agents[a.id].order - meta.agents[b.id].order),
+      mcpServers: Object.entries(meta.mcpServers)
+        .map(([id, srvMeta]) => {
+          return {
+            id,
+            command: srvMeta.command,
+            args: srvMeta.args.slice(),
+            env: Object.assign({}, srvMeta.env),
+            disabled: srvMeta.disabled,
+          };
+        })
+        .sort((a, b) => meta.mcpServers[a.id].order - meta.mcpServers[b.id].order),
       i18n: {
         language: meta.i18n.language,
       },
@@ -382,14 +390,15 @@ export const storageOps = {
           return prevMeta.agents;
         }
         const nextAgents: SettingsMeta["agents"] = {};
-        for (const agent of settings.agents) {
+        settings.agents.forEach((agent, idx) => {
           nextAgents[agent.id] = {
             command: agent.command,
             args: agent.args.slice(),
             env: Object.assign({}, agent.env),
             disabled: agent.disabled,
+            order: idx,
           };
-        }
+        });
         return nextAgents;
       })(),
       i18n: (() => {
@@ -413,14 +422,15 @@ export const storageOps = {
           return prevMeta.mcpServers;
         }
         const nextMcpServers: SettingsMeta["mcpServers"] = {};
-        for (const srv of settings.mcpServers) {
+        settings.mcpServers.forEach((srv, idx) => {
           nextMcpServers[srv.id] = {
             command: srv.command,
             args: srv.args.slice(),
             env: Object.assign({}, srv.env),
             disabled: srv.disabled,
+            order: idx,
           };
-        }
+        });
         return nextMcpServers;
       })(),
     };

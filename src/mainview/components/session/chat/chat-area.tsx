@@ -291,7 +291,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
         />
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 w-full transform-gpu">
         {messageGroups.map((group, groupIndex) => {
           const isFirstGroup = groupIndex === 0;
           const isLastGroup = groupIndex === messageGroups.length - 1;

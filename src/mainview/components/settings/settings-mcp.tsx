@@ -26,6 +26,58 @@ import {
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../providers/message";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+
+function McpSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : "auto" as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-center gap-1 w-full">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
+          title="Drag to reorder"
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function parseEnvJson(raw: string): Record<string, string> | null {
   const trimmed = raw.trim();
@@ -156,6 +208,32 @@ export function SettingsMcp() {
     await handleSave(updated);
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = mcpServers.findIndex((a) => a.id === active.id);
+      const newIndex = mcpServers.findIndex((a) => a.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const updated = [...mcpServers];
+        const [moved] = updated.splice(oldIndex, 1);
+        updated.splice(newIndex, 0, moved);
+        setMcpServers(updated);
+        await handleSave(updated);
+      }
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="px-5 py-4 w-full max-w-4xl mx-auto">
@@ -186,44 +264,57 @@ export function SettingsMcp() {
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
           <div className="space-y-3 m-3 pb-6">
-            {mcpServers.map((mcp) => (
-              <ContextMenu key={mcp.id}>
-                <ContextMenuTrigger>
-                  <div className="flex items-center justify-between rounded-lg border p-1.5 h-10 text-sm bg-secondary/50 cursor-default select-none">
-                    <div className="flex w-full flex-row items-center gap-2">
-                      <div className="flex min-w-8 truncate">
-                        <span
-                          className={`font-bold text-xs ml-1 truncate max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
-                        >
-                          {mcp.id}
-                        </span>
-                      </div>
-                      <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                        {[mcp.command, ...(mcp.args || [])].join(" ")}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Switch
-                          size="sm"
-                          checked={!mcp.disabled}
-                          onCheckedChange={(checked) => handleToggleDisabled(mcp.id, !checked)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-32">
-                  <ContextMenuItem onClick={() => openEditDialog(mcp)}>
-                    <Pencil className="size-3" />
-                    {t("common.edit", "Edit")}
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem variant="destructive" onClick={() => handleDelete(mcp.id)}>
-                    <Trash2 className="size-3" />
-                    {t("common.delete", "Delete")}
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={mcpServers.map((a) => a.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {mcpServers.map((mcp) => (
+                  <McpSortableItem key={mcp.id} id={mcp.id}>
+                    <ContextMenu>
+                      <ContextMenuTrigger>
+                        <div className="flex items-center justify-between rounded-lg border p-1.5 h-10 text-sm bg-secondary/50 cursor-default select-none">
+                          <div className="flex w-full flex-row items-center gap-2">
+                            <div className="flex min-w-8 truncate">
+                              <span
+                                className={`font-bold text-xs ml-1 truncate max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
+                              >
+                                {mcp.id}
+                              </span>
+                            </div>
+                            <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
+                              {[mcp.command, ...(mcp.args || [])].join(" ")}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Switch
+                                size="sm"
+                                checked={!mcp.disabled}
+                                onCheckedChange={(checked) => handleToggleDisabled(mcp.id, !checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-32">
+                        <ContextMenuItem onClick={() => openEditDialog(mcp)}>
+                          <Pencil className="size-3" />
+                          {t("common.edit", "Edit")}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem variant="destructive" onClick={() => handleDelete(mcp.id)}>
+                          <Trash2 className="size-3" />
+                          {t("common.delete", "Delete")}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  </McpSortableItem>
+                ))}
+              </SortableContext>
+            </DndContext>
             {mcpServers.length === 0 && (
               <div className="py-8 text-center text-sm text-muted-foreground">
                 {t("settings.mcp.noMcpServers", "No MCP servers configured")}
