@@ -238,7 +238,7 @@
     "fallbackAlt": "图片"
   },
   "readonlyTerminal": {
-    "waitingForOutput": "等待输出..."
+    "noOutput": "无输出."
   },
   "message": {
     "validationFailed": "验证失败",

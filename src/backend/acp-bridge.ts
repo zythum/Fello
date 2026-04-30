@@ -42,6 +42,7 @@ import type {
   CancelNotification,
 } from "@agentclientprotocol/sdk";
 import { AgentTerminalManager } from "./agent-terminal-manager";
+import { WORKSPACE_TEMP_DIR } from "./storage";
 
 export type SessionUpdateCallback = (update: SessionNotification) => void;
 export type PermissionRequestCallback = (
@@ -127,7 +128,7 @@ export class ACPBridge {
     const shouldDetach = process.platform !== "win32";
     const proc = spawn(this.options.command, this.options.args, {
       stdio: ["pipe", "pipe", "inherit"],
-      cwd: process.cwd(),
+      cwd: WORKSPACE_TEMP_DIR,
       env: { ...process.env, ...this.options.env },
       detached: shouldDetach,
     });

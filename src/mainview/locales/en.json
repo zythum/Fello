@@ -238,7 +238,7 @@
     "fallbackAlt": "Image"
   },
   "readonlyTerminal": {
-    "waitingForOutput": "Waiting for output..."
+    "noOutput": "No output"
   },
   "message": {
     "validationFailed": "Validation failed",

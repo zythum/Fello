@@ -12,7 +12,7 @@ export function AgentTerminalOutput({
 }) {
   const { t } = useTranslation();
   const sessionState = useAppStore((state) => state.getSessionState(sessionId));
-  const log = sessionState?.terminalLogs?.[terminalId] || "";
+  const log = sessionState?.terminalLogs?.[terminalId];
   const setTerminalLog = useAppStore((state) => state.setTerminalLog);
   const containerRef = useRef<HTMLPreElement>(null);
   const [hasFetched, setHasFetched] = useState(false);
@@ -41,7 +41,7 @@ export function AgentTerminalOutput({
       ref={containerRef}
       className="max-h-75 bg-sidebar text-foreground/80 p-2 whitespace-pre-wrap break-all font-mono text-xs overflow-auto"
     >
-      <code>{log || t("readonlyTerminal.waitingForOutput")}</code>
+      <code>{log ?? t("readonlyTerminal.noOutput")}</code>
     </pre>
   );
 }

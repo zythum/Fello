@@ -24,6 +24,8 @@ import type {
 
 export const FELLO_DIR = join(homedir(), ".fello");
 export const PROJECTS_DIR = join(FELLO_DIR, "projects");
+export const WORKSPACES_DIR = join(FELLO_DIR, "workspaces");
+export const WORKSPACE_TEMP_DIR = join(WORKSPACES_DIR, "__temp__");
 
 interface SettingsMeta {
   agents: {
@@ -82,6 +84,8 @@ interface SessionMeta {
 }
 
 mkdirSync(PROJECTS_DIR, { recursive: true });
+mkdirSync(WORKSPACES_DIR, { recursive: true });
+mkdirSync(WORKSPACE_TEMP_DIR, { recursive: true });
 
 function settingsPath() {
   return join(FELLO_DIR, "settings.json");
