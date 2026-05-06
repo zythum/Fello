@@ -11,10 +11,11 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "pack:mac": "electron-vite build && electron-builder --mac",
+    "prepare:icon:mac": "rm -rf icons/fello.iconset && mkdir -p icons/fello.iconset && sips -z 16 16 icons/fello.png --out icons/fello.iconset/icon_16x16.png && sips -z 32 32 icons/fello.png --out icons/fello.iconset/icon_16x16@2x.png && sips -z 32 32 icons/fello.png --out icons/fello.iconset/icon_32x32.png && sips -z 64 64 icons/fello.png --out icons/fello.iconset/icon_32x32@2x.png && sips -z 128 128 icons/fello.png --out icons/fello.iconset/icon_128x128.png && sips -z 256 256 icons/fello.png --out icons/fello.iconset/icon_128x128@2x.png && sips -z 256 256 icons/fello.png --out icons/fello.iconset/icon_256x256.png && sips -z 512 512 icons/fello.png --out icons/fello.iconset/icon_256x256@2x.png && sips -z 512 512 icons/fello.png --out icons/fello.iconset/icon_512x512.png && sips -z 1024 1024 icons/fello.png --out icons/fello.iconset/icon_512x512@2x.png && iconutil -c icns icons/fello.iconset -o icons/fello.icns",
+    "pack:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac",
     "pack:win": "electron-vite build && electron-builder --win",
     "pack:linux": "electron-vite build && electron-builder --linux",
-    "release:mac": "electron-vite build && electron-builder --mac --publish always",
+    "release:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --publish always",
     "release:linux": "electron-vite build && electron-builder --linux --publish always",
     "preview": "electron-vite preview",
     "format": "oxfmt --write \"src/**/*.{ts,tsx}\"",
@@ -28,7 +29,7 @@
       "output": "dist"
     },
     "mac": {
-      "icon": "icons/fello.icon",
+      "icon": "icons/fello.icns",
       "target": [
         "dmg",
         "zip"
