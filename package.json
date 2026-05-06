@@ -82,7 +82,6 @@
     "fuse.js": "^7.3.0",
     "mime-types": "^3.0.2",
     "node-pty": "^1.1.0",
-    "react-router-dom": "^7.14.1",
     "ws": "^8.20.0",
     "yaml": "^2.8.3",
     "zod": "^4.3.6"
@@ -125,6 +124,7 @@
     "react-i18next": "^17.0.4",
     "react-mentions": "^4.4.10",
     "react-resizable-panels": "^4.10.0",
+    "react-router-dom": "^7.14.1",
     "remark-breaks": "^4.0.0",
     "shadcn": "^4.3.0",
     "sonner": "^2.0.7",
