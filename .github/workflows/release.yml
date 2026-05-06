@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13
+          - os: macos-15-intel
             script: npm run release:mac:x64
           - os: macos-latest
             script: npm run release:mac:arm64
