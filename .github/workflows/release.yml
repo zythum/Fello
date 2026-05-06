@@ -15,8 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: macos-13
+            script: npm run release:mac:x64
           - os: macos-latest
-            script: npm run release:mac
+            script: npm run release:mac:arm64
           - os: windows-latest
             script: npm run release:win
           - os: ubuntu-latest

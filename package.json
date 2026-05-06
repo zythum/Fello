@@ -16,6 +16,8 @@
     "pack:win": "electron-vite build && electron-builder --win",
     "pack:linux": "electron-vite build && electron-builder --linux",
     "release:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --publish always",
+    "release:mac:x64": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --x64 --publish always",
+    "release:mac:arm64": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --arm64 --publish always",
     "release:win": "electron-vite build && electron-builder --win --publish always",
     "release:linux": "electron-vite build && electron-builder --linux --publish always",
     "preview": "electron-vite preview",
