@@ -8,7 +8,7 @@ import {
   nativeTheme,
   MenuItemConstructorOptions,
 } from "electron";
-import { autoUpdater } from "electron-updater";
+import electronUpdater from "electron-updater";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -18,6 +18,7 @@ import { storageOps } from "../backend/storage";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
+const { autoUpdater } = electronUpdater;
 
 if (isDev) {
   app.commandLine.appendSwitch("no-sandbox");
