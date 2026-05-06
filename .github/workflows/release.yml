@@ -30,13 +30,20 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: ${{ matrix.script }}
+      - name: Build and publish (optional signing)
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          if [[ -n "${{ secrets.CSC_LINK }}" ]]; then
+            echo "Code signing enabled"
+            export CSC_LINK="${{ secrets.CSC_LINK }}"
+            export CSC_KEY_PASSWORD="${{ secrets.CSC_KEY_PASSWORD }}"
+            export APPLE_ID="${{ secrets.APPLE_ID }}"
+            export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+          else
+            echo "Code signing disabled (CSC_LINK not set)"
+          fi
 
-          # Optional: code signing and notarization for macOS.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ${{ matrix.script }}
