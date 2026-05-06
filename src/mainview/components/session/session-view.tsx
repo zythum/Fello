@@ -11,7 +11,6 @@ import {
   SquareTerminal,
   MoreHorizontal,
   RefreshCw,
-  ChevronDown,
 } from "lucide-react";
 import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../backend";

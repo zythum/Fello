@@ -14,6 +14,8 @@
     "pack:mac": "electron-vite build && electron-builder --mac",
     "pack:win": "electron-vite build && electron-builder --win",
     "pack:linux": "electron-vite build && electron-builder --linux",
+    "release:mac": "electron-vite build && electron-builder --mac --publish always",
+    "release:linux": "electron-vite build && electron-builder --linux --publish always",
     "preview": "electron-vite preview",
     "format": "oxfmt --write \"src/**/*.{ts,tsx}\"",
     "lint": "oxlint src",
@@ -54,7 +56,15 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Zythum",
+        "repo": "fello",
+        "releaseType": "draft"
+      }
+    ]
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.19.0",
@@ -64,6 +74,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@xterm/addon-web-links": "^0.12.0",
     "chokidar": "^5.0.0",
+    "electron-updater": "^6.8.3",
     "fuse.js": "^7.3.0",
     "mime-types": "^3.0.2",
     "node-pty": "^1.1.0",

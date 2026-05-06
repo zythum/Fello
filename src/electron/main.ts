@@ -8,6 +8,7 @@ import {
   nativeTheme,
   MenuItemConstructorOptions,
 } from "electron";
+import { autoUpdater } from "electron-updater";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -295,6 +296,32 @@ function createMainWindow() {
   return win;
 }
 
+function setupAutoUpdater() {
+  if (isDev || !app.isPackaged) return;
+
+  autoUpdater.autoDownload = false;
+
+  autoUpdater.on("error", (error: unknown) => {
+    console.error("[autoUpdater:error]", extractErrorMessage(error));
+  });
+
+  autoUpdater.on("update-available", () => {
+    console.log("[autoUpdater] update available, downloading");
+    void autoUpdater.downloadUpdate();
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    console.log("[autoUpdater] no update available");
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    console.log("[autoUpdater] update downloaded, quit and install");
+    autoUpdater.quitAndInstall();
+  });
+
+  void autoUpdater.checkForUpdates();
+}
+
 let isQuitting = false;
 app.on("before-quit", (event) => {
   if (isQuitting) return;
@@ -310,6 +337,7 @@ app.on("before-quit", (event) => {
 app.whenReady().then(() => {
   setupMenu();
   createMainWindow();
+  setupAutoUpdater();
 });
 
 app.on("activate", () => {
