@@ -17,6 +17,8 @@ jobs:
         include:
           - os: macos-latest
             script: npm run release:mac
+          - os: windows-latest
+            script: npm run release:win
           - os: ubuntu-latest
             script: npm run release:linux
     runs-on: ${{ matrix.os }}
