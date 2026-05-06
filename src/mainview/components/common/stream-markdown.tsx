@@ -60,7 +60,7 @@ export function StreamMarkdown({
   return (
     <div className={className ?? typographyClasses}>
       {frontmatter && (
-        <div className="whitespace-pre-wrap text-foreground/80 rounded bg-sidebar border border-border p-2 mb-4 text-xs leading-relaxed">
+        <div className="whitespace-pre-wrap text-foreground/80 rounded bg-sidebar border border-border p-2 mb-2 text-xs leading-relaxed">
           {frontmatter}
         </div>
       )}

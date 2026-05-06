@@ -190,7 +190,7 @@ export function SkillsInstalled() {
           <DialogHeader>
             <DialogTitle className="text-sm">{selectedSkill?.name}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -m-3 mt-0 border-t border-border overflow-hidden">
+          <ScrollArea className="flex-1 -m-3 mt-0 border-t border-border bg-secondary/50 overflow-hidden">
             <div className="p-4">
               {skillContent ? (
                 <StreamMarkdown>{skillContent}</StreamMarkdown>
