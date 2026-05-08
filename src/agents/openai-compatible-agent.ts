@@ -85,7 +85,7 @@ export class OpenaiCompatibleAgent implements Agent {
     return {
       protocolVersion: PROTOCOL_VERSION,
       agentInfo: {
-        name: "Fello OpenAI-Compatible Agent",
+        name: "Fello OpenAI-Compatible opencode",
         version: "0.1.0",
       },
     };
@@ -109,6 +109,7 @@ export class OpenaiCompatibleAgent implements Agent {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
+        "User-Agent": "Fello OpenAI-Compatible opencode",
         ...this.headers,
       },
     });
