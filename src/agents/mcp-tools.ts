@@ -1,7 +1,7 @@
 import type { ToolSet } from "ai";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { AgentSideConnection, McpServer, ToolKind } from "@agentclientprotocol/sdk";
+import type { AgentSideConnection, McpServer, ToolCallContent, ToolKind } from "@agentclientprotocol/sdk";
 
 export type MCPSessionTools = {
   clients: MCPClient[];
@@ -78,9 +78,41 @@ async function closeClients(clients: MCPClient[]): Promise<void> {
   await Promise.all(clients.map((client) => client.close().catch(() => {})));
 }
 
+function toToolTextContent(text: string): ToolCallContent {
+  return {
+    type: "content",
+    content: { type: "text", text },
+  };
+}
+
+function buildToolCallContent(output: unknown): ToolCallContent[] | undefined {
+  if (typeof output === "string" && output.length > 0) {
+    return [toToolTextContent(output)];
+  }
+  if (output && typeof output === "object" && "content" in output) {
+    const content = (output as { content?: unknown }).content;
+    if (Array.isArray(content)) {
+      const text = content
+        .map((part) => {
+          if (!part || typeof part !== "object") return null;
+          const maybe = part as { type?: unknown; text?: unknown };
+          if (maybe.type === "text" && typeof maybe.text === "string") return maybe.text;
+          return null;
+        })
+        .filter((item): item is string => item !== null)
+        .join("\n")
+        .trim();
+      if (text.length > 0) return [toToolTextContent(text)];
+    }
+  }
+  return undefined;
+}
+
 export async function createMCPSessionTools({
+  sessionId,
   mcpServers,
   cwd,
+  getConnection,
 }: CreateMCPSessionToolsParams): Promise<MCPSessionTools> {
   if (mcpServers.length === 0) {
     return { clients: [], tools: {}, toolMeta: {} };
@@ -111,13 +143,69 @@ export async function createMCPSessionTools({
 
       for (const [toolName, toolDef] of Object.entries(serverTools)) {
         const qualifiedName = `mcp_${prefix}__${toolName}`;
-        allTools[qualifiedName] = toolDef;
-
         const details = definitionsByName.get(toolName);
         const title = details?.title || `${server.name}: ${toolName}`;
+        const kind = inferToolKind(toolName);
         toolMeta[qualifiedName] = {
           title,
-          kind: inferToolKind(toolName),
+          kind,
+        };
+        if (typeof toolDef.execute !== "function") {
+          allTools[qualifiedName] = toolDef;
+          continue;
+        }
+        allTools[qualifiedName] = {
+          ...toolDef,
+          execute: async (input, options) => {
+            const connection = getConnection();
+            const toolCallId = options.toolCallId;
+            if (connection && toolCallId) {
+              await connection.sessionUpdate({
+                sessionId,
+                update: {
+                  sessionUpdate: "tool_call",
+                  toolCallId,
+                  title,
+                  kind,
+                  status: "in_progress",
+                  rawInput: input,
+                },
+              });
+            }
+
+            try {
+              const output = await toolDef.execute(input, options);
+              if (connection && toolCallId) {
+                const content = buildToolCallContent(output);
+                await connection.sessionUpdate({
+                  sessionId,
+                  update: {
+                    sessionUpdate: "tool_call_update",
+                    toolCallId,
+                    status: "completed",
+                    rawOutput: output,
+                    ...(content ? { content } : {}),
+                  },
+                });
+              }
+              return output;
+            } catch (error) {
+              if (connection && toolCallId) {
+                const errorText = error instanceof Error ? error.message : String(error);
+                await connection.sessionUpdate({
+                  sessionId,
+                  update: {
+                    sessionUpdate: "tool_call_update",
+                    toolCallId,
+                    status: "failed",
+                    rawOutput: { error: errorText },
+                    content: [toToolTextContent(errorText)],
+                  },
+                });
+              }
+              throw error;
+            }
+          },
         };
       }
     }

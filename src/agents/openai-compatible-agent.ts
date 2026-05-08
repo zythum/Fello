@@ -24,8 +24,6 @@ import type {
   SessionModelState,
   SetSessionModelRequest,
   SetSessionModelResponse,
-  ToolCallContent,
-  ToolKind,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { ApiAgentInfo } from "../shared/schema";
@@ -69,57 +67,6 @@ function contentBlocksToText(content: ContentBlock[]): string {
     .map((block) => block.text)
     .join("\n")
     .trim();
-}
-
-function toToolTextContent(text: string): ToolCallContent {
-  return {
-    type: "content",
-    content: { type: "text", text },
-  };
-}
-
-function buildToolCallContent(toolName: string, output: unknown): ToolCallContent[] | undefined {
-  if (toolName === "read_text_file") {
-    if (output && typeof output === "object" && "content" in output) {
-      const content = (output as { content?: unknown }).content;
-      if (typeof content === "string") return [toToolTextContent(content)];
-    }
-    return undefined;
-  }
-  if (toolName === "shell") {
-    if (output && typeof output === "object") {
-      const shellOutput = output as { terminalId?: unknown; output?: unknown };
-      const contents: ToolCallContent[] = [];
-      if (typeof shellOutput.terminalId === "string") {
-        contents.push({ type: "terminal", terminalId: shellOutput.terminalId });
-      }
-      if (typeof shellOutput.output === "string" && shellOutput.output.length > 0) {
-        contents.push(toToolTextContent(shellOutput.output));
-      }
-      return contents.length > 0 ? contents : undefined;
-    }
-    return undefined;
-  }
-  if (typeof output === "string" && output.length > 0) {
-    return [toToolTextContent(output)];
-  }
-  if (output && typeof output === "object" && "content" in output) {
-    const content = (output as { content?: unknown }).content;
-    if (Array.isArray(content)) {
-      const text = content
-        .map((part) => {
-          if (!part || typeof part !== "object") return null;
-          const maybe = part as { type?: unknown; text?: unknown };
-          if (maybe.type === "text" && typeof maybe.text === "string") return maybe.text;
-          return null;
-        })
-        .filter((item): item is string => item !== null)
-        .join("\n")
-        .trim();
-      if (text.length > 0) return [toToolTextContent(text)];
-    }
-  }
-  return undefined;
 }
 
 function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
@@ -401,45 +348,6 @@ export class OpenaiCompatibleAgent implements Agent {
         tools: {
           ...session.mcp.tools,
           ...session.acp.tools,
-        },
-        experimental_onToolCallStart: async ({ toolCall }) => {
-          if (!this.connection) return;
-          const meta =
-            session.acp.toolMeta[toolCall.toolName] ??
-            session.mcp.toolMeta[toolCall.toolName] ??
-            ({ title: toolCall.toolName, kind: "other" } satisfies {
-              title: string;
-              kind: ToolKind;
-            });
-          await this.connection.sessionUpdate({
-            sessionId: params.sessionId,
-            update: {
-              sessionUpdate: "tool_call",
-              toolCallId: toolCall.toolCallId,
-              title: meta.title,
-              kind: meta.kind,
-              status: "in_progress",
-              rawInput: toolCall.input,
-            },
-          });
-        },
-        experimental_onToolCallFinish: async (event) => {
-          if (!this.connection) return;
-          const toolName = event.toolCall.toolName;
-          const content = event.success ? buildToolCallContent(toolName, event.output) : undefined;
-          const errorText =
-            !event.success ? (event.error instanceof Error ? event.error.message : String(event.error)) : null;
-          await this.connection.sessionUpdate({
-            sessionId: params.sessionId,
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: event.toolCall.toolCallId,
-              status: event.success ? "completed" : "failed",
-              rawOutput: event.success ? event.output : { error: errorText },
-              ...(content ? { content } : {}),
-              ...(!event.success && errorText ? { content: [toToolTextContent(errorText)] } : {}),
-            },
-          });
         },
         stopWhen: stepCountIs(80),
         abortSignal: abortController.signal,

@@ -4,6 +4,7 @@ build/
 out/
 dist/
 .vite/
+.venv/
 
 release/
 *.dmg
