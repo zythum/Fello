@@ -4,6 +4,9 @@ import { stepCountIs, streamText, type ModelMessage } from "ai";
 import type {
   Agent,
   AgentSideConnection,
+  CancelNotification,
+  CloseSessionRequest,
+  CloseSessionResponse,
   ContentBlock,
   LoadSessionRequest,
   LoadSessionResponse,
@@ -27,9 +30,9 @@ import type {
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { ApiAgentInfo } from "../shared/schema";
 import {
+  closeACPClientTools,
   createACPClientTools,
-  releaseACPClientTerminals,
-  type ACPAgentTerminalMap,
+  type ACPSessionTools,
 } from "./acp-client-tools";
 import {
   closeMCPSessionTools,
@@ -42,11 +45,10 @@ type SessionState = {
   id: string;
   cwd: string;
   additionalDirectories: string[];
-  mcpServers: McpServer[];
   modelId: string | null;
   history: ModelMessage[];
   abortController: AbortController | null;
-  terminals: ACPAgentTerminalMap;
+  acp: ACPSessionTools;
   mcp: MCPSessionTools;
 };
 
@@ -68,12 +70,6 @@ function contentBlocksToText(content: ContentBlock[]): string {
     .join("\n")
     .trim();
 }
-
-const TOOL_META: Record<string, { title: string; kind: ToolKind }> = {
-  read_text_file: { title: "Read Text File", kind: "read" },
-  write_text_file: { title: "Write Text File", kind: "edit" },
-  shell: { title: "Run Shell Command", kind: "execute" },
-};
 
 function toToolTextContent(text: string): ToolCallContent {
   return {
@@ -266,37 +262,47 @@ export class OpenaiCompatibleAgent implements Agent {
     ];
   }
 
-  private async reconnectSessionMcp(session: SessionState, mcpServers: McpServer[]): Promise<void> {
-    const previousMcp = session.mcp;
-    const nextMcp = await createMCPSessionTools({
-      mcpServers,
-      cwd: session.cwd,
+  private async createSessionState(params: {
+    sessionId: string;
+    cwd: string;
+    additionalDirectories: string[] | undefined;
+    mcpServers: McpServer[] | undefined;
+    modelId: string | null;
+  }): Promise<SessionState> {
+    const mcp = await createMCPSessionTools({
+      sessionId: params.sessionId,
+      mcpServers: normalizeMcpServers(params.mcpServers),
+      cwd: params.cwd,
+      getConnection: () => this.connection,
     });
-    session.mcpServers = mcpServers;
-    session.mcp = nextMcp;
-    await closeMCPSessionTools(previousMcp).catch(() => {});
+    const acp = createACPClientTools({
+      sessionId: params.sessionId,
+      getConnection: () => this.connection,
+    });
+    return {
+      id: params.sessionId,
+      cwd: params.cwd,
+      additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
+      modelId: params.modelId,
+      history: [],
+      abortController: null,
+      acp,
+      mcp,
+    };
   }
 
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
-    const modelId = modelState.currentModelId || null;
-    const mcpServers = normalizeMcpServers(params.mcpServers);
-    const mcp = await createMCPSessionTools({
-      mcpServers,
+    const modelId = modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null;
+    const session = await this.createSessionState({
+      sessionId,
       cwd: params.cwd,
-    });
-    this.sessions.set(sessionId, {
-      id: sessionId,
-      cwd: params.cwd,
-      additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
-      mcpServers,
+      additionalDirectories: params.additionalDirectories,
+      mcpServers: params.mcpServers,
       modelId,
-      history: [],
-      abortController: null,
-      terminals: new Map(),
-      mcp,
     });
+    this.sessions.set(sessionId, session);
     return {
       sessionId,
       models: modelState.availableModels.length > 0 ? modelState : null,
@@ -307,35 +313,19 @@ export class OpenaiCompatibleAgent implements Agent {
   async resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     const modelState = await this.getModels();
     const previous = this.sessions.get(params.sessionId);
-    if (!previous) {
-      const mcpServers = normalizeMcpServers(params.mcpServers);
-      const mcp = await createMCPSessionTools({
-        mcpServers,
-        cwd: params.cwd,
-      });
-      this.sessions.set(params.sessionId, {
-        id: params.sessionId,
-        cwd: params.cwd,
-        additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
-        mcpServers,
-        modelId: modelState.currentModelId || null,
-        history: [],
-        abortController: null,
-        terminals: new Map(),
-        mcp,
-      });
+    if (previous) {
+      throw new Error(
+        `Session is already active: ${params.sessionId}. Close the active session before calling load/resume again.`,
+      );
     }
-    const active = this.sessions.get(params.sessionId)!;
-    const previousCwd = active.cwd;
-    active.cwd = params.cwd;
-    active.additionalDirectories = normalizeAdditionalDirectories(params.additionalDirectories);
-    if (params.mcpServers !== undefined || previousCwd !== params.cwd) {
-      const nextMcpServers = normalizeMcpServers(params.mcpServers) || [];
-      const hasMcpConfigChange = params.mcpServers !== undefined;
-      if (hasMcpConfigChange || previousCwd !== params.cwd) {
-        await this.reconnectSessionMcp(active, hasMcpConfigChange ? nextMcpServers : active.mcpServers);
-      }
-    }
+    const active = await this.createSessionState({
+      sessionId: params.sessionId,
+      cwd: params.cwd,
+      additionalDirectories: params.additionalDirectories,
+      mcpServers: params.mcpServers,
+      modelId: modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null,
+    });
+    this.sessions.set(params.sessionId, active);
     const currentModelExists = !!active.modelId && modelState.availableModels.some((model) => model.modelId === active.modelId);
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
@@ -410,15 +400,17 @@ export class OpenaiCompatibleAgent implements Agent {
         messages: session.history,
         tools: {
           ...session.mcp.tools,
-          ...createACPClientTools({
-            sessionId: params.sessionId,
-            terminals: session.terminals,
-            getConnection: () => this.connection,
-          }),
+          ...session.acp.tools,
         },
         experimental_onToolCallStart: async ({ toolCall }) => {
           if (!this.connection) return;
-          const meta = TOOL_META[toolCall.toolName] ?? session.mcp.toolMeta[toolCall.toolName] ?? { title: toolCall.toolName, kind: "other" };
+          const meta =
+            session.acp.toolMeta[toolCall.toolName] ??
+            session.mcp.toolMeta[toolCall.toolName] ??
+            ({ title: toolCall.toolName, kind: "other" } satisfies {
+              title: string;
+              kind: ToolKind;
+            });
           await this.connection.sessionUpdate({
             sessionId: params.sessionId,
             update: {
@@ -479,19 +471,33 @@ export class OpenaiCompatibleAgent implements Agent {
     }
   }
 
-  async cancel(params: { sessionId: string }) {
+  async cancel(params: CancelNotification): Promise<void> {
     const session = this.sessions.get(params.sessionId);
     session?.abortController?.abort();
     if (session) session.abortController = null;
   }
 
-  abortAll(): void {
+  async closeSession(params: CloseSessionRequest): Promise<CloseSessionResponse> {
+    const session = this.sessions.get(params.sessionId);
+    if (!session) return {};
+
+    this.sessions.delete(params.sessionId);
+    session.abortController?.abort();
+    session.abortController = null;
+    await closeACPClientTools(session.acp);
+    await closeMCPSessionTools(session.mcp);
+    return {};
+  }
+
+  async abortAll(): Promise<void> {
+    const releases: Promise<void>[] = [];
     for (const session of this.sessions.values()) {
       session.abortController?.abort();
       session.abortController = null;
-      releaseACPClientTerminals(session.terminals);
-      void closeMCPSessionTools(session.mcp);
+      releases.push(closeACPClientTools(session.acp));
+      releases.push(closeMCPSessionTools(session.mcp));
     }
     this.sessions.clear();
+    await Promise.all(releases);
   }
 }

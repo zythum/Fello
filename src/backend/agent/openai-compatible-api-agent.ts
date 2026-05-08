@@ -15,7 +15,7 @@ export function spawnOpenaiCompatibleApiAgent(options: ApiAgentInfo): AgentProce
   agent.setConnection(connection);
 
   const close = async (): Promise<void> => {
-    agent.abortAll();
+    await agent.abortAll();
     const writer = outputStream.writable.getWriter();
     try {
       await writer.close();

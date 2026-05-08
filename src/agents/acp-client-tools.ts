@@ -1,16 +1,21 @@
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type {
   AgentSideConnection,
   RequestPermissionResponse,
   TerminalHandle,
+  ToolKind,
 } from "@agentclientprotocol/sdk";
 
 export type ACPAgentTerminalMap = Map<string, TerminalHandle>;
+export type ACPSessionTools = {
+  terminals: ACPAgentTerminalMap;
+  tools: ToolSet;
+  toolMeta: Record<string, { title: string; kind: ToolKind }>;
+};
 
 type CreateACPClientToolsParams = {
   sessionId: string;
-  terminals: ACPAgentTerminalMap;
   getConnection: () => AgentSideConnection | null;
 };
 
@@ -81,8 +86,9 @@ async function ensurePermission(
   throw new Error(`Permission denied for ${params.title}.`);
 }
 
-export function createACPClientTools({ sessionId, terminals, getConnection }: CreateACPClientToolsParams) {
-  return {
+export function createACPClientTools({ sessionId, getConnection }: CreateACPClientToolsParams): ACPSessionTools {
+  const terminals: ACPAgentTerminalMap = new Map();
+  const tools: ToolSet = {
     read_text_file: tool({
       description: "Read a text file from the local filesystem.",
       inputSchema: z.object({
@@ -199,11 +205,27 @@ export function createACPClientTools({ sessionId, terminals, getConnection }: Cr
       },
     }),
   };
+  return {
+    terminals,
+    tools,
+    toolMeta: {
+      read_text_file: { title: "Read Text File", kind: "read" },
+      write_text_file: { title: "Write Text File", kind: "edit" },
+      shell: { title: "Run Shell Command", kind: "execute" },
+    },
+  };
 }
 
-export function releaseACPClientTerminals(terminals: ACPAgentTerminalMap): void {
-  for (const [terminalId, terminal] of terminals.entries()) {
-    void terminal.release().catch(() => {});
-    terminals.delete(terminalId);
+export async function closeACPClientTools(session: ACPSessionTools): Promise<void> {
+  const releases: Promise<void>[] = [];
+  for (const [terminalId, terminal] of session.terminals.entries()) {
+    releases.push(
+      terminal
+        .release()
+        .then(() => {})
+        .catch(() => {}),
+    );
+    session.terminals.delete(terminalId);
   }
+  await Promise.all(releases);
 }

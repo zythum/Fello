@@ -1,7 +1,7 @@
 import type { ToolSet } from "ai";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { McpServer, ToolKind } from "@agentclientprotocol/sdk";
+import type { AgentSideConnection, McpServer, ToolKind } from "@agentclientprotocol/sdk";
 
 export type MCPSessionTools = {
   clients: MCPClient[];
@@ -10,12 +10,11 @@ export type MCPSessionTools = {
 };
 
 type CreateMCPSessionToolsParams = {
+  sessionId: string;
   mcpServers: McpServer[];
   cwd: string;
+  getConnection: () => AgentSideConnection | null;
 };
-
-type MCPToolsResult = Awaited<ReturnType<MCPClient["tools"]>>;
-type MCPListToolsResult = Awaited<ReturnType<MCPClient["listTools"]>>;
 
 function sanitizeName(input: string): string {
   return input.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
@@ -107,7 +106,7 @@ export async function createMCPSessionTools({
       const [serverTools, definitions] = await Promise.all([
         client.tools(),
         client.listTools(),
-      ]) as [MCPToolsResult, MCPListToolsResult];
+      ]);
       const definitionsByName = new Map(definitions.tools.map((item) => [item.name, item]));
 
       for (const [toolName, toolDef] of Object.entries(serverTools)) {
