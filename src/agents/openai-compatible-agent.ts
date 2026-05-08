@@ -1,12 +1,13 @@
 import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { streamText, type ModelMessage } from "ai";
+import { stepCountIs, streamText, type ModelMessage } from "ai";
 import type {
   Agent,
   AgentSideConnection,
   ContentBlock,
   LoadSessionRequest,
   LoadSessionResponse,
+  McpServer,
   ModelInfo,
   NewSessionRequest,
   NewSessionResponse,
@@ -20,15 +21,33 @@ import type {
   SessionModelState,
   SetSessionModelRequest,
   SetSessionModelResponse,
+  ToolCallContent,
+  ToolKind,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { ApiAgentInfo } from "../shared/schema";
+import {
+  createACPClientTools,
+  releaseACPClientTerminals,
+  type ACPAgentTerminalMap,
+} from "./acp-client-tools";
+import {
+  closeMCPSessionTools,
+  createMCPSessionTools,
+  type MCPSessionTools,
+} from "./mcp-tools";
+import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 
 type SessionState = {
   id: string;
+  cwd: string;
+  additionalDirectories: string[];
+  mcpServers: McpServer[];
   modelId: string | null;
   history: ModelMessage[];
   abortController: AbortController | null;
+  terminals: ACPAgentTerminalMap;
+  mcp: MCPSessionTools;
 };
 
 const MODEL_CONFIG_ID = "model";
@@ -48,6 +67,80 @@ function contentBlocksToText(content: ContentBlock[]): string {
     .map((block) => block.text)
     .join("\n")
     .trim();
+}
+
+const TOOL_META: Record<string, { title: string; kind: ToolKind }> = {
+  read_text_file: { title: "Read Text File", kind: "read" },
+  write_text_file: { title: "Write Text File", kind: "edit" },
+  shell: { title: "Run Shell Command", kind: "execute" },
+};
+
+function toToolTextContent(text: string): ToolCallContent {
+  return {
+    type: "content",
+    content: { type: "text", text },
+  };
+}
+
+function buildToolCallContent(toolName: string, output: unknown): ToolCallContent[] | undefined {
+  if (toolName === "read_text_file") {
+    if (output && typeof output === "object" && "content" in output) {
+      const content = (output as { content?: unknown }).content;
+      if (typeof content === "string") return [toToolTextContent(content)];
+    }
+    return undefined;
+  }
+  if (toolName === "shell") {
+    if (output && typeof output === "object") {
+      const shellOutput = output as { terminalId?: unknown; output?: unknown };
+      const contents: ToolCallContent[] = [];
+      if (typeof shellOutput.terminalId === "string") {
+        contents.push({ type: "terminal", terminalId: shellOutput.terminalId });
+      }
+      if (typeof shellOutput.output === "string" && shellOutput.output.length > 0) {
+        contents.push(toToolTextContent(shellOutput.output));
+      }
+      return contents.length > 0 ? contents : undefined;
+    }
+    return undefined;
+  }
+  if (typeof output === "string" && output.length > 0) {
+    return [toToolTextContent(output)];
+  }
+  if (output && typeof output === "object" && "content" in output) {
+    const content = (output as { content?: unknown }).content;
+    if (Array.isArray(content)) {
+      const text = content
+        .map((part) => {
+          if (!part || typeof part !== "object") return null;
+          const maybe = part as { type?: unknown; text?: unknown };
+          if (maybe.type === "text" && typeof maybe.text === "string") return maybe.text;
+          return null;
+        })
+        .filter((item): item is string => item !== null)
+        .join("\n")
+        .trim();
+      if (text.length > 0) return [toToolTextContent(text)];
+    }
+  }
+  return undefined;
+}
+
+function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeMcpServers(value: McpServer[] | undefined): McpServer[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]): string {
+  const extras =
+    additionalDirectories.length > 0
+      ? ` Additional workspace roots: ${additionalDirectories.join(", ")}.`
+      : "";
+  const workspacePrompt = `Current session working directory (cwd): ${cwd}.${extras} Use this as the default base path for relative paths.`;
+  return `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}`;
 }
 
 export class OpenaiCompatibleAgent implements Agent {
@@ -73,10 +166,7 @@ export class OpenaiCompatibleAgent implements Agent {
       name: "openai-compatible",
       baseURL: this.baseUrl,
       apiKey: this.apiKey,
-      headers: {
-        "User-Agent": "Fello OpenAI-Compatible opencode",
-        ...this.headers,
-      },
+      headers: this.headers,
     });
   }
 
@@ -112,7 +202,6 @@ export class OpenaiCompatibleAgent implements Agent {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
-        "User-Agent": "Fello OpenAI-Compatible opencode",
         ...this.headers,
       },
     });
@@ -177,15 +266,36 @@ export class OpenaiCompatibleAgent implements Agent {
     ];
   }
 
-  async newSession(_params: NewSessionRequest): Promise<NewSessionResponse> {
+  private async reconnectSessionMcp(session: SessionState, mcpServers: McpServer[]): Promise<void> {
+    const previousMcp = session.mcp;
+    const nextMcp = await createMCPSessionTools({
+      mcpServers,
+      cwd: session.cwd,
+    });
+    session.mcpServers = mcpServers;
+    session.mcp = nextMcp;
+    await closeMCPSessionTools(previousMcp).catch(() => {});
+  }
+
+  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
     const modelId = modelState.currentModelId || null;
+    const mcpServers = normalizeMcpServers(params.mcpServers);
+    const mcp = await createMCPSessionTools({
+      mcpServers,
+      cwd: params.cwd,
+    });
     this.sessions.set(sessionId, {
       id: sessionId,
+      cwd: params.cwd,
+      additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
+      mcpServers,
       modelId,
       history: [],
       abortController: null,
+      terminals: new Map(),
+      mcp,
     });
     return {
       sessionId,
@@ -198,14 +308,34 @@ export class OpenaiCompatibleAgent implements Agent {
     const modelState = await this.getModels();
     const previous = this.sessions.get(params.sessionId);
     if (!previous) {
+      const mcpServers = normalizeMcpServers(params.mcpServers);
+      const mcp = await createMCPSessionTools({
+        mcpServers,
+        cwd: params.cwd,
+      });
       this.sessions.set(params.sessionId, {
         id: params.sessionId,
+        cwd: params.cwd,
+        additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
+        mcpServers,
         modelId: modelState.currentModelId || null,
         history: [],
         abortController: null,
+        terminals: new Map(),
+        mcp,
       });
     }
     const active = this.sessions.get(params.sessionId)!;
+    const previousCwd = active.cwd;
+    active.cwd = params.cwd;
+    active.additionalDirectories = normalizeAdditionalDirectories(params.additionalDirectories);
+    if (params.mcpServers !== undefined || previousCwd !== params.cwd) {
+      const nextMcpServers = normalizeMcpServers(params.mcpServers) || [];
+      const hasMcpConfigChange = params.mcpServers !== undefined;
+      if (hasMcpConfigChange || previousCwd !== params.cwd) {
+        await this.reconnectSessionMcp(active, hasMcpConfigChange ? nextMcpServers : active.mcpServers);
+      }
+    }
     const currentModelExists = !!active.modelId && modelState.availableModels.some((model) => model.modelId === active.modelId);
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
@@ -276,7 +406,50 @@ export class OpenaiCompatibleAgent implements Agent {
       }
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
+        system: buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories),
         messages: session.history,
+        tools: {
+          ...session.mcp.tools,
+          ...createACPClientTools({
+            sessionId: params.sessionId,
+            terminals: session.terminals,
+            getConnection: () => this.connection,
+          }),
+        },
+        experimental_onToolCallStart: async ({ toolCall }) => {
+          if (!this.connection) return;
+          const meta = TOOL_META[toolCall.toolName] ?? session.mcp.toolMeta[toolCall.toolName] ?? { title: toolCall.toolName, kind: "other" };
+          await this.connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "tool_call",
+              toolCallId: toolCall.toolCallId,
+              title: meta.title,
+              kind: meta.kind,
+              status: "in_progress",
+              rawInput: toolCall.input,
+            },
+          });
+        },
+        experimental_onToolCallFinish: async (event) => {
+          if (!this.connection) return;
+          const toolName = event.toolCall.toolName;
+          const content = event.success ? buildToolCallContent(toolName, event.output) : undefined;
+          const errorText =
+            !event.success ? (event.error instanceof Error ? event.error.message : String(event.error)) : null;
+          await this.connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: event.toolCall.toolCallId,
+              status: event.success ? "completed" : "failed",
+              rawOutput: event.success ? event.output : { error: errorText },
+              ...(content ? { content } : {}),
+              ...(!event.success && errorText ? { content: [toToolTextContent(errorText)] } : {}),
+            },
+          });
+        },
+        stopWhen: stepCountIs(80),
         abortSignal: abortController.signal,
       });
 
@@ -316,6 +489,8 @@ export class OpenaiCompatibleAgent implements Agent {
     for (const session of this.sessions.values()) {
       session.abortController?.abort();
       session.abortController = null;
+      releaseACPClientTerminals(session.terminals);
+      void closeMCPSessionTools(session.mcp);
     }
     this.sessions.clear();
   }

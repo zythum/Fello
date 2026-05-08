@@ -61,7 +61,13 @@ interface StdioMcpServerMeta extends BaseMcpServerMeta {
   env: Record<string, string>;
 }
 
-type McpServerMeta = StdioMcpServerMeta;
+interface HttpMcpServerMeta extends BaseMcpServerMeta {
+  type: "http";
+  url: string;
+  headers: Record<string, string>;
+}
+
+type McpServerMeta = StdioMcpServerMeta | HttpMcpServerMeta;
 
 interface SettingsMeta {
   agents: {
@@ -192,10 +198,10 @@ function readSettings(): SettingsMeta {
       const next: SettingsMeta["mcpServers"] = {};
       for (const [id, value] of Object.entries(rawMcpServers)) {
         const cfg = isObject(value) ? value : null;
-        const command = typeof cfg?.command === "string" ? cfg.command : "";
         const type = cfg?.type ?? "stdio";
 
         if (type === "stdio") {
+          const command = typeof cfg?.command === "string" ? cfg.command : "";
           const args = Array.isArray(cfg?.args)
             ? cfg.args.filter((v) => typeof v === "string")
             : [];
@@ -210,6 +216,19 @@ function readSettings(): SettingsMeta {
           const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
           const order = typeof cfg?.order === "number" ? cfg.order : 0;
           next[id] = { type, command, args, env, disabled, order };
+        } else if (type === "http") {
+          const url = typeof cfg?.url === "string" ? cfg.url : "";
+          const headers = (() => {
+            if (!isObject(cfg?.headers)) return {};
+            const nextHeaders: Record<string, string> = {};
+            for (const [k, v] of Object.entries(cfg.headers)) {
+              nextHeaders[k] = String(v);
+            }
+            return nextHeaders;
+          })();
+          const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
+          const order = typeof cfg?.order === "number" ? cfg.order : 0;
+          next[id] = { type, url, headers, disabled, order };
         }
       }
       return next;
@@ -438,7 +457,16 @@ export const storageOps = {
               disabled: srvMeta.disabled,
             };
           }
-          throw new Error(`Invalid mcpServer type ${srvMeta.type}.`);
+          if (srvMeta.type === "http") {
+            return {
+              id,
+              type: srvMeta.type,
+              url: srvMeta.url,
+              headers: Object.assign({}, srvMeta.headers),
+              disabled: srvMeta.disabled,
+            };
+          }
+          throw new Error(`Invalid mcpServer type ${(srvMeta as any).type}.`);
         })
         .sort((a, b) => meta.mcpServers[a.id].order - meta.mcpServers[b.id].order),
       i18n: {
@@ -515,8 +543,14 @@ export const storageOps = {
               disabled: srv.disabled,
               order: idx,
             };
-          } else {
-            throw new Error(`Invalid mcpServer type ${srv.type}.`);
+          } else if (srv.type === "http") {
+            nextMcpServers[srv.id] = {
+              type: srv.type,
+              url: srv.url,
+              headers: Object.assign({}, srv.headers),
+              disabled: srv.disabled,
+              order: idx,
+            };
           }
         });
         return nextMcpServers;

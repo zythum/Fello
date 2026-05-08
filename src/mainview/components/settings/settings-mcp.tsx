@@ -1,21 +1,15 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { McpServerInfo } from "../../../shared/schema";
+import type {
+  HttpMcpServerInfo,
+  McpServerInfo,
+  StdioMcpServerInfo,
+} from "../../../shared/schema";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -43,6 +37,8 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { SettingsMcpStdioDialog } from "./settings-mcp-stdio-dialog";
+import { SettingsMcpHttpDialog } from "./settings-mcp-http-dialog";
 
 function McpSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -74,23 +70,12 @@ function McpSortableItem({ id, children }: { id: string; children: React.ReactNo
   );
 }
 
-function parseEnvJson(raw: string): Record<string, string> | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+function isStdioMcp(mcp: McpServerInfo): mcp is StdioMcpServerInfo {
+  return mcp.type === "stdio";
+}
 
-  const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(parsed)) {
-    if (typeof v !== "string") return null;
-    env[k] = v;
-  }
-  return env;
+function isHttpMcp(mcp: McpServerInfo): mcp is HttpMcpServerInfo {
+  return mcp.type === "http";
 }
 
 export function SettingsMcp() {
@@ -99,14 +84,12 @@ export function SettingsMcp() {
   const { toast } = useMessage();
   const [mcpServers, setMcpServers] = useState<McpServerInfo[]>([]);
 
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogItem, setDialogItem] = useState<McpServerInfo | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
-  const [dialogEnvRaw, setDialogEnvRaw] = useState("");
-  const [dialogArgsRaw, setDialogArgsRaw] = useState("");
+  const [stdioDialogOpen, setStdioDialogOpen] = useState(false);
+  const [httpDialogOpen, setHttpDialogOpen] = useState(false);
+  const [stdioDialogItem, setStdioDialogItem] = useState<StdioMcpServerInfo | null>(null);
+  const [httpDialogItem, setHttpDialogItem] = useState<HttpMcpServerInfo | null>(null);
 
-  // Sync when mounted
   useEffect(() => {
     setMcpServers(configuredMcpServers);
   }, [configuredMcpServers]);
@@ -123,73 +106,81 @@ export function SettingsMcp() {
     }
   };
 
-  const openAddDialog = () => {
-    const newMcp: McpServerInfo = {
-      id: "",
-      type: "stdio",
-      command: "",
-      args: [],
-      env: {},
-      disabled: false,
-    };
-    setDialogItem(newMcp);
+  const closeDialogs = () => {
+    setStdioDialogOpen(false);
+    setHttpDialogOpen(false);
+    setStdioDialogItem(null);
+    setHttpDialogItem(null);
     setDialogOriginalId(null);
-    setDialogEnvRaw("");
-    setDialogArgsRaw("");
-    setDialogOpen(true);
   };
 
-  const openEditDialog = (mcp: McpServerInfo) => {
-    setDialogItem({ ...mcp });
-    setDialogOriginalId(mcp.id);
-    setDialogEnvRaw(Object.keys(mcp.env || {}).length > 0 ? JSON.stringify(mcp.env) : "");
-    setDialogArgsRaw(mcp.args?.join(" ") || "");
-    setDialogOpen(true);
-  };
-
-  const handleDialogSave = async () => {
-    if (!dialogItem) return;
-    if (!dialogItem.id.trim() || !dialogItem.command.trim()) {
-      toast.error(t("settings.mcp.errorIdCommand", "ID and Command are required."));
-      return;
-    }
-
-    const isNew = dialogOriginalId === null;
+  const upsertMcp = async (nextMcp: McpServerInfo) => {
     const duplicate = mcpServers.some(
-      (a) => a.id === dialogItem.id && a.id !== dialogOriginalId && !a.id.startsWith("__new_mcp_"),
+      (item) =>
+        item.id === nextMcp.id &&
+        item.id !== dialogOriginalId &&
+        !item.id.startsWith("__new_mcp_"),
     );
     if (duplicate) {
       toast.error(t("settings.mcp.errorDuplicateId", "A server with this ID already exists."));
       return;
     }
 
-    const nextEnv = parseEnvJson(dialogEnvRaw);
-    if (!nextEnv) {
-      toast.error(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
-      return;
-    }
-
-    const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
-    const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
-
-    let updated: McpServerInfo[];
-    if (isNew) {
-      updated = [...mcpServers, finalItem];
-    } else {
-      updated = mcpServers.map((a) => (a.id === dialogOriginalId ? finalItem : a));
-    }
+    const isNew = dialogOriginalId === null;
+    const updated = isNew
+      ? [...mcpServers, nextMcp]
+      : mcpServers.map((item) => (item.id === dialogOriginalId ? nextMcp : item));
 
     setMcpServers(updated);
-    setDialogOpen(false);
-    setDialogItem(null);
-    setDialogOriginalId(null);
+    closeDialogs();
     await handleSave(updated);
   };
 
-  const handleDialogCancel = () => {
-    setDialogOpen(false);
-    setDialogItem(null);
+  const openAddStdioDialog = () => {
     setDialogOriginalId(null);
+    setHttpDialogItem(null);
+    setStdioDialogItem({
+      id: "",
+      type: "stdio",
+      command: "",
+      args: [],
+      env: {},
+      disabled: false,
+    });
+    setStdioDialogOpen(true);
+  };
+
+  const openAddHttpDialog = () => {
+    setDialogOriginalId(null);
+    setStdioDialogItem(null);
+    setHttpDialogItem({
+      id: "",
+      type: "http",
+      url: "",
+      headers: {},
+      disabled: false,
+    });
+    setHttpDialogOpen(true);
+  };
+
+  const openEditDialog = (mcp: McpServerInfo) => {
+    setDialogOriginalId(mcp.id);
+    if (isStdioMcp(mcp)) {
+      setHttpDialogItem(null);
+      setStdioDialogItem({ ...mcp });
+      setStdioDialogOpen(true);
+      return;
+    }
+    if (isHttpMcp(mcp)) {
+      setStdioDialogItem(null);
+      setHttpDialogItem({ ...mcp });
+      setHttpDialogOpen(true);
+    }
+  };
+
+  const getServerSummary = (mcp: McpServerInfo): string => {
+    if (mcp.type === "http") return mcp.url;
+    return [mcp.command, ...(mcp.args || [])].join(" ");
   };
 
   const handleDelete = async (id: string) => {
@@ -244,15 +235,26 @@ export function SettingsMcp() {
           <h3 className="text-xs text-foreground/50">
             {t("settings.mcp.description", "Configure MCP Servers")}
           </h3>
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={openAddDialog}
-            className="h-7 text-xs text-foreground/70"
-          >
-            <Plus className="mr-1 size-3" />
-            {t("settings.mcp.addMcp", "Add MCP Server")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={openAddStdioDialog}
+              className="h-7 text-xs text-foreground/70"
+            >
+              <Plus className="mr-1 size-3" />
+              {t("settings.mcp.addStdioMcp", "Add Stdio MCP")}
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={openAddHttpDialog}
+              className="h-7 text-xs text-foreground/70"
+            >
+              <Plus className="mr-1 size-3" />
+              {t("settings.mcp.addHttpMcp", "Add HTTP MCP")}
+            </Button>
+          </div>
         </div>
         <div className="border-t border-border -mx-4"></div>
       </div>
@@ -283,7 +285,7 @@ export function SettingsMcp() {
                               </span>
                             </div>
                             <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                              {[mcp.command, ...(mcp.args || [])].join(" ")}
+                              {getServerSummary(mcp)}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <Switch
@@ -322,95 +324,25 @@ export function SettingsMcp() {
         </div>
       </ScrollArea>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {dialogOriginalId
-                ? t("settings.mcp.editMcp", "Edit MCP Server")
-                : t("settings.mcp.addMcp", "Add MCP Server")}
-            </DialogTitle>
-            <DialogDescription>
-              {t(
-                "settings.mcp.dialogDesc",
-                "Configure the MCP server ID, command, arguments and environment variables.",
-              )}
-            </DialogDescription>
-          </DialogHeader>
+      <SettingsMcpStdioDialog
+        open={stdioDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialogs();
+          else setStdioDialogOpen(open);
+        }}
+        initialMcp={stdioDialogItem}
+        onSave={upsertMcp}
+      />
 
-          {dialogItem && (
-            <div className="flex flex-col gap-3 py-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.mcp.mcpId", "MCP Server ID")}
-                </label>
-                <Input
-                  placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
-                  value={dialogItem.id}
-                  onChange={(e) => setDialogItem({ ...dialogItem, id: e.target.value })}
-                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
-              <div className="flex gap-2">
-                <div className="flex flex-1 flex-col gap-1">
-                  <label className="text-[11px] text-muted-foreground">
-                    {t("settings.mcp.command", "Command")}
-                  </label>
-                  <Input
-                    placeholder={t("settings.mcp.command", "Command")}
-                    value={dialogItem.command}
-                    onChange={(e) => setDialogItem({ ...dialogItem, command: e.target.value })}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-1">
-                  <label className="text-[11px] text-muted-foreground">
-                    {t("settings.mcp.args", "Arguments")}
-                  </label>
-                  <Input
-                    placeholder={t("settings.mcp.args", "Arguments")}
-                    value={dialogArgsRaw}
-                    onChange={(e) => setDialogArgsRaw(e.target.value)}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.mcp.envVars", "Environment Variables (JSON)")}
-                </label>
-                <Textarea
-                  placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
-                  value={dialogEnvRaw}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setDialogEnvRaw(val);
-                    const nextEnv = parseEnvJson(val);
-                    if (nextEnv) {
-                      setDialogItem({ ...dialogItem, env: nextEnv });
-                    }
-                  }}
-                  className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDialogCancel}
-              className="h-7 text-xs"
-            >
-              {t("settings.mcp.cancel", "Cancel")}
-            </Button>
-            <Button size="sm" onClick={handleDialogSave} className="h-7 text-xs">
-              {t("settings.mcp.save", "Save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SettingsMcpHttpDialog
+        open={httpDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialogs();
+          else setHttpDialogOpen(open);
+        }}
+        initialMcp={httpDialogItem}
+        onSave={upsertMcp}
+      />
     </div>
   );
 }

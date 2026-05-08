@@ -68,7 +68,13 @@ export interface StdioMcpServerInfo extends BaseMcpServerInfo {
   env: Record<string, string>;
 }
 
-export type McpServerInfo = StdioMcpServerInfo;
+export interface HttpMcpServerInfo extends BaseMcpServerInfo {
+  type: "http";
+  url: string;
+  headers: Record<string, string>;
+}
+
+export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
 
 /**
  * 应用的主题配置信息
@@ -93,7 +99,7 @@ export interface SettingsInfo {
   /** 已配置的代理列表 */
   agents: AgentInfo[];
   /** MCP 服务器配置 */
-  mcpServers: StdioMcpServerInfo[];
+  mcpServers: McpServerInfo[];
   /** 主题设置 */
   theme: SettingThemeInfo;
   /** 国际化（语言）设置 */

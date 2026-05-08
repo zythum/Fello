@@ -68,12 +68,21 @@ function buildMcpServersConfig(sessionMcpIds: string[]): McpServer[] {
   for (const id of sessionMcpIds) {
     const config = globalSettings.mcpServers?.find((s) => s.id === id);
     if (config && !config.disabled) {
-      servers.push({
-        name: id,
-        command: config.command,
-        args: config.args,
-        env: Object.entries(config.env).map(([k, v]) => ({ name: k, value: v })),
-      });
+      if (config.type === "stdio") {
+        servers.push({
+          name: id,
+          command: config.command,
+          args: config.args,
+          env: Object.entries(config.env).map(([k, v]) => ({ name: k, value: v })),
+        });
+      } else if (config.type === "http") {
+        servers.push({
+          type: "http",
+          name: id,
+          url: config.url,
+          headers: Object.entries(config.headers).map(([k, v]) => ({ name: k, value: v })),
+        });
+      }
     }
   }
 
