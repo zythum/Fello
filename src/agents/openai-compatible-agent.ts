@@ -73,7 +73,10 @@ export class OpenaiCompatibleAgent implements Agent {
       name: "openai-compatible",
       baseURL: this.baseUrl,
       apiKey: this.apiKey,
-      headers: this.headers,
+      headers: {
+        "User-Agent": "Fello OpenAI-Compatible opencode",
+        ...this.headers,
+      },
     });
   }
 
