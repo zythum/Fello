@@ -629,8 +629,14 @@ export function Sidebar() {
                   <SelectTrigger size="sm" className="w-full">
                     <SelectValue>
                       {(value: string) => {
-                        if (value === "ask") return t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" });
-                        if (value === "allow-all") return t("sidebar.newSessionDialog.permissionAllowAll", { defaultValue: "Allow all" })
+                        if (value === "ask")
+                          return t("sidebar.newSessionDialog.permissionAsk", {
+                            defaultValue: "Ask",
+                          });
+                        if (value === "allow-all")
+                          return t("sidebar.newSessionDialog.permissionAllowAll", {
+                            defaultValue: "Allow all",
+                          });
                         return value;
                       }}
                     </SelectValue>
@@ -662,7 +668,9 @@ export function Sidebar() {
                     <div
                       className={cn(
                         "text-xs truncate",
-                        !newSessionMcpIds.has(mcp.id) ? "text-muted-foreground/50" : "text-muted-foreground",
+                        !newSessionMcpIds.has(mcp.id)
+                          ? "text-muted-foreground/50"
+                          : "text-muted-foreground",
                       )}
                       title={mcp.id}
                     >
@@ -693,10 +701,20 @@ export function Sidebar() {
             </div>
           </div>
           <DialogFooter>
-            <Button size="sm" className="h-8 text-xs" variant="outline" onClick={() => setNewSessionDialogOpen(false)}>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              variant="outline"
+              onClick={() => setNewSessionDialogOpen(false)}
+            >
               {t("sidebar.cancel")}
             </Button>
-            <Button size="sm" className="h-8 text-xs" variant="default" onClick={handleCreateNewSession}>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              variant="default"
+              onClick={handleCreateNewSession}
+            >
               {t("sidebar.newSessionDialog.create", { defaultValue: "Create" })}
             </Button>
           </DialogFooter>

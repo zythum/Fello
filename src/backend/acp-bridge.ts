@@ -1,7 +1,4 @@
-import { spawn, execFileSync, type ChildProcess } from "child_process";
 import { writeFile, readFile } from "fs/promises";
-import { homedir } from "os";
-import { Writable, Readable } from "stream";
 import {
   ndJsonStream,
   Client,
@@ -33,14 +30,16 @@ import type {
   NewSessionResponse,
   SetSessionModelRequest,
   SetSessionModelResponse,
-  LoadSessionRequest,
-  LoadSessionResponse,
+  ResumeSessionRequest,
+  ResumeSessionResponse,
   SetSessionModeRequest,
   SetSessionModeResponse,
   PromptRequest,
   PromptResponse,
   CancelNotification,
 } from "@agentclientprotocol/sdk";
+import { type AgentProcess } from "./agent/type";
+import { spawnStdioAgent } from "./agent/stdio-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 import { WORKSPACE_TEMP_DIR } from "./storage";
 
@@ -75,7 +74,7 @@ export interface ACPBridgeOptions {
  * 绝对不要混淆传入 Fello 自身的 `SessionInfo.id`，否则会导致底层 Agent 无法识别会话。
  */
 export class ACPBridge {
-  private process: ChildProcess | null = null;
+  private process: AgentProcess | null = null;
   private connection: ClientSideConnection | null = null;
   private onSessionUpdate: SessionUpdateCallback;
   private onPermissionRequest: PermissionRequestCallback;
@@ -84,6 +83,8 @@ export class ACPBridge {
   private _modelStates = new Map<string, SessionModelState>();
   private _modeStates = new Map<string, SessionModeState>();
   private _loadedSessions = new Set<string>();
+  private _sessionsCwdMap = new Map<string, string>();
+
   public terminalManager: AgentTerminalManager;
 
   constructor(
@@ -125,22 +126,10 @@ export class ACPBridge {
 
   async connect(): Promise<InitializeResponse> {
     const acpId = this.id;
-    const shouldDetach = process.platform !== "win32";
-    const proc = spawn(this.options.command, this.options.args, {
-      stdio: ["pipe", "pipe", "inherit"],
-      cwd: WORKSPACE_TEMP_DIR,
-      env: { ...process.env, ...this.options.env },
-      detached: shouldDetach,
-    });
-    if (shouldDetach) {
-      proc.unref();
-    }
+    const proc = spawnStdioAgent(this.options);
     this.process = proc;
 
-    const input = Writable.toWeb(proc.stdin!);
-    const output = Readable.toWeb(proc.stdout!);
-    const rawStream = ndJsonStream(input, output as ReadableStream<Uint8Array>);
-
+    const rawStream = ndJsonStream(proc.input, proc.output);
     let stream: { readable: ReadableStream; writable: WritableStream };
 
     if (process.env.NODE_ENV === "development") {
@@ -174,6 +163,7 @@ export class ACPBridge {
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
     const terminalManager = this.terminalManager;
+    const sessionsCwdMap = this._sessionsCwdMap;
     const client: Client = {
       async requestPermission(
         params: RequestPermissionRequest,
@@ -196,7 +186,7 @@ export class ACPBridge {
           params.sessionId,
           params.command,
           params.args || [],
-          params.cwd || homedir(),
+          params.cwd || sessionsCwdMap.get(params.sessionId) || WORKSPACE_TEMP_DIR,
           params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
           params.outputByteLimit || 1048576,
         );
@@ -259,6 +249,7 @@ export class ACPBridge {
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
     this._loadedSessions.add(result.sessionId);
+    this._sessionsCwdMap.set(result.sessionId, params.cwd);
     return result;
   }
 
@@ -272,14 +263,20 @@ export class ACPBridge {
     return result;
   }
 
-  async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
+  async loadSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.loadSession(params);
+    let result: ResumeSessionResponse;
+    try {
+      result = await this.connection.resumeSession(params);
+    } catch(err) {
+      result = await this.connection.loadSession({...params, mcpServers: params.mcpServers ?? []});
+    }
     const models = result.models ?? null;
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(params.sessionId, models);
     if (modes) this._modeStates.set(params.sessionId, modes);
     this._loadedSessions.add(params.sessionId);
+    this._sessionsCwdMap.set(params.sessionId, params.cwd);
     return result;
   }
 
@@ -308,7 +305,7 @@ export class ACPBridge {
       const sessionIds = new Set([...this._modelStates.keys(), ...this._modeStates.keys()]);
       for (const sid of sessionIds) {
         try {
-          await this.connection.unstable_closeSession({ sessionId: sid }).catch(() => {});
+          await this.connection.closeSession({ sessionId: sid }).catch(() => {});
         } catch {}
       }
     }
@@ -317,63 +314,16 @@ export class ACPBridge {
     this._modelStates.clear();
     this._modeStates.clear();
     this._loadedSessions.clear();
+    this._sessionsCwdMap.clear();
     this.connection = null;
 
     if (this.process) {
       const proc = this.process;
       this.process = null;
-      try {
-        proc.stdin?.end();
-      } catch {}
-      await new Promise<void>((resolve) => {
-        if (proc.exitCode !== null) {
-          resolve();
-          return;
-        }
-        let killTimer: NodeJS.Timeout | null = null;
-        const onExit = () => {
-          if (killTimer) {
-            clearTimeout(killTimer);
-          }
-          resolve();
-        };
-        proc.once("exit", onExit);
-        this.killProcessGroup(proc, "SIGTERM");
-        killTimer = setTimeout(() => {
-          this.killProcessGroup(proc, "SIGKILL");
-          resolve();
-        }, 2000);
-      });
+      await proc.close();
     }
-
     if (process.env.NODE_ENV === "development") {
       console.log(`[ACP:${this.id} x]`);
-    }
-  }
-
-  private killProcessGroup(proc: ChildProcess, signal: NodeJS.Signals): void {
-    const pid = proc.pid;
-    if (pid == null) return;
-    if (process.platform === "win32") {
-      try {
-        execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], {
-          stdio: "ignore",
-          windowsHide: true,
-        });
-        return;
-      } catch {
-        try {
-          proc.kill(signal);
-          return;
-        } catch {}
-      }
-    }
-    try {
-      process.kill(-pid, signal);
-    } catch {
-      try {
-        proc.kill(signal);
-      } catch {}
     }
   }
 }

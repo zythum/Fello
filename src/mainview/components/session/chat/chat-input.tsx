@@ -43,10 +43,10 @@ function skillInfoToSuggestItem(s: SkillInfo): SuggestItem {
     id: s.id,
     display: `@skill:${s.name}`,
   };
-};
+}
 
 function searchFileItemItemToSuggestItem(f: SearchFileItem): SuggestItem {
-   return {
+  return {
     id: f.id,
     display: `#file:${f.filename}`,
   };
@@ -128,7 +128,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const searchFileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchFileRequestIdRef = useRef<number>(0);
 
-
   // Sync attachments to ref for cleanup
   useEffect(() => {
     attachmentsRef.current = attachments;
@@ -194,7 +193,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
-      callback(searchFileCacheRef.current.map(f => searchFileItemItemToSuggestItem(f)));
+      callback(searchFileCacheRef.current.map((f) => searchFileItemItemToSuggestItem(f)));
 
       if (searchFileTimeoutRef.current) {
         clearTimeout(searchFileTimeoutRef.current);
@@ -204,17 +203,17 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       searchFileTimeoutRef.current = setTimeout(() => {
         request
           .searchFiles({ projectId: session.projectId, query: search || undefined })
-          .then(results => {
+          .then((results) => {
             if (requestId !== searchFileRequestIdRef.current) return;
             searchFileCacheRef.current = results;
-            const suggests = results.map(f => searchFileItemItemToSuggestItem(f));
+            const suggests = results.map((f) => searchFileItemItemToSuggestItem(f));
             callback(suggests);
           })
           .catch(() => {
             if (requestId !== searchFileRequestIdRef.current) return;
             const results: SearchFileItem[] = [];
             searchFileCacheRef.current = results;
-            callback(results.map(f => searchFileItemItemToSuggestItem(f)));
+            callback(results.map((f) => searchFileItemItemToSuggestItem(f)));
           });
       }, 100);
     },
@@ -224,8 +223,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   /** Fetch skill suggestions from backend (cached and filtered locally) */
   const fetchSkillSuggestions = useCallback(
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
-
-      callback(skillsCacheRef.current.map(s => skillInfoToSuggestItem(s)));
+      callback(skillsCacheRef.current.map((s) => skillInfoToSuggestItem(s)));
 
       if (skillsTimeoutRef.current) {
         clearTimeout(skillsTimeoutRef.current);
@@ -233,27 +231,27 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       const requestId = ++skillsRequestIdRef.current;
       skillsTimeoutRef.current = setTimeout(() => {
-      request
-        .getSkillsCatalog({ projectId: session.projectId })
-        .then(results => {
-          if (requestId !== skillsRequestIdRef.current) return;
+        request
+          .getSkillsCatalog({ projectId: session.projectId })
+          .then((results) => {
+            if (requestId !== skillsRequestIdRef.current) return;
 
-          const lowerSearch = (search || "").toLowerCase();
-          const filtered = results.filter(
-            (s) =>
-              !search ||
-              s.name.toLowerCase().includes(lowerSearch) ||
-              s.description?.toLowerCase().includes(lowerSearch)
-          );
-          skillsCacheRef.current = filtered;
-          callback(filtered.map(s => skillInfoToSuggestItem(s)));
-        })
-        .catch(() => {
-          if (requestId !== skillsRequestIdRef.current) return;
-          const results: SkillInfo[] = [];
-          skillsCacheRef.current = results;
-          callback(results.map(s => skillInfoToSuggestItem(s)));
-        });
+            const lowerSearch = (search || "").toLowerCase();
+            const filtered = results.filter(
+              (s) =>
+                !search ||
+                s.name.toLowerCase().includes(lowerSearch) ||
+                s.description?.toLowerCase().includes(lowerSearch),
+            );
+            skillsCacheRef.current = filtered;
+            callback(filtered.map((s) => skillInfoToSuggestItem(s)));
+          })
+          .catch(() => {
+            if (requestId !== skillsRequestIdRef.current) return;
+            const results: SkillInfo[] = [];
+            skillsCacheRef.current = results;
+            callback(results.map((s) => skillInfoToSuggestItem(s)));
+          });
       }, 100);
     },
     [session],
@@ -611,11 +609,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               style={mentionStyle}
               appendSpaceOnAdd
               renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, _focused) => {
-                const skill = skillsCacheRef.current.find(skillInfo => skillInfo.id === suggestion.id);
+                const skill = skillsCacheRef.current.find(
+                  (skillInfo) => skillInfo.id === suggestion.id,
+                );
                 return (
                   <div className="flex items-center gap-1">
                     <Library className="size-3.5 text-muted-foreground" />
-                    <span className="text-xs whitespace-nowrap text-foreground">{skill?.name ?? skill?.id}</span>
+                    <span className="text-xs whitespace-nowrap text-foreground">
+                      {skill?.name ?? skill?.id}
+                    </span>
                     <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
                       {skill?.description}
                     </span>

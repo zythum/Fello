@@ -198,7 +198,7 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
     const key = getPendingToolCallKey(sessionId, toolCallId);
     const base = pendingToolCalls.get(key);
 
-    if (enrichedNotification.update.status === 'in_progress') {
+    if (enrichedNotification.update.status === "in_progress") {
       if (base) {
         const mergedUpdate = mergeToolCallUpdate(base, enrichedNotification.update);
         pendingToolCalls.set(key, mergedUpdate);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { SettingsInfo } from "../../../shared/schema";
+import type { AgentInfo } from "../../../shared/schema";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
@@ -45,20 +45,15 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 
 function AgentSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : "auto" as const,
+    zIndex: isDragging ? 50 : ("auto" as const),
   };
 
   return (
@@ -102,11 +97,11 @@ export function SettingsAgents() {
   const { t } = useTranslation();
   const { configuredAgents, setConfiguredAgents } = useAppStore();
   const { toast } = useMessage();
-  const [agents, setAgents] = useState<SettingsInfo["agents"]>([]);
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogItem, setDialogItem] = useState<SettingsInfo["agents"][number] | null>(null);
+  const [dialogItem, setDialogItem] = useState<AgentInfo | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
   const [dialogEnvRaw, setDialogEnvRaw] = useState("");
   const [dialogArgsRaw, setDialogArgsRaw] = useState("");
@@ -116,7 +111,7 @@ export function SettingsAgents() {
     setAgents(configuredAgents);
   }, [configuredAgents]);
 
-  const handleSave = async (updatedAgents: SettingsInfo["agents"]) => {
+  const handleSave = async (updatedAgents: AgentInfo[]) => {
     try {
       await request.updateSettings({ agents: updatedAgents });
       setConfiguredAgents(updatedAgents);
@@ -129,8 +124,9 @@ export function SettingsAgents() {
   };
 
   const openAddDialog = () => {
-    const newAgent: SettingsInfo["agents"][number] = {
+    const newAgent: AgentInfo = {
       id: "",
+      type: "stdio",
       command: "",
       args: [],
       env: {},
@@ -143,7 +139,7 @@ export function SettingsAgents() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (agent: SettingsInfo["agents"][number]) => {
+  const openEditDialog = (agent: AgentInfo) => {
     setDialogItem({ ...agent });
     setDialogOriginalId(agent.id);
     setDialogEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
@@ -177,7 +173,7 @@ export function SettingsAgents() {
     const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
     const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
 
-    let updated: SettingsInfo["agents"];
+    let updated: AgentInfo[];
     if (isNew) {
       updated = [...agents, finalItem];
     } else {
@@ -294,7 +290,9 @@ export function SettingsAgents() {
                               <Switch
                                 size="sm"
                                 checked={!agent.disabled}
-                                onCheckedChange={(checked) => handleToggleDisabled(agent.id, !checked)}
+                                onCheckedChange={(checked) =>
+                                  handleToggleDisabled(agent.id, !checked)
+                                }
                               />
                             </div>
                           </div>
@@ -306,7 +304,10 @@ export function SettingsAgents() {
                           {t("common.edit", "Edit")}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
-                        <ContextMenuItem variant="destructive" onClick={() => handleDelete(agent.id)}>
+                        <ContextMenuItem
+                          variant="destructive"
+                          onClick={() => handleDelete(agent.id)}
+                        >
                           <Trash2 className="size-3" />
                           {t("common.delete", "Delete")}
                         </ContextMenuItem>

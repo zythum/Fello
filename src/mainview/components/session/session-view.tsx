@@ -5,13 +5,7 @@ import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { FilePanel } from "./file-panel/file-panel";
 import { TerminalPanel } from "./terminal-panel/terminal-panel";
-import {
-  Loader2,
-  Folders,
-  SquareTerminal,
-  MoreHorizontal,
-  RefreshCw,
-} from "lucide-react";
+import { Loader2, Folders, SquareTerminal, MoreHorizontal, RefreshCw } from "lucide-react";
 import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../backend";
 import { Badge } from "@/components/ui/badge";
@@ -354,12 +348,17 @@ export function SessionView({ session }: { session: SessionInfo }) {
             <Panel open={filesOpen} className="min-[1400px]:left-[480px]">
               <div className="h-full relative overflow-hidden">
                 <div className="h-full overflow-hidden bg-background">
-                  {currentProjectId && <FilePanel projectId={currentProjectId} file={previewFile} />}
+                  {currentProjectId && (
+                    <FilePanel projectId={currentProjectId} file={previewFile} />
+                  )}
                 </div>
               </div>
             </Panel>
 
-            <Panel open={terminalOpen} className="min-[1400px]:left-[480px] min-[1600px]:border-l min-[1600px]:border-t-0">
+            <Panel
+              open={terminalOpen}
+              className="min-[1400px]:left-[480px] min-[1600px]:border-l min-[1600px]:border-t-0"
+            >
               <div className="h-full relative overflow-hidden">
                 <div className="h-full overflow-hidden bg-background">
                   {currentProjectId && (

@@ -26,21 +26,41 @@ export interface SessionNotificationFelloExt extends SessionNotification {
  * 代理（Agent）的配置信息
  * 描述了如何启动或连接到一个特定的代理
  */
-export interface SettingAgentInfo {
+export interface BaseAgentInfo {
   /**
    * 代理的唯一标识符
    * 数据来源：用户在全局设置（Settings -> Agents）中手动输入（例如："kiro"）。
    */
   id: string;
+  /** 是否停用代理 */
+  disabled: boolean;
+}
+
+export interface StdioAgentInfo extends BaseAgentInfo {
+  type: "stdio";
   /** 启动该代理的命令（例如：'kiro-cli' 等命令行工具，或 'node', 'python' 等执行器） */
   command: string;
   /** 传递给启动命令的参数列表（例如：['acp'] 或 ['--port', '8080'] 等） */
   args: string[];
   /** 运行该代理时需要的环境变量字典 */
   env: Record<string, string>;
-  /** 是否停用代理 */
+}
+
+export type AgentInfo = StdioAgentInfo;
+
+export interface BaseMcpServerInfo {
+  id: string;
   disabled: boolean;
 }
+
+export interface StdioMcpServerInfo extends BaseMcpServerInfo {
+  type: "stdio";
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+export type McpServerInfo = StdioMcpServerInfo;
 
 /**
  * 应用的主题配置信息
@@ -58,26 +78,18 @@ export interface SettingI18nInfo {
   language: string;
 }
 
-export interface SettingMcpServerInfo {
-  id: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-  disabled: boolean;
-}
-
 /**
  * 应用的全局设置信息
  */
 export interface SettingsInfo {
   /** 已配置的代理列表 */
-  agents: SettingAgentInfo[];
+  agents: StdioAgentInfo[];
+  /** MCP 服务器配置 */
+  mcpServers: StdioMcpServerInfo[];
   /** 主题设置 */
   theme: SettingThemeInfo;
   /** 国际化（语言）设置 */
   i18n: SettingI18nInfo;
-  /** MCP 服务器配置 */
-  mcpServers: SettingMcpServerInfo[];
 }
 
 /**

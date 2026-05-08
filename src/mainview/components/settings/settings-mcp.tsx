@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { SettingsInfo } from "../../../shared/schema";
+import type { McpServerInfo } from "../../../shared/schema";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
@@ -45,20 +45,15 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 
 function McpSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : "auto" as const,
+    zIndex: isDragging ? 50 : ("auto" as const),
   };
 
   return (
@@ -102,11 +97,11 @@ export function SettingsMcp() {
   const { t } = useTranslation();
   const { configuredMcpServers, setConfiguredMcpServers } = useAppStore();
   const { toast } = useMessage();
-  const [mcpServers, setMcpServers] = useState<SettingsInfo["mcpServers"]>([]);
+  const [mcpServers, setMcpServers] = useState<McpServerInfo[]>([]);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogItem, setDialogItem] = useState<SettingsInfo["mcpServers"][number] | null>(null);
+  const [dialogItem, setDialogItem] = useState<McpServerInfo | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
   const [dialogEnvRaw, setDialogEnvRaw] = useState("");
   const [dialogArgsRaw, setDialogArgsRaw] = useState("");
@@ -116,7 +111,7 @@ export function SettingsMcp() {
     setMcpServers(configuredMcpServers);
   }, [configuredMcpServers]);
 
-  const handleSave = async (updatedMcpServers: SettingsInfo["mcpServers"]) => {
+  const handleSave = async (updatedMcpServers: McpServerInfo[]) => {
     try {
       await request.updateSettings({ mcpServers: updatedMcpServers });
       setConfiguredMcpServers(updatedMcpServers);
@@ -129,8 +124,9 @@ export function SettingsMcp() {
   };
 
   const openAddDialog = () => {
-    const newMcp: SettingsInfo["mcpServers"][number] = {
+    const newMcp: McpServerInfo = {
       id: "",
+      type: "stdio",
       command: "",
       args: [],
       env: {},
@@ -143,7 +139,7 @@ export function SettingsMcp() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (mcp: SettingsInfo["mcpServers"][number]) => {
+  const openEditDialog = (mcp: McpServerInfo) => {
     setDialogItem({ ...mcp });
     setDialogOriginalId(mcp.id);
     setDialogEnvRaw(Object.keys(mcp.env || {}).length > 0 ? JSON.stringify(mcp.env) : "");
@@ -176,7 +172,7 @@ export function SettingsMcp() {
     const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
     const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
 
-    let updated: SettingsInfo["mcpServers"];
+    let updated: McpServerInfo[];
     if (isNew) {
       updated = [...mcpServers, finalItem];
     } else {
@@ -293,7 +289,9 @@ export function SettingsMcp() {
                               <Switch
                                 size="sm"
                                 checked={!mcp.disabled}
-                                onCheckedChange={(checked) => handleToggleDisabled(mcp.id, !checked)}
+                                onCheckedChange={(checked) =>
+                                  handleToggleDisabled(mcp.id, !checked)
+                                }
                               />
                             </div>
                           </div>

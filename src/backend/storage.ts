@@ -27,30 +27,46 @@ export const PROJECTS_DIR = join(FELLO_DIR, "projects");
 export const WORKSPACES_DIR = join(FELLO_DIR, "workspaces");
 export const WORKSPACE_TEMP_DIR = join(WORKSPACES_DIR, "__temp__");
 
+interface BaseAgentMeta {
+  disabled: boolean;
+  order: number;
+}
+
+interface StdioAgentMeta extends BaseAgentMeta {
+  type: "stdio";
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+type AgentMeta = StdioAgentMeta;
+
+interface BaseMcpServerMeta {
+  disabled: boolean;
+  order: number;
+}
+
+interface StdioMcpServerMeta extends BaseMcpServerMeta {
+  type: "stdio";
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+type McpServerMeta = StdioMcpServerMeta;
+
 interface SettingsMeta {
   agents: {
-    [id: string]: {
-      command: string;
-      args: string[];
-      env: Record<string, string>;
-      disabled: boolean;
-      order: number;
-    };
+    [id: string]: AgentMeta;
+  };
+  mcpServers: {
+    [id: string]: McpServerMeta;
   };
   theme: {
     theme_mode: "light" | "dark" | "system";
   };
   i18n: {
     language: string;
-  };
-  mcpServers: {
-    [id: string]: {
-      command: string;
-      args: string[];
-      env: Record<string, string>;
-      disabled: boolean;
-      order: number;
-    };
   };
 }
 
@@ -109,19 +125,25 @@ function readSettings(): SettingsMeta {
       const next: SettingsMeta["agents"] = {};
       for (const [id, value] of Object.entries(rawAgents)) {
         const cfg = isObject(value) ? value : null;
-        const command = typeof cfg?.command === "string" ? cfg.command : "";
-        const args = Array.isArray(cfg?.args) ? cfg.args.filter((v) => typeof v === "string") : [];
-        const env = (() => {
-          if (!isObject(cfg?.env)) return {};
-          const nextEnv: Record<string, string> = {};
-          for (const [k, v] of Object.entries(cfg.env)) {
-            nextEnv[k] = String(v);
-          }
-          return nextEnv;
-        })();
         const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
         const order = typeof cfg?.order === "number" ? cfg.order : 0;
-        next[id] = { command, args, env, disabled, order };
+        const type = cfg?.type ?? "stdio";
+
+        if (type === "stdio") {
+          const command = typeof cfg?.command === "string" ? cfg.command : "";
+          const args = Array.isArray(cfg?.args)
+            ? cfg.args.filter((v) => typeof v === "string")
+            : [];
+          const env = (() => {
+            if (!isObject(cfg?.env)) return {};
+            const nextEnv: Record<string, string> = {};
+            for (const [k, v] of Object.entries(cfg.env)) {
+              nextEnv[k] = String(v);
+            }
+            return nextEnv;
+          })();
+          next[id] = { type, command, args, env, disabled, order };
+        }
       }
       return next;
     })();
@@ -150,18 +172,24 @@ function readSettings(): SettingsMeta {
       for (const [id, value] of Object.entries(rawMcpServers)) {
         const cfg = isObject(value) ? value : null;
         const command = typeof cfg?.command === "string" ? cfg.command : "";
-        const args = Array.isArray(cfg?.args) ? cfg.args.filter((v) => typeof v === "string") : [];
-        const env = (() => {
-          if (!isObject(cfg?.env)) return {};
-          const nextEnv: Record<string, string> = {};
-          for (const [k, v] of Object.entries(cfg.env)) {
-            nextEnv[k] = String(v);
-          }
-          return nextEnv;
-        })();
-        const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
-        const order = typeof cfg?.order === "number" ? cfg.order : 0;
-        next[id] = { command, args, env, disabled, order };
+        const type = cfg?.type ?? "stdio";
+
+        if (type === "stdio") {
+          const args = Array.isArray(cfg?.args)
+            ? cfg.args.filter((v) => typeof v === "string")
+            : [];
+          const env = (() => {
+            if (!isObject(cfg?.env)) return {};
+            const nextEnv: Record<string, string> = {};
+            for (const [k, v] of Object.entries(cfg.env)) {
+              nextEnv[k] = String(v);
+            }
+            return nextEnv;
+          })();
+          const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
+          const order = typeof cfg?.order === "number" ? cfg.order : 0;
+          next[id] = { type, command, args, env, disabled, order };
+        }
       }
       return next;
     })();
@@ -353,24 +381,32 @@ export const storageOps = {
     return {
       agents: Object.entries(meta.agents)
         .map(([id, agentMeta]) => {
-          return {
-            id,
-            command: agentMeta.command,
-            args: agentMeta.args.slice(),
-            env: Object.assign({}, agentMeta.env),
-            disabled: agentMeta.disabled,
-          };
+          if (agentMeta.type === "stdio") {
+            return {
+              id,
+              type: agentMeta.type,
+              command: agentMeta.command,
+              args: agentMeta.args.slice(),
+              env: Object.assign({}, agentMeta.env),
+              disabled: agentMeta.disabled,
+            };
+          }
+          throw new Error(`Invalid agent type ${agentMeta.type}.`);
         })
         .sort((a, b) => meta.agents[a.id].order - meta.agents[b.id].order),
       mcpServers: Object.entries(meta.mcpServers)
         .map(([id, srvMeta]) => {
-          return {
-            id,
-            command: srvMeta.command,
-            args: srvMeta.args.slice(),
-            env: Object.assign({}, srvMeta.env),
-            disabled: srvMeta.disabled,
-          };
+          if (srvMeta.type === "stdio") {
+            return {
+              id,
+              type: srvMeta.type,
+              command: srvMeta.command,
+              args: srvMeta.args.slice(),
+              env: Object.assign({}, srvMeta.env),
+              disabled: srvMeta.disabled,
+            };
+          }
+          throw new Error(`Invalid mcpServer type ${srvMeta.type}.`);
         })
         .sort((a, b) => meta.mcpServers[a.id].order - meta.mcpServers[b.id].order),
       i18n: {
@@ -391,13 +427,18 @@ export const storageOps = {
         }
         const nextAgents: SettingsMeta["agents"] = {};
         settings.agents.forEach((agent, idx) => {
-          nextAgents[agent.id] = {
-            command: agent.command,
-            args: agent.args.slice(),
-            env: Object.assign({}, agent.env),
-            disabled: agent.disabled,
-            order: idx,
-          };
+          if (agent.type === "stdio") {
+            nextAgents[agent.id] = {
+              type: agent.type,
+              command: agent.command,
+              args: agent.args.slice(),
+              env: Object.assign({}, agent.env),
+              disabled: agent.disabled,
+              order: idx,
+            };
+          } else {
+            throw new Error(`Invalid agent type ${agent.type}.`);
+          }
         });
         return nextAgents;
       })(),
@@ -423,13 +464,18 @@ export const storageOps = {
         }
         const nextMcpServers: SettingsMeta["mcpServers"] = {};
         settings.mcpServers.forEach((srv, idx) => {
-          nextMcpServers[srv.id] = {
-            command: srv.command,
-            args: srv.args.slice(),
-            env: Object.assign({}, srv.env),
-            disabled: srv.disabled,
-            order: idx,
-          };
+          if (srv.type === "stdio") {
+            nextMcpServers[srv.id] = {
+              type: srv.type,
+              command: srv.command,
+              args: srv.args.slice(),
+              env: Object.assign({}, srv.env),
+              disabled: srv.disabled,
+              order: idx,
+            };
+          } else {
+            throw new Error(`Invalid mcpServer type ${srv.type}.`);
+          }
         });
         return nextMcpServers;
       })(),
