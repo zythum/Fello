@@ -46,7 +46,15 @@ export interface StdioAgentInfo extends BaseAgentInfo {
   env: Record<string, string>;
 }
 
-export type AgentInfo = StdioAgentInfo;
+export interface ApiAgentInfo extends BaseAgentInfo {
+  type: "api";
+  provider: "openai-compatible" | (string & {});
+  baseUrl: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+}
+
+export type AgentInfo = StdioAgentInfo | ApiAgentInfo;
 
 export interface BaseMcpServerInfo {
   id: string;
@@ -83,7 +91,7 @@ export interface SettingI18nInfo {
  */
 export interface SettingsInfo {
   /** 已配置的代理列表 */
-  agents: StdioAgentInfo[];
+  agents: AgentInfo[];
   /** MCP 服务器配置 */
   mcpServers: StdioMcpServerInfo[];
   /** 主题设置 */

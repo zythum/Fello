@@ -1,21 +1,11 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { AgentInfo } from "../../../shared/schema";
+import type { AgentInfo, ApiAgentInfo, StdioAgentInfo } from "../../../shared/schema";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -43,6 +33,8 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { SettingsAgentStdioDialog } from "./settings-agent-stdio-dialog";
+import { SettingsAgentApiDialog } from "./settings-agent-api-dialog";
 
 function AgentSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -74,23 +66,12 @@ function AgentSortableItem({ id, children }: { id: string; children: React.React
   );
 }
 
-function parseEnvJson(raw: string): Record<string, string> | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+function isStdioAgent(agent: AgentInfo): agent is StdioAgentInfo {
+  return agent.type === "stdio";
+}
 
-  const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(parsed)) {
-    if (typeof v !== "string") return null;
-    env[k] = v;
-  }
-  return env;
+function isApiAgent(agent: AgentInfo): agent is ApiAgentInfo {
+  return agent.type === "api";
 }
 
 export function SettingsAgents() {
@@ -99,14 +80,12 @@ export function SettingsAgents() {
   const { toast } = useMessage();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
 
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogItem, setDialogItem] = useState<AgentInfo | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
-  const [dialogEnvRaw, setDialogEnvRaw] = useState("");
-  const [dialogArgsRaw, setDialogArgsRaw] = useState("");
+  const [stdioDialogOpen, setStdioDialogOpen] = useState(false);
+  const [apiDialogOpen, setApiDialogOpen] = useState(false);
+  const [stdioDialogItem, setStdioDialogItem] = useState<StdioAgentInfo | null>(null);
+  const [apiDialogItem, setApiDialogItem] = useState<ApiAgentInfo | null>(null);
 
-  // Sync when mounted
   useEffect(() => {
     setAgents(configuredAgents);
   }, [configuredAgents]);
@@ -123,74 +102,78 @@ export function SettingsAgents() {
     }
   };
 
-  const openAddDialog = () => {
-    const newAgent: AgentInfo = {
-      id: "",
-      type: "stdio",
-      command: "",
-      args: [],
-      env: {},
-      disabled: false,
-    };
-    setDialogItem(newAgent);
+  const closeDialogs = () => {
+    setStdioDialogOpen(false);
+    setApiDialogOpen(false);
+    setStdioDialogItem(null);
+    setApiDialogItem(null);
     setDialogOriginalId(null);
-    setDialogEnvRaw("");
-    setDialogArgsRaw("");
-    setDialogOpen(true);
   };
 
-  const openEditDialog = (agent: AgentInfo) => {
-    setDialogItem({ ...agent });
-    setDialogOriginalId(agent.id);
-    setDialogEnvRaw(Object.keys(agent.env || {}).length > 0 ? JSON.stringify(agent.env) : "");
-    setDialogArgsRaw(agent.args?.join(" ") || "");
-    setDialogOpen(true);
-  };
-
-  const handleDialogSave = async () => {
-    if (!dialogItem) return;
-    if (!dialogItem.id.trim() || !dialogItem.command.trim()) {
-      toast.error(t("settings.agents.errorIdCommand"));
-      return;
-    }
-
-    const isNew = dialogOriginalId === null;
+  const upsertAgent = async (nextAgent: AgentInfo) => {
     const duplicate = agents.some(
-      (a) =>
-        a.id === dialogItem.id && a.id !== dialogOriginalId && !a.id.startsWith("__new_agent_"),
+      (item) =>
+        item.id === nextAgent.id &&
+        item.id !== dialogOriginalId &&
+        !item.id.startsWith("__new_agent_"),
     );
     if (duplicate) {
       toast.error(t("settings.agents.errorDuplicateId"));
       return;
     }
 
-    const nextEnv = parseEnvJson(dialogEnvRaw);
-    if (!nextEnv) {
-      toast.error(t("settings.agents.errorEnvJson"));
-      return;
-    }
-
-    const nextArgs = dialogArgsRaw.split(/\s+/).filter(Boolean);
-    const finalItem = { ...dialogItem, env: nextEnv, args: nextArgs };
-
-    let updated: AgentInfo[];
-    if (isNew) {
-      updated = [...agents, finalItem];
-    } else {
-      updated = agents.map((a) => (a.id === dialogOriginalId ? finalItem : a));
-    }
+    const isNew = dialogOriginalId === null;
+    const updated = isNew
+      ? [...agents, nextAgent]
+      : agents.map((item) => (item.id === dialogOriginalId ? nextAgent : item));
 
     setAgents(updated);
-    setDialogOpen(false);
-    setDialogItem(null);
-    setDialogOriginalId(null);
+    closeDialogs();
     await handleSave(updated);
   };
 
-  const handleDialogCancel = () => {
-    setDialogOpen(false);
-    setDialogItem(null);
+  const openAddStdioDialog = () => {
     setDialogOriginalId(null);
+    setApiDialogItem(null);
+    setStdioDialogItem({
+      id: "",
+      type: "stdio",
+      command: "",
+      args: [],
+      env: {},
+      disabled: false,
+    });
+    setStdioDialogOpen(true);
+  };
+
+  const openAddApiDialog = () => {
+    setDialogOriginalId(null);
+    setStdioDialogItem(null);
+    setApiDialogItem({
+      id: "",
+      type: "api",
+      provider: "openai-compatible",
+      baseUrl: "",
+      apiKey: "",
+      headers: {},
+      disabled: false,
+    });
+    setApiDialogOpen(true);
+  };
+
+  const openEditDialog = (agent: AgentInfo) => {
+    setDialogOriginalId(agent.id);
+    if (isStdioAgent(agent)) {
+      setApiDialogItem(null);
+      setStdioDialogItem({ ...agent });
+      setStdioDialogOpen(true);
+      return;
+    }
+    if (isApiAgent(agent)) {
+      setStdioDialogItem(null);
+      setApiDialogItem({ ...agent });
+      setApiDialogOpen(true);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -245,15 +228,26 @@ export function SettingsAgents() {
           <h3 className="text-xs text-foreground/50">
             {t("settings.agents.description", "Configure agents")}
           </h3>
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={openAddDialog}
-            className="h-7 text-xs text-foreground/70"
-          >
-            <Plus className="mr-1 size-3" />
-            {t("settings.agents.addAgent")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={openAddStdioDialog}
+              className="h-7 text-xs text-foreground/70"
+            >
+              <Plus className="mr-1 size-3" />
+              {t("settings.agents.addStdioAgent", "Add Stdio Agent")}
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={openAddApiDialog}
+              className="h-7 text-xs text-foreground/70"
+            >
+              <Plus className="mr-1 size-3" />
+              {t("settings.agents.addApiAgent", "Add API Agent")}
+            </Button>
+          </div>
         </div>
         <div className="border-t border-border -mx-4"></div>
       </div>
@@ -284,15 +278,15 @@ export function SettingsAgents() {
                               </span>
                             </div>
                             <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                              {[agent.command, ...(agent.args || [])].join(" ")}
+                              {isStdioAgent(agent)
+                                ? [agent.command, ...(agent.args || [])].join(" ")
+                                : `api:${agent.provider} ${agent.baseUrl}`}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <Switch
                                 size="sm"
                                 checked={!agent.disabled}
-                                onCheckedChange={(checked) =>
-                                  handleToggleDisabled(agent.id, !checked)
-                                }
+                                onCheckedChange={(checked) => handleToggleDisabled(agent.id, !checked)}
                               />
                             </div>
                           </div>
@@ -326,95 +320,25 @@ export function SettingsAgents() {
         </div>
       </ScrollArea>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {dialogOriginalId
-                ? t("settings.agents.editAgent", "Edit Agent")
-                : t("settings.agents.addAgent", "Add Agent")}
-            </DialogTitle>
-            <DialogDescription>
-              {t(
-                "settings.agents.dialogDesc",
-                "Configure the agent ID, command, arguments and environment variables.",
-              )}
-            </DialogDescription>
-          </DialogHeader>
+      <SettingsAgentStdioDialog
+        open={stdioDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialogs();
+          else setStdioDialogOpen(open);
+        }}
+        initialAgent={stdioDialogItem}
+        onSave={upsertAgent}
+      />
 
-          {dialogItem && (
-            <div className="flex flex-col gap-3 py-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.agents.agentId")}
-                </label>
-                <Input
-                  placeholder={t("settings.agents.agentId")}
-                  value={dialogItem.id}
-                  onChange={(e) => setDialogItem({ ...dialogItem, id: e.target.value })}
-                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
-              <div className="flex gap-2">
-                <div className="flex flex-1 flex-col gap-1">
-                  <label className="text-[11px] text-muted-foreground">
-                    {t("settings.agents.command")}
-                  </label>
-                  <Input
-                    placeholder={t("settings.agents.command")}
-                    value={dialogItem.command}
-                    onChange={(e) => setDialogItem({ ...dialogItem, command: e.target.value })}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-1">
-                  <label className="text-[11px] text-muted-foreground">
-                    {t("settings.agents.args")}
-                  </label>
-                  <Input
-                    placeholder={t("settings.agents.args")}
-                    value={dialogArgsRaw}
-                    onChange={(e) => setDialogArgsRaw(e.target.value)}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.agents.envVars")}
-                </label>
-                <Textarea
-                  placeholder={t("settings.agents.envJson")}
-                  value={dialogEnvRaw}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setDialogEnvRaw(val);
-                    const nextEnv = parseEnvJson(val);
-                    if (nextEnv) {
-                      setDialogItem({ ...dialogItem, env: nextEnv });
-                    }
-                  }}
-                  className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDialogCancel}
-              className="h-7 text-xs"
-            >
-              {t("settings.agents.cancel")}
-            </Button>
-            <Button size="sm" onClick={handleDialogSave} className="h-7 text-xs">
-              {t("settings.agents.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SettingsAgentApiDialog
+        open={apiDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialogs();
+          else setApiDialogOpen(open);
+        }}
+        initialAgent={apiDialogItem}
+        onSave={upsertAgent}
+      />
     </div>
   );
 }

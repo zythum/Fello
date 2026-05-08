@@ -39,7 +39,15 @@ interface StdioAgentMeta extends BaseAgentMeta {
   env: Record<string, string>;
 }
 
-type AgentMeta = StdioAgentMeta;
+interface ApiAgentMeta extends BaseAgentMeta {
+  type: "api";
+  provider: string;
+  baseUrl: string;
+  apiKey: string;
+  headers: Record<string, string>;
+}
+
+type AgentMeta = StdioAgentMeta | ApiAgentMeta;
 
 interface BaseMcpServerMeta {
   disabled: boolean;
@@ -143,6 +151,19 @@ function readSettings(): SettingsMeta {
             return nextEnv;
           })();
           next[id] = { type, command, args, env, disabled, order };
+        } else if (type === "api") {
+          const provider = typeof cfg?.provider === "string" ? cfg.provider : "openai-compatible";
+          const baseUrl = typeof cfg?.baseUrl === "string" ? cfg.baseUrl : "";
+          const apiKey = typeof cfg?.apiKey === "string" ? cfg.apiKey : "";
+          const headers = (() => {
+            if (!isObject(cfg?.headers)) return {};
+            const nextHeaders: Record<string, string> = {};
+            for (const [k, v] of Object.entries(cfg.headers)) {
+              nextHeaders[k] = String(v);
+            }
+            return nextHeaders;
+          })();
+          next[id] = { type, provider, baseUrl, apiKey, headers, disabled, order };
         }
       }
       return next;
@@ -391,7 +412,18 @@ export const storageOps = {
               disabled: agentMeta.disabled,
             };
           }
-          throw new Error(`Invalid agent type ${agentMeta.type}.`);
+          if (agentMeta.type === "api") {
+            return {
+              id,
+              type: agentMeta.type,
+              provider: agentMeta.provider,
+              baseUrl: agentMeta.baseUrl,
+              apiKey: agentMeta.apiKey,
+              headers: Object.assign({}, agentMeta.headers),
+              disabled: agentMeta.disabled,
+            };
+          }
+          throw new Error("Invalid agent type.");
         })
         .sort((a, b) => meta.agents[a.id].order - meta.agents[b.id].order),
       mcpServers: Object.entries(meta.mcpServers)
@@ -436,8 +468,18 @@ export const storageOps = {
               disabled: agent.disabled,
               order: idx,
             };
+          } else if (agent.type === "api") {
+            nextAgents[agent.id] = {
+              type: agent.type,
+              provider: agent.provider,
+              baseUrl: agent.baseUrl,
+              apiKey: agent.apiKey,
+              headers: Object.assign({}, agent.headers || {}),
+              disabled: agent.disabled,
+              order: idx,
+            };
           } else {
-            throw new Error(`Invalid agent type ${agent.type}.`);
+            throw new Error("Invalid agent type.");
           }
         });
         return nextAgents;

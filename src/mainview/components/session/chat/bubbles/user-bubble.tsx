@@ -91,7 +91,7 @@ export const UserBubble = memo(function UserBubble({
             >
               {isExpanded ? (
                 <ScrollArea className="h-full max-h-45 pr-2.5">
-                  <div ref={contentRef}>
+                  <div className="-my-2" ref={contentRef}>
                     <ContentBlocks
                       blocks={message.contents}
                       role={message.role}
@@ -102,7 +102,7 @@ export const UserBubble = memo(function UserBubble({
               ) : (
                 <div
                   ref={contentRef}
-                  className="pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
+                  className="-my-2 pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
                 >
                   <ContentBlocks blocks={message.contents} role={message.role} session={session} />
                 </div>

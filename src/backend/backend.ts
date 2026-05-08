@@ -31,7 +31,7 @@ import { promisify } from "util";
 import { ACPBridge } from "./acp-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
-import type { SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
+import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
@@ -276,21 +276,27 @@ export function initBackend(
   initWatcher(sendEvent);
 }
 
-function resolveAgentRuntime(agentId: string) {
+function resolveAgentInfo(agentId: string): AgentInfo {
   const settings = storageOps.getSettings();
   const agent = settings.agents.find((a) => a.id === agentId);
   if (!agent) {
     throw new Error(`Unknown agent: ${agentId}. Please check your settings.`);
   }
-  const command = agent.command.trim();
-  if (!command) {
-    throw new Error(`Agent "${agent.id}" has no command configured.`);
+  if (agent.type === "stdio") {
+    const command = agent.command.trim();
+    if (!command) {
+      throw new Error(`Agent "${agent.id}" has no command configured.`);
+    }
+    return { ...agent, command };
   }
 
-  const args = agent.args || [];
-  const env = agent.env || {};
-
-  return { command, args, env };
+  const provider = agent.provider.trim();
+  const baseUrl = agent.baseUrl.trim();
+  const apiKey = agent.apiKey.trim();
+  if (!provider) throw new Error(`Agent "${agent.id}" has no provider configured.`);
+  if (!baseUrl) throw new Error(`Agent "${agent.id}" has no baseUrl configured.`);
+  if (!apiKey) throw new Error(`Agent "${agent.id}" has no apiKey configured.`);
+  return { ...agent, provider, baseUrl, apiKey };
 }
 
 async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
@@ -306,11 +312,9 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
     await pooledBridge.kill();
   }
 
-  const runtime = resolveAgentRuntime(agentId);
+  const agentInfo = resolveAgentInfo(agentId);
   const nextBridge = new ACPBridge(agentId, {
-    command: runtime.command,
-    args: runtime.args,
-    env: runtime.env,
+    agentInfo,
     onSessionUpdate: (notification: SessionNotification) => {
       const sessionId = `${agentId}:${notification.sessionId}`;
       if (restoringSessions.has(sessionId)) {

@@ -37,9 +37,12 @@ import type {
   PromptRequest,
   PromptResponse,
   CancelNotification,
+  SessionConfigOption,
 } from "@agentclientprotocol/sdk";
+import type { AgentInfo } from "../shared/schema";
 import { type AgentProcess } from "./agent/type";
 import { spawnStdioAgent } from "./agent/stdio-agent";
+import { spawnOpenaiCompatibleApiAgent } from "./agent/openai-compatible-api-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 import { WORKSPACE_TEMP_DIR } from "./storage";
 
@@ -54,9 +57,7 @@ export type AgentTerminalOutputCallback = (
 ) => void;
 
 export interface ACPBridgeOptions {
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
+  agentInfo: AgentInfo;
   onSessionUpdate: SessionUpdateCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
@@ -84,6 +85,7 @@ export class ACPBridge {
   private _modeStates = new Map<string, SessionModeState>();
   private _loadedSessions = new Set<string>();
   private _sessionsCwdMap = new Map<string, string>();
+  private _configOptions = new Map<string, SessionConfigOption[]>();
 
   public terminalManager: AgentTerminalManager;
 
@@ -124,9 +126,74 @@ export class ACPBridge {
     return this._modeStates.get(sessionId) ?? null;
   }
 
+  private normalizeSelectOptions(
+    options: Array<{ value: string; name: string }> | Array<{ options: Array<{ value: string; name: string }> }>,
+  ): Array<{ value: string; name: string }> {
+    if (!Array.isArray(options) || options.length === 0) return [];
+    const first = options[0] as { value?: unknown; options?: unknown };
+    if (typeof first?.value === "string") {
+      return (options as Array<{ value: string; name: string }>).map((item) => ({
+        value: item.value,
+        name: item.name,
+      }));
+    }
+    return (options as Array<{ options: Array<{ value: string; name: string }> }>).flatMap((group) =>
+      group.options.map((item) => ({ value: item.value, name: item.name })),
+    );
+  }
+
+  private applyConfigOptions(sessionId: string, configOptions: SessionConfigOption[] | null | undefined): void {
+    if (!configOptions) return;
+    this._configOptions.set(sessionId, configOptions);
+
+    const modelOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "model",
+    );
+    if (modelOption) {
+      const selectOption = modelOption as Extract<SessionConfigOption, { type: "select" }>;
+      const availableModels = this.normalizeSelectOptions(selectOption.options).map((item) => ({
+        modelId: item.value,
+        name: item.name,
+      }));
+      this._modelStates.set(sessionId, {
+        currentModelId: selectOption.currentValue,
+        availableModels,
+      });
+    }
+
+    const modeOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "mode",
+    );
+    if (modeOption) {
+      const selectOption = modeOption as Extract<SessionConfigOption, { type: "select" }>;
+      const availableModes = this.normalizeSelectOptions(selectOption.options).map((item) => ({
+        id: item.value,
+        name: item.name,
+      }));
+      this._modeStates.set(sessionId, {
+        currentModeId: selectOption.currentValue,
+        availableModes,
+      });
+    }
+  }
+
+  private getConfigOptionId(sessionId: string, category: "model" | "mode"): string | null {
+    const options = this._configOptions.get(sessionId);
+    if (!options) return null;
+    const found = options.find((option) => option.category === category && option.type === "select");
+    return found?.id ?? null;
+  }
+
   async connect(): Promise<InitializeResponse> {
     const acpId = this.id;
-    const proc = spawnStdioAgent(this.options);
+    const proc =
+      this.options.agentInfo.type === "stdio"
+        ? spawnStdioAgent(this.options.agentInfo)
+        : this.options.agentInfo.provider === "openai-compatible"
+          ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
+          : (() => {
+              throw new Error(`Unsupported api provider: ${this.options.agentInfo.provider}`);
+            })();
     this.process = proc;
 
     const rawStream = ndJsonStream(proc.input, proc.output);
@@ -162,6 +229,7 @@ export class ACPBridge {
 
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
+    const applyConfigOptions = this.applyConfigOptions.bind(this);
     const terminalManager = this.terminalManager;
     const sessionsCwdMap = this._sessionsCwdMap;
     const client: Client = {
@@ -171,6 +239,9 @@ export class ACPBridge {
         return onPermission(params);
       },
       async sessionUpdate(params: SessionNotification): Promise<void> {
+        if (params.update.sessionUpdate === "config_option_update") {
+          applyConfigOptions(params.sessionId, params.update.configOptions);
+        }
         onUpdate(params);
       },
       async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
@@ -248,6 +319,7 @@ export class ACPBridge {
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
+    this.applyConfigOptions(result.sessionId, result.configOptions);
     this._loadedSessions.add(result.sessionId);
     this._sessionsCwdMap.set(result.sessionId, params.cwd);
     return result;
@@ -255,7 +327,23 @@ export class ACPBridge {
 
   async setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.unstable_setSessionModel(params);
+    let result: SetSessionModelResponse;
+    const configId = this.getConfigOptionId(params.sessionId, "model");
+    if (configId) {
+      try {
+        const cfg = await this.connection.setSessionConfigOption({
+          sessionId: params.sessionId,
+          configId,
+          value: params.modelId,
+        });
+        this.applyConfigOptions(params.sessionId, cfg.configOptions);
+        result = {};
+      } catch {
+        result = await this.connection.unstable_setSessionModel(params);
+      }
+    } else {
+      result = await this.connection.unstable_setSessionModel(params);
+    }
     const state = this._modelStates.get(params.sessionId);
     if (state) {
       state.currentModelId = params.modelId;
@@ -268,13 +356,14 @@ export class ACPBridge {
     let result: ResumeSessionResponse;
     try {
       result = await this.connection.resumeSession(params);
-    } catch(err) {
-      result = await this.connection.loadSession({...params, mcpServers: params.mcpServers ?? []});
+    } catch {
+      result = await this.connection.loadSession({ ...params, mcpServers: params.mcpServers ?? [] });
     }
     const models = result.models ?? null;
     const modes = result.modes ?? null;
     if (models) this._modelStates.set(params.sessionId, models);
     if (modes) this._modeStates.set(params.sessionId, modes);
+    this.applyConfigOptions(params.sessionId, result.configOptions);
     this._loadedSessions.add(params.sessionId);
     this._sessionsCwdMap.set(params.sessionId, params.cwd);
     return result;
@@ -282,7 +371,23 @@ export class ACPBridge {
 
   async setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.setSessionMode(params);
+    let result: SetSessionModeResponse;
+    const configId = this.getConfigOptionId(params.sessionId, "mode");
+    if (configId) {
+      try {
+        const cfg = await this.connection.setSessionConfigOption({
+          sessionId: params.sessionId,
+          configId,
+          value: params.modeId,
+        });
+        this.applyConfigOptions(params.sessionId, cfg.configOptions);
+        result = {};
+      } catch {
+        result = await this.connection.setSessionMode(params);
+      }
+    } else {
+      result = await this.connection.setSessionMode(params);
+    }
     const state = this._modeStates.get(params.sessionId);
     if (state) {
       state.currentModeId = params.modeId;
@@ -313,6 +418,7 @@ export class ACPBridge {
     this._isConnected = false;
     this._modelStates.clear();
     this._modeStates.clear();
+    this._configOptions.clear();
     this._loadedSessions.clear();
     this._sessionsCwdMap.clear();
     this.connection = null;
