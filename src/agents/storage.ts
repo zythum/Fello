@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { appendFileSync, mkdirSync, writeFileSync } from "fs";
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import type { ModelMessage } from "ai";
@@ -133,4 +133,14 @@ export async function appendPersistedSessionHistory(params: {
   ensureSessionDirSync(params.agentId, params.sessionId);
   const lines = params.messages.map((message) => JSON.stringify(message)).join("\n");
   appendFileSync(historyJsonlPath(params.agentId, params.sessionId), `${lines}\n`, "utf8");
+}
+
+export function deletePersistedSessionDirectory(params: {
+  agentId: string;
+  sessionId: string;
+}): void {
+  rmSync(apiAgentSessionDir(params.agentId, params.sessionId), {
+    recursive: true,
+    force: true,
+  });
 }

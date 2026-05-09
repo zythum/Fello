@@ -34,6 +34,7 @@ import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./we
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
+import { deletePersistedSessionDirectory } from "../agents/storage";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
   getSkillsCatalog,
@@ -660,7 +661,24 @@ export const backendHandlers: {
   },
 
   async deleteProject(projectId: string) {
+    const projectSessions = storageOps
+      .listSessions()
+      .filter((session) => session.projectId === projectId)
+      .map((session) => ({ agentId: session.agentId, resumeId: session.resumeId }));
     storageOps.deleteProject(projectId);
+    for (const session of projectSessions) {
+      try {
+        deletePersistedSessionDirectory({
+          agentId: session.agentId,
+          sessionId: session.resumeId,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to delete persisted session directory for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+    }
     clearProjectSearchState(projectId);
     syncWatchers();
     sendEvent("projects-changed", undefined);
@@ -906,7 +924,21 @@ export const backendHandlers: {
   },
 
   async deleteSession(sessionId: string) {
+    const session = storageOps.getSession(sessionId);
     storageOps.deleteSession(sessionId);
+    if (session) {
+      try {
+        deletePersistedSessionDirectory({
+          agentId: session.agentId,
+          sessionId: session.resumeId,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to delete persisted session directory for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+    }
     sendEvent("sessions-changed", undefined);
   },
 
