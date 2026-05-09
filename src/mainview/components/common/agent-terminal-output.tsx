@@ -38,6 +38,7 @@ export function AgentTerminalOutput({
 
   // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
   const cleanLog = useMemo(() => {
+    // eslint-disable-next-line no-control-regex
     return log?.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "").replace(/\[[0-9;]*[0-9]m/g, "");
   }, [log]);
 
