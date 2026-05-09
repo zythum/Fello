@@ -172,9 +172,7 @@ export function Sidebar() {
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
   const [newSessionAgentId, setNewSessionAgentId] = useState<string>("");
   const [newSessionMcpIds, setNewSessionMcpIds] = useState<Set<string>>(new Set());
-  const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">(
-    "ask",
-  );
+  const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">("allow-all");
 
   const openNewSessionDialog = (projectId: string) => {
     if (enabledAgents.length === 0) {
@@ -184,7 +182,7 @@ export function Sidebar() {
     setNewSessionProjectId(projectId);
     setNewSessionAgentId(enabledAgents[0]?.id ?? "");
     setNewSessionMcpIds(new Set(configuredMcpServers.filter((s) => !s.disabled).map((s) => s.id)));
-    setNewSessionPermissionMode("ask");
+    setNewSessionPermissionMode("allow-all");
     setNewSessionDialogOpen(true);
   };
 

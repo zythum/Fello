@@ -11,6 +11,17 @@ import { ArrowDown, Check, Copy, Bot } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 
 import type { SessionInfo } from "../../../../shared/schema";
+
+/** Scroll to bottom using double-rAF to ensure browser layout is settled. */
+function scrollToBottomNow(bottomEl: HTMLElement | null) {
+  if (!bottomEl) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bottomEl.scrollIntoView({ block: "end", behavior: "auto" });
+    });
+  });
+}
+
 export function ChatArea({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
@@ -20,6 +31,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoScrolledOnMountRef = useRef(false);
   const userHasScrolledUpRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
   const userMessageElementRefs = useRef(new Map<string, HTMLElement>());
   const userMessageIdsRef = useRef<string[]>([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -54,16 +67,19 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       scrollTimeoutRef.current = null;
     }
 
+    // Mark that this scroll is programmatic so the scroll handler doesn't
+    // incorrectly set userHasScrolledUpRef = true.
+    isProgrammaticScrollRef.current = true;
+    userHasScrolledUpRef.current = false;
+
     if (behavior === "smooth") {
       scrollTimeoutRef.current = setTimeout(() => {
-        userHasScrolledUpRef.current = false;
-        bottomRef.current?.scrollIntoView({ behavior });
+        bottomRef.current?.scrollIntoView({ block: "end", behavior });
       }, 100);
       return;
     }
 
-    userHasScrolledUpRef.current = false;
-    bottomRef.current?.scrollIntoView({ behavior });
+    scrollToBottomNow(bottomRef.current);
   }, []);
 
   const scrollToBottomAuto = useCallback(() => {
@@ -121,8 +137,31 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
-      const nextIsAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-      userHasScrolledUpRef.current = !nextIsAtBottom;
+      const scrollBottom = scrollHeight - scrollTop - clientHeight;
+      const nextIsAtBottom = scrollBottom < 100;
+
+      // Distinguish "user scrolled up" from "content grew, pushing viewport up".
+      // If this scroll event was triggered by our own scrollToBottom, ignore it.
+      if (isProgrammaticScrollRef.current) {
+        isProgrammaticScrollRef.current = false;
+        // Still update isAtBottom but don't mark user as scrolled up.
+        setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
+        prevScrollHeightRef.current = scrollHeight;
+        return;
+      }
+
+      // If the content grew (scrollHeight increased) and the user didn't
+      // actively scroll up, don't mark them as having scrolled up.
+      const contentGrew = scrollHeight > prevScrollHeightRef.current;
+      prevScrollHeightRef.current = scrollHeight;
+
+      if (!nextIsAtBottom && contentGrew && scrollBottom >= 100) {
+        // Content grew enough to push us out of the "at bottom" zone.
+        // This is not a user action — keep userHasScrolledUpRef as is.
+      } else {
+        userHasScrolledUpRef.current = !nextIsAtBottom;
+      }
+
       setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
 
       if (rafId != null) return;
@@ -138,6 +177,24 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       viewport.removeEventListener("scroll", handleScroll);
       if (rafId != null) cancelAnimationFrame(rafId);
     };
+  }, [getViewport]);
+
+  // ── ResizeObserver: auto-scroll when content grows (handles code-block, mermaid, shiki etc.) ──
+  useEffect(() => {
+    const viewport = getViewport();
+    if (!viewport) return;
+
+    const contentEl = viewport.firstElementChild;
+    if (!contentEl) return;
+
+    const observer = new ResizeObserver(() => {
+      if (!userHasScrolledUpRef.current) {
+        scrollToBottomNow(bottomRef.current);
+      }
+    });
+
+    observer.observe(contentEl);
+    return () => observer.disconnect();
   }, [getViewport]);
 
   const renderedMessages = useMemo(() => messages.filter(isValidMessageToDisplay), [messages]);

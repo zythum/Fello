@@ -6,6 +6,8 @@ import type {
   TerminalHandle,
   ToolCall,
   ToolCallUpdate,
+  Plan,
+  PlanEntry,
 } from "@agentclientprotocol/sdk";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { toEnvVariables } from "./utils";
@@ -481,6 +483,45 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
           });
           throw error;
         }
+      },
+    }),
+    Plan: tool({
+      description: `Create or update an execution plan for the current session.
+Plans consist of multiple entries representing tasks or goals.
+Each entry has a content description, priority (high/medium/low), and status (pending/in_progress/completed).
+This tool directly sends a plan update to the client, which replaces the entire plan with the provided entries.`,
+      inputSchema: z.object({
+        entries: z.array(
+          z.object({
+            content: z.string().describe("Human-readable description of the task."),
+            priority: z.enum(["high", "medium", "low"]).describe("Relative importance of the task."),
+            status: z.enum(["pending", "in_progress", "completed"]).describe("Current execution status of the task."),
+          })
+        ).describe("The list of plan entries. The client replaces the entire plan with this list."),
+      }),
+      execute: async ({ entries }) => {
+        const connection = params.getConnection();
+        if (!connection) {
+          throw new Error("ACP connection is not available.");
+        }
+
+        // Send the plan update directly
+        const plan: Plan = {
+          entries: entries.map((entry): PlanEntry => ({
+            content: entry.content,
+            priority: entry.priority,
+            status: entry.status,
+          })),
+        };
+        await connection.sessionUpdate({
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "plan",
+            ...plan,
+          },
+        });
+
+        return { success: true, entriesCount: entries.length };
       },
     }),
   };

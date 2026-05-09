@@ -27,7 +27,9 @@ export const PlanBubble = memo(function PlanBubble({
     >
       <CollapsibleTrigger className="w-full bg-transparent border-0 flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
         <Notebook className="size-3 text-muted-foreground" />
-        <span className="flex-1 text-foreground">{t("planBubble.title")}</span>
+        <div className="flex-1 flex items-center">
+          <span className="text-foreground">{t("planBubble.title")}</span>
+        </div>
         {total > 0 && (
           <span className="text-[10px] text-muted-foreground">
             {t("planBubble.summary", { completed, total })}

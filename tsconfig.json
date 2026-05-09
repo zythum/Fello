@@ -20,6 +20,6 @@
       "@/*": ["./src/mainview/*"]
     }
   },
-  "include": ["src/mainview", "src/shared"],
+  "include": ["src/mainview", "src/electron", "src/backend", "src/agents", "src/scripts", "src/shared"],
   "exclude": ["node_modules", "build", "out"]
 }
