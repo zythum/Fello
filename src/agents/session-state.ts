@@ -2,7 +2,7 @@ import type { AgentSideConnection, McpServer } from "@agentclientprotocol/sdk";
 import type { ModelMessage } from "ai";
 import { createACPClientTools, type ACPSessionTools } from "./acp-client-tools";
 import { createMCPSessionTools, type MCPSessionTools } from "./mcp-tools";
-import { createPermissionMemory, type AllowedToolKinds } from "./permission";
+import { createPermissionMemory, type AllowedToolKinds, type PermissionKind } from "./permission";
 
 export type SessionState = {
   id: string;
@@ -31,8 +31,18 @@ export async function createSessionState(params: {
   mcpServers: McpServer[] | undefined;
   modelId: string | null;
   getConnection: () => AgentSideConnection | null;
+  history?: ModelMessage[];
+  allowedToolKinds?: PermissionKind[];
+  onAllowedToolKindsChanged?: (allowedToolKinds: AllowedToolKinds) => Promise<void> | void;
 }): Promise<SessionState> {
-  const { allowedToolKinds, permissionMemory } = createPermissionMemory();
+  const { allowedToolKinds, permissionMemory } = createPermissionMemory({
+    onAlwaysAllowed: async (_kind, nextAllowedToolKinds) => {
+      await params.onAllowedToolKindsChanged?.(nextAllowedToolKinds);
+    },
+  });
+  for (const kind of params.allowedToolKinds || []) {
+    allowedToolKinds.add(kind);
+  }
   const mcp = await createMCPSessionTools({
     cwd: params.cwd,
     mcpServers: normalizeMcpServers(params.mcpServers),
@@ -51,7 +61,7 @@ export async function createSessionState(params: {
     cwd: params.cwd,
     additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
     modelId: params.modelId,
-    history: [],
+    history: params.history || [],
     abortController: null,
     allowedToolKinds,
     acp,

@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText } from "ai";
+import { stepCountIs, streamText, type ModelMessage } from "ai";
 import type {
   Agent,
   AgentSideConnection,
@@ -28,6 +28,12 @@ import type { ApiAgentInfo } from "../shared/schema";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
+import {
+  appendPersistedSessionHistory,
+  loadPersistedSessionHistory,
+  loadPersistedSessionState,
+  savePersistedSessionState,
+} from "./storage";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 import {
   embeddedResourceToFilePart,
@@ -63,6 +69,7 @@ export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
   private provider: ReturnType<typeof createOpenAICompatible>;
   private connection: AgentSideConnection | null = null;
+  private agentId: string;
   private baseUrl: string;
   private apiKey: string;
   private headers: Record<string, string>;
@@ -77,6 +84,7 @@ export class OpenaiCompatibleAgent implements Agent {
     }
     this.baseUrl = options.baseUrl;
     this.apiKey = options.apiKey;
+    this.agentId = options.id;
     this.headers = options.headers || {};
     this.provider = createOpenAICompatible({
       name: "openai-compatible",
@@ -183,10 +191,43 @@ export class OpenaiCompatibleAgent implements Agent {
     ];
   }
 
+  private async persistSessionState(session: SessionState): Promise<void> {
+    try {
+      await savePersistedSessionState({
+        agentId: this.agentId,
+        sessionId: session.id,
+        modelId: session.modelId,
+        allowedToolKinds: Array.from(session.allowedToolKinds),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[OpenaiCompatibleAgent] Failed to persist session state for ${session.id}: ${message}`,
+      );
+    }
+  }
+
+  private async appendSessionHistory(sessionId: string, ...messages: ModelMessage[]): Promise<void> {
+    if (messages.length === 0) return;
+    try {
+      await appendPersistedSessionHistory({
+        agentId: this.agentId,
+        sessionId,
+        messages,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[OpenaiCompatibleAgent] Failed to append session history for ${sessionId}: ${message}`,
+      );
+    }
+  }
+
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
     const modelId = modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null;
+    let sessionRef: SessionState | null = null;
     const session = await createSessionState({
       sessionId,
       cwd: params.cwd,
@@ -194,8 +235,14 @@ export class OpenaiCompatibleAgent implements Agent {
       mcpServers: params.mcpServers,
       modelId,
       getConnection: () => this.connection,
+      onAllowedToolKindsChanged: async () => {
+        if (!sessionRef) return;
+        await this.persistSessionState(sessionRef);
+      },
     });
+    sessionRef = session;
     this.sessions.set(sessionId, session);
+    await this.persistSessionState(session);
     return {
       sessionId,
       models: modelState.availableModels.length > 0 ? modelState : null,
@@ -205,20 +252,42 @@ export class OpenaiCompatibleAgent implements Agent {
 
   async resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     const modelState = await this.getModels();
+    const [persistedState, persistedHistory] = await Promise.all([
+      loadPersistedSessionState({
+        agentId: this.agentId,
+        sessionId: params.sessionId,
+      }),
+      loadPersistedSessionHistory({
+        agentId: this.agentId,
+        sessionId: params.sessionId,
+      }),
+    ]);
     const previous = this.sessions.get(params.sessionId);
     if (previous) {
       throw new Error(
         `Session is already active: ${params.sessionId}. Close the active session before calling load/resume again.`,
       );
     }
+    let sessionRef: SessionState | null = null;
     const active = await createSessionState({
       sessionId: params.sessionId,
       cwd: params.cwd,
       additionalDirectories: params.additionalDirectories,
       mcpServers: params.mcpServers,
-      modelId: modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null,
+      modelId:
+        persistedState?.modelId ??
+        modelState.currentModelId ??
+        modelState.availableModels[0]?.modelId ??
+        null,
       getConnection: () => this.connection,
+      history: persistedHistory,
+      allowedToolKinds: persistedState?.allowedToolKinds,
+      onAllowedToolKindsChanged: async () => {
+        if (!sessionRef) return;
+        await this.persistSessionState(sessionRef);
+      },
     });
+    sessionRef = active;
     this.sessions.set(params.sessionId, active);
     const currentModelExists =
       !!active.modelId &&
@@ -226,6 +295,7 @@ export class OpenaiCompatibleAgent implements Agent {
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
     }
+    await this.persistSessionState(active);
     const models =
       modelState.availableModels.length > 0
         ? {
@@ -247,6 +317,7 @@ export class OpenaiCompatibleAgent implements Agent {
     const session = this.sessions.get(params.sessionId);
     if (!session) return {};
     session.modelId = params.modelId;
+    await this.persistSessionState(session);
     return {};
   }
 
@@ -265,6 +336,7 @@ export class OpenaiCompatibleAgent implements Agent {
         throw new Error(`Unknown model: ${value}`);
       }
       session.modelId = value;
+      await this.persistSessionState(session);
     }
     return {
       configOptions: (await this.buildConfigOptions(session.modelId)) || [],
@@ -299,7 +371,9 @@ export class OpenaiCompatibleAgent implements Agent {
       return textContentToTextPart({ text: JSON.stringify(contentBlock) });
     });
 
-    session.history.push({ role: "user", content: userText });
+    const userMessage: ModelMessage = { role: "user", content: userText };
+    session.history.push(userMessage);
+    await this.appendSessionHistory(session.id, userMessage);
     const abortController = new AbortController();
     session.abortController = abortController;
 
@@ -372,6 +446,7 @@ export class OpenaiCompatibleAgent implements Agent {
       }
       const response = await result.response;
       session.history.push(...response.messages);
+      await this.appendSessionHistory(session.id, ...response.messages);
       return { stopReason: "end_turn" };
     } catch (err) {
       if (abortController.signal.aborted) {
@@ -380,6 +455,7 @@ export class OpenaiCompatibleAgent implements Agent {
       throw err;
     } finally {
       session.abortController = null;
+      await this.persistSessionState(session);
     }
   }
 
@@ -393,6 +469,7 @@ export class OpenaiCompatibleAgent implements Agent {
     const session = this.sessions.get(params.sessionId);
     if (!session) return {};
 
+    await this.persistSessionState(session);
     this.sessions.delete(params.sessionId);
     session.abortController?.abort();
     session.abortController = null;
@@ -406,6 +483,7 @@ export class OpenaiCompatibleAgent implements Agent {
     for (const session of this.sessions.values()) {
       session.abortController?.abort();
       session.abortController = null;
+      releases.push(this.persistSessionState(session));
       releases.push(closeACPClientTools(session.acp));
       releases.push(closeMCPSessionTools(session.mcp));
     }

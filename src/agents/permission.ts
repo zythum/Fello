@@ -6,7 +6,7 @@ import type {
 
 export type ToolPermissionMemory = {
   isAlwaysAllowed: (kind: ToolCall["kind"]) => boolean;
-  markAlwaysAllowed: (kind: ToolCall["kind"]) => void;
+  markAlwaysAllowed: (kind: ToolCall["kind"]) => Promise<void>;
 };
 
 export type PermissionKind = Exclude<ToolCall["kind"], undefined>;
@@ -16,7 +16,9 @@ function isPermissionKind(kind: ToolCall["kind"]): kind is PermissionKind {
   return typeof kind === "string";
 }
 
-export function createPermissionMemory(): {
+export function createPermissionMemory(options?: {
+  onAlwaysAllowed?: (kind: PermissionKind, allowedToolKinds: AllowedToolKinds) => Promise<void> | void;
+}): {
   allowedToolKinds: AllowedToolKinds;
   permissionMemory: ToolPermissionMemory;
 } {
@@ -26,10 +28,11 @@ export function createPermissionMemory(): {
     permissionMemory: {
       isAlwaysAllowed: (kind: ToolCall["kind"]) =>
         isPermissionKind(kind) ? allowedToolKinds.has(kind) : false,
-      markAlwaysAllowed: (kind: ToolCall["kind"]) => {
-        if (isPermissionKind(kind)) {
-          allowedToolKinds.add(kind);
-        }
+      markAlwaysAllowed: async (kind: ToolCall["kind"]) => {
+        if (!isPermissionKind(kind)) return;
+        if (allowedToolKinds.has(kind)) return;
+        allowedToolKinds.add(kind);
+        await options?.onAlwaysAllowed?.(kind, allowedToolKinds);
       },
     },
   };
@@ -66,7 +69,7 @@ export async function ensureToolPermission(
   if (memory?.isAlwaysAllowed(toolCall.kind)) return;
   const permission = await requestToolPermission(connection, sessionId, toolCall);
   if (permission.outcome.outcome === "selected" && permission.outcome.optionId === "allow_always") {
-    memory?.markAlwaysAllowed(toolCall.kind);
+    await memory?.markAlwaysAllowed(toolCall.kind);
   }
   if (isPermissionAllowed(permission)) return;
   if (permission.outcome.outcome === "cancelled") {
