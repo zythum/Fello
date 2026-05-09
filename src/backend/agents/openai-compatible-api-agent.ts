@@ -1,7 +1,4 @@
-import {
-  AgentSideConnection,
-  ndJsonStream,
-} from "@agentclientprotocol/sdk";
+import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
 import { OpenaiCompatibleAgent } from "../../agents/openai-compatible-agent";
 import type { ApiAgentInfo } from "../../shared/schema";
 import type { AgentProcess } from "./type";

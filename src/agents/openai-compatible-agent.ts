@@ -7,7 +7,6 @@ import type {
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
-  ContentBlock,
   LoadSessionRequest,
   LoadSessionResponse,
   McpServer,
@@ -32,12 +31,15 @@ import {
   createACPClientTools,
   type ACPSessionTools,
 } from "./acp-client-tools";
-import {
-  closeMCPSessionTools,
-  createMCPSessionTools,
-  type MCPSessionTools,
-} from "./mcp-tools";
+import { closeMCPSessionTools, createMCPSessionTools, type MCPSessionTools } from "./mcp-tools";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
+import {
+  embeddedResourceToFilePart,
+  audioContentToFilePart,
+  imageContentToImagePart,
+  resourceLinkToFilePart,
+  textContentToTextPart,
+} from "./utils";
 
 type SessionState = {
   id: string;
@@ -59,14 +61,6 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
   const maybe = value as { data?: unknown };
   if (maybe.data === undefined) return true;
   return Array.isArray(maybe.data);
-}
-
-function contentBlocksToText(content: ContentBlock[]): string {
-  return content
-    .filter((block): block is ContentBlock & { type: "text"; text: string } => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
 }
 
 function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
@@ -200,7 +194,8 @@ export class OpenaiCompatibleAgent implements Agent {
         category: "model",
         name: "Model",
         type: "select",
-        currentValue: currentModelId || modelState.currentModelId || modelState.availableModels[0].modelId,
+        currentValue:
+          currentModelId || modelState.currentModelId || modelState.availableModels[0].modelId,
         options: modelState.availableModels.map((model) => ({
           value: model.modelId,
           name: model.name,
@@ -217,12 +212,13 @@ export class OpenaiCompatibleAgent implements Agent {
     modelId: string | null;
   }): Promise<SessionState> {
     const mcp = await createMCPSessionTools({
-      sessionId: params.sessionId,
-      mcpServers: normalizeMcpServers(params.mcpServers),
       cwd: params.cwd,
+      mcpServers: normalizeMcpServers(params.mcpServers),
+      sessionId: params.sessionId,
       getConnection: () => this.connection,
     });
     const acp = createACPClientTools({
+      cwd: params.cwd,
       sessionId: params.sessionId,
       getConnection: () => this.connection,
     });
@@ -273,7 +269,9 @@ export class OpenaiCompatibleAgent implements Agent {
       modelId: modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null,
     });
     this.sessions.set(params.sessionId, active);
-    const currentModelExists = !!active.modelId && modelState.availableModels.some((model) => model.modelId === active.modelId);
+    const currentModelExists =
+      !!active.modelId &&
+      modelState.availableModels.some((model) => model.modelId === active.modelId);
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
     }
@@ -328,10 +326,24 @@ export class OpenaiCompatibleAgent implements Agent {
       throw new Error(`Session not found: ${params.sessionId}`);
     }
 
-    const userText = contentBlocksToText(params.prompt);
-    if (!userText) {
-      return { stopReason: "end_turn" };
-    }
+    const userText = params.prompt.map((contentBlock) => {
+      if (contentBlock.type === "text") {
+        return textContentToTextPart(contentBlock);
+      }
+      if (contentBlock.type === "image") {
+        return imageContentToImagePart(contentBlock);
+      }
+      if (contentBlock.type === "audio") {
+        return audioContentToFilePart(contentBlock);
+      }
+      if (contentBlock.type === "resource") {
+        return embeddedResourceToFilePart(contentBlock);
+      }
+      if (contentBlock.type === "resource_link") {
+        return resourceLinkToFilePart(contentBlock);
+      }
+      return textContentToTextPart({ text: JSON.stringify(contentBlock) });
+    });
 
     session.history.push({ role: "user", content: userText });
     const abortController = new AbortController();

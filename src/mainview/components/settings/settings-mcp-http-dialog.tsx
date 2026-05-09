@@ -141,7 +141,12 @@ export function SettingsMcpHttpDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-7 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-7 text-xs"
+          >
             {t("settings.mcp.cancel", "Cancel")}
           </Button>
           <Button size="sm" onClick={handleSave} className="h-7 text-xs">

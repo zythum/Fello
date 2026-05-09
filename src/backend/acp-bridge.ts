@@ -40,9 +40,9 @@ import type {
   SessionConfigOption,
 } from "@agentclientprotocol/sdk";
 import type { AgentInfo } from "../shared/schema";
-import { type AgentProcess } from "./agent/type";
-import { spawnStdioAgent } from "./agent/stdio-agent";
-import { spawnOpenaiCompatibleApiAgent } from "./agent/openai-compatible-api-agent";
+import { type AgentProcess } from "./agents/type";
+import { spawnStdioAgent } from "./agents/stdio-agent";
+import { spawnOpenaiCompatibleApiAgent } from "./agents/openai-compatible-api-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 import { WORKSPACE_TEMP_DIR } from "./storage";
 
@@ -127,7 +127,9 @@ export class ACPBridge {
   }
 
   private normalizeSelectOptions(
-    options: Array<{ value: string; name: string }> | Array<{ options: Array<{ value: string; name: string }> }>,
+    options:
+      | Array<{ value: string; name: string }>
+      | Array<{ options: Array<{ value: string; name: string }> }>,
   ): Array<{ value: string; name: string }> {
     if (!Array.isArray(options) || options.length === 0) return [];
     const first = options[0] as { value?: unknown; options?: unknown };
@@ -137,12 +139,15 @@ export class ACPBridge {
         name: item.name,
       }));
     }
-    return (options as Array<{ options: Array<{ value: string; name: string }> }>).flatMap((group) =>
-      group.options.map((item) => ({ value: item.value, name: item.name })),
+    return (options as Array<{ options: Array<{ value: string; name: string }> }>).flatMap(
+      (group) => group.options.map((item) => ({ value: item.value, name: item.name })),
     );
   }
 
-  private applyConfigOptions(sessionId: string, configOptions: SessionConfigOption[] | null | undefined): void {
+  private applyConfigOptions(
+    sessionId: string,
+    configOptions: SessionConfigOption[] | null | undefined,
+  ): void {
     if (!configOptions) return;
     this._configOptions.set(sessionId, configOptions);
 
@@ -180,7 +185,9 @@ export class ACPBridge {
   private getConfigOptionId(sessionId: string, category: "model" | "mode"): string | null {
     const options = this._configOptions.get(sessionId);
     if (!options) return null;
-    const found = options.find((option) => option.category === category && option.type === "select");
+    const found = options.find(
+      (option) => option.category === category && option.type === "select",
+    );
     return found?.id ?? null;
   }
 
@@ -357,7 +364,10 @@ export class ACPBridge {
     try {
       result = await this.connection.resumeSession(params);
     } catch {
-      result = await this.connection.loadSession({ ...params, mcpServers: params.mcpServers ?? [] });
+      result = await this.connection.loadSession({
+        ...params,
+        mcpServers: params.mcpServers ?? [],
+      });
     }
     const models = result.models ?? null;
     const modes = result.modes ?? null;

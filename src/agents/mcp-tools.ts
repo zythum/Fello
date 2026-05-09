@@ -1,15 +1,22 @@
 import type { ToolSet } from "ai";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { AgentSideConnection, McpServer, ToolCallContent, ToolKind } from "@agentclientprotocol/sdk";
+import type {
+  AgentSideConnection,
+  ContentBlock,
+  McpServer,
+  ToolCall,
+  ToolCallUpdate,
+  ToolKind,
+} from "@agentclientprotocol/sdk";
+import {} from "./utils";
 
 export type MCPSessionTools = {
   clients: MCPClient[];
   tools: ToolSet;
-  toolMeta: Record<string, { title: string; kind: ToolKind }>;
 };
 
-type CreateMCPSessionToolsParams = {
+export type CreateMCPSessionToolsParams = {
   sessionId: string;
   mcpServers: McpServer[];
   cwd: string;
@@ -17,7 +24,11 @@ type CreateMCPSessionToolsParams = {
 };
 
 function sanitizeName(input: string): string {
-  return input.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function toHeaderRecord(headers: Array<{ name: string; value: string }>): Record<string, string> {
@@ -41,7 +52,11 @@ function inferToolKind(name: string): ToolKind {
   if (normalized.includes("read") || normalized.includes("list") || normalized.includes("search")) {
     return "read";
   }
-  if (normalized.includes("write") || normalized.includes("edit") || normalized.includes("update")) {
+  if (
+    normalized.includes("write") ||
+    normalized.includes("edit") ||
+    normalized.includes("update")
+  ) {
     return "edit";
   }
   if (normalized.includes("run") || normalized.includes("exec") || normalized.includes("command")) {
@@ -78,51 +93,18 @@ async function closeClients(clients: MCPClient[]): Promise<void> {
   await Promise.all(clients.map((client) => client.close().catch(() => {})));
 }
 
-function toToolTextContent(text: string): ToolCallContent {
-  return {
-    type: "content",
-    content: { type: "text", text },
-  };
-}
-
-function buildToolCallContent(output: unknown): ToolCallContent[] | undefined {
-  if (typeof output === "string" && output.length > 0) {
-    return [toToolTextContent(output)];
-  }
-  if (output && typeof output === "object" && "content" in output) {
-    const content = (output as { content?: unknown }).content;
-    if (Array.isArray(content)) {
-      const text = content
-        .map((part) => {
-          if (!part || typeof part !== "object") return null;
-          const maybe = part as { type?: unknown; text?: unknown };
-          if (maybe.type === "text" && typeof maybe.text === "string") return maybe.text;
-          return null;
-        })
-        .filter((item): item is string => item !== null)
-        .join("\n")
-        .trim();
-      if (text.length > 0) return [toToolTextContent(text)];
-    }
-  }
-  return undefined;
-}
-
-export async function createMCPSessionTools({
-  sessionId,
-  mcpServers,
-  cwd,
-  getConnection,
-}: CreateMCPSessionToolsParams): Promise<MCPSessionTools> {
-  if (mcpServers.length === 0) {
-    return { clients: [], tools: {}, toolMeta: {} };
+export async function createMCPSessionTools(
+  params: CreateMCPSessionToolsParams,
+): Promise<MCPSessionTools> {
+  if (params.mcpServers.length === 0) {
+    return { clients: [], tools: {} };
   }
 
   const clients: MCPClient[] = [];
   try {
-    for (const server of mcpServers) {
+    for (const server of params.mcpServers) {
       try {
-        clients.push(await createClient(server, cwd));
+        clients.push(await createClient(server, params.cwd));
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to connect MCP server "${server.name}": ${reason}`);
@@ -130,15 +112,12 @@ export async function createMCPSessionTools({
     }
 
     const allTools: ToolSet = {};
-    const toolMeta: Record<string, { title: string; kind: ToolKind }> = {};
+
     for (let i = 0; i < clients.length; i++) {
       const client = clients[i];
-      const server = mcpServers[i];
+      const server = params.mcpServers[i];
       const prefix = sanitizeName(server.name || `server_${i + 1}`) || `server_${i + 1}`;
-      const [serverTools, definitions] = await Promise.all([
-        client.tools(),
-        client.listTools(),
-      ]);
+      const [serverTools, definitions] = await Promise.all([client.tools(), client.listTools()]);
       const definitionsByName = new Map(definitions.tools.map((item) => [item.name, item]));
 
       for (const [toolName, toolDef] of Object.entries(serverTools)) {
@@ -146,10 +125,7 @@ export async function createMCPSessionTools({
         const details = definitionsByName.get(toolName);
         const title = details?.title || `${server.name}: ${toolName}`;
         const kind = inferToolKind(toolName);
-        toolMeta[qualifiedName] = {
-          title,
-          kind,
-        };
+
         if (typeof toolDef.execute !== "function") {
           allTools[qualifiedName] = toolDef;
           continue;
@@ -157,34 +133,66 @@ export async function createMCPSessionTools({
         allTools[qualifiedName] = {
           ...toolDef,
           execute: async (input, options) => {
-            const connection = getConnection();
+            const connection = params.getConnection();
             const toolCallId = options.toolCallId;
+
+            let subTitle = "";
+            if (typeof input === 'string') {
+              subTitle = input;
+            } else if (input && typeof input === 'object') {
+              for (const key in input) {
+                const value = input[key];
+                if (typeof value !== "string") {
+                  continue;
+                }
+                if (value.length > 5 && value.length > subTitle.length) {
+                  subTitle = value;
+                }
+              }
+            }
+            if (subTitle) {
+              subTitle = " " + subTitle;
+            }
             if (connection && toolCallId) {
+              const toolCall: ToolCall = {
+                toolCallId,
+                title: `${title}${subTitle}`,
+                kind,
+                status: "in_progress",
+                rawInput: input,
+              };
               await connection.sessionUpdate({
-                sessionId,
+                sessionId: params.sessionId,
                 update: {
                   sessionUpdate: "tool_call",
-                  toolCallId,
-                  title,
-                  kind,
-                  status: "in_progress",
-                  rawInput: input,
+                  ...toolCall,
                 },
               });
             }
 
             try {
-              const output = await toolDef.execute(input, options);
+              const output: any = await toolDef.execute(input, options);
+              if (output.isError === true) {
+                throw new Error('Errored');
+              }
               if (connection && toolCallId) {
-                const content = buildToolCallContent(output);
+                const toolCallComplateUpdate: ToolCallUpdate = {
+                  toolCallId,
+                  status: "completed",
+                  content: ([] as ContentBlock[])
+                    .concat(output.content ?? [])
+                    .map((contentBlock) => {
+                      return {
+                        type: "content" as const,
+                        content: contentBlock,
+                      };
+                    }),
+                };
                 await connection.sessionUpdate({
-                  sessionId,
+                  sessionId: params.sessionId,
                   update: {
                     sessionUpdate: "tool_call_update",
-                    toolCallId,
-                    status: "completed",
-                    rawOutput: output,
-                    ...(content ? { content } : {}),
+                    ...toolCallComplateUpdate,
                   },
                 });
               }
@@ -192,14 +200,25 @@ export async function createMCPSessionTools({
             } catch (error) {
               if (connection && toolCallId) {
                 const errorText = error instanceof Error ? error.message : String(error);
+                const toolCallErrorUpdate: ToolCallUpdate = {
+                  toolCallId,
+                  status: "failed",
+                  rawOutput: { error: errorText },
+                  content: [
+                    {
+                      type: "content",
+                      content: {
+                        type: "text",
+                        text: errorText,
+                      },
+                    },
+                  ],
+                };
                 await connection.sessionUpdate({
-                  sessionId,
+                  sessionId: params.sessionId,
                   update: {
                     sessionUpdate: "tool_call_update",
-                    toolCallId,
-                    status: "failed",
-                    rawOutput: { error: errorText },
-                    content: [toToolTextContent(errorText)],
+                    ...toolCallErrorUpdate,
                   },
                 });
               }
@@ -213,7 +232,6 @@ export async function createMCPSessionTools({
     return {
       clients,
       tools: allTools,
-      toolMeta,
     };
   } catch (error) {
     await closeClients(clients);

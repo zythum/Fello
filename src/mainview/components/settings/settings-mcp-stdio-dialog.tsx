@@ -57,7 +57,9 @@ export function SettingsMcpStdioDialog({
     setDraft(initialMcp);
     setArgsRaw(initialMcp?.args?.join(" ") || "");
     setEnvRaw(
-      initialMcp && Object.keys(initialMcp.env || {}).length > 0 ? JSON.stringify(initialMcp.env) : "",
+      initialMcp && Object.keys(initialMcp.env || {}).length > 0
+        ? JSON.stringify(initialMcp.env)
+        : "",
     );
   }, [initialMcp, open]);
 
@@ -151,7 +153,12 @@ export function SettingsMcpStdioDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-7 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-7 text-xs"
+          >
             {t("settings.mcp.cancel", "Cancel")}
           </Button>
           <Button size="sm" onClick={handleSave} className="h-7 text-xs">

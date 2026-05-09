@@ -70,7 +70,12 @@ export function SettingsAgentApiDialog({
 
   const handleSave = async () => {
     if (!draft) return;
-    if (!draft.id.trim() || !draft.provider.trim() || !draft.baseUrl.trim() || !draft.apiKey.trim()) {
+    if (
+      !draft.id.trim() ||
+      !draft.provider.trim() ||
+      !draft.baseUrl.trim() ||
+      !draft.apiKey.trim()
+    ) {
       toast.error(
         t(
           "settings.agents.errorApiRequired",
@@ -183,7 +188,12 @@ export function SettingsAgentApiDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-7 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-7 text-xs"
+          >
             {t("settings.agents.cancel")}
           </Button>
           <Button size="sm" onClick={handleSave} className="h-7 text-xs">

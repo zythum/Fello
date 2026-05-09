@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  HttpMcpServerInfo,
-  McpServerInfo,
-  StdioMcpServerInfo,
-} from "../../../shared/schema";
+import type { HttpMcpServerInfo, McpServerInfo, StdioMcpServerInfo } from "../../../shared/schema";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { Button } from "@/components/ui/button";
@@ -117,9 +113,7 @@ export function SettingsMcp() {
   const upsertMcp = async (nextMcp: McpServerInfo) => {
     const duplicate = mcpServers.some(
       (item) =>
-        item.id === nextMcp.id &&
-        item.id !== dialogOriginalId &&
-        !item.id.startsWith("__new_mcp_"),
+        item.id === nextMcp.id && item.id !== dialogOriginalId && !item.id.startsWith("__new_mcp_"),
     );
     if (duplicate) {
       toast.error(t("settings.mcp.errorDuplicateId", "A server with this ID already exists."));

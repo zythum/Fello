@@ -9,6 +9,7 @@ import type {
 import Fuse from "fuse.js";
 import { homedir } from "os";
 import { spawn as spawnPty } from "node-pty";
+import { omit } from "es-toolkit";
 import { createHash } from "crypto";
 import {
   chmod,
@@ -203,23 +204,27 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
   const sessionUpdate = enrichedNotification.update.sessionUpdate;
 
   if (sessionUpdate === "tool_call_update") {
-    const toolCallId = enrichedNotification.update.toolCallId;
+    const update = enrichedNotification.update;
+    const toolCallId = update.toolCallId;
     const key = getPendingToolCallKey(sessionId, toolCallId);
     const base = pendingToolCalls.get(key);
 
-    if (enrichedNotification.update.status === "in_progress") {
+    if (update.status === "in_progress") {
       if (base) {
-        const mergedUpdate = mergeToolCallUpdate(base, enrichedNotification.update);
+        const mergedUpdate = mergeToolCallUpdate(base, update);
         pendingToolCalls.set(key, mergedUpdate);
       } else {
-        pendingToolCalls.set(key, { ...enrichedNotification.update });
+        pendingToolCalls.set(key, { ...update });
       }
     } else {
       if (base) {
-        enrichedNotification.update = mergeToolCallUpdate(base, enrichedNotification.update);
+        enrichedNotification.update = mergeToolCallUpdate(base, update);
         pendingToolCalls.delete(key);
       }
-      storageOps.appendSessionMessage(sessionId, enrichedNotification);
+      storageOps.appendSessionMessage(sessionId, {
+        ...enrichedNotification,
+        update: omit(enrichedNotification.update, ["rawInput", "rawOutput"]),
+      });
     }
   } else {
     storageOps.appendSessionMessage(sessionId, enrichedNotification);

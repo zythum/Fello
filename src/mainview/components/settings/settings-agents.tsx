@@ -286,7 +286,9 @@ export function SettingsAgents() {
                               <Switch
                                 size="sm"
                                 checked={!agent.disabled}
-                                onCheckedChange={(checked) => handleToggleDisabled(agent.id, !checked)}
+                                onCheckedChange={(checked) =>
+                                  handleToggleDisabled(agent.id, !checked)
+                                }
                               />
                             </div>
                           </div>

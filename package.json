@@ -82,6 +82,7 @@
     "ai": "^6.0.176",
     "chokidar": "^5.0.0",
     "electron-updater": "^6.8.3",
+    "es-toolkit": "^1.46.1",
     "fuse.js": "^7.3.0",
     "mime-types": "^3.0.2",
     "node-pty": "^1.1.0",
