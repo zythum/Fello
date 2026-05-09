@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, type ModelMessage } from "ai";
+import { stepCountIs, streamText } from "ai";
 import type {
   Agent,
   AgentSideConnection,
@@ -9,7 +9,6 @@ import type {
   CloseSessionResponse,
   LoadSessionRequest,
   LoadSessionResponse,
-  McpServer,
   ModelInfo,
   NewSessionRequest,
   NewSessionResponse,
@@ -26,12 +25,9 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { ApiAgentInfo } from "../shared/schema";
-import {
-  closeACPClientTools,
-  createACPClientTools,
-  type ACPSessionTools,
-} from "./acp-client-tools";
-import { closeMCPSessionTools, createMCPSessionTools, type MCPSessionTools } from "./mcp-tools";
+import { closeACPClientTools } from "./acp-client-tools";
+import { closeMCPSessionTools } from "./mcp-tools";
+import { createSessionState, type SessionState } from "./session-state";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 import {
   embeddedResourceToFilePart,
@@ -41,38 +37,8 @@ import {
   resourceLinkToFilePart,
   textContentToTextPart,
 } from "./utils";
-import { createPermissionMemory, type AllowedToolKinds } from "./permission";
-
-type SessionState = {
-  id: string;
-  cwd: string;
-  additionalDirectories: string[];
-  modelId: string | null;
-  history: ModelMessage[];
-  abortController: AbortController | null;
-  allowedToolKinds: AllowedToolKinds;
-  acp: ACPSessionTools;
-  mcp: MCPSessionTools;
-};
 
 const MODEL_CONFIG_ID = "model";
-type OpenAICompatibleModelsResponse = {
-  data?: Array<{ id?: string }>;
-};
-function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompatibleModelsResponse {
-  if (!value || typeof value !== "object") return false;
-  const maybe = value as { data?: unknown };
-  if (maybe.data === undefined) return true;
-  return Array.isArray(maybe.data);
-}
-
-function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function normalizeMcpServers(value: McpServer[] | undefined): McpServer[] {
-  return Array.isArray(value) ? value : [];
-}
 
 function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]): string {
   const extras =
@@ -81,6 +47,16 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
       : "";
   const workspacePrompt = `Current session working directory (cwd): ${cwd}.${extras} Use this as the default base path for relative paths.`;
   return `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}`;
+}
+
+type OpenAICompatibleModelsResponse = {
+  data?: Array<{ id?: string }>;
+};
+function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompatibleModelsResponse {
+  if (!value || typeof value !== "object") return false;
+  const maybe = value as { data?: unknown };
+  if (maybe.data === undefined) return true;
+  return Array.isArray(maybe.data);
 }
 
 export class OpenaiCompatibleAgent implements Agent {
@@ -207,50 +183,17 @@ export class OpenaiCompatibleAgent implements Agent {
     ];
   }
 
-  private async createSessionState(params: {
-    sessionId: string;
-    cwd: string;
-    additionalDirectories: string[] | undefined;
-    mcpServers: McpServer[] | undefined;
-    modelId: string | null;
-  }): Promise<SessionState> {
-    const { allowedToolKinds, permissionMemory } = createPermissionMemory();
-    const mcp = await createMCPSessionTools({
-      cwd: params.cwd,
-      mcpServers: normalizeMcpServers(params.mcpServers),
-      sessionId: params.sessionId,
-      getConnection: () => this.connection,
-      permissionMemory,
-    });
-    const acp = createACPClientTools({
-      cwd: params.cwd,
-      sessionId: params.sessionId,
-      getConnection: () => this.connection,
-      permissionMemory,
-    });
-    return {
-      id: params.sessionId,
-      cwd: params.cwd,
-      additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
-      modelId: params.modelId,
-      history: [],
-      abortController: null,
-      allowedToolKinds,
-      acp,
-      mcp,
-    };
-  }
-
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
     const modelId = modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null;
-    const session = await this.createSessionState({
+    const session = await createSessionState({
       sessionId,
       cwd: params.cwd,
       additionalDirectories: params.additionalDirectories,
       mcpServers: params.mcpServers,
       modelId,
+      getConnection: () => this.connection,
     });
     this.sessions.set(sessionId, session);
     return {
@@ -268,12 +211,13 @@ export class OpenaiCompatibleAgent implements Agent {
         `Session is already active: ${params.sessionId}. Close the active session before calling load/resume again.`,
       );
     }
-    const active = await this.createSessionState({
+    const active = await createSessionState({
       sessionId: params.sessionId,
       cwd: params.cwd,
       additionalDirectories: params.additionalDirectories,
       mcpServers: params.mcpServers,
       modelId: modelState.currentModelId ?? modelState.availableModels[0]?.modelId ?? null,
+      getConnection: () => this.connection,
     });
     this.sessions.set(params.sessionId, active);
     const currentModelExists =
