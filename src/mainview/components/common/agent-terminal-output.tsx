@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { useTranslation } from "react-i18next";
@@ -36,12 +36,21 @@ export function AgentTerminalOutput({
     }
   }, [log]);
 
+  // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
+  const cleanLog = useMemo(
+    () =>
+      log
+        ?.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
+        .replace(/\[[0-9;]*[0-9]m/g, ""),
+    [log],
+  );
+
   return (
     <pre
       ref={containerRef}
       className="max-h-[70vh] bg-sidebar text-foreground/80 p-2 whitespace-pre-wrap break-all font-mono text-xs overflow-auto leading-3.5"
     >
-      <code>{log ?? t("readonlyTerminal.noOutput")}</code>
+      <code>{cleanLog ?? t("readonlyTerminal.noOutput")}</code>
     </pre>
   );
 }
