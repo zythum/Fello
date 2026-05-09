@@ -207,7 +207,10 @@ export class OpenaiCompatibleAgent implements Agent {
     }
   }
 
-  private async appendSessionHistory(sessionId: string, ...messages: ModelMessage[]): Promise<void> {
+  private async appendSessionHistory(
+    sessionId: string,
+    ...messages: ModelMessage[]
+  ): Promise<void> {
     if (messages.length === 0) return;
     try {
       await appendPersistedSessionHistory({
@@ -433,13 +436,13 @@ export class OpenaiCompatibleAgent implements Agent {
                     mimeType: part.file.mediaType,
                   }
                 : {
-                  type: 'resource',
-                  ...filePartToEmbeddedResourceResource({
-                    type: 'file',
-                    data: part.file.base64,
-                    mediaType: part.file.mediaType,
-                  })
-                },
+                    type: "resource",
+                    ...filePartToEmbeddedResourceResource({
+                      type: "file",
+                      data: part.file.base64,
+                      mediaType: part.file.mediaType,
+                    }),
+                  },
             },
           });
         }

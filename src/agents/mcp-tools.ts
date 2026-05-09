@@ -165,7 +165,7 @@ export async function createMCPSessionTools(
               kind,
               status: "in_progress",
               rawInput: input,
-            }
+            };
 
             await connection.sessionUpdate({
               sessionId: params.sessionId,

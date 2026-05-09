@@ -17,7 +17,10 @@ function isPermissionKind(kind: ToolCall["kind"]): kind is PermissionKind {
 }
 
 export function createPermissionMemory(options?: {
-  onAlwaysAllowed?: (kind: PermissionKind, allowedToolKinds: AllowedToolKinds) => Promise<void> | void;
+  onAlwaysAllowed?: (
+    kind: PermissionKind,
+    allowedToolKinds: AllowedToolKinds,
+  ) => Promise<void> | void;
 }): {
   allowedToolKinds: AllowedToolKinds;
   permissionMemory: ToolPermissionMemory;

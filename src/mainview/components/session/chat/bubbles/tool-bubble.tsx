@@ -59,8 +59,8 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
   const [open, setOpen] = React.useState(() => {
-    const content = message.content?.find(content => {
-      return content.type === 'terminal' || content.type === 'diff';
+    const content = message.content?.find((content) => {
+      return content.type === "terminal" || content.type === "diff";
     });
     return content !== undefined;
   });

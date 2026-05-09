@@ -90,7 +90,7 @@ export function filePartToEmbeddedResourceResource(filePart: FilePart): Embedded
       uri: filePart.filename ?? `generated://response-file-${randomUUID()}`,
       mimeType: filePart.mediaType,
       blob,
-    }
+    },
   };
 }
 

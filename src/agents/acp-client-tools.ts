@@ -148,7 +148,12 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
+          await ensureToolPermission(
+            connection,
+            params.sessionId,
+            toolCall,
+            params.permissionMemory,
+          );
           await connection.writeTextFile({
             sessionId: params.sessionId,
             path: filename,
@@ -230,7 +235,12 @@ Use exact string matching for oldText and set replaceAll=true when needed.`,
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
+          await ensureToolPermission(
+            connection,
+            params.sessionId,
+            toolCall,
+            params.permissionMemory,
+          );
 
           if (oldText.length === 0) {
             throw new Error("oldText must not be empty.");
@@ -323,8 +333,7 @@ Use exact string matching for oldText and set replaceAll=true when needed.`,
       },
     }),
     Shell: tool({
-      description:
-        `Run a terminal command and return output/exit status (similar to bash/sh execution).
+      description: `Run a terminal command and return output/exit status (similar to bash/sh execution).
 Prefer dedicated tools first:
 - LS: list files (equivalent: ls -la)
 - Grep: search content (equivalent: rg "pattern" src or grep -R "pattern" src)
@@ -378,7 +387,12 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
+          await ensureToolPermission(
+            connection,
+            params.sessionId,
+            toolCall,
+            params.permissionMemory,
+          );
 
           const timeoutMs = Math.max(1, Math.floor((timeoutSeconds ?? 120) * 1000));
           const terminal = await connection.createTerminal({

@@ -37,13 +37,9 @@ export function AgentTerminalOutput({
   }, [log]);
 
   // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
-  const cleanLog = useMemo(
-    () =>
-      log
-        ?.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
-        .replace(/\[[0-9;]*[0-9]m/g, ""),
-    [log],
-  );
+  const cleanLog = useMemo(() => {
+    return log?.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "").replace(/\[[0-9;]*[0-9]m/g, "");
+  }, [log]);
 
   return (
     <pre
