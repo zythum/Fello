@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, type ModelMessage } from "ai";
+import { stepCountIs, streamText, generateText, type ModelMessage } from "ai";
 import type {
   Agent,
   AgentSideConnection,
@@ -355,7 +355,7 @@ export class OpenaiCompatibleAgent implements Agent {
       throw new Error("A prompt is already streaming for this session.");
     }
 
-    const userText = params.prompt.map((contentBlock) => {
+    const userContent = params.prompt.map((contentBlock) => {
       if (contentBlock.type === "text") {
         return textContentToTextPart(contentBlock);
       }
@@ -374,7 +374,43 @@ export class OpenaiCompatibleAgent implements Agent {
       return textContentToTextPart({ text: JSON.stringify(contentBlock) });
     });
 
-    const userMessage: ModelMessage = { role: "user", content: userText };
+    // 如果 session 历史为空，生成一个简短的标题
+    if (session.history.length === 0 && session.modelId) {
+      // 从 userContent 中提取文本部分
+      const textParts = userContent.filter(part => typeof part === 'object' && part !== null && 'type' in part && part.type === 'text');
+      const userText = textParts.map(part => part.text).join(' ').slice(0, 200).trim(); // 限制长度
+      if (userText) {
+        try {
+          const titleResult = await generateText({
+            model: this.provider.chatModel(session.modelId),
+            prompt: `Generate a very short title (3-10 words) that summarizes the following user query. Respond only with the title, no quotes or additional text. User query: ${userText}`,
+            maxOutputTokens: 100,
+            temperature: 0.3,
+            providerOptions: {
+              'openai-compatible': {
+                thinking: { type: 'disabled' },
+                reasoning_effort: "low",
+              }
+            }
+          });
+          const title = titleResult.text.trim();
+          if (title && this.connection) {
+            await this.connection.sessionUpdate({
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "session_info_update",
+                title: title,
+              },
+            });
+          }
+        } catch (error) {
+          // 标题生成失败，忽略错误，继续主要流程
+          console.warn(`Failed to generate session title: ${error}`);
+        }
+      }
+    }
+
+    const userMessage: ModelMessage = { role: "user", content: userContent };
     session.history.push(userMessage);
     await this.appendSessionHistory(session.id, userMessage);
     const abortController = new AbortController();
