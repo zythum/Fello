@@ -41,6 +41,7 @@ import {
   resourceLinkToFilePart,
   textContentToTextPart,
 } from "./utils";
+import { createPermissionMemory, type AllowedToolKinds } from "./permission";
 
 type SessionState = {
   id: string;
@@ -49,6 +50,7 @@ type SessionState = {
   modelId: string | null;
   history: ModelMessage[];
   abortController: AbortController | null;
+  allowedToolKinds: AllowedToolKinds;
   acp: ACPSessionTools;
   mcp: MCPSessionTools;
 };
@@ -212,16 +214,19 @@ export class OpenaiCompatibleAgent implements Agent {
     mcpServers: McpServer[] | undefined;
     modelId: string | null;
   }): Promise<SessionState> {
+    const { allowedToolKinds, permissionMemory } = createPermissionMemory();
     const mcp = await createMCPSessionTools({
       cwd: params.cwd,
       mcpServers: normalizeMcpServers(params.mcpServers),
       sessionId: params.sessionId,
       getConnection: () => this.connection,
+      permissionMemory,
     });
     const acp = createACPClientTools({
       cwd: params.cwd,
       sessionId: params.sessionId,
       getConnection: () => this.connection,
+      permissionMemory,
     });
     return {
       id: params.sessionId,
@@ -230,6 +235,7 @@ export class OpenaiCompatibleAgent implements Agent {
       modelId: params.modelId,
       history: [],
       abortController: null,
+      allowedToolKinds,
       acp,
       mcp,
     };

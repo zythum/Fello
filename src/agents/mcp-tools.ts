@@ -9,6 +9,7 @@ import type {
   ToolCallUpdate,
   ToolKind,
 } from "@agentclientprotocol/sdk";
+import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import {} from "./utils";
 
 export type MCPSessionTools = {
@@ -21,6 +22,7 @@ export type CreateMCPSessionToolsParams = {
   mcpServers: McpServer[];
   cwd: string;
   getConnection: () => AgentSideConnection | null;
+  permissionMemory?: ToolPermissionMemory;
 };
 
 function sanitizeName(input: string): string {
@@ -134,6 +136,10 @@ export async function createMCPSessionTools(
           ...toolDef,
           execute: async (input, options) => {
             const connection = params.getConnection();
+            if (!connection) {
+              throw new Error("ACP connection is not available.");
+            }
+
             const toolCallId = options.toolCallId;
 
             let subTitle = "";
@@ -153,22 +159,27 @@ export async function createMCPSessionTools(
             if (subTitle) {
               subTitle = " " + subTitle;
             }
-            if (connection && toolCallId) {
-              const toolCall: ToolCall = {
-                toolCallId,
-                title: `${title}${subTitle}`,
-                kind,
-                status: "in_progress",
-                rawInput: input,
-              };
-              await connection.sessionUpdate({
-                sessionId: params.sessionId,
-                update: {
-                  sessionUpdate: "tool_call",
-                  ...toolCall,
-                },
-              });
+            const toolCall: ToolCall = {
+              toolCallId,
+              title: `${title}${subTitle}`,
+              kind,
+              status: "in_progress",
+              rawInput: input,
             }
+
+            await connection.sessionUpdate({
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "tool_call",
+                ...toolCall,
+              },
+            });
+            await ensureToolPermission(
+              connection,
+              params.sessionId,
+              toolCall,
+              params.permissionMemory,
+            );
 
             try {
               const output: any = await toolDef.execute(input, options);

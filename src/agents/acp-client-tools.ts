@@ -7,7 +7,7 @@ import type {
   ToolCall,
   ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
-import { ensureToolPermission } from "./permission";
+import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { toEnvVariables } from "./utils";
 
 export type ACPAgentTerminalMap = Map<string, TerminalHandle>;
@@ -20,6 +20,7 @@ export type CreateACPClientToolsParams = {
   cwd: string;
   sessionId: string;
   getConnection: () => AgentSideConnection | null;
+  permissionMemory?: ToolPermissionMemory;
 };
 
 export function createACPClientTools(params: CreateACPClientToolsParams): ACPSessionTools {
@@ -147,7 +148,7 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall);
+          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
           await connection.writeTextFile({
             sessionId: params.sessionId,
             path: filename,
@@ -229,7 +230,7 @@ Use exact string matching for oldText and set replaceAll=true when needed.`,
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall);
+          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
 
           if (oldText.length === 0) {
             throw new Error("oldText must not be empty.");
@@ -377,7 +378,7 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
         });
 
         try {
-          await ensureToolPermission(connection, params.sessionId, toolCall);
+          await ensureToolPermission(connection, params.sessionId, toolCall, params.permissionMemory);
 
           const timeoutMs = Math.max(1, Math.floor((timeoutSeconds ?? 120) * 1000));
           const terminal = await connection.createTerminal({
