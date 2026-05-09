@@ -194,6 +194,133 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
         }
       },
     }),
+    EditFile: tool({
+      description:
+        "Edit a text file by replacing existing text with new text (StrReplace style).",
+      inputSchema: z.object({
+        path: z.string().describe("File path to edit."),
+        oldText: z.string().describe("Exact text to find in file."),
+        newText: z.string().describe("Replacement text."),
+        replaceAll: z.boolean().optional().describe("Replace all matches. Defaults to false."),
+        cwd: z.string().optional().describe("Absolute working directory."),
+      }),
+      execute: async ({ cwd, path, oldText, newText, replaceAll }, { toolCallId }) => {
+        const connection = params.getConnection();
+        if (!connection) {
+          throw new Error("ACP connection is not available.");
+        }
+
+        const filename = resolve(cwd ?? params.cwd, path);
+        const title = `EditFile ${filename}`;
+        const toolCall: ToolCall = {
+          toolCallId,
+          title,
+          kind: "edit",
+          status: "in_progress",
+          locations: [{ path: filename }],
+          rawInput: { filename, oldText, newText, replaceAll: replaceAll ?? false },
+        };
+        await connection.sessionUpdate({
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "tool_call",
+            ...toolCall,
+          },
+        });
+
+        try {
+          await ensureToolPermission(connection, params.sessionId, toolCall);
+
+          if (oldText.length === 0) {
+            throw new Error("oldText must not be empty.");
+          }
+
+          const currentFile = await connection.readTextFile({
+            sessionId: params.sessionId,
+            path: filename,
+          });
+          const currentContent = currentFile.content;
+          const shouldReplaceAll = replaceAll ?? false;
+
+          let matchCount = 0;
+          let searchIndex = 0;
+          while (searchIndex <= currentContent.length) {
+            const foundAt = currentContent.indexOf(oldText, searchIndex);
+            if (foundAt < 0) {
+              break;
+            }
+            matchCount += 1;
+            searchIndex = foundAt + oldText.length;
+          }
+
+          if (matchCount === 0) {
+            throw new Error("oldText was not found in the file.");
+          }
+          if (!shouldReplaceAll && matchCount > 1) {
+            throw new Error(
+              "oldText matched multiple locations. Provide a more specific oldText or set replaceAll=true.",
+            );
+          }
+
+          const updatedContent = shouldReplaceAll
+            ? currentContent.split(oldText).join(newText)
+            : currentContent.replace(oldText, newText);
+
+          await connection.writeTextFile({
+            sessionId: params.sessionId,
+            path: filename,
+            content: updatedContent,
+          });
+
+          const output = { ok: true, matches: matchCount, replacedAll: shouldReplaceAll };
+          const toolCallCompleteUpdate: ToolCallUpdate = {
+            toolCallId,
+            status: "completed",
+            rawOutput: output,
+            content: [
+              {
+                type: "diff",
+                path: filename,
+                oldText: currentContent,
+                newText: updatedContent,
+              },
+            ],
+          };
+          await connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "tool_call_update",
+              ...toolCallCompleteUpdate,
+            },
+          });
+          return output;
+        } catch (error) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          const toolCallUpdate: ToolCallUpdate = {
+            toolCallId,
+            status: "failed",
+            rawOutput: { error: errorText },
+            content: [
+              {
+                type: "content",
+                content: {
+                  type: "text",
+                  text: errorText,
+                },
+              },
+            ],
+          };
+          await connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "tool_call_update",
+              ...toolCallUpdate,
+            },
+          });
+          throw error;
+        }
+      },
+    }),
     Shell: tool({
       description:
         "Run a terminal command and return output/exit status. Terminal is embedded in tool content.",
