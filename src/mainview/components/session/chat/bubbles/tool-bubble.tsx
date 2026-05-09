@@ -58,7 +58,12 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(() => {
+    const content = message.content?.find(content => {
+      return content.type === 'terminal' || content.type === 'diff';
+    });
+    return content !== undefined;
+  });
   return (
     <Collapsible
       className="text-xs min-w-0 overflow-hidden group"
