@@ -7,6 +7,8 @@ import type {
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
+  InitializeRequest,
+  InitializeResponse,
   LoadSessionRequest,
   LoadSessionResponse,
   ModelInfo,
@@ -65,6 +67,8 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
   return Array.isArray(maybe.data);
 }
 
+const AgentDescription = 'Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex';
+
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
   private provider: ReturnType<typeof createOpenAICompatible>;
@@ -90,7 +94,10 @@ export class OpenaiCompatibleAgent implements Agent {
       name: "openai-compatible",
       baseURL: this.baseUrl,
       apiKey: this.apiKey,
-      headers: this.headers,
+      headers: {
+        'User-Agent': AgentDescription,
+        ...this.headers,
+      },
     });
   }
 
@@ -98,13 +105,30 @@ export class OpenaiCompatibleAgent implements Agent {
     this.connection = connection;
   }
 
-  async initialize() {
+  async initialize(_request: InitializeRequest): Promise<InitializeResponse> {
     return {
       protocolVersion: PROTOCOL_VERSION,
       agentInfo: {
-        name: "Fello OpenAI-Compatible opencode",
+        name: AgentDescription,
         version: "0.1.0",
       },
+      agentCapabilities: {
+        mcpCapabilities: {
+          http: true,
+          sse: true,
+        },
+        loadSession: true,
+        promptCapabilities: {
+          image: true,
+          audio: true,
+          embeddedContext: true,
+        },
+        sessionCapabilities: {
+          additionalDirectories: {},
+          close: {},
+          resume: {},
+        }
+      }
     };
   }
 
