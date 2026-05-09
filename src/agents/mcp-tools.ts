@@ -137,9 +137,9 @@ export async function createMCPSessionTools(
             const toolCallId = options.toolCallId;
 
             let subTitle = "";
-            if (typeof input === 'string') {
+            if (typeof input === "string") {
               subTitle = input;
-            } else if (input && typeof input === 'object') {
+            } else if (input && typeof input === "object") {
               for (const key in input) {
                 const value = input[key];
                 if (typeof value !== "string") {
@@ -173,7 +173,7 @@ export async function createMCPSessionTools(
             try {
               const output: any = await toolDef.execute(input, options);
               if (output.isError === true) {
-                throw new Error('Errored');
+                throw new Error("Errored");
               }
               if (connection && toolCallId) {
                 const toolCallComplateUpdate: ToolCallUpdate = {

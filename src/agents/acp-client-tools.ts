@@ -26,7 +26,7 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
   const terminals: ACPAgentTerminalMap = new Map();
   const tools: ToolSet = {
     ReadFile: tool({
-      description: "Read a text file from the local filesystem.",
+      description: `Read a text file from the local filesystem.`,
       inputSchema: z.object({
         path: z.string().describe("File path to read."),
         line: z.number().int().positive().optional().describe("1-based start line."),
@@ -116,7 +116,7 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
       },
     }),
     WriteFile: tool({
-      description: "Write text content to a file on the local filesystem.",
+      description: `Write text content to a file on the local filesystem.`,
       inputSchema: z.object({
         path: z.string().describe("File path to write."),
         content: z.string().describe("UTF-8 text content."),
@@ -195,8 +195,8 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
       },
     }),
     EditFile: tool({
-      description:
-        "Edit a text file by replacing existing text with new text (StrReplace style).",
+      description: `Edit a text file by replacing existing text with new text (StrReplace style).
+Use exact string matching for oldText and set replaceAll=true when needed.`,
       inputSchema: z.object({
         path: z.string().describe("File path to edit."),
         oldText: z.string().describe("Exact text to find in file."),
@@ -323,7 +323,13 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
     }),
     Shell: tool({
       description:
-        "Run a terminal command and return output/exit status. Terminal is embedded in tool content.",
+        `Run a terminal command and return output/exit status (similar to bash/sh execution).
+Prefer dedicated tools first:
+- LS: list files (equivalent: ls -la)
+- Grep: search content (equivalent: rg "pattern" src or grep -R "pattern" src)
+- Glob/find-style discovery: find files (equivalent: find . -name "*.ts")
+Use Shell as fallback when those tools cannot complete the task.
+Avoid destructive commands and prefer deterministic, non-interactive commands.`,
       inputSchema: z.object({
         command: z.string().describe("Executable command."),
         args: z.array(z.string()).optional().describe("Command arguments."),
