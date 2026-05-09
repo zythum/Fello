@@ -102,7 +102,7 @@ export const UserBubble = memo(function UserBubble({
               ) : (
                 <div
                   ref={contentRef}
-                  className="-my-2 pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
+                  className="-my-2 px-0.5 pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
                 >
                   <ContentBlocks blocks={message.contents} role={message.role} session={session} />
                 </div>
