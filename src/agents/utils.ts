@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import type {
   TextContent,
   ImageContent,
@@ -70,6 +71,26 @@ export function resourceLinkToFilePart(resourceLink: ResourceLink): FilePart {
     data: toUrlOrString(resourceLink.uri),
     mediaType: resourceLink.mimeType || "application/octet-stream",
     filename: resourceLink.name || getFilenameFromUri(resourceLink.uri) || "resource",
+  };
+}
+export function filePartToEmbeddedResourceResource(filePart: FilePart): EmbeddedResource {
+  let blob: string;
+  if (typeof filePart.data === "string") {
+    blob = filePart.data;
+  } else if (filePart.data instanceof URL) {
+    blob = filePart.data.toString();
+  } else if (filePart.data instanceof ArrayBuffer) {
+    blob = Buffer.from(new Uint8Array(filePart.data)).toString("base64");
+  } else {
+    blob = Buffer.from(filePart.data).toString("base64");
+  }
+
+  return {
+    resource: {
+      uri: filePart.filename ?? `generated://response-file-${randomUUID()}`,
+      mimeType: filePart.mediaType,
+      blob,
+    }
   };
 }
 

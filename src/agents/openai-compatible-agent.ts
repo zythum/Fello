@@ -36,6 +36,7 @@ import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 import {
   embeddedResourceToFilePart,
   audioContentToFilePart,
+  filePartToEmbeddedResourceResource,
   imageContentToImagePart,
   resourceLinkToFilePart,
   textContentToTextPart,
@@ -325,6 +326,9 @@ export class OpenaiCompatibleAgent implements Agent {
     if (!session) {
       throw new Error(`Session not found: ${params.sessionId}`);
     }
+    if (session.abortController) {
+      throw new Error("A prompt is already streaming for this session.");
+    }
 
     const userText = params.prompt.map((contentBlock) => {
       if (contentBlock.type === "text") {
@@ -365,21 +369,59 @@ export class OpenaiCompatibleAgent implements Agent {
         abortSignal: abortController.signal,
       });
 
-      let fullText = "";
-      for await (const delta of result.textStream) {
-        if (!delta) continue;
-        fullText += delta;
-        if (this.connection) {
+      for await (const part of result.fullStream) {
+        if (!this.connection) continue;
+
+        if (part.type === "text-delta") {
+          if (!part.text) continue;
           await this.connection.sessionUpdate({
             sessionId: params.sessionId,
             update: {
               sessionUpdate: "agent_message_chunk",
-              content: { type: "text", text: delta },
+              content: { type: "text", text: part.text },
+            },
+          });
+          continue;
+        }
+
+        if (part.type === "reasoning-delta") {
+          if (!part.text) continue;
+          await this.connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "agent_thought_chunk",
+              content: { type: "text", text: part.text },
+            },
+          });
+          continue;
+        }
+
+        if (part.type === "file") {
+          const isImage = part.file.mediaType.startsWith("image/");
+          await this.connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              content: isImage
+                ? {
+                    type: "image",
+                    data: part.file.base64,
+                    mimeType: part.file.mediaType,
+                  }
+                : {
+                  type: 'resource',
+                  ...filePartToEmbeddedResourceResource({
+                    type: 'file',
+                    data: part.file.base64,
+                    mediaType: part.file.mediaType,
+                  })
+                },
             },
           });
         }
       }
-      session.history.push({ role: "assistant", content: fullText });
+      const response = await result.response;
+      session.history.push(...response.messages);
       return { stopReason: "end_turn" };
     } catch (err) {
       if (abortController.signal.aborted) {
