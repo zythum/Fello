@@ -3,60 +3,106 @@
 ## 整体架构
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                           Electron Desktop App                      │
-│                                                                      │
-│  ┌─────────────────────────────┐          ┌───────────────────────┐ │
-│  │ Renderer (React + Vite)     │  IPC     │ Main Process (Node.js)│ │
-│  │ - Sidebar / Chat / FilePanel│ ◄──────► │ - IPC handlers         │ │
-│  │ - TerminalPanel (xterm.js)  │          │ - ACPBridge lifecycle  │ │
-│  │ - Zustand session store     │          │ - FS / Dialog / Menu   │ │
-│  └─────────────────────────────┘          │ - WebUI Server (ws)    │ │
-│                 ▲                         └───────────┬───────────┘ │
-│                 │ WebSocket (WebUI Mode)              │ NDJSON over │
-│  ┌──────────────▼──────────────┐                      │ stdio       │
-│  │ Remote Browser (WebUI)      │            ┌─────────▼───────────┐ │
-│  │ - App.tsx / backend.ts      │            │ kiro-cli acp        │ │
-│  └─────────────────────────────┘            │ (ACP Server process)│ │
-│                                             └─────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              Electron Desktop App                             │
+│                                                                               │
+│  ┌─────────────────────────────┐              ┌─────────────────────────────┐ │
+│  │ Renderer (React + Vite)     │    IPC       │ Main Process (Node.js)      │ │
+│  │ - Sidebar / Chat / FilePanel│ ◄──────────► │ - IPC handlers              │ │
+│  │ - TerminalPanel (xterm.js)  │              │ - ACPBridge lifecycle       │ │
+│  │ - Skills / Settings UI      │              │ - FS / Dialog / Menu        │ │
+│  │ - Zustand session store     │              │ - WebUI Server (ws)         │ │
+│  └─────────────────────────────┘              │ - iLink Bridge              │ │
+│                 ▲                             │ - Skills Catalog            │ │
+│                 │ WebSocket (WebUI Mode)      └───────────┬─────────────────┘ │
+│  ┌──────────────▼──────────────┐                          │                   │
+│  │ Remote Browser (WebUI)      │            ┌─────────────▼─────────────────┐ │
+│  │ - App.tsx / backend.ts      │            │ Agent Process (2 types)      │ │
+│  └─────────────────────────────┘            │                              │ │
+│                                             │ ┌─ Stdio Agent ────────────┐ │ │
+│                                             │ │ kiro-cli acp (subprocess)│ │ │
+│                                             │ │ NDJSON over stdio        │ │ │
+│                                             │ └──────────────────────────┘ │ │
+│                                             │ ┌─ API Agent ──────────────┐ │ │
+│                                             │ │ OpenAI-compatible (in-   │ │ │
+│                                             │ │ process, @ai-sdk)        │ │ │
+│                                             │ └──────────────────────────┘ │ │
+│                                             └─────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 进程与模块职责
 
 ### Main Process（`src/electron/` & `src/backend/`）
 
-- **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框
+- **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
 - **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
-- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理
-- **`src/backend/acp-bridge.ts`**：`kiro-cli acp` 子进程生命周期与 ACP SDK 连接封装
+- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、Skills/iLink IPC 注册
+- **`src/backend/acp-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
 - **`src/backend/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
 - **`src/backend/webui.ts`**：WebUI 模式下的 WebSocket 及 HTTP 静态服务
+- **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装
+- **`src/backend/agents/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
+- **`src/backend/agents/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
+- **`src/backend/agents/type.ts`**：AgentProcess 统一接口（input/output streams + close）
+- **`src/backend/ilink/ilink-bridge.ts`**：微信 iLink 连接管理、QR 登录、长轮询、消息收发
+- **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
+- **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
+- **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
-- **`src/backend/storage.ts`**：持久化管理，包括 `~/.fello/settings.json`（全局配置）、`~/.fello/projects/` 下的项目与会话元数据（详见 [数据存储设计与结构](./storage.md)）
+
+### Agent Session Logic（`src/agents/`）
+
+此目录是框架无关的 Agent 会话逻辑，同时被 backend（主进程）使用：
+
+- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、自动标题生成
+- **`session-state.ts`**：创建会话状态（SessionState），组装 ACP client tools + MCP session tools + 权限记忆
+- **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`
+- **`acp-client-tools.ts`**：创建 ACP 客户端工具集（文件读写、终端、搜索等）
+- **`mcp-tools.ts`**：创建 MCP 会话工具集（动态加载 MCP Server 提供的工具）
+- **`permission.ts`**：权限记忆系统，支持"始终允许"（Always Allow），持久化到会话状态
+- **`system-prompts.ts`**：基础系统提示词
+- **`utils.ts`**：ContentBlock 与 AI SDK Part 之间的转换工具
 
 ### Renderer（`src/mainview/`）
 
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 提示管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
-- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（包含 `/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings` 嵌套设置页等）
-- `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态
+- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页）
+- `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
   - `session/chat/chat.tsx`：聊天区容器 + 权限对话框
+  - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
   - `session/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `session/terminal-panel/terminal-panel.tsx`：多终端标签、输出订阅、窗口 resize 自适配
+  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
+  - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
-### ACP Server（`kiro-cli acp`）
+### Agent 进程（两种类型）
 
-- 通过标准输入输出与客户端进行 NDJSON RPC 通信
-- 管理会话历史与重放，客户端依赖 `loadSession` 恢复完整上下文
+**Stdio Agent**：通过 `child_process.spawn` 启动，使用 ACP SDK 的 NDJSON stdio 通信
+
+**API Agent**：进程内运行 `OpenaiCompatibleAgent` 实例，通过 ACP SDK 的 `ndJsonStream` 和 `AgentSideConnection` 桥接——对外表现为标准 ACP Agent
 
 ## 核心设计决策
 
-### 1) 单 Bridge、单 ACP 进程复用
+### 1) Agent 类型多态
+
+Fello 支持两种 Agent 类型，通过 `src/shared/schema.ts` 中的 `AgentInfo` 判别联合类型区分：
+
+```typescript
+type AgentInfo = StdioAgentInfo | ApiAgentInfo
+```
+
+- **StdioAgentInfo**：`type: "stdio"`, `command`, `args`, `env`
+- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`
+
+`ACPBridge` 根据 `AgentInfo.type` 路由到对应的 spawner（`spawnStdioAgent` 或 `spawnOpenaiCompatibleApiAgent`），两者都实现统一的 `AgentProcess` 接口。
+
+### 2) 单 Bridge、单 Agent 进程复用
 
 应用全局只维护一个 `ACPBridge` 实例。所有会话操作都复用同一连接：
 
@@ -67,7 +113,7 @@
 
 `ACPBridge` 通过 `Map<sessionId, SessionModelState>` 与 `Map<sessionId, SessionModeState>` 维护模型与模式状态缓存，避免会话切换时反复拉取。
 
-### 2) 事件驱动的 UI 渲染
+### 3) 事件驱动的 UI 渲染
 
 所有 ACP 增量事件统一经过同一链路进入 Zustand，再由 React 渲染：
 
@@ -82,7 +128,7 @@ ACP sessionUpdate
 
 这种设计保证了实时流式更新与历史重放的处理逻辑一致。
 
-### 3) 会话隔离与全局多态状态
+### 4) 会话隔离与全局多态状态
 
 `store.ts` 使用 `Map<sessionId, SessionState>` 管理每个会话隔离的：
 
@@ -92,18 +138,21 @@ ACP sessionUpdate
 - activeToolCalls
 
 所有的消息通过 `src/mainview/lib/chat-message.ts` 中的 `StreamableMessage` 等接口实现了多态结构（基于 `ContentBlock` 数组），并且依靠 Zustand 的 Immutable 更新保证 React 流式渲染性能。
-- isStreaming
 
 全局共享状态则直接挂载于 store 根层级：
 
-- `configuredAgents`：用户在设置中自定义的可用 Agent 及启动命令
+- `configuredAgents`：用户在设置中自定义的可用 Agent 及启动配置
 - `configuredMcpServers`：用户在设置中自定义的可用 MCP 服务器配置
 - `theme`：UI 主题配置（深色、浅色、跟随系统）
-- `language`：应用语言配置（英语、简体中文）
+- `i18n`：应用语言配置（英语、简体中文）
+- `webUIStatus`：WebUI 服务状态
+- `ilinkStatus`：微信 iLink 连接状态
+- `activeIlinkSessionId`：当前 iLink 活跃会话 ID
+- `isMacApp` / `isFullScreen`：平台与窗口状态
 
 此外，模型与模式（`models` / `modes`）以及 Agent 初始化信息（`initializeInfo`）现在作为 `SessionInfo` 的一部分直接与每个独立的会话元数据绑定，前端会根据当前会话的 `SessionInfo` 直接渲染，避免了全局状态同步带来的界面闪烁问题。
 
-### 4) 主进程统一托管系统能力
+### 5) 主进程统一托管系统能力
 
 敏感或系统相关能力全部由主进程执行：
 
@@ -112,6 +161,8 @@ ACP sessionUpdate
 - 原生右键菜单
 - Finder 定位
 - PTY 终端创建/输入/销毁/resize
+- iLink 微信连接与消息收发
+- Skills 目录扫描与安装
 
 渲染层只发起受限 RPC，不直接接触 Node API。
 
@@ -122,9 +173,9 @@ ACP sessionUpdate
 ```
 Renderer: addProject(pickWorkDir)
   → Main: storage.addProject(project.json)
-  → Renderer: 在项目下触发 newSession
-  → Main: ensureBridge(cwd)
-  → ACP: newSession
+  → Renderer: 在项目下触发 newSession(projectId, agentId, mcpServers, permissionMode)
+  → Main: ensureBridge(agentId) → spawn Agent process (Stdio or API)
+  → Agent: newSession
   → Main: storage.createSession(session.json)
   → Renderer: 刷新 sessions + 进入 active session
 ```
@@ -134,7 +185,7 @@ Renderer: addProject(pickWorkDir)
 ```
 Renderer: resetSessionState(sessionId)
   → Main: loadSession(sessionId)
-  → ACP: loadSession (服务端重放历史)
+  → Agent: loadSession/resumeSession (服务端重放历史或从本地 history.jsonl 恢复)
   → session-update 持续推送
   → reduceSessionUpdate 重建消息/工具/usage 状态
 ```
@@ -145,8 +196,8 @@ Renderer: resetSessionState(sessionId)
 ChatInput submit
   → 立即写入本地 user message + isStreaming=true
   → Main: sendMessage
-  → ACP: prompt
-  → session-update chunk 持续到达
+  → Agent: prompt
+  → session-update chunk 持续到达（text-delta / reasoning-delta / file / tool-call / tool-result）
   → reduceSessionUpdate / calculateToolCall
   → reduceFlushStreaming 收尾，结束 streaming 状态
 ```
@@ -154,12 +205,13 @@ ChatInput submit
 ### D. 权限请求
 
 ```
-ACP requestPermission
+Agent requestPermission
   → Main: pendingPermissions.set(toolCallId, resolver)
   → Renderer: 显示 PermissionDialog
-  → 用户选择 optionId
+  → 用户选择 optionId（可勾选"始终允许"）
   → Main: resolve pending permission
-  → ACP 继续执行 tool
+  → Agent 继续执行 tool
+  → 若勾选"始终允许"，持久化到 session state
 ```
 
 ### E. 终端输出链路
@@ -172,15 +224,28 @@ Renderer: createTerminal(sessionId, cwd)
   → 用户输入 onData → writeTerminal 回传 PTY
 ```
 
+### F. iLink 微信消息流
+
+```
+用户微信 → iLink Server → Main: ILinkBridge.poll() → onMessage callback
+  → Main emit "ilink-status-changed" / 转发消息到活跃 session
+  → Renderer store 更新 ilinkStatus
+  → Agent 处理消息并回复
+  → Main: ILinkBridge.sendTextReply() → iLink Server → 用户微信
+```
+
 ## 生命周期与退出策略
 
-- 启动：`app.whenReady()` 后设置菜单、Dock 图标、创建主窗口
+- 启动：`app.whenReady()` 后设置菜单、Dock 图标、创建主窗口，尝试恢复 iLink 会话
 - 开发模式：附加 renderer console 与 did-fail-load 诊断日志
 - macOS 行为：关闭窗口不退出进程，`activate` 时重建窗口
-- 退出：`before-quit` 同步清理 ACP 进程组与所有 PTY 终端
+- 退出：`before-quit` 同步清理 Agent 进程组、iLink 连接与所有 PTY 终端
 
 ## 持久化边界
 
 - 客户端本地保存项目元数据、会话元数据（`session.json`）
-- 聊天历史与事件流通过主进程进行落盘拦截，每个会话在其独立目录下维护完整的 `messages.jsonl` 事件流文件（NDJSON 格式）
+- Stdio Agent 会话的聊天历史通过主进程进行落盘拦截，每个会话在其独立目录下维护完整的 `messages.jsonl` 事件流文件（NDJSON 格式）
+- API Agent 会话的聊天历史在 `OpenaiCompatibleAgent` 内部直接写入 `history.jsonl`
+- API Agent 会话状态（modelId、allowedToolKinds）持久化到 `session.json`
 - 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话和日志）
+- iLink 凭证和游标持久化到 `~/.fello/ilink/`

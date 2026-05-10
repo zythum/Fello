@@ -3,40 +3,70 @@ Fello (Electron ACP Client)
 Runtime
 - Main process: src/electron/main.ts
 - Preload (contextBridge): src/electron/preload.ts
-- Backend Logic (Node.js): src/backend/ (includes IPC handlers, ACP bridge, terminal manager, WebUI server)
+- Backend Logic (Node.js): src/backend/ (IPC handlers, ACP bridge, terminal manager, WebUI server, iLink bridge, skills catalog)
+- Agent Session Logic (shared): src/agents/ (session-state, storage, OpenAI-compatible agent, MCP tools, ACP tools, permission memory, system prompts)
 - Renderer (React + Vite): src/mainview/
 
 IPC
-- Typed contracts: src/shared/schema.ts
+- Typed contracts: src/shared/schema.ts (AgentInfo as discriminated union: StdioAgentInfo | ApiAgentInfo; McpServerInfo: StdioMcpServerInfo | HttpMcpServerInfo)
 - Renderer API wrapper: src/mainview/backend.ts (uses window.fello or WebSocket fallback for WebUI)
 - Electron-only native API: src/mainview/electron.ts (safely wraps window.fello calls)
 
+Agent Architecture
+- Two agent types supported:
+  1. Stdio agents: spawned via child_process (src/backend/agents/stdio-agent.ts) communicating over NDJSON stdio via ACP SDK
+  2. API agents: OpenAI-compatible HTTP API (src/backend/agents/openai-compatible-api-agent.ts) running in-process via @ai-sdk/openai-compatible
+- Agent implementation: src/agents/openai-compatible-agent.ts implements the ACP Agent interface using the Vercel AI SDK (streamText, generateText)
+- Agent process interface: src/backend/agents/type.ts (AgentProcess: input WritableStream, output ReadableStream, close)
+- ACP bridge: src/backend/acp-bridge.ts manages agent process lifecycle & session routing
+
 Sessions & Persistence
-- Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, and initializeInfo)
+- Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
+- API agent session persistence: src/agents/storage.ts (stores session.json + history.jsonl under ~/.fello/api-agents/<agent_id>/sessions/<session_id>/)
 - Fine-grained session updates: Uses `session-changed` IPC event to update single sessions atomically in the frontend store
-- MCP Server support allows dynamic capability extension via Model Context Protocol servers
-- Message history is intercepted by the backend and persisted locally in messages.jsonl files within each session's directory, enabling robust offline recovery without depending on the ACP server to hold history
-- Agent terminal outputs are persisted as .log files in the `terminals/` folder under each session's directory, automatically restored when a session is loaded
-- Renderer state store: src/mainview/store.ts
-- Routing: src/mainview/router.tsx (uses react-router-dom HashRouter)
+- Permission memory: src/agents/permission.ts — supports "always allow" per tool kind, persisted in session state
+- Auto session titles: OpenAI-compatible agent generates short titles on first user message via generateText
+- MCP Server support: both Stdio (subprocess) and HTTP types, toggle per session
+- Message history: persisted locally in messages.jsonl (ACP agents) or history.jsonl (API agents), enabling robust offline recovery
+- Agent terminal outputs: persisted as .log files in the `terminals/` folder under each session's directory, automatically restored
+- Renderer state store: src/mainview/store.ts (includes ilinkStatus, activeIlinkSessionId, isMacApp, isFullScreen)
+- Routing: src/mainview/router.tsx (react-router-dom HashRouter with /settings/* and /skills/* nested routes)
 - ChatMessage polymorphic interface: src/mainview/lib/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
 - Content block rendering: src/mainview/components/content-blocks/
-- Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, AgentTerminalOutput)
-- Global Error Handling: src/mainview/components/global/error-boundary.tsx catches unhandled rendering errors and provides a localized, user-friendly fallback UI
+- Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, AgentTerminalOutput, StreamMarkdown)
+- Global Error Handling: src/mainview/components/global/error-boundary.tsx
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
-- Chat input attachments (staged): src/mainview/components/session/chat/chat-input.tsx (supports file picker + drag-and-drop; filters by agent promptCapabilities)
+- Chat input attachments: src/mainview/components/session/chat/chat-input.tsx (file picker + drag-and-drop; filters by agent promptCapabilities)
 - Chat timeline dots + scroll tracking: src/mainview/components/session/chat/chat-area.tsx and src/mainview/components/session/chat/chat-timeline.tsx
+- Chat bubbles: src/mainview/components/session/chat/bubbles/ (agent, user, system, tool, thinking, plan)
+
+iLink (WeChat) Integration
+- Bridge: src/backend/ilink/ilink-bridge.ts (connection lifecycle, QR login, long-polling, message routing, typing indicators)
+- HTTP Client: src/backend/ilink/ilink-client.ts (iLink REST API)
+- Crypto: src/backend/ilink/ilink-crypto.ts
+- Settings UI: src/mainview/components/settings/settings-ilink.tsx
+- Persisted credentials: ~/.fello/ilink/credentials.json
+- Active session tracking: ~/.fello/ilink/active-session.json
+
+Skills System
+- Catalog scanning: src/backend/skills.ts (user/project level, fello/agents/claude scopes)
+- skills.sh marketplace integration: search & install
+- UI: src/mainview/components/skills/ (skills-layout, skills-installed, skills-skill-sh)
+- Skill files stored under: ~/.fello/skills/, ~/.agents/skills/, ~/.claude/skills/
 
 Dev / Build Commands
 - npm run dev (electron-vite dev; Vite server on http://localhost:5173)
 - npm run build
 - npm run preview
-- npm run lint
-- npm run typecheck
-- npm run format
+- npm run pack:mac / pack:win / pack:linux
+- npm run lint (oxlint)
+- npm run typecheck (tsc for both renderer and node configs)
+- npm run format (oxfmt)
+- npm run prepare:icon:mac (icon generation script)
 
 Repo Conventions
 - Electron code lives under src/electron
 - Backend logic lives under src/backend
+- Agent session logic lives under src/agents (framework-agnostic, shared)
 - UI code lives under src/mainview
 - ScrollArea utility: src/mainview/components/ui/scroll-area.tsx (supports hideScrollBar to omit scrollbar rendering)

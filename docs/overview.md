@@ -1,28 +1,36 @@
 # Fello 项目简介
 
-Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端。它以 Electron 作为桌面容器，通过可配置的命令行（如 `kiro-cli acp`）与 agent 建立连接，在一个应用内整合了对话、工具调用、权限决策、文件树和终端面板。
+Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端。它以 Electron 作为桌面容器，支持两种类型的 Agent 连接：本地 Stdio 命令行 Agent（通过 ACP 协议，如 `kiro-cli acp`）和远程 OpenAI 兼容 API Agent。在一个应用内整合了对话、工具调用、权限决策、文件树、终端面板、Skills 管理以及微信 iLink 移动端交互。
 
 ## 产品定位
 
 - 面向本地开发工作流的桌面端 AI 协作工具
-- 强调“会话上下文 + 工作目录 + 文件/终端联动”
+- 强调"会话上下文 + 工作目录 + 文件/终端联动"
 - 使用 ACP 作为统一协议层，兼容 agent 的流式事件与权限模型
+- 支持远程 API Agent（OpenAI 兼容），扩展 LLM 选择范围
 
 ## 功能清单
+
+### Agent 类型
+
+- **Stdio Agent**：通过本地命令行进程启动（如 `kiro-cli acp`），使用 ACP SDK 通过 NDJSON stdio 通信
+- **API Agent**：通过 HTTP 连接 OpenAI 兼容 API（如任何兼容 `/v1/chat/completions` 的服务），在进程内运行，支持流式文本、推理和文件内容
 
 ### 会话与连接
 
 - 项目分组：以工作目录为项目，项目下管理多个 chat session
-- 新建会话：在项目下创建新 session
+- 新建会话：在项目下创建新 session，支持选择 Agent 类型、MCP Server 和权限模式
 - 恢复会话：从侧边栏会话列表恢复，ACP 服务端重放历史事件
 - 重命名/删除：支持项目与会话的重命名、删除操作
 - 连接状态：切换会话时显示连接中状态，异常信息通过 Toast 提示
 - 会话时间戳：在侧边栏和聊天标题处显示会话的最后更新时间
+- 自动标题生成：API Agent 会话首次发送消息时自动生成简短的会话标题
 
 ### 对话体验
 
-- 流式渲染：实时显示 assistant chunk 与 thinking chunk
+- 流式渲染：实时显示 assistant chunk 与 thinking/reasoning chunk
 - 工具调用可视化：在消息流中插入 tool 状态与结果
+- Plan 展示：支持显示 Agent 生成的执行计划气泡
 - 文件路径交互：在用户和助手消息中自动解析绝对文件路径，点击可直接在 Finder 中定位打开
 - 中断能力：支持手动 `cancelPrompt`
 - 超时兜底：30 秒无事件时自动结束 streaming 并注入系统提示
@@ -32,7 +40,9 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 - 当 agent 请求权限时弹出 `Permission Required` 对话框
 - 选项由 agent 下发，前端直接回传 `optionId`
+- 支持"始终允许"（Always Allow）：用户可将某类工具权限记忆化，后续同类请求自动批准，持久化到会话状态中
 - 会话内支持权限请求队列，逐个处理
+- 权限模式切换：支持 `ask`（每次询问）和 `allow-all`（全部允许）两种模式
 
 ### 文件工作区
 
@@ -54,12 +64,13 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ### 模型、模式与扩展
 
-- 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent，使用 ID 作为唯一标识并自定义其启动命令。
-- MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器，并在会话菜单中随时启停，为 Agent 动态扩展能力。
-- 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）。
-- 从 ACP 模型状态读取可用模型列表与模式（Mode）列表，这些配置被持久化并隔离在每个独立会话（Session）的元数据中，切换会话时 UI 无缝更新。
-- 支持在下拉菜单中显示模型和模式的描述信息
-- 支持在会话运行中随时切换模型与模式，并通过 `session-changed` 事件进行细粒度的原子级 UI 更新。
+- 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent（Stdio 或 API 类型），使用 ID 作为唯一标识
+- MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器（Stdio 和 HTTP 两种类型），并在会话菜单中随时启停，为 Agent 动态扩展能力
+- Skills 系统：浏览和安装来自 skills.sh 市场的 Skills，支持用户级和项目级作用域（fello/agents/claude 三个 scope）
+- 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）
+- 从 Agent 读取可用模型列表，这些配置被持久化并隔离在每个独立会话（Session）的元数据中，切换会话时 UI 无缝更新
+- 支持在下拉菜单中显示模型信息
+- 支持在会话运行中随时切换模型，并通过 `session-changed` 事件进行细粒度的原子级 UI 更新
 - 在输入区显示 token 统计（input/output/total/think）
 
 ### WebUI 远程访问
@@ -69,17 +80,27 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 远程环境通过 WebSocket 与桌面端的主进程进行 IPC 交互
 - Web 端支持所有桌面端功能，包括文件操作、终端交互、新建项目和会话
 
+### 微信 iLink 集成
+
+- 在设置中配置微信 iLink 连接，通过扫码登录
+- 支持在微信中接收消息并自动转发到 Fello，可设置活跃会话进行回复
+- 消息支持长文本自动分段发送（微信 2000 字符限制）
+- 支持"正在输入"状态指示
+- 登录凭证和游标状态持久化存储
+
 ## 用户交互流程（简版）
 
 1. 点击 Add Project，选择工作目录
-2. 在项目下点击 New Chat，创建 session 并建立 ACP 连接
+2. 在项目下点击 New Chat，选择 Agent 类型并创建 session，建立连接
 3. 输入消息，接收流式响应/工具事件
-4. 如遇权限请求，在弹窗中选择策略
+4. 如遇权限请求，在弹窗中选择策略（可勾选"始终允许"）
 5. 通过文件树或终端继续上下文协作
+6. 可选：开启 WebUI 远程访问或连接微信 iLink
 
 ## 数据与安全边界
 
-- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、全局配置文件（`~/.fello/settings.json`），以及完整对话事件日志（在会话目录下的 `messages.jsonl` 文件中）。
+- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）
+- 完整对话事件日志（在会话目录下的 `messages.jsonl` 或 `history.jsonl` 文件中）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 
 ## 运行环境
@@ -87,5 +108,6 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - Node.js（Electron 主进程运行时）
 - Electron（桌面容器）
 - React + Vite（渲染层）
-- ACP Server：`kiro-cli acp`
-- 数据目录：`~/.fello/projects/`
+- ACP Server：`kiro-cli acp`（Stdio Agent）
+- OpenAI 兼容 API 服务（API Agent）
+- 数据目录：`~/.fello/`
