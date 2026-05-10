@@ -23,6 +23,8 @@ function AppContent() {
     setI18n,
     isMacApp,
     setIsFullScreen,
+    setIlinkStatus,
+    setActiveIlinkSessionId,
   } = useAppStore();
   const { t, i18n } = useTranslation();
   const { toast } = useMessage();
@@ -42,17 +44,22 @@ function AppContent() {
 
   useEffect(() => {
     async function loadData() {
-      const [projects, sessions, settings, webUIStatus] = await Promise.all([
-        request.listProjects(),
-        request.listSessions(),
-        request.getSettings(),
-        request.getWebUIStatus(),
-      ]);
+      const [projects, sessions, settings, webUIStatus, ilinkStatus, ilinkActive] =
+        await Promise.all([
+          request.listProjects(),
+          request.listSessions(),
+          request.getSettings(),
+          request.getWebUIStatus(),
+          request.getIlinkStatus(),
+          request.getActiveIlinkSession(),
+        ]);
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
       setConfiguredAgents(settings.agents);
       setConfiguredMcpServers(settings.mcpServers || []);
       setWebUIStatus(webUIStatus);
+      setIlinkStatus(ilinkStatus);
+      setActiveIlinkSessionId(ilinkActive.sessionId);
       if (settings.theme) setTheme(settings.theme);
       if (settings.i18n) {
         setI18n(settings.i18n);
@@ -249,6 +256,15 @@ function AppContent() {
       }
     };
 
+    const handleIlinkStatusChanged = (detail: BackendEvents["ilink-status-changed"]) => {
+      useAppStore.getState().setIlinkStatus(detail.status);
+    };
+    const handleIlinkActiveSessionChanged = (
+      detail: BackendEvents["ilink-active-session-changed"],
+    ) => {
+      useAppStore.getState().setActiveIlinkSessionId(detail.sessionId);
+    };
+
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("permission-request", handlePermissionRequest);
     subscribe.on("permission-resolved", handlePermissionResolved);
@@ -257,6 +273,8 @@ function AppContent() {
     subscribe.on("projects-changed", handleProjectsChanged);
     subscribe.on("sessions-changed", handleSessionsChanged);
     subscribe.on("session-changed", handleSessionChanged);
+    subscribe.on("ilink-status-changed", handleIlinkStatusChanged);
+    subscribe.on("ilink-active-session-changed", handleIlinkActiveSessionChanged);
 
     const fello = window.fello;
     if (isMacApp && fello?.onMacFullScreen) {
@@ -273,6 +291,8 @@ function AppContent() {
       subscribe.off("projects-changed", handleProjectsChanged);
       subscribe.off("sessions-changed", handleSessionsChanged);
       subscribe.off("session-changed", handleSessionChanged);
+      subscribe.off("ilink-status-changed", handleIlinkStatusChanged);
+      subscribe.off("ilink-active-session-changed", handleIlinkActiveSessionChanged);
       if (sessionUpdateFlushRafIdRef.current != null) {
         cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
         sessionUpdateFlushRafIdRef.current = null;

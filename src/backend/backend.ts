@@ -34,6 +34,7 @@ import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./we
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
+import { ILinkBridge, readActiveSessionId, writeActiveSessionId } from "./ilink/ilink-bridge";
 import { deletePersistedSessionDirectory } from "../agents/storage";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
@@ -135,6 +136,55 @@ function getPendingToolCallKey(sessionId: string, toolCallId: string) {
   return `${sessionId}:${toolCallId}`;
 }
 
+// ── iLink State ─────────────────────────────────────────────────────
+
+let ilinkBridge: ILinkBridge | null = null;
+let activeIlinkSessionId: string | null = null;
+let ilinkReplyBuffer = "";
+
+function getILinkBridge(): ILinkBridge {
+  if (!ilinkBridge) {
+    ilinkBridge = new ILinkBridge({
+      onStatusChange: (status) => {
+        sendEvent("ilink-status-changed", { status });
+        broadcastWebUIEvent("ilink-status-changed", { status });
+      },
+      onMessage: async (msg) => {
+        // Route incoming WeChat message to active session
+        const sessionId = activeIlinkSessionId;
+        if (!sessionId) {
+          console.warn("[iLink] No active session, ignoring message");
+          return;
+        }
+
+        const text = (await import("./ilink/ilink-bridge")).extractMessageText(msg);
+        if (!text.trim()) return;
+
+        const contents: import("@agentclientprotocol/sdk").ContentBlock[] = [
+          {
+            type: "text",
+            text: `[来自微信] ${text}`,
+          },
+        ];
+
+        try {
+          await backendHandlers.sendMessage({ sessionId, contents });
+        } catch (err) {
+          console.error("[iLink] Failed to route message to session:", err);
+          // Try to notify the WeChat user about the error
+          if (msg.from_user_id) {
+            await ilinkBridge?.sendTextReply(
+              msg.from_user_id,
+              "抱歉，处理消息时出错了，请稍后再试。",
+            );
+          }
+        }
+      },
+    });
+  }
+  return ilinkBridge;
+}
+
 /**
  * Merge a tool_call_update into a base ToolCallUpdate.
  * Mirrors the logic in mainview/lib/session-state-reducer.ts calculateToolCall.
@@ -203,6 +253,35 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
   };
 
   const sessionUpdate = enrichedNotification.update.sessionUpdate;
+
+  // ── iLink forwarding: agent response → WeChat ─────────────────
+  if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+    const userId = ilinkBridge.userId;
+    if (userId) {
+      if (sessionUpdate === "agent_message_chunk") {
+        const content = enrichedNotification.update.content;
+        if (content?.type === "text" && content.text) {
+          // Buffer chunks, send only when streaming ends
+          ilinkReplyBuffer += content.text;
+        }
+      } else if (sessionUpdate === "session_info_update") {
+        const meta = enrichedNotification.update._meta as Record<string, unknown> | undefined;
+        if (meta?.isStreaming === true) {
+          ilinkBridge.sendTyping(userId, true).catch(() => {});
+        } else if (meta?.isStreaming === false) {
+          ilinkBridge.sendTyping(userId, false).catch(() => {});
+          // Flush buffered reply
+          if (ilinkReplyBuffer) {
+            const text = ilinkReplyBuffer;
+            ilinkReplyBuffer = "";
+            ilinkBridge.sendTextReply(userId, text).catch((err) => {
+              console.warn("[iLink] Failed to forward reply to WeChat:", err);
+            });
+          }
+        }
+      }
+    }
+  }
 
   if (sessionUpdate === "tool_call_update") {
     const update = enrichedNotification.update;
@@ -289,6 +368,23 @@ export function initBackend(
     return emitter(channel, payload);
   };
   initWatcher(sendEvent);
+
+  // Try to restore iLink session on startup
+  getILinkBridge()
+    .tryRestore()
+    .then(async (restored) => {
+      if (restored) {
+        // Restore persisted active session
+        const savedId = await readActiveSessionId();
+        if (savedId && storageOps.getSession(savedId)) {
+          activeIlinkSessionId = savedId;
+          sendEvent("ilink-active-session-changed", { sessionId: savedId });
+        }
+      }
+    })
+    .catch((err) => {
+      console.warn("[iLink] Failed to restore session:", err);
+    });
 }
 
 function resolveAgentInfo(agentId: string): AgentInfo {
@@ -926,6 +1022,16 @@ export const backendHandlers: {
   async deleteSession(sessionId: string) {
     const session = storageOps.getSession(sessionId);
     storageOps.deleteSession(sessionId);
+    if (activeIlinkSessionId === sessionId) {
+      activeIlinkSessionId = null;
+      ilinkReplyBuffer = "";
+      try {
+        await writeActiveSessionId(null);
+      } catch (error) {
+        console.warn("[iLink] Failed to clear persisted active session:", error);
+      }
+      sendEvent("ilink-active-session-changed", { sessionId: null });
+    }
     if (session) {
       try {
         deletePersistedSessionDirectory({
@@ -1416,6 +1522,77 @@ export const backendHandlers: {
     } catch {
       return "";
     }
+  },
+
+  // ── iLink Handlers ────────────────────────────────────────────
+
+  async getIlinkStatus() {
+    const bridge = ilinkBridge;
+    if (!bridge) return { connected: false };
+    const status = bridge.status;
+    // If bridge status shows disconnected but tryRestore() may still be in progress,
+    // do an immediate re-check by trying to restore again.
+    if (!status.connected) {
+      try {
+        const restored = await bridge.tryRestore();
+        if (restored) return bridge.status;
+      } catch {}
+    }
+    return status;
+  },
+
+  async startIlinkLogin() {
+    const bridge = getILinkBridge();
+    return bridge.startLogin();
+  },
+
+  async pollIlinkQrcode({ qrcode }) {
+    const bridge = getILinkBridge();
+    const status = await bridge.checkQrcodeStatus(qrcode);
+    return { status };
+  },
+
+  async stopIlink() {
+    if (ilinkBridge) {
+      await ilinkBridge.stop();
+      ilinkBridge = null;
+    }
+    activeIlinkSessionId = null;
+    ilinkReplyBuffer = "";
+    await writeActiveSessionId(null);
+    sendEvent("ilink-active-session-changed", { sessionId: null });
+  },
+
+  async setActiveIlinkSession({ sessionId }) {
+    if (!sessionId) {
+      // Clear active session
+      activeIlinkSessionId = null;
+      ilinkReplyBuffer = "";
+      await writeActiveSessionId(null);
+      sendEvent("ilink-active-session-changed", { sessionId: null });
+      return;
+    }
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    activeIlinkSessionId = sessionId;
+    ilinkReplyBuffer = "";
+    await writeActiveSessionId(sessionId);
+    sendEvent("ilink-active-session-changed", { sessionId });
+  },
+
+  async getActiveIlinkSession() {
+    if (activeIlinkSessionId) {
+      return { sessionId: activeIlinkSessionId };
+    }
+    // tryRestore() may not have completed yet — read persisted file directly as fallback
+    try {
+      const savedId = await readActiveSessionId();
+      if (savedId && storageOps.getSession(savedId)) {
+        activeIlinkSessionId = savedId;
+        return { sessionId: savedId };
+      }
+    } catch {}
+    return { sessionId: null };
   },
 };
 

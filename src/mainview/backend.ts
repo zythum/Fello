@@ -118,6 +118,10 @@ bridge.on("webui-status-changed", (payload) => emit("webui-status-changed", payl
 bridge.on("fs-changed", (payload) => emit("fs-changed", payload));
 bridge.on("projects-changed", (payload) => emit("projects-changed", payload));
 bridge.on("sessions-changed", (payload) => emit("sessions-changed", payload));
+bridge.on("ilink-status-changed", (payload) => emit("ilink-status-changed", payload));
+bridge.on("ilink-active-session-changed", (payload) =>
+  emit("ilink-active-session-changed", payload),
+);
 
 // Register client identity
 void invokeIPC("registerClient", { clientId }).catch(() => {});

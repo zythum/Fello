@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import { homedir } from "os";
 import { join } from "path";
+import { FELLO_DIR } from "../backend/storage";
 import type { ModelMessage } from "ai";
 import type { PermissionKind } from "./permission";
 
@@ -14,8 +14,6 @@ type PersistedSessionState = {
   modelId: string | null;
   allowedToolKinds: PermissionKind[];
 };
-
-const FELLO_DIR = join(homedir(), ".fello");
 
 function toSafePathSegment(value: string): string {
   const normalized = value.trim();

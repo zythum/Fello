@@ -13,6 +13,7 @@ import { SettingsGeneral } from "./components/settings/settings-general";
 import { SettingsAgents } from "./components/settings/settings-agents";
 import { SettingsMcp } from "./components/settings/settings-mcp";
 import { SettingsWebUI } from "./components/settings/settings-webui";
+import { SettingsILink } from "./components/settings/settings-ilink";
 import { SkillsLayout } from "./components/skills/skills-layout";
 import { SkillsInstalled } from "./components/skills/skills-installed";
 import { SkillsSkillsSh } from "./components/skills/skills-skill-sh";
@@ -41,6 +42,7 @@ export function AppRouter() {
           <Route path="agents" element={<SettingsAgents />} />
           <Route path="mcp" element={<SettingsMcp />} />
           <Route path="webui" element={<SettingsWebUI />} />
+          <Route path="ilink" element={<SettingsILink />} />
         </Route>
         <Route path="/skills" element={<SkillsLayout />}>
           <Route path="installed" element={<SkillsInstalled />} />

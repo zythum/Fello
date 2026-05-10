@@ -67,7 +67,7 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
   return Array.isArray(maybe.data);
 }
 
-const AgentDescription = 'Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex';
+const AgentDescription = "Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex";
 
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
@@ -95,7 +95,7 @@ export class OpenaiCompatibleAgent implements Agent {
       baseURL: this.baseUrl,
       apiKey: this.apiKey,
       headers: {
-        'User-Agent': AgentDescription,
+        "User-Agent": AgentDescription,
         ...this.headers,
       },
     });
@@ -127,8 +127,8 @@ export class OpenaiCompatibleAgent implements Agent {
           additionalDirectories: {},
           close: {},
           resume: {},
-        }
-      }
+        },
+      },
     };
   }
 
@@ -401,8 +401,15 @@ export class OpenaiCompatibleAgent implements Agent {
     // 如果 session 历史为空，生成一个简短的标题
     if (session.history.length === 0 && session.modelId) {
       // 从 userContent 中提取文本部分
-      const textParts = userContent.filter(part => typeof part === 'object' && part !== null && 'type' in part && part.type === 'text');
-      const userText = textParts.map(part => part.text).join(' ').slice(0, 200).trim(); // 限制长度
+      const textParts = userContent.filter(
+        (part) =>
+          typeof part === "object" && part !== null && "type" in part && part.type === "text",
+      );
+      const userText = textParts
+        .map((part) => part.text)
+        .join(" ")
+        .slice(0, 200)
+        .trim(); // 限制长度
       if (userText) {
         try {
           const titleResult = await generateText({
@@ -411,11 +418,11 @@ export class OpenaiCompatibleAgent implements Agent {
             maxOutputTokens: 100,
             temperature: 0.3,
             providerOptions: {
-              'openai-compatible': {
-                thinking: { type: 'disabled' },
+              "openai-compatible": {
+                thinking: { type: "disabled" },
                 reasoning_effort: "low",
-              }
-            }
+              },
+            },
           });
           const title = titleResult.text.trim();
           if (title && this.connection) {

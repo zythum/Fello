@@ -41,6 +41,7 @@ import {
   Home,
   Library,
   LoaderCircle,
+  MessageCircle,
   MessageCirclePlus,
   MoreHorizontal,
   Pencil,
@@ -86,6 +87,8 @@ export function Sidebar() {
     configuredMcpServers,
     sessionStates,
     webUIStatus,
+    ilinkStatus,
+    activeIlinkSessionId,
   } = useAppStore();
 
   const enabledAgents = useMemo(
@@ -172,7 +175,9 @@ export function Sidebar() {
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
   const [newSessionAgentId, setNewSessionAgentId] = useState<string>("");
   const [newSessionMcpIds, setNewSessionMcpIds] = useState<Set<string>>(new Set());
-  const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">("allow-all");
+  const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">(
+    "allow-all",
+  );
 
   const openNewSessionDialog = (projectId: string) => {
     if (enabledAgents.length === 0) {
@@ -413,7 +418,7 @@ export function Sidebar() {
                       side="right"
                       align="start"
                       onClick={(e) => e.stopPropagation()}
-                      className="w-28"
+                      className="w-auto"
                     >
                       {!isWebUI && (
                         <DropdownMenuItem
@@ -468,24 +473,26 @@ export function Sidebar() {
                     <div
                       key={session.id}
                       onClick={() => handleSelectSession(session)}
-                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-2 text-xs font-normal transition-colors ${
+                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-1.5 text-xs font-normal transition-colors ${
                         activeSessionId === session.id
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
                       } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                        <LoaderCircle
-                          className={cn(
-                            "size-3",
-                            !sessionStates.get(session.id)?.isStreaming
-                              ? "invisible"
-                              : "animate-spin",
-                          )}
-                        />
+                        {(() => {
+                          const isStreaming = sessionStates.get(session.id)?.isStreaming;
+                          if (isStreaming) {
+                            return <LoaderCircle className="size-3 animate-spin" />;
+                          }
+                          if (activeIlinkSessionId === session.id) {
+                            return <MessageCircle className="size-3 shrink-0 text-green-500" />;
+                          }
+                          return <LoaderCircle className="size-3 invisible" />;
+                        })()}
                         <Badge
                           variant="outline"
-                          className="px-1 -ml-1 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
+                          className="px-1 -ml-0.5 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
                         >
                           {configuredAgents.find((a) => a.id === session.agentId)?.id ||
                             session.agentId}
@@ -519,7 +526,7 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           onClick={(e) => e.stopPropagation()}
-                          className="w-28"
+                          className="w-auto"
                         >
                           <DropdownMenuItem
                             onClick={(e) => {
@@ -530,6 +537,30 @@ export function Sidebar() {
                             <Pencil />
                             {t("sidebar.rename")}
                           </DropdownMenuItem>
+                          {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                request
+                                  .setActiveIlinkSession({ sessionId: session.id })
+                                  .catch(() => {});
+                              }}
+                            >
+                              <MessageCircle />
+                              {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                            </DropdownMenuItem>
+                          )}
+                          {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
+                              }}
+                            >
+                              <MessageCircle />
+                              {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"

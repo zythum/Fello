@@ -13,9 +13,12 @@ import type {
  */
 export interface SessionNotificationFelloExt extends SessionNotification {
   update: SessionNotification["update"] & {
+    /** ACP 原始元数据的扩展槽位 */
     _meta?: SessionNotification["update"]["_meta"] & {
       fello?: {
+        /** 前端接收该消息的本地时间戳（毫秒） */
         receivedAt: number;
+        /** 前端用于渲染与去重的稳定显示 ID */
         displayId: string;
       };
     };
@@ -37,6 +40,7 @@ export interface BaseAgentInfo {
 }
 
 export interface StdioAgentInfo extends BaseAgentInfo {
+  /** 通过本地命令行进程启动代理 */
   type: "stdio";
   /** 启动该代理的命令（例如：'kiro-cli' 等命令行工具，或 'node', 'python' 等执行器） */
   command: string;
@@ -47,33 +51,52 @@ export interface StdioAgentInfo extends BaseAgentInfo {
 }
 
 export interface ApiAgentInfo extends BaseAgentInfo {
+  /** 通过远程 HTTP API 连接代理 */
   type: "api";
+  /** API 兼容层提供商标识（可扩展） */
   provider: "openai-compatible" | (string & {});
+  /** API 服务基础地址 */
   baseUrl: string;
+  /** API 鉴权密钥 */
   apiKey: string;
+  /** 可选的额外请求头（如组织 ID、自定义鉴权等） */
   headers?: Record<string, string>;
 }
 
+/** 代理配置联合类型：本地 stdio / 远程 api */
 export type AgentInfo = StdioAgentInfo | ApiAgentInfo;
 
+/**
+ * MCP 服务器的通用配置信息
+ */
 export interface BaseMcpServerInfo {
+  /** MCP 服务器的唯一标识符 */
   id: string;
+  /** 是否停用该 MCP 服务器 */
   disabled: boolean;
 }
 
 export interface StdioMcpServerInfo extends BaseMcpServerInfo {
+  /** 通过本地命令行进程启动 MCP Server */
   type: "stdio";
+  /** 启动 MCP Server 的命令 */
   command: string;
+  /** 传递给命令的参数列表 */
   args: string[];
+  /** 启动进程时附加的环境变量 */
   env: Record<string, string>;
 }
 
 export interface HttpMcpServerInfo extends BaseMcpServerInfo {
+  /** 通过 HTTP(S) 连接 MCP Server */
   type: "http";
+  /** MCP Server 的 HTTP 地址 */
   url: string;
+  /** 请求 MCP Server 时附加的请求头 */
   headers: Record<string, string>;
 }
 
+/** MCP Server 配置联合类型：stdio / http */
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
 
 /**
@@ -164,6 +187,7 @@ export interface SessionInfo {
    * 当前会话使用的 MCP 服务器 ID 列表
    */
   mcpServers: string[];
+  /** 权限策略：每次询问（ask）或默认全部允许（allow-all） */
   permissionMode: "ask" | "allow-all";
   /** 缓存的 Model 配置状态，用于离线降级恢复 */
   models: SessionModelState | null;
@@ -184,13 +208,37 @@ export interface WebUIStatus {
 }
 
 /**
+ * ILink 的运行状态
+ */
+export interface ILinkStatus {
+  /** iLink 当前是否已完成连接 */
+  connected: boolean;
+  /** 当前连接用户 ID（已登录时提供） */
+  userId?: string;
+  /** 当前连接账号 ID（已登录时提供） */
+  accountId?: string;
+  /** 登录二维码地址（待登录/重连时可能提供） */
+  qrcodeUrl?: string;
+  /** 最近一次连接错误信息 */
+  error?: string;
+}
+
+/** iLink 二维码状态机 */
+export type IlinkQrcodeState = "wait" | "scaned" | "confirmed" | "expired";
+
+/**
  * Skill 的基本信息
  */
 export interface SkillInfo {
+  /** Skill 作用域来源 */
   scope: "agents" | "claude" | "fello";
+  /** 安装级别：用户级 / 项目级 */
   level: "user" | "project";
+  /** Skill 显示名称 */
   name: string;
+  /** Skill 描述信息 */
   description: string;
+  /** Skill 唯一标识符 */
   id: string;
 }
 
@@ -412,6 +460,7 @@ export type FelloIPCRequests = {
     params: { terminalId: string; data: string };
     response: { ok: boolean };
   };
+  /** 根据客户端 ID 批量销毁其创建的所有终端 */
   killTerminalsByClient: {
     params: { clientId: string };
     response: { terminalIds: string[] };
@@ -442,6 +491,43 @@ export type FelloIPCRequests = {
     params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
     response: string;
   };
+
+  /** iLink: 获取连接状态 */
+  getIlinkStatus: {
+    params: void;
+    response: {
+      connected: boolean;
+      userId?: string;
+      accountId?: string;
+      qrcodeUrl?: string;
+      error?: string;
+    };
+  };
+  /** iLink: 开始登录流程，返回二维码 */
+  startIlinkLogin: {
+    params: void;
+    response: { qrcode: string; qrcodeImgUrl: string };
+  };
+  /** iLink: 轮询扫码状态 */
+  pollIlinkQrcode: {
+    params: { qrcode: string };
+    response: { status: IlinkQrcodeState };
+  };
+  /** iLink: 断开连接 */
+  stopIlink: {
+    params: void;
+    response: void;
+  };
+  /** iLink: 设置活跃 session（传空字符串清除） */
+  setActiveIlinkSession: {
+    params: { sessionId: string };
+    response: void;
+  };
+  /** iLink: 获取当前活跃 session ID */
+  getActiveIlinkSession: {
+    params: void;
+    response: { sessionId: string | null };
+  };
 };
 
 /**
@@ -465,6 +551,10 @@ export type FelloIPCEvents = {
   "agent-terminal-output": { sessionId: string; terminalId: string; data: string };
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
+  /** iLink 连接状态变更的事件 */
+  "ilink-status-changed": { status: ILinkStatus };
+  /** iLink 活跃 session 变更的事件 */
+  "ilink-active-session-changed": { sessionId: string | null };
   /**
    * 项目列表发生变更的事件（新增/删除/重命名等）
    * 用于让所有客户端（包含 WebUI）刷新 `listProjects()` 的结果。

@@ -43,6 +43,8 @@
     "projectActions": "Project actions for {{title}}",
     "createChatInProject": "Create chat in {{title}}",
     "chatActions": "Chat actions for {{title}}",
+    "ilinkSetActive": "Set WeChat Active",
+    "ilinkUnsetActive": "Unset WeChat Active",
     "newSessionDialog": {
       "title": "Create session",
       "agent": "Agent",
@@ -164,6 +166,30 @@
       "note": "Note: This URL contains a temporary token. The WebUI will be disabled when you restart the application.",
       "updateFailed": "Failed to update configuration.",
       "disabledInWebUI": "WebUI configuration is disabled when running inside the browser."
+    },
+    "ilink": {
+      "title": "WeChat iLink",
+      "description": "Connect Fello to WeChat via iLink Bot API. Once connected, a ClawBot contact will appear in your WeChat, allowing you to chat with your AI agent from anywhere.",
+      "connected": "Connected",
+      "notConnected": "Not Connected",
+      "notConnectedHint": "Scan QR code with WeChat to connect",
+      "login": "Login",
+      "loggingIn": "Waiting...",
+      "disconnect": "Disconnect",
+      "scanPrompt": "Scan with WeChat to login",
+      "qrcodeExpired": "QR code expired, please try again",
+      "scanned": "Scanned! Please confirm on your phone.",
+      "browserOpened": "QR code opened in browser. Scan with WeChat to login.",
+      "activeSession": "Active Session for WeChat",
+      "activeSessionHint": "Messages from WeChat will be routed to this session. Right-click a session in the sidebar to set it as active.",
+      "selectSession": "-- Select a session --",
+      "none": "-- None --",
+      "howItWorks": "How it works",
+      "step1": "Click \"Login\" to open the QR code in your browser",
+      "step2": "Scan the QR code with WeChat",
+      "step3": "A \"ClawBot\" contact appears in your WeChat",
+      "step4": "Chat with ClawBot — messages are routed to the active session above",
+      "step5": "Right-click any session in the sidebar to set it as active for WeChat"
     }
   },
   "chat": {

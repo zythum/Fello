@@ -83,6 +83,14 @@ export interface AppState {
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   webUIStatus: { enabled: boolean; url: string | null };
+  ilinkStatus: {
+    connected: boolean;
+    userId?: string;
+    accountId?: string;
+    qrcodeUrl?: string;
+    error?: string;
+  };
+  activeIlinkSessionId: string | null;
   isMacApp: boolean;
   isFullScreen: boolean;
 
@@ -132,6 +140,14 @@ export interface AppState {
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
+  setIlinkStatus: (status: {
+    connected: boolean;
+    userId?: string;
+    accountId?: string;
+    qrcodeUrl?: string;
+    error?: string;
+  }) => void;
+  setActiveIlinkSessionId: (sessionId: string | null) => void;
   setIsFullScreen: (v: boolean) => void;
 }
 
@@ -162,6 +178,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   webUIStatus: { enabled: false, url: null },
+  ilinkStatus: { connected: false },
+  activeIlinkSessionId: null,
   isMacApp: window.fello?.isMacApp ?? false,
   isFullScreen: false,
 
@@ -298,6 +316,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
+  setIlinkStatus: (status) => set({ ilinkStatus: status }),
+  setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),
   setIsFullScreen: (v) => set({ isFullScreen: v }),
 }));
 

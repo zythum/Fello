@@ -43,6 +43,8 @@
     "projectActions": "项目操作：{{title}}",
     "createChatInProject": "在 {{title}} 中创建会话",
     "chatActions": "会话操作：{{title}}",
+    "ilinkSetActive": "设为微信活跃会话",
+    "ilinkUnsetActive": "取消微信活跃",
     "newSessionDialog": {
       "title": "新建会话",
       "agent": "智能体",
@@ -164,6 +166,30 @@
       "note": "注意：此地址包含临时访问令牌，应用重启后将失效。",
       "updateFailed": "更新配置失败。",
       "disabledInWebUI": "WebUI 配置在浏览器中不可用。"
+    },
+    "ilink": {
+      "title": "微信 iLink",
+      "description": "通过 iLink Bot API 将 Fello 接入微信。连接后，微信中会出现一个 ClawBot 联系人，你可以随时随地与 AI 智能体对话。",
+      "connected": "已连接",
+      "notConnected": "未连接",
+      "notConnectedHint": "使用微信扫描二维码连接",
+      "login": "登录",
+      "loggingIn": "等待扫码...",
+      "disconnect": "断开连接",
+      "scanPrompt": "使用微信扫描二维码登录",
+      "qrcodeExpired": "二维码已过期，请重新获取",
+      "scanned": "已扫码！请在手机上确认登录。",
+      "browserOpened": "二维码已在浏览器中打开，请使用微信扫码登录。",
+      "activeSession": "微信活跃会话",
+      "activeSessionHint": "微信消息将路由到此会话。可在侧边栏右键会话设为活跃。",
+      "selectSession": "-- 选择一个会话 --",
+      "none": "-- 无 --",
+      "howItWorks": "使用说明",
+      "step1": "点击「登录」在浏览器中打开二维码",
+      "step2": "使用微信扫描二维码",
+      "step3": "微信中出现「ClawBot」联系人",
+      "step4": "与 ClawBot 聊天 — 消息将路由到上方选择的活跃会话",
+      "step5": "在侧边栏右键任意会话即可设为微信活跃会话"
     }
   },
   "chat": {

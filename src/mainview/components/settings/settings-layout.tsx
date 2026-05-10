@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
-import { Bot, Globe, SlidersHorizontal, Wrench } from "lucide-react";
+import { Bot, Globe, MessageCircle, SlidersHorizontal, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SettingsLayout() {
@@ -35,6 +35,12 @@ export function SettingsLayout() {
       href: "/settings/webui",
       icon: <Globe className="size-4" />,
       label: t("settings.webui.title", "WebUI"),
+    },
+    {
+      id: "ilink",
+      href: "/settings/ilink",
+      icon: <MessageCircle className="size-4" />,
+      label: t("settings.ilink.title", "WeChat iLink"),
     },
   ];
 

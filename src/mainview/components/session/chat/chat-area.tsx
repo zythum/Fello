@@ -138,7 +138,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       const scrollBottom = scrollHeight - scrollTop - clientHeight;
-      const nextIsAtBottom = scrollBottom < 100;
+      const nextIsAtBottom = scrollBottom < 50;
 
       // Distinguish "user scrolled up" from "content grew, pushing viewport up".
       // If this scroll event was triggered by our own scrollToBottom, ignore it.
@@ -155,7 +155,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       const contentGrew = scrollHeight > prevScrollHeightRef.current;
       prevScrollHeightRef.current = scrollHeight;
 
-      if (!nextIsAtBottom && contentGrew && scrollBottom >= 100) {
+      if (!nextIsAtBottom && contentGrew && scrollBottom >= 50) {
         // Content grew enough to push us out of the "at bottom" zone.
         // This is not a user action — keep userHasScrolledUpRef as is.
       } else {
