@@ -649,38 +649,32 @@ export function Sidebar() {
                 <div className="text-xs text-muted-foreground">
                   {t("sidebar.newSessionDialog.permission", { defaultValue: "Permission" })}
                 </div>
-                <Select
-                  value={newSessionPermissionMode}
-                  onValueChange={(v) => {
-                    if (v === "ask" || v === "allow-all") setNewSessionPermissionMode(v);
-                  }}
-                >
-                  <SelectTrigger size="sm" className="w-full">
-                    <SelectValue>
-                      {(value: string) => {
-                        if (value === "ask")
-                          return t("sidebar.newSessionDialog.permissionAsk", {
-                            defaultValue: "Ask",
-                          });
-                        if (value === "allow-all")
-                          return t("sidebar.newSessionDialog.permissionAllowAll", {
-                            defaultValue: "Allow all",
-                          });
-                        return value;
+                {(() => {
+                  const permissionItems = [
+                    { value: "ask", label: t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" }) },
+                    { value: "allow-all", label: t("sidebar.newSessionDialog.permissionAllowAll", { defaultValue: "Allow all" }) },
+                  ];
+                  return (
+                    <Select
+                      items={permissionItems}
+                      value={newSessionPermissionMode}
+                      onValueChange={(v) => {
+                        if (v === "ask" || v === "allow-all") setNewSessionPermissionMode(v);
                       }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ask">
-                      {t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" })}
-                    </SelectItem>
-                    <SelectItem value="allow-all">
-                      {t("sidebar.newSessionDialog.permissionAllowAll", {
-                        defaultValue: "Allow all",
-                      })}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                    >
+                      <SelectTrigger size="sm" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {permissionItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
               </div>
             </div>
 

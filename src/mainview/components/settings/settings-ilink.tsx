@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link2, Link2Off, Loader2, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store";
@@ -142,6 +142,14 @@ export function SettingsILink() {
     }
   };
 
+  const ilinkSessionItems = useMemo(
+    () => [
+      { value: "", label: t("settings.ilink.none", "-- None --") },
+      ...sessions.map((s) => ({ value: s.id, label: s.title || s.id })),
+    ],
+    [sessions, t],
+  );
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-hidden">
@@ -247,23 +255,19 @@ export function SettingsILink() {
                 )}
               </p>
               <Select
+                items={ilinkSessionItems}
                 value={activeIlinkSessionId ?? ""}
                 onValueChange={(v) => handleSelectSession(v as string)}
               >
                 <SelectTrigger size="sm" className="w-full">
                   <SelectValue
                     placeholder={t("settings.ilink.selectSession", "-- Select a session --")}
-                  >
-                    {(value: string) => {
-                      return sessions.find((session) => session.id === value)?.title;
-                    }}
-                  </SelectValue>
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t("settings.ilink.none", "-- None --")}</SelectItem>
-                  {sessions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.title || s.id}
+                  {ilinkSessionItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

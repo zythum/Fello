@@ -639,6 +639,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               {availableModes.length > 0 && (
                 <>
                   <Select
+                    items={availableModes.map((m) => ({ value: m.id, label: m.name }))}
                     value={currentModeId ?? ""}
                     onValueChange={async (modeId) => {
                       if (!modeId) return;
@@ -662,9 +663,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     }}
                   >
                     <SelectTrigger size="sm">
-                      <SelectValue placeholder={t("chatInput.mode", "Mode")}>
-                        {availableModes.find((m) => m.id === currentModeId)?.name ?? currentModeId}
-                      </SelectValue>
+                      <SelectValue placeholder={t("chatInput.mode", "Mode")} />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} className="w-60">
                       {availableModes.map((mode) => (
@@ -719,6 +718,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             <div className="flex items-center gap-2">
               {availableModels.length > 0 ? (
                 <Select
+                  items={availableModels.map((m) => ({ value: m.modelId, label: m.name }))}
                   value={currentModelId ?? ""}
                   onValueChange={async (modelId) => {
                     if (!modelId) return;
@@ -742,10 +742,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   }}
                 >
                   <SelectTrigger size="sm">
-                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")}>
-                      {availableModels.find((m) => m.modelId === currentModelId)?.name ??
-                        currentModelId}
-                    </SelectValue>
+                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} className="w-60">
                     {availableModels.map((m) => (

@@ -62,23 +62,31 @@ export function SettingsGeneral() {
                   {t("settings.themeDesc", "Customize the appearance of the application")}
                 </span>
               </div>
-              <Select value={theme.themeMode} onValueChange={handleThemeChange}>
-                <SelectTrigger size="sm" className="w-35">
-                  <SelectValue placeholder="Theme">
-                    {(value: string) => {
-                      if (value === "light") return t("sidebar.light");
-                      if (value === "dark") return t("sidebar.dark");
-                      if (value === "system") return t("sidebar.system");
-                      return value;
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">{t("sidebar.light")}</SelectItem>
-                  <SelectItem value="dark">{t("sidebar.dark")}</SelectItem>
-                  <SelectItem value="system">{t("sidebar.system")}</SelectItem>
-                </SelectContent>
-              </Select>
+              {(() => {
+                const themeItems = [
+                  { value: "light", label: t("sidebar.light") },
+                  { value: "dark", label: t("sidebar.dark") },
+                  { value: "system", label: t("sidebar.system") },
+                ];
+                return (
+                  <Select
+                    items={themeItems}
+                    value={theme.themeMode}
+                    onValueChange={handleThemeChange}
+                  >
+                    <SelectTrigger size="sm" className="w-35">
+                      <SelectValue placeholder="Theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {themeItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
@@ -87,21 +95,30 @@ export function SettingsGeneral() {
                   {t("settings.languageDesc", "Select the display language")}
                 </span>
               </div>
-              <Select value={i18n.language} onValueChange={handleLanguageChange}>
-                <SelectTrigger size="sm" className="w-35">
-                  <SelectValue placeholder="Language">
-                    {(value: string) => {
-                      if (value === "en") return t("sidebar.english");
-                      if (value === "zh-CN") return t("sidebar.chinese");
-                      return value;
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">{t("sidebar.english")}</SelectItem>
-                  <SelectItem value="zh-CN">{t("sidebar.chinese")}</SelectItem>
-                </SelectContent>
-              </Select>
+              {(() => {
+                const languageItems = [
+                  { value: "en", label: t("sidebar.english") },
+                  { value: "zh-CN", label: t("sidebar.chinese") },
+                ];
+                return (
+                  <Select
+                    items={languageItems}
+                    value={i18n.language}
+                    onValueChange={handleLanguageChange}
+                  >
+                    <SelectTrigger size="sm" className="w-35">
+                      <SelectValue placeholder="Language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languageItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
             </div>
           </div>
         </div>
