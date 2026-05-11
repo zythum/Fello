@@ -10,7 +10,7 @@ import Fuse from "fuse.js";
 import { homedir } from "os";
 import { spawn as spawnPty } from "node-pty";
 import { omit } from "es-toolkit";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import {
   chmod,
   mkdir,
@@ -246,7 +246,7 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
         ...notification.update?._meta,
         fello: {
           receivedAt: Date.now(),
-          displayId: crypto.randomUUID(),
+          displayId: randomUUID(),
         },
       },
     },
@@ -923,7 +923,7 @@ export const backendHandlers: {
     if (updated) sendEvent("session-changed", { session: updated });
 
     // Generate a unique ID for this generation attempt to prevent race conditions
-    const currentGenerationId = crypto.randomUUID();
+    const currentGenerationId = randomUUID();
     sessionGenerationLocks.set(sessionId, currentGenerationId);
     activeStreamingSessions.add(sessionId);
 

@@ -121,3 +121,38 @@ export function isSubPath(parentDir: string, childPath: string): boolean {
   if (!c.endsWith("/")) c += "/";
   return c.startsWith(p);
 }
+
+/**
+ * Generate a UUID v4.
+ *
+ * Tries `crypto.randomUUID()` first (Web Crypto API), which requires a secure
+ * context (HTTPS). Falls back to `crypto.getRandomValues()` which is available
+ * in all contexts (including HTTP and file:// protocol).
+ */
+export function generateUUID(): string {
+  // Prefer the standard randomUUID when available (secure contexts only)
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  // Fallback: generate UUID v4 using crypto.getRandomValues
+  // (available in all contexts, including non-HTTPS)
+  const hex = "0123456789abcdef";
+  const chars = new Array<string>(36);
+  const rnds = new Uint8Array(36);
+  crypto.getRandomValues(rnds);
+
+  for (let i = 0; i < 36; i++) {
+    if (i === 8 || i === 13 || i === 18 || i === 23) {
+      chars[i] = "-";
+    } else if (i === 14) {
+      chars[i] = "4"; // UUID version 4
+    } else if (i === 19) {
+      chars[i] = hex[(rnds[i] & 0x3) | 0x8]; // UUID variant 10
+    } else {
+      chars[i] = hex[rnds[i] & 0xf];
+    }
+  }
+
+  return chars.join("");
+}

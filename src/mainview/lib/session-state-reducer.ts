@@ -2,6 +2,7 @@ import type { SessionNotificationFelloExt } from "../../shared/schema";
 import i18n from "../i18n";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
+import { generateUUID } from "./utils";
 
 // ---------------------------------------------------------------------------
 // Pure Functions for State Calculation
@@ -57,7 +58,7 @@ function calculateUserMessageChunk(
         role: "user_message",
         contents: [content],
         _meta: update._meta,
-        displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+        displayId: update._meta?.fello?.displayId ?? generateUUID(),
         receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
       },
     ],
@@ -91,7 +92,7 @@ function calculateAgentChunk(
     msgs.push({
       role,
       contents: [block],
-      displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+      displayId: update._meta?.fello?.displayId ?? generateUUID(),
       receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
     } satisfies ChatMessage);
   }
@@ -121,7 +122,7 @@ function calculateToolCall(
       status: "completed",
       content: [],
       locations: [],
-      displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+      displayId: update._meta?.fello?.displayId ?? generateUUID(),
       receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
     } satisfies ToolCallMessage);
 
@@ -221,7 +222,7 @@ export function reduceSessionUpdate(
             role: "plan",
             entries: update.entries ?? [],
             _meta: update._meta,
-            displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+            displayId: update._meta?.fello?.displayId ?? generateUUID(),
             receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
           } satisfies PlanMessage,
         ],
@@ -254,7 +255,7 @@ export function reduceSessionUpdate(
               {
                 role: "system_message",
                 kind: "info",
-                displayId: update._meta?.fello?.displayId ?? crypto.randomUUID(),
+                displayId: update._meta?.fello?.displayId ?? generateUUID(),
                 receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
                 contents: [
                   i18n.t("session.usageSummary", {

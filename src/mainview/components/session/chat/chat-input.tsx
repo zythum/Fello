@@ -16,6 +16,7 @@ import {
 import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Library } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
+import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
@@ -171,7 +172,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       }
 
       return {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         file,
         type,
         previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
@@ -258,7 +259,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   );
 
   const handleSubmit = useCallback(async () => {
-    const displayId = crypto.randomUUID();
+    const displayId = generateUUID();
     const resolved = resolveMentions(input).trim();
     if ((!resolved && attachments.length === 0) || !session.id || isStreaming) return;
 
@@ -280,7 +281,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         text: resolved,
         _meta: {
           display_id: displayId,
-          optimistic_id: crypto.randomUUID(),
+          optimistic_id: generateUUID(),
         },
       });
     }
@@ -290,7 +291,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           {
             _meta: {
               display_id: displayId,
-              optimistic_id: crypto.randomUUID(),
+              optimistic_id: generateUUID(),
             },
           },
           block,
@@ -384,7 +385,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             const isImage = file.type.startsWith("image/");
             const type = isImage && supportsImage ? "image" : "file";
             return {
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               file,
               type,
               previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,

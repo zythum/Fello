@@ -1,4 +1,5 @@
 import type { FelloIPCSchema } from "../shared/schema";
+import { generateUUID } from "./lib/utils";
 
 // --- Typed event emitter ---
 
@@ -40,7 +41,7 @@ const fallbackBridge = {
 export const isWebUI = typeof window.fello === "undefined";
 const bridge = window.fello ?? fallbackBridge;
 
-export const clientId = crypto.randomUUID();
+export const clientId = generateUUID();
 
 let ws: WebSocket | null = null;
 let wsReadyPromise: Promise<void> | null = null;
