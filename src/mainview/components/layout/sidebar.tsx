@@ -219,14 +219,9 @@ export function Sidebar() {
             const map = new Map(useAppStore.getState().sessionStates);
             map.delete(session.id);
             useAppStore.setState({ sessionStates: map });
-            const { sessions: updated } = await refreshData();
+            await refreshData();
             if (activeSessionId === session.id) {
-              const next = updated.length > 0 ? updated[0] : null;
-              if (next) {
-                handleNavigate(`/session-view/${next.id}`);
-              } else {
-                handleNavigate("/");
-              }
+              handleNavigate("/");
             }
             return "deleted";
           },

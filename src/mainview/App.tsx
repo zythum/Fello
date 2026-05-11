@@ -26,7 +26,7 @@ function AppContent() {
     setIlinkStatus,
     setActiveIlinkSessionId,
   } = useAppStore();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { toast } = useMessage();
   const location = useLocation();
   const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
@@ -217,10 +217,7 @@ function AppContent() {
     let currentSessionsFetchId = 0;
     const handleSessionsChanged = async () => {
       const fetchId = ++currentSessionsFetchId;
-      const prevSessions = useAppStore.getState().sessions;
       const currentActiveSessionId = activeSessionIdRef.current;
-      const prevActiveSessionTitle =
-        prevSessions.find((s) => s.id === currentActiveSessionId)?.title ?? null;
       const nextSessions = (await request.listSessions()) ?? [];
       if (fetchId !== currentSessionsFetchId) return;
 
@@ -242,17 +239,7 @@ function AppContent() {
       }
 
       if (currentActiveSessionId && !sessionIds.has(currentActiveSessionId)) {
-        if (prevActiveSessionTitle) {
-          toast.info(t("toast.activeSessionDeletedWithTitle", { title: prevActiveSessionTitle }));
-        } else {
-          toast.info(t("toast.activeSessionDeleted"));
-        }
-        const nextSession = nextSessions[0];
-        if (nextSession) {
-          navigate(`/session-view/${nextSession.id}`);
-        } else {
-          navigate("/");
-        }
+        navigate("/");
       }
     };
 

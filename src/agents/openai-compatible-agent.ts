@@ -420,6 +420,7 @@ export class OpenaiCompatibleAgent implements Agent {
             providerOptions: {
               "openai-compatible": {
                 thinking: { type: "disabled" },
+                enable_thinking: false,
                 reasoning_effort: "low",
               },
             },
