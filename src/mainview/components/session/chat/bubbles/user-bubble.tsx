@@ -90,8 +90,8 @@ export const UserBubble = memo(function UserBubble({
               )}
             >
               {isExpanded ? (
-                <ScrollArea className="h-full max-h-45 pr-2.5">
-                  <div className="-my-2" ref={contentRef}>
+                <ScrollArea className="h-full max-h-45">
+                  <div className="-my-2 px-0.5 pr-1" ref={contentRef}>
                     <ContentBlocks
                       blocks={message.contents}
                       role={message.role}
