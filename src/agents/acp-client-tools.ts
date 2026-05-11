@@ -370,8 +370,8 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
 
         const rawInput = { command, args, cwd, env, outputByteLimit, timeoutSeconds };
         let title = `Shell ${command}`;
-        if (args) {
-          title += " " + args;
+        if (args && args.length) {
+          title += " " + args.join(" ");
         }
         const toolCall: ToolCall = {
           toolCallId,
