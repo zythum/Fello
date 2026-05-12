@@ -67,17 +67,20 @@ fello/
 │       │   ├── session/              # 会话主工作区相关组件
 │       │   │   ├── chat/             # 聊天核心区域与气泡组件
 │       │   │   │   ├── bubbles/      # 各类角色消息气泡 (agent/user/system/tool/thinking/plan)
-│       │   │   │   ├── chat.tsx      # 聊天主容器
+│       │   │   │   ├── chat.tsx      # 聊天主容器（含 ChatHeader）
+│       │   │   │   ├── chat-header.tsx # 会话头部 (Agent Badge, 标题, MCP菜单, 刷新)
 │       │   │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
 │       │   │   │   ├── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
 │       │   │   │   └── chat-timeline.tsx # 聊天时间线导航
-│       │   │   ├── session-view.tsx  # 主工作区布局 (左 Chat，右 Files/Terminal)
-│       │   │   ├── panel.tsx         # 通用面板组件容器
-│       │   │   ├── file-panel/       # 文件面板目录
-│       │   │   │   ├── file-panel.tsx    # 文件树、重命名、拖拽移动等
-│       │   │   │   └── file-preview.tsx  # 文件内容与图片预览
-│       │   │   └── terminal-panel/   # 终端面板目录
-│       │   │       └── terminal-panel.tsx# 多终端标签与内容区
+│       │   │   ├── session-view.tsx  # 主工作区布局 (ResizablePanelGroup 三栏: Chat + Detail + Panel)
+│       │   │   ├── panel/            # 右侧标签面板
+│       │   │   │   ├── panel.tsx         # 带标签的面板容器 (Files / Terminal 切换)
+│       │   │   │   ├── file-tree.tsx     # 文件树、重命名、拖拽移动等 (原 file-panel.tsx)
+│       │   │   │   └── terminal-tab-list.tsx # 垂直终端列表 (创建/删除/切换)
+│       │   │   └── detail/           # 详情视图 (嵌入左侧聊天区域)
+│       │   │       ├── detail-view.tsx   # 详情视图容器 (根据类型分发)
+│       │   │       ├── file-preview.tsx  # 文件内容与图片预览 (带关闭按钮)
+│       │   │       └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件
 │       │   │   └── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
 │       │   ├── settings/             # 设置相关页面组件
@@ -188,6 +191,7 @@ fello/
 - 对于只存在于 Electron 桌面端的原生交互功能，需要封装在 `electron.ts` 中，并且组件中需要通过 `isWebUI` 变量对对应的触发 UI 元素进行隐藏，以兼容 WebUI 远端协作模式
 - 页面逻辑围绕"项目 + 会话"展开，使用 `react-router-dom` 统一管理页面路由
 - 聊天状态仍以 sessionId 隔离
+- 会话界面采用三栏 `ResizablePanelGroup` 布局：左侧为聊天区域（可内嵌文件/终端详情视图），右侧为带标签的固定面板（Files / Terminal 标签页切换）。宽度 < 1000px 时自动进入紧凑模式，详情打开时隐藏聊天区域
 
 ## 数据目录（运行时）
 

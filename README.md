@@ -80,7 +80,7 @@ Main/preload changes typically require restarting the dev process.
 │       ├── store.ts               # Zustand state management
 │       ├── lib/                   # Utilities (session-state-reducer.ts, chat-message.ts, etc.)
 │       ├── components/            # UI components
-│       │   ├── session/           # Chat, file panel, terminal panel
+│       │   ├── session/           # Chat, panel (Files/Terminal tabs), detail views
 │       │   ├── settings/          # Settings pages (general, agents, MCP, WebUI, iLink)
 │       │   ├── skills/            # Skills management (installed + skills.sh store)
 │       │   ├── layout/            # Sidebar layout
@@ -115,6 +115,7 @@ Main/preload changes typically require restarting the dev process.
 - **Chat Attachments**: Attach images/files from the chat input (agent capability aware) with preview and drag-and-drop support.
 - **Chat Timeline**: Jump between user messages using the timeline dots in the chat view.
 - **Terminal Persistence**: Agent terminal outputs are automatically saved to the session directory and seamlessly restored when revisiting a session.
+- **Tabbed Panel Layout**: Right-side panel with Files and Terminal tabs, switching seamlessly between file tree browsing and terminal management.
 - **Fullscreen Support**: Toggle fullscreen mode for immersive coding sessions.
 
 ## Customizing

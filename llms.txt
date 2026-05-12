@@ -38,6 +38,14 @@ Sessions & Persistence
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
 - Chat input attachments: src/mainview/components/session/chat/chat-input.tsx (file picker + drag-and-drop; filters by agent promptCapabilities)
 - Chat timeline dots + scroll tracking: src/mainview/components/session/chat/chat-area.tsx and src/mainview/components/session/chat/chat-timeline.tsx
+- Chat header: src/mainview/components/session/chat/chat-header.tsx (agent badge, title, project path, MCP server toggle menu, refresh)
+- Session view layout: src/mainview/components/session/session-view.tsx (ResizablePanelGroup 3-column: Chat + Detail + Panel, compact mode at < 1000px)
+- Panel (tabbed): src/mainview/components/session/panel/panel.tsx (Files / Terminal tabs)
+- File tree: src/mainview/components/session/panel/file-tree.tsx (formerly file-panel.tsx — tree only, no embedded preview)
+- Terminal tab list: src/mainview/components/session/panel/terminal-tab-list.tsx (vertical terminal list, create/delete/switch)
+- Detail view: src/mainview/components/session/detail/detail-view.tsx (dispatches to FilePreview or TerminalDetail)
+- File preview: src/mainview/components/session/detail/file-preview.tsx (image, markdown, code, diff; close button)
+- Terminal detail: src/mainview/components/session/detail/terminal-detail.tsx (full-size xterm.js, ResizeObserver auto-fit)
 - Chat bubbles: src/mainview/components/session/chat/bubbles/ (agent, user, system, tool, thinking, plan)
 
 iLink (WeChat) Integration

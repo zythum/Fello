@@ -8,8 +8,8 @@
 │                                                                               │
 │  ┌─────────────────────────────┐              ┌─────────────────────────────┐ │
 │  │ Renderer (React + Vite)     │    IPC       │ Main Process (Node.js)      │ │
-│  │ - Sidebar / Chat / FilePanel│ ◄──────────► │ - IPC handlers              │ │
-│  │ - TerminalPanel (xterm.js)  │              │ - ACPBridge lifecycle       │ │
+│  │ - Sidebar / Chat / Panel    │ ◄──────────► │ - IPC handlers              │ │
+│  │ - FileTree / TerminalDetail │              │ - ACPBridge lifecycle       │ │
 │  │ - Skills / Settings UI      │              │ - FS / Dialog / Menu        │ │
 │  │ - Zustand session store     │              │ - WebUI Server (ws)         │ │
 │  └─────────────────────────────┘              │ - iLink Bridge              │ │
@@ -74,10 +74,16 @@
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
-  - `session/chat/chat.tsx`：聊天区容器 + 权限对话框
+  - `session/session-view.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
+  - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader）
+  - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新）
   - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
-  - `session/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
-  - `session/terminal-panel/terminal-panel.tsx`：多终端标签、输出订阅、窗口 resize 自适配
+  - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
+  - `session/panel/file-tree.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
+  - `session/panel/terminal-tab-list.tsx`：垂直终端列表、创建/删除/切换终端
+  - `session/detail/detail-view.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
+  - `session/detail/file-preview.tsx`：文件内容与图片预览（支持关闭按钮）
+  - `session/detail/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
   - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
