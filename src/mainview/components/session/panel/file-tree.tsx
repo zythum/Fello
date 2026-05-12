@@ -38,9 +38,6 @@ import {
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
 
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { FilePreview } from "./file-preview";
-
 interface TreeNode {
   id: string;
   name: string;
@@ -358,12 +355,17 @@ function TreeItem({
   );
 }
 
-export interface FilePanelProps {
+export interface FileTreeProps {
   projectId: string;
-  file: string | null;
+  previewFileId: string | null;
+  onPreviewFile: (file: string) => void;
 }
 
-export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelProps) {
+export const FileTree = memo(function FileTree({
+  projectId,
+  previewFileId,
+  onPreviewFile,
+}: FileTreeProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -497,6 +499,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     loadTree(activeProjectId, seq);
     fetchGitStatus(activeProjectId, seq);
   }, [cwd, activeProjectId, loadTree, fetchGitStatus]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -508,10 +511,8 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
       if (payload.projectId !== activeProjectId) return;
 
       const parentDirs = new Set<string>();
-
       for (const change of payload.changes) {
         const lastSlash = change.lastIndexOf("/");
-
         if (lastSlash !== -1) {
           parentDirs.add(change.slice(0, lastSlash));
         } else {
@@ -592,7 +593,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     return () => subscribe.off("fs-changed", handleFsChanged);
   }, [cwd, activeProjectId, openFolders, fetchGitStatus]);
 
-  // Flatten tree for shift-select range
   const flattenTree = useCallback(
     (nodes: TreeNode[]): string[] => {
       const result: string[] = [];
@@ -696,7 +696,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [clearSelection]);
 
-  // --- Editing ---
   const startRename = (node: TreeNode) => {
     setEditingId(node.id);
     setEditingValue(node.name);
@@ -864,9 +863,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     });
   };
 
-  // --- Drag & drop (multi-select aware, + external file drop) ---
-
-  /** Check whether a DragEvent carries files from outside the app */
   const isExternalDrag = useCallback(
     (e: React.DragEvent) => {
       return e.dataTransfer.types.includes("Files") && dragIds.length === 0;
@@ -891,7 +887,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
       setDragIds(ids);
       e.dataTransfer.effectAllowed = "copyMove";
 
-      // Attach structured node info so chat-input can create mentions
       const nodesPayloads = ids.map((nodeId) => {
         let isFolder = false;
         for (const root of data) {
@@ -950,13 +945,11 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     [selectedIds, data, t],
   );
 
-  /** Read a File as base64 string */
   const readFileAsBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Strip the data:...;base64, prefix
         resolve(result.split(",")[1] ?? "");
       };
       reader.onerror = reject;
@@ -964,7 +957,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     });
   }, []);
 
-  /** Recursively process a FileSystemEntry and write to destDir */
   const processEntry = useCallback(
     async (entry: FileSystemEntry, destDir: string) => {
       if (!activeProjectId) return;
@@ -998,7 +990,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     [readFileAsBase64, activeProjectId],
   );
 
-  /** Handle external files/folders dropped into a target directory */
   const handleExternalDrop = useCallback(
     async (e: React.DragEvent, destDir: string) => {
       e.preventDefault();
@@ -1009,7 +1000,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
-      // Use webkitGetAsEntry for folder support
       const entries: FileSystemEntry[] = [];
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.();
@@ -1028,7 +1018,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
         return;
       }
 
-      // Fallback: plain files without entry API
       const files = e.dataTransfer.files;
       if (!files || files.length === 0) return;
       try {
@@ -1057,12 +1046,10 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
       setDropTargetId(null);
       if (!activeProjectId) return;
 
-      // External file drop
       if (isExternalDrag(e)) {
         return handleExternalDrop(e, targetId);
       }
 
-      // Internal move
       if (dragIds.length === 0) return;
       const validIds = dragIds.filter((id) => id !== targetId && !targetId.startsWith(id + "/"));
       try {
@@ -1088,6 +1075,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
   );
 
   const revealInFinder = useCallback(async (path: string) => {
+    if (isWebUI) return;
     try {
       await electron.revealInFinder(path);
     } catch (err) {
@@ -1110,21 +1098,16 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
       setDropTargetId(null);
     },
     revealInFinder: async (id: string) => {
-      if (!activeProjectId) return;
+      if (!activeProjectId || isWebUI) return;
       const absPath = await request.getSystemFilePath({
         projectId: activeProjectId,
         path: id,
         isAbsolute: true,
       });
-      electron.revealInFinder(absPath); // TODO: Update revealInFinder API to use projectId/relativePath later
+      electron.revealInFinder(absPath);
     },
     previewFile: (id: string) => {
-      if (!activeProjectId) return;
-      document.dispatchEvent(
-        new CustomEvent("fello-preview-file", {
-          detail: { projectId: activeProjectId, relativePath: id },
-        }),
-      );
+      onPreviewFile(id);
     },
     copyPath: async (id: string, isAbsolute: boolean) => {
       if (!activeProjectId) return;
@@ -1157,7 +1140,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     if (!gitStatus || !cwd) return map;
     for (const [rel, status] of Object.entries(gitStatus.files)) {
       map.set(rel, status);
-
       let parent = rel;
       while (true) {
         const slashIdx = parent.lastIndexOf("/");
@@ -1267,11 +1249,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
                       key={relPath}
                       onClick={() => {
                         if (!activeProjectId) return;
-                        document.dispatchEvent(
-                          new CustomEvent("fello-preview-file", {
-                            detail: { projectId: activeProjectId, relativePath: relPath },
-                          }),
-                        );
+                        onPreviewFile(relPath);
                       }}
                     >
                       <div className="flex w-full items-center gap-2">
@@ -1305,7 +1283,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
         )}
       </DropdownMenu>
     );
-  }, [gitStatus, cwd]);
+  }, [gitStatus, cwd, activeProjectId, onPreviewFile]);
 
   const getSelectedFolder = (): string | null => {
     if (selectedIds.size !== 1) return null;
@@ -1320,7 +1298,7 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
   if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        No project selected
+        {t("fileTree.noProject", "No project selected")}
       </div>
     );
   }
@@ -1346,13 +1324,10 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
     actions,
   };
 
-  const treeContent = (
-    <div
-      ref={containerRef}
-      className="flex h-full min-h-0 flex-col text-xs w-full text-sidebar-foreground bg-sidebar"
-    >
-      {/* Header: folder name left, buttons right */}
-      <div className="flex h-10 items-center gap-0.5 border-b border-border py-1">
+  return (
+    <div ref={containerRef} className="flex h-full min-h-0 flex-col text-xs w-full">
+      {/* Header */}
+      <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
           <Folders className="size-4" />
           <span className="text-xs font-medium text-nowrap">{t("filePanel.title")}</span>
@@ -1396,11 +1371,12 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
           </Button>
         </div>
       </div>
+
       <ScrollArea className="min-h-0 flex-1">
         <ContextMenu>
           <ContextMenuTrigger
             render={<div />}
-            className="min-h-full py-0.5"
+            className="min-h-full py-1"
             onClick={(e) => {
               if (e.target === e.currentTarget) clearSelection();
             }}
@@ -1416,13 +1392,11 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
               setDropTargetId(null);
               if (!cwd) return;
 
-              // External file drop onto root
               if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
                 await handleExternalDrop(e, "");
                 return;
               }
 
-              // Internal move to root
               if (dragIds.length === 0 || !activeProjectId) return;
               try {
                 await Promise.all(
@@ -1445,7 +1419,13 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
             }}
           >
             {data.map((node) => (
-              <TreeItem key={node.id} previewId={file} node={node} depth={0} {...sharedProps} />
+              <TreeItem
+                key={node.id}
+                previewId={previewFileId}
+                node={node}
+                depth={0}
+                {...sharedProps}
+              />
             ))}
             {data.length === 0 && (
               <div className="py-6 text-center text-xs text-muted-foreground">
@@ -1475,36 +1455,6 @@ export const FilePanel = memo(function FilePanel({ projectId, file }: FilePanelP
 
       {gitSummary}
     </div>
-  );
-
-  return (
-    <ResizablePanelGroup className="flex h-full min-h-0">
-      <ResizablePanel className="flex h-full min-h-0 bg-background" id="file-preview">
-        {file ? (
-          <FilePreview projectId={projectId} file={file} />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <div className="flex flex-col items-center gap-2">
-              <File className="size-8 opacity-20" />
-              <span className="text-sm opacity-50">
-                {t("filePanel.noActiveSession", "No file selected")}
-              </span>
-            </div>
-          </div>
-        )}
-      </ResizablePanel>
-      <ResizableHandle className="bg-border/70" />
-      <ResizablePanel
-        groupResizeBehavior="preserve-pixel-size"
-        defaultSize={200}
-        minSize={200}
-        maxSize={500}
-        className="flex h-full min-h-0"
-        id="file-tree"
-      >
-        {treeContent}
-      </ResizablePanel>
-    </ResizablePanelGroup>
   );
 });
 

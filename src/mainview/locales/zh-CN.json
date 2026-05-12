@@ -322,6 +322,17 @@
     "defaultMessage": "应用程序发生意外错误。",
     "reload": "重新加载应用"
   },
+  "panel": {
+    "files": "文件",
+    "terminal": "终端",
+    "noProjectSelected": "未选择项目"
+  },
+  "detailView": {
+    "noContent": "无内容"
+  },
+  "fileTree": {
+    "noProject": "未选择项目"
+  },
   "contentBlock": {
     "unsupported": "不支持的内容块：{{type}}",
     "download": "下载",

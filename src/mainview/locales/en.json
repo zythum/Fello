@@ -322,6 +322,17 @@
     "defaultMessage": "An unexpected error occurred in the application.",
     "reload": "Reload Application"
   },
+  "panel": {
+    "files": "Files",
+    "terminal": "Terminal",
+    "noProjectSelected": "No project selected"
+  },
+  "detailView": {
+    "noContent": "No content"
+  },
+  "fileTree": {
+    "noProject": "No project selected"
+  },
   "contentBlock": {
     "unsupported": "Unsupported block type: {{type}}",
     "download": "Download",

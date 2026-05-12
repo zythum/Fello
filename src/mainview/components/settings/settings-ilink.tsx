@@ -281,7 +281,9 @@ export function SettingsILink() {
               {t("settings.ilink.howItWorks", "How it works")}
             </h3>
             <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>{t("settings.ilink.step1", 'Click "Login" to open the QR code in your browser')}</li>
+              <li>
+                {t("settings.ilink.step1", 'Click "Login" to open the QR code in your browser')}
+              </li>
               <li>{t("settings.ilink.step2", "Scan the QR code with WeChat")}</li>
               <li>{t("settings.ilink.step3", 'A "ClawBot" contact appears in your WeChat')}</li>
               <li>

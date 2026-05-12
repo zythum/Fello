@@ -138,7 +138,7 @@ export function generateUUID(): string {
   // Fallback: generate UUID v4 using crypto.getRandomValues
   // (available in all contexts, including non-HTTPS)
   const hex = "0123456789abcdef";
-  const chars = new Array<string>(36);
+  const chars: string[] = Array.from({ length: 36 });
   const rnds = new Uint8Array(36);
   crypto.getRandomValues(rnds);
 

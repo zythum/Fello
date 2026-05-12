@@ -646,8 +646,16 @@ export function Sidebar() {
                 </div>
                 {(() => {
                   const permissionItems = [
-                    { value: "ask", label: t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" }) },
-                    { value: "allow-all", label: t("sidebar.newSessionDialog.permissionAllowAll", { defaultValue: "Allow all" }) },
+                    {
+                      value: "ask",
+                      label: t("sidebar.newSessionDialog.permissionAsk", { defaultValue: "Ask" }),
+                    },
+                    {
+                      value: "allow-all",
+                      label: t("sidebar.newSessionDialog.permissionAllowAll", {
+                        defaultValue: "Allow all",
+                      }),
+                    },
                   ];
                   return (
                     <Select

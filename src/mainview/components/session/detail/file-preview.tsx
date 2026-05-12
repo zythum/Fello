@@ -15,17 +15,18 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { MessageSquarePlus, Copy } from "lucide-react";
+import { MessageSquarePlus, Copy, X } from "lucide-react";
 
 export interface FilePreviewProps {
   projectId: string | null;
   file: string | null;
+  onClose?: () => void;
 }
 
 type FileKind = "image" | "markdown" | "text";
 type ViewMode = "preview" | "code" | "compare";
 
-export function FilePreview({ projectId, file }: FilePreviewProps) {
+export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
@@ -221,7 +222,10 @@ export function FilePreview({ projectId, file }: FilePreviewProps) {
 
   return (
     <div className="flex flex-col w-full h-full min-w-0 relative overflow-hidden">
-      <div className="h-10 shrink-0 border-b flex items-center justify-between gap-2 px-4 py-1 bg-[#ffffff] dark:bg-[#24292e]">
+      <div
+        className="h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background"
+        style={{ WebkitAppRegion: "drag" }}
+      >
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
             <File className="size-4 shrink-0 text-muted-foreground/80" />
@@ -230,6 +234,16 @@ export function FilePreview({ projectId, file }: FilePreviewProps) {
             </div>
           </div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+            style={{ WebkitAppRegion: "no-drag" }}
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
       <ScrollArea className="flex-1 w-full h-0">
         {loading ? (
