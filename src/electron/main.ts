@@ -122,6 +122,15 @@ ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
   }
 });
 
+function checkForUpdates() {
+  if (isDev || !app.isPackaged) {
+    console.log("[checkForUpdates] skipped in dev mode");
+    return;
+  }
+  autoUpdater.autoDownload = false;
+  void autoUpdater.checkForUpdates();
+}
+
 function setupMenu() {
   const template: MenuItemConstructorOptions[] = [
     ...(process.platform === "darwin"
@@ -130,6 +139,8 @@ function setupMenu() {
             label: app.name,
             submenu: [
               { role: "about" },
+              { type: "separator" },
+              { label: "Check for Updates...", click: checkForUpdates },
               { type: "separator" },
               { role: "quit" },
             ] satisfies MenuItemConstructorOptions[],
@@ -149,20 +160,22 @@ function setupMenu() {
         { role: "selectAll" },
       ] satisfies MenuItemConstructorOptions[],
     },
-    ...(isDev
-      ? ([
-          {
-            label: "View",
-            submenu: [{ role: "toggleDevTools" }] satisfies MenuItemConstructorOptions[],
-          },
-        ] satisfies MenuItemConstructorOptions[])
-      : []),
+    {
+      label: "View",
+      submenu: [{ role: "toggleDevTools" }] satisfies MenuItemConstructorOptions[],
+    },
     {
       label: "Window",
       submenu: [
         { role: "close" },
         { role: "minimize" },
         { role: "zoom" },
+      ] satisfies MenuItemConstructorOptions[],
+    },
+    {
+      label: "Help",
+      submenu: [
+        { label: "Check for Updates...", click: checkForUpdates },
       ] satisfies MenuItemConstructorOptions[],
     },
   ];
