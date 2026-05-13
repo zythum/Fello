@@ -140,8 +140,6 @@ function setupMenu() {
             submenu: [
               { role: "about" },
               { type: "separator" },
-              { label: "Check for Updates...", click: checkForUpdates },
-              { type: "separator" },
               { role: "quit" },
             ] satisfies MenuItemConstructorOptions[],
           },
@@ -161,10 +159,6 @@ function setupMenu() {
       ] satisfies MenuItemConstructorOptions[],
     },
     {
-      label: "View",
-      submenu: [{ role: "toggleDevTools" }] satisfies MenuItemConstructorOptions[],
-    },
-    {
       label: "Window",
       submenu: [
         { role: "close" },
@@ -175,6 +169,7 @@ function setupMenu() {
     {
       label: "Help",
       submenu: [
+        { role: "toggleDevTools" },
         { label: "Check for Updates...", click: checkForUpdates },
       ] satisfies MenuItemConstructorOptions[],
     },
