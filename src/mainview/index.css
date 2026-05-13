@@ -240,3 +240,14 @@ body,
     background-position: -200% center;
   }
 }
+
+/* File search highlight styles (CSS Custom Highlight API) */
+::highlight(file-search-all) {
+  background-color: #f59e0b80;
+  color: inherit;
+}
+
+::highlight(file-search-current) {
+  background-color: #f59e0b;
+  color: #000;
+}

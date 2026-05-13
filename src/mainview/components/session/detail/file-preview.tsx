@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { request } from "../../../backend";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +16,8 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { MessageSquarePlus, Copy, X } from "lucide-react";
+import { SearchBar } from "./search-bar";
+import { useSearchHighlight } from "./use-search-highlight";
 
 export interface FilePreviewProps {
   projectId: string | null;
@@ -39,6 +41,55 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
   const [selectedLineRange, setSelectedLineRange] = useState<{ start: number; end: number } | null>(
     null,
   );
+  const [searchOpen, setSearchOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  const {
+    searchTerm,
+    setSearchTerm,
+    matchCount,
+    currentMatch,
+    goToNext,
+    goToPrev,
+    reset: resetSearch,
+  } = useSearchHighlight(searchOpen ? contentRef.current : null);
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    resetSearch();
+  }, [resetSearch]);
+
+  // Close search when file or view mode changes (DOM content changes invalidate old ranges)
+  useEffect(() => {
+    setSearchOpen(false);
+    resetSearch();
+  }, [projectId, file, viewMode, resetSearch]);
+
+  // Ctrl+F / Cmd+F to open search, Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        if (searchOpen) {
+          // Already open: focus the input (handled by SearchBar re-mount)
+          setSearchOpen(false);
+          requestAnimationFrame(() => setSearchOpen(true));
+        } else {
+          openSearch();
+        }
+      }
+      if (e.key === "Escape" && searchOpen) {
+        e.preventDefault();
+        closeSearch();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen, openSearch, closeSearch]);
 
   useEffect(() => {
     setFileKind(null);
@@ -245,61 +296,76 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
           </button>
         )}
       </div>
-      <ScrollArea className="flex-1 w-full h-0">
-        {loading ? (
-          <div className="text-sm text-muted-foreground text-center mt-10">
-            {t("filePreview.loading")}
-          </div>
-        ) : errorMsg ? (
-          <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
-        ) : fileKind === "image" ? (
-          <ImageView src={imageBase64} filename={fileName} />
-        ) : viewMode === "compare" ? (
-          <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
-            <CodeCompareView
-              oldContent={gitContent ?? ""}
-              newContent={content}
-              filename={fileName}
-            />
-          </div>
-        ) : fileKind === "markdown" && viewMode === "preview" ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
-            <StreamMarkdown>{content}</StreamMarkdown>
-          </div>
-        ) : (
-          <ContextMenu
-            onOpenChange={(open) => {
-              if (!open) {
-                setSelectedLineRange(null);
-                setSelectedText("");
-              }
-            }}
-          >
-            <ContextMenuTrigger
-              className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 pb-20"
-              onContextMenu={handleContextMenu}
-            >
-              <CodeView content={content} filename={fileName} />
-            </ContextMenuTrigger>
-            {(selectedLineRange || selectedText) && (
-              <ContextMenuContent>
-                {selectedText && (
-                  <ContextMenuItem onClick={handleCopy}>
-                    <Copy />
-                    {t("userBubble.copy")}
-                  </ContextMenuItem>
+      <div className="relative flex-1 min-h-0">
+        <ScrollArea className="w-full h-full">
+          <div ref={contentRef}>
+            {loading ? (
+              <div className="text-sm text-muted-foreground text-center mt-10">
+                {t("filePreview.loading")}
+              </div>
+            ) : errorMsg ? (
+              <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
+            ) : fileKind === "image" ? (
+              <ImageView src={imageBase64} filename={fileName} />
+            ) : viewMode === "compare" ? (
+              <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
+                <CodeCompareView
+                  oldContent={gitContent ?? ""}
+                  newContent={content}
+                  filename={fileName}
+                />
+              </div>
+            ) : fileKind === "markdown" && viewMode === "preview" ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
+                <StreamMarkdown>{content}</StreamMarkdown>
+              </div>
+            ) : (
+              <ContextMenu
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setSelectedLineRange(null);
+                    setSelectedText("");
+                  }
+                }}
+              >
+                <ContextMenuTrigger
+                  className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 pb-20"
+                  onContextMenu={handleContextMenu}
+                >
+                  <CodeView content={content} filename={fileName} />
+                </ContextMenuTrigger>
+                {(selectedLineRange || selectedText) && (
+                  <ContextMenuContent>
+                    {selectedText && (
+                      <ContextMenuItem onClick={handleCopy}>
+                        <Copy />
+                        {t("userBubble.copy")}
+                      </ContextMenuItem>
+                    )}
+                    {selectedLineRange && (
+                      <ContextMenuItem onClick={handleAddToChat}>
+                        <MessageSquarePlus />
+                        {t("filePanel.addToChat")}
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
                 )}
-                {selectedLineRange && (
-                  <ContextMenuItem onClick={handleAddToChat}>
-                    <MessageSquarePlus />
-                    {t("filePanel.addToChat")}
-                  </ContextMenuItem>
-                )}
-              </ContextMenuContent>
+              </ContextMenu>
             )}
-          </ContextMenu>
+          </div>
+        </ScrollArea>
+        {searchOpen && (
+          <SearchBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onNext={goToNext}
+            onPrev={goToPrev}
+            onClose={closeSearch}
+            matchCount={matchCount}
+            currentMatch={currentMatch}
+          />
         )}
-      </ScrollArea>
+      </div>
       <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center pointer-events-none">
         <Tabs
           value={viewMode}
