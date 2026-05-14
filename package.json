@@ -23,6 +23,7 @@
     "preview": "electron-vite preview",
     "format": "oxfmt --write \"src/**/*.{ts,tsx}\"",
     "lint": "oxlint src",
+    "test:updater": "node --test src/electron/updater-events.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json"
   },
   "build": {

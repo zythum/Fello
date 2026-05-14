@@ -1,10 +1,15 @@
 import type { FelloIPCSchema } from "../shared/schema";
+import type { UpdaterEvent } from "../shared/updater";
 
 export type ElectronIPCRequests = {
   showOpenDialog: { params: void; response: string | null };
   revealInFinder: { params: string; response: void };
   openInBrowser: { params: string; response: void };
   trashFile: { params: string; response: void };
+  getUpdaterStatus: { params: void; response: UpdaterEvent | null };
+  checkForUpdates: { params: { manual?: boolean } | void; response: void };
+  downloadUpdate: { params: void; response: void };
+  installUpdate: { params: void; response: void };
 };
 
 export type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
