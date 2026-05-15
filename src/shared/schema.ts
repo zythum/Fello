@@ -402,7 +402,7 @@ export type FelloIPCRequests = {
    */
   searchFiles: {
     params: { projectId: string; query?: string };
-    response: Array<{ id: string; filename: string }>;
+    response: Array<{ id: string; filename: string; isFolder: boolean }>;
   };
   /**
    * 读取目录内容

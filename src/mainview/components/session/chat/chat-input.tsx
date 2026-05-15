@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Library } from "lucide-react";
+import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Folder, Library } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
@@ -32,6 +32,7 @@ interface StagedAttachment {
 interface SearchFileItem {
   id: string;
   filename: string;
+  isFolder: boolean;
 }
 
 interface SuggestItem {
@@ -49,7 +50,7 @@ function skillInfoToSuggestItem(s: SkillInfo): SuggestItem {
 function searchFileItemItemToSuggestItem(f: SearchFileItem): SuggestItem {
   return {
     id: f.id,
-    display: `#file:${f.filename}`,
+    display: f.isFolder ? `#folder:${f.filename}` : `#file:${f.filename}`,
   };
 }
 
@@ -149,7 +150,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const customEvent = e as CustomEvent;
       const nodes = customEvent.detail as { id: string; name: string; isFolder: boolean }[];
       if (!nodes || nodes.length === 0) return;
-      const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
+      const mentions = nodes
+        .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
+        .join(" ");
       setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
       // Focus the textarea
       requestAnimationFrame(() => {
@@ -403,7 +406,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       try {
         const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
         if (nodes.length === 0) return;
-        const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
+        const mentions = nodes
+          .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
+          .join(" ");
         setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
         // Focus the textarea after drop
@@ -494,8 +499,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             relativePath: relPath,
           });
           if (info) {
-            const name = relPath.replace(/\\/g, "/").split("/").pop() || relPath;
-            insertText = `@[#file:${name}](${absPath}) `;
+            const isFolder = !info.isFile;
+            const displayPath = relPath.replace(/\\/g, "/");
+            const prefix = isFolder ? "#folder:" : "#file:";
+            insertText = `@[${prefix}${displayPath}](${absPath}) `;
           }
         } catch {
           // ignore
@@ -591,9 +598,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               appendSpaceOnAdd
               renderSuggestion={(suggestion) => {
                 const name = String(suggestion.id).split("/").pop();
+                {/* display format is determined by searchFileItemItemToSuggestItem above */}
+                const isFolder = suggestion.display?.startsWith("#folder:");
                 return (
                   <div className="flex items-center gap-1">
-                    <FileText className="size-3.5 text-muted-foreground" />
+                    {isFolder ? (
+                      <Folder className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <FileText className="size-3.5 text-muted-foreground" />
+                    )}
                     <span className="text-xs whitespace-nowrap text-foreground">{name}</span>
                     <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
                       {suggestion.display?.slice(1)}

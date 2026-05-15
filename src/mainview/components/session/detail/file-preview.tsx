@@ -260,7 +260,8 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
     const { start, end } = selectedLineRange;
     const suffix = start === end ? `${start}` : `${start}-${end}`;
     const nodeId = `${file}:${suffix}`;
-    const nodeName = `${fileName}:${suffix}`;
+    // Use full file path instead of just filename for proper display
+    const nodeName = `${file}:${suffix}`;
     const nodesPayloads = [{ id: nodeId, name: nodeName, isFolder: false }];
     document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
   };

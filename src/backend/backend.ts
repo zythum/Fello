@@ -96,7 +96,7 @@ export const SEARCH_MAX_RESULTS = 10;
 export const SEARCH_FUSE_THRESHOLD = 0.4;
 const SEARCH_CACHE_TTL_MS = 60_000;
 
-type SearchFileItem = { id: string; filename: string };
+type SearchFileItem = { id: string; filename: string; isFolder: boolean };
 type SearchFileCacheEntry = {
   version: number;
   builtAt: number;
@@ -344,7 +344,7 @@ async function buildSearchIndex(cwd: string): Promise<SearchFileItem[]> {
       if (fileScene.has(full)) continue;
       const rel = relative(cwd, full);
       const posixRel = toPosixPath(rel);
-      allFiles.push({ id: posixRel, filename: rel });
+      allFiles.push({ id: posixRel, filename: rel, isFolder: s.isDirectory() });
       if (s.isDirectory()) await collect(full);
     }
   }
@@ -1272,15 +1272,17 @@ export const backendHandlers: {
 
     if (!query || query.trim() === "") {
       const entries = await readdir(cwd).catch(() => []);
-      const results: Array<{ id: string; filename: string }> = [];
+      const results: Array<{ id: string; filename: string; isFolder: boolean }> = [];
       for (const name of entries) {
         const full = join(cwd, name);
         if (isIgnorePath(full, cwd)) continue;
 
         if (fileScene.has(full)) continue;
         fileScene.add(full);
+        const s = await stat(full).catch(() => null);
+        if (!s) continue;
         const rel = relative(cwd, full);
-        results.push({ id: toPosixPath(rel), filename: rel });
+        results.push({ id: toPosixPath(rel), filename: rel, isFolder: s.isDirectory() });
         if (results.length >= SEARCH_MAX_RESULTS) break;
       }
       results.sort((a, b) => a.filename.localeCompare(b.filename));

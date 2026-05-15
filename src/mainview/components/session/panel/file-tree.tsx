@@ -896,15 +896,17 @@ export const FileTree = memo(function FileTree({
             break;
           }
         }
-        return { id: nodeId, name: nodeId.split("/").pop() ?? nodeId, isFolder };
+        // Use full relative path as name for proper display in chat mentions
+        return { id: nodeId, name: nodeId, isFolder };
       });
 
       e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayloads));
 
-      const downLoadablePlaylod = nodesPayloads.find((playlod) => !playlod.isFolder);
-      if (downLoadablePlaylod) {
-        const fileName = downLoadablePlaylod.name;
-        const fileUrl = `file://${downLoadablePlaylod.id}`;
+      const downloadablePayload = nodesPayloads.find((p) => !p.isFolder);
+      if (downloadablePayload) {
+        // DownloadURL needs just the filename (basename), not the full path
+        const fileName = downloadablePayload.id.split("/").pop() ?? "unknown";
+        const fileUrl = `file://${downloadablePayload.id}`;
         e.dataTransfer.setData("DownloadURL", `application/octet-stream:${fileName}:${fileUrl}`);
       }
 
@@ -1129,7 +1131,8 @@ export const FileTree = memo(function FileTree({
             break;
           }
         }
-        return { id: nodeId, name: nodeId.split("/").pop() ?? nodeId, isFolder };
+        // Use full relative path as name for proper display in chat mentions
+        return { id: nodeId, name: nodeId, isFolder };
       });
       document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
     },
