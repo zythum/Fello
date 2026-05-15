@@ -218,7 +218,8 @@
     "files": "文件",
     "terminal": "终端",
     "welcomeTitle": "Fello",
-    "welcomeDesc": "一个 Kiro 的 ACP 客户端。从侧边栏开始新的会话，连接智能体并开始协作。",
+    "welcomeDesc": "又一个基于 ACP 协议的 Agent 客户端，连接智能体并开始协作。",
+    "welcomeHint": "从左侧边栏新建会话开始",
     "poweredBy": "由 Agent Client Protocol 提供支持"
   },
   "chatInput": {

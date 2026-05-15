@@ -218,7 +218,8 @@
     "files": "Files",
     "terminal": "Terminal",
     "welcomeTitle": "Fello",
-    "welcomeDesc": "An ACP client for Kiro. Start a new chat from the sidebar to connect with the agent and begin collaborating.",
+    "welcomeDesc": "Yet another Agent client based on the ACP protocol. Connect with the agent and begin collaborating.",
+    "welcomeHint": "Start a new chat from the sidebar",
     "poweredBy": "Powered by Agent Client Protocol"
   },
   "chatInput": {
