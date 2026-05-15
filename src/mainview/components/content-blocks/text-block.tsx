@@ -81,6 +81,7 @@ export const TextBlock = memo(function TextBlock({
   // UserBubble 中原有的 text 解析和路径识别功能被移除了，现在所有的渲染都交由 TextBlock 负责
   const className =
     role in typographyClasses ? typographyClasses[role] : typographyClasses["fallback"];
+
   return (
     <div className="my-2">
       <StreamMarkdown

@@ -1,12 +1,30 @@
-import { memo, useRef, useState, useEffect, useCallback } from "react";
+import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
 import { ChevronsUpDown, ChevronsDownUp, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { UserMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./types";
+
+/** 转义 markdown 特殊字符，使文本原样显示，不触发 markdown / HTML 渲染 */
+function escapeMarkdown(text: string): string {
+  return text
+    .replace(/\\/g, "\\\\")   // 必须先转义反斜杠
+    .replace(/\*/g, "\\*")
+    .replace(/#/g, "\\#")
+    .replace(/\//g, "\\/")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/</g, "\\<")
+    .replace(/>/g, "\\>")
+    .replace(/_/g, "\\_")
+    .replace(/`/g, "\\`");
+}
 
 export const UserBubble = memo(function UserBubble({
   session,
@@ -18,6 +36,17 @@ export const UserBubble = memo(function UserBubble({
   const { t } = useTranslation();
 
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // 将 text block 包裹在代码块中，避免 markdown / HTML 渲染，以源码形式显示
+  const safeContents = useMemo<ContentBlock[]>(() => {
+    return message.contents.map((block) => {
+      if (block.type === "text") {
+        return { ...block, text: escapeMarkdown(block.text) };
+      }
+      return block;
+    });
+  }, [message.contents]);
+
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
@@ -93,7 +122,7 @@ export const UserBubble = memo(function UserBubble({
                 <ScrollArea className="h-full max-h-45">
                   <div className="-my-2 px-0.5 pr-1" ref={contentRef}>
                     <ContentBlocks
-                      blocks={message.contents}
+                      blocks={safeContents}
                       role={message.role}
                       session={session}
                     />
@@ -104,7 +133,7 @@ export const UserBubble = memo(function UserBubble({
                   ref={contentRef}
                   className="-my-2 px-0.5 pr-1 [&>div]:block! [&>div>*:not(:first-child)]:mt-2!"
                 >
-                  <ContentBlocks blocks={message.contents} role={message.role} session={session} />
+                  <ContentBlocks blocks={safeContents} role={message.role} session={session} />
                 </div>
               )}
             </div>

@@ -38,9 +38,12 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [imageBase64, setImageBase64] = useState("");
   const [selectedText, setSelectedText] = useState("");
-  const [selectedLineRange, setSelectedLineRange] = useState<{ start: number; end: number } | null>(
-    null,
-  );
+  const [selectedLineRange, setSelectedLineRange] = useState<{
+    start: number;
+    end: number;
+    startColumn?: number;
+    endColumn?: number;
+  } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
@@ -183,6 +186,34 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
   const canCompare = gitContent != null;
   const showTabs = !loading && !errorMsg && fileKind !== null && fileKind !== "image";
 
+  /** Calculate the 1-based column position within a .line element from a DOM selection range */
+  const getColumnInLine = useCallback((container: Element, node: Node, offset: number): number | undefined => {
+    const lineEl =
+      node.nodeType === Node.TEXT_NODE
+        ? (node.parentElement?.closest(".line") as Element | null)
+        : (node as Element).closest(".line");
+    if (!lineEl) return undefined;
+
+    // Walk through all text nodes within the line, summing lengths to find the column
+    const walker = document.createTreeWalker(lineEl, NodeFilter.SHOW_TEXT, null);
+    let col = 0;
+    let found = false;
+    let textNode: Node | null = walker.firstChild();
+    while (textNode) {
+      if (textNode === node) {
+        col += offset;
+        found = true;
+        break;
+      }
+      col += textNode.textContent?.length ?? 0;
+      textNode = walker.nextSibling();
+    }
+
+    if (!found) return undefined;
+    // Return 1-based column
+    return col + 1;
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     if (viewMode !== "code" && viewMode !== "compare") return;
 
@@ -211,6 +242,8 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
 
     let start = -1;
     let end = -1;
+    let startColumn: number | undefined;
+    let endColumn: number | undefined;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -248,8 +281,28 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
       }
     }
 
+    // Compute column positions if we have valid line numbers
     if (start !== -1 && end !== -1 && start > 0 && end > 0) {
-      setSelectedLineRange({ start, end });
+      const startNode = range.startContainer;
+      const endNode = range.endContainer;
+
+      // For single-line selection, compute both start and end columns
+      if (start === end) {
+        startColumn = getColumnInLine(container, startNode, range.startOffset);
+        endColumn = getColumnInLine(container, endNode, range.endOffset);
+        // Ensure startColumn <= endColumn
+        if (startColumn !== undefined && endColumn !== undefined && startColumn > endColumn) {
+          const temp = startColumn;
+          startColumn = endColumn;
+          endColumn = temp;
+        }
+      } else {
+        // Multi-line: compute start column on start line, end column on end line
+        startColumn = getColumnInLine(container, startNode, range.startOffset);
+        endColumn = getColumnInLine(container, endNode, range.endOffset);
+      }
+
+      setSelectedLineRange({ start, end, startColumn, endColumn });
     } else {
       setSelectedLineRange(null);
     }
@@ -257,8 +310,21 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
 
   const handleAddToChat = () => {
     if (!file || !selectedLineRange) return;
-    const { start, end } = selectedLineRange;
-    const suffix = start === end ? `${start}` : `${start}-${end}`;
+    const { start, end, startColumn, endColumn } = selectedLineRange;
+    let suffix: string;
+    if (start === end) {
+      // Single line
+      suffix =
+        startColumn !== undefined && endColumn !== undefined
+          ? `${start}:${startColumn}-${endColumn}`
+          : `${start}`;
+    } else {
+      // Multi-line
+      suffix =
+        startColumn !== undefined && endColumn !== undefined
+          ? `${start}:${startColumn}-${end}:${endColumn}`
+          : `${start}-${end}`;
+    }
     const nodeId = `${file}:${suffix}`;
     // Use full file path instead of just filename for proper display
     const nodeName = `${file}:${suffix}`;
@@ -299,7 +365,7 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
       </div>
       <div className="relative flex-1 min-h-0">
         <ScrollArea className="w-full h-full">
-          <div ref={contentRef}>
+          <div ref={contentRef} className="w-full min-w-max">
             {loading ? (
               <div className="text-sm text-muted-foreground text-center mt-10">
                 {t("filePreview.loading")}
