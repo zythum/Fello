@@ -115,29 +115,34 @@ export function SettingsAgentStdioDialog({
                 className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
               />
             </div>
-            <div className="flex gap-2">
-              <div className="flex flex-1 flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.agents.command")}
-                </label>
-                <Input
-                  placeholder={t("settings.agents.command")}
-                  value={draft.command}
-                  onChange={(e) => setDraft({ ...draft, command: e.target.value })}
-                  className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <label className="text-[11px] text-muted-foreground">
-                  {t("settings.agents.args")}
-                </label>
-                <Input
-                  placeholder={t("settings.agents.args")}
-                  value={argsRaw}
-                  onChange={(e) => setArgsRaw(e.target.value)}
-                  className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                />
-              </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted-foreground">
+                {t("settings.agents.command")}
+              </label>
+              <Input
+                placeholder={t("settings.agents.command")}
+                value={draft.command}
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="off"
+                onChange={(e) => setDraft({ ...draft, command: e.target.value })}
+                className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted-foreground">
+                {t("settings.agents.args")}
+              </label>
+              <Textarea
+                placeholder={t("settings.agents.args")}
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="off"
+                value={argsRaw}
+                onChange={(e) => setArgsRaw(e.target.value)}
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-[60px] break-all max-w-full"
+                rows={3}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">

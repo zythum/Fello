@@ -269,27 +269,23 @@ export function SettingsMcp() {
                   <McpSortableItem key={mcp.id} id={mcp.id}>
                     <ContextMenu>
                       <ContextMenuTrigger>
-                        <div className="flex items-center justify-between rounded-lg border p-1.5 h-10 text-sm bg-secondary/50 cursor-default select-none">
-                          <div className="flex w-full flex-row items-center gap-2">
-                            <div className="flex min-w-8 truncate">
-                              <span
-                                className={`font-bold text-xs ml-1 truncate max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
-                              >
-                                {mcp.id}
-                              </span>
-                            </div>
-                            <div className="text-[10px] flex-1 text-muted-foreground font-mono truncate">
-                              {getServerSummary(mcp)}
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Switch
-                                size="sm"
-                                checked={!mcp.disabled}
-                                onCheckedChange={(checked) =>
-                                  handleToggleDisabled(mcp.id, !checked)
-                                }
-                              />
-                            </div>
+                        <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
+                          <span
+                            className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
+                          >
+                            {mcp.id}
+                          </span>
+                          <span className="text-[10px] flex-1 w-0 text-muted-foreground font-mono truncate">
+                            {getServerSummary(mcp)}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            <Switch
+                              size="sm"
+                              checked={!mcp.disabled}
+                              onCheckedChange={(checked) =>
+                                handleToggleDisabled(mcp.id, !checked)
+                              }
+                            />
                           </div>
                         </div>
                       </ContextMenuTrigger>
