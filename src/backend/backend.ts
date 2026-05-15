@@ -746,7 +746,7 @@ export const backendHandlers: {
     if (!projectFsVersions.has(ProjectInfo.id)) {
       projectFsVersions.set(ProjectInfo.id, 0);
     }
-    syncWatchers();
+    await syncWatchers();
     sendEvent("projects-changed", undefined);
     return ProjectInfo;
   },
@@ -759,10 +759,25 @@ export const backendHandlers: {
   async deleteProject(projectId: string) {
     const projectSessions = storageOps
       .listSessions()
-      .filter((session) => session.projectId === projectId)
-      .map((session) => ({ agentId: session.agentId, resumeId: session.resumeId }));
+      .filter((session) => session.projectId === projectId);
     storageOps.deleteProject(projectId);
     for (const session of projectSessions) {
+      // Close the session on the agent side if still active
+      try {
+        const connectPromise = bridgePool.get(session.agentId);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) {
+            await b.closeSession(session.resumeId);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+
       try {
         deletePersistedSessionDirectory({
           agentId: session.agentId,
@@ -776,7 +791,7 @@ export const backendHandlers: {
       }
     }
     clearProjectSearchState(projectId);
-    syncWatchers();
+    await syncWatchers();
     sendEvent("projects-changed", undefined);
     sendEvent("sessions-changed", undefined);
   },
@@ -829,30 +844,64 @@ export const backendHandlers: {
     restoringSessions.add(session.id);
     let loadResult;
     try {
-      loadResult = await b.loadSession({
-        sessionId: session.resumeId,
-        cwd: session.cwd,
-        mcpServers: activeMcpServers,
-      });
+      // If the session is already active in the agent (e.g., just created via newSession),
+      // check if configuration (cwd, mcpServers) has changed. If so, close and reload.
+      if (b.isSessionLoaded(session.resumeId)) {
+        if (
+          b.hasSessionConfigChanged(session.resumeId, session.cwd, activeMcpServers)
+        ) {
+          console.log(
+            `[Fello] Session ${session.resumeId} config changed, closing and reloading...`,
+          );
+          await b.closeSession(session.resumeId);
+          loadResult = await b.loadSession({
+            sessionId: session.resumeId,
+            cwd: session.cwd,
+            mcpServers: activeMcpServers,
+          });
+        }
+        // else: config unchanged, skip reload and use cached state
+      } else {
+        loadResult = await b.loadSession({
+          sessionId: session.resumeId,
+          cwd: session.cwd,
+          mcpServers: activeMcpServers,
+        });
+      }
     } finally {
       restoringSessions.delete(session.id);
     }
 
-    let finalModels = loadResult.models ?? null;
-    let finalModes = loadResult.modes ?? null;
+    // Use models/modes from loadResult if available, otherwise fall back to bridge cache or storage
+    let finalModels = loadResult?.models ?? null;
+    let finalModes = loadResult?.modes ?? null;
 
     let shouldUpdateCache = false;
 
     if (finalModels) {
       shouldUpdateCache = true;
     } else {
-      finalModels = session.models;
+      // Try bridge cache (populated during newSession)
+      const cachedModels = b.getModelState(session.resumeId);
+      if (cachedModels) {
+        finalModels = cachedModels;
+        shouldUpdateCache = true;
+      } else {
+        finalModels = session.models;
+      }
     }
 
     if (finalModes) {
       shouldUpdateCache = true;
     } else {
-      finalModes = session.modes;
+      // Try bridge cache (populated during newSession)
+      const cachedModes = b.getModeState(session.resumeId);
+      if (cachedModes) {
+        finalModes = cachedModes;
+        shouldUpdateCache = true;
+      } else {
+        finalModes = session.modes;
+      }
     }
 
     if (shouldUpdateCache || b.initializeInfo) {
@@ -1021,6 +1070,25 @@ export const backendHandlers: {
 
   async deleteSession(sessionId: string) {
     const session = storageOps.getSession(sessionId);
+
+    // Close the session on the agent side if it's still active
+    if (session) {
+      try {
+        const connectPromise = bridgePool.get(session.agentId);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) {
+            await b.closeSession(session.resumeId);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+    }
+
     storageOps.deleteSession(sessionId);
     if (activeIlinkSessionId === sessionId) {
       activeIlinkSessionId = null;
