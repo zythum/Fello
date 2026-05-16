@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ApiAgentInfo } from "../../../shared/schema";
+import type { ApiAgentInfo } from "../../../../shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 
 interface SettingsAgentApiDialogProps {
   open: boolean;

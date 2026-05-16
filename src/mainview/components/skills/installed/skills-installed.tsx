@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import { request, isWebUI } from "../../backend";
-import { electron } from "../../electron";
+import { request, isWebUI } from "../../../backend";
+import { electron } from "../../../electron";
 import { useTranslation } from "react-i18next";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { StreamMarkdown } from "../common/stream-markdown";
+import { StreamMarkdown } from "../../common/stream-markdown";
 import { FolderOpen, Trash2, FileText, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { SkillInfo } from "../../../shared/schema";
+import type { SkillInfo } from "../../../../shared/schema";
 
 export function SkillsInstalled() {
   const { t } = useTranslation();
@@ -26,7 +26,7 @@ export function SkillsInstalled() {
       const catalog = await request.getSkillsCatalog({ all: true });
       setSkills(catalog);
     } catch (err: any) {
-      toast.error(err.message || t("skills.loadFailed"));
+      toast.error(err.message || t("skills.installed.loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +62,7 @@ export function SkillsInstalled() {
       const content = await request.readSkillFile({ skillId: skill.id });
       setSkillContent(content);
     } catch (err: any) {
-      setSkillContent(t("skills.loadContentFailed", { message: err.message }));
+      setSkillContent(t("skills.installed.loadContentFailed", { message: err.message }));
     }
   };
 
@@ -71,21 +71,21 @@ export function SkillsInstalled() {
     if (!isFello) return;
 
     const res = await confirm({
-      title: t("skills.uninstallTitle"),
-      content: t("skills.uninstallConfirm", { name: skill.name }),
+      title: t("skills.installed.uninstallTitle"),
+      content: t("skills.installed.uninstallConfirm", { name: skill.name }),
       buttons: [
-        { text: t("skills.cancel"), value: "cancel", variant: "outline" },
-        { text: t("skills.uninstall"), value: "uninstall", variant: "destructive" },
+        { text: t("skills.installed.cancel"), value: "cancel", variant: "outline" },
+        { text: t("skills.installed.uninstall"), value: "uninstall", variant: "destructive" },
       ],
     });
 
     if (res === "uninstall") {
       try {
         await request.uninstallSkill({ skillId: skill.id });
-        toast.success(t("skills.uninstalledSuccess", { name: skill.name }));
+        toast.success(t("skills.installed.uninstalledSuccess", { name: skill.name }));
         fetchSkills();
       } catch (err: any) {
-        toast.error(t("skills.uninstallFailed", { message: err.message }));
+        toast.error(t("skills.installed.uninstallFailed", { message: err.message }));
       }
     }
   };
@@ -96,7 +96,7 @@ export function SkillsInstalled() {
       const path = await request.getSkillFileSystemFilePath({ skillId: skill.id });
       await electron.revealInFinder(path);
     } catch (err: any) {
-      toast.error(t("skills.revealFailed", { message: err.message }));
+      toast.error(t("skills.installed.revealFailed", { message: err.message }));
     }
   };
 
@@ -131,7 +131,7 @@ export function SkillsInstalled() {
                         </CardHeader>
                         <CardContent className="flex-1">
                           <div className="line-clamp-2 text-xs">
-                            {skill.description || t("skills.noDescription")}
+                            {skill.description || t("skills.installed.noDescription")}
                           </div>
                         </CardContent>
                         <CardFooter className="flex justify-end">
@@ -140,7 +140,7 @@ export function SkillsInstalled() {
                             size="icon"
                             className="size-8"
                             onClick={() => handleViewSkill(skill)}
-                            title={t("skills.viewSkill")}
+                            title={t("skills.installed.viewSkill")}
                           >
                             <FileText className="size-3.5" />
                           </Button>
@@ -150,7 +150,7 @@ export function SkillsInstalled() {
                               size="icon"
                               className="size-8"
                               onClick={() => handleReveal(skill)}
-                              title={t("skills.revealInFinder")}
+                              title={t("skills.installed.revealInFinder")}
                             >
                               <FolderOpen className="size-3.5" />
                             </Button>
@@ -165,7 +165,7 @@ export function SkillsInstalled() {
                             }
                             disabled={!isFello}
                             onClick={() => handleUninstall(skill)}
-                            title={t("skills.uninstall")}
+                            title={t("skills.installed.uninstall")}
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
@@ -181,7 +181,7 @@ export function SkillsInstalled() {
       </ScrollArea>
       {skills.length === 0 && (
         <div className="text-center text-muted-foreground text-smp-8 mt-2">
-          {t("skills.noSkills")}
+          {t("skills.installed.noSkills")}
         </div>
       )}
 

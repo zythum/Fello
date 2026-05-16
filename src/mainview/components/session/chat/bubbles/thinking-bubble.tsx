@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
 import type { AgentThoughtMessage } from "../../../../lib/chat-message";
-import type { BaseBubbleProps } from "./types";
+import type { BaseBubbleProps } from "./base-bubble";
 
 export const ThinkingBubble = memo(function ThinkingBubble({
   session,

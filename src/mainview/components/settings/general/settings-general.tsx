@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "../../store";
-import { request } from "../../backend";
+import { useAppStore } from "../../../store";
+import { request } from "../../../backend";
 import {
   Select,
   SelectContent,
@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 
 export function SettingsGeneral() {
   const { t, i18n: _i18n } = useTranslation();
@@ -25,7 +25,7 @@ export function SettingsGeneral() {
         theme: newTheme,
       });
     } catch {
-      toast.error(t("sidebar.saveThemeFailed", "Failed to save theme setting."));
+      toast.error(t("settings.general.saveThemeFailed", "Failed to save theme setting."));
     }
   };
 
@@ -40,7 +40,7 @@ export function SettingsGeneral() {
         },
       });
     } catch {
-      toast.error(t("sidebar.saveLanguageFailed", "Failed to save language setting."));
+      toast.error(t("settings.general.saveLanguageFailed", "Failed to save language setting."));
     }
   };
 
@@ -57,16 +57,16 @@ export function SettingsGeneral() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium leading-none">{t("sidebar.theme")}</label>
+                <label className="text-sm font-medium leading-none">{t("settings.general.theme")}</label>
                 <span className="text-xs text-muted-foreground">
                   {t("settings.themeDesc", "Customize the appearance of the application")}
                 </span>
               </div>
               {(() => {
                 const themeItems = [
-                  { value: "light", label: t("sidebar.light") },
-                  { value: "dark", label: t("sidebar.dark") },
-                  { value: "system", label: t("sidebar.system") },
+                  { value: "light", label: t("settings.general.light") },
+                  { value: "dark", label: t("settings.general.dark") },
+                  { value: "system", label: t("settings.general.system") },
                 ];
                 return (
                   <Select
@@ -90,15 +90,15 @@ export function SettingsGeneral() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium leading-none">{t("sidebar.language")}</label>
+                <label className="text-sm font-medium leading-none">{t("settings.general.language")}</label>
                 <span className="text-xs text-muted-foreground">
                   {t("settings.languageDesc", "Select the display language")}
                 </span>
               </div>
               {(() => {
                 const languageItems = [
-                  { value: "en", label: t("sidebar.english") },
-                  { value: "zh-CN", label: t("sidebar.chinese") },
+                  { value: "en", label: t("settings.general.english") },
+                  { value: "zh-CN", label: t("settings.general.chinese") },
                 ];
                 return (
                   <Select

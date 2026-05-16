@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { StdioAgentInfo } from "../../../shared/schema";
+import type { HttpMcpServerInfo } from "../../../../shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,13 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 
-interface SettingsAgentStdioDialogProps {
+interface SettingsMcpHttpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialAgent: StdioAgentInfo | null;
-  onSave: (agent: StdioAgentInfo) => Promise<void> | void;
+  initialMcp: HttpMcpServerInfo | null;
+  onSave: (mcp: HttpMcpServerInfo) => Promise<void> | void;
 }
 
 function parseStringMapJson(raw: string): Record<string, string> | null {
@@ -40,48 +40,48 @@ function parseStringMapJson(raw: string): Record<string, string> | null {
   return output;
 }
 
-export function SettingsAgentStdioDialog({
+export function SettingsMcpHttpDialog({
   open,
   onOpenChange,
-  initialAgent,
+  initialMcp,
   onSave,
-}: SettingsAgentStdioDialogProps) {
+}: SettingsMcpHttpDialogProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
-  const [draft, setDraft] = useState<StdioAgentInfo | null>(initialAgent);
-  const [argsRaw, setArgsRaw] = useState("");
-  const [envRaw, setEnvRaw] = useState("");
+  const [draft, setDraft] = useState<HttpMcpServerInfo | null>(initialMcp);
+  const [headersRaw, setHeadersRaw] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setDraft(initialAgent);
-    setArgsRaw(initialAgent?.args?.join(" ") || "");
-    setEnvRaw(
-      initialAgent && Object.keys(initialAgent.env || {}).length > 0
-        ? JSON.stringify(initialAgent.env)
+    setDraft(initialMcp);
+    setHeadersRaw(
+      initialMcp && Object.keys(initialMcp.headers || {}).length > 0
+        ? JSON.stringify(initialMcp.headers)
         : "",
     );
-  }, [initialAgent, open]);
+  }, [initialMcp, open]);
 
   const handleSave = async () => {
     if (!draft) return;
-    if (!draft.id.trim() || !draft.command.trim()) {
-      toast.error(t("settings.agents.errorIdCommand"));
+    if (!draft.id.trim()) {
+      toast.error(t("settings.mcp.errorIdRequired", "ID is required."));
       return;
     }
-
-    const env = parseStringMapJson(envRaw);
-    if (!env) {
-      toast.error(t("settings.agents.errorEnvJson"));
+    if (!draft.url.trim()) {
+      toast.error(t("settings.mcp.errorUrlRequired", "URL is required."));
+      return;
+    }
+    const headers = parseStringMapJson(headersRaw);
+    if (!headers) {
+      toast.error(t("settings.mcp.errorHeadersJson", "Headers must be a valid JSON object."));
       return;
     }
 
     await onSave({
       ...draft,
       id: draft.id.trim(),
-      command: draft.command.trim(),
-      args: argsRaw.split(/\s+/).filter(Boolean),
-      env,
+      url: draft.url.trim(),
+      headers,
     });
   };
 
@@ -90,14 +90,14 @@ export function SettingsAgentStdioDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {initialAgent?.id
-              ? t("settings.agents.editAgent", "Edit Agent")
-              : t("settings.agents.addAgent", "Add Agent")}
+            {initialMcp?.id
+              ? t("settings.mcp.editMcp", "Edit MCP Server")
+              : t("settings.mcp.addHttpMcp", "Add HTTP MCP Server")}
           </DialogTitle>
           <DialogDescription>
             {t(
-              "settings.agents.dialogDesc",
-              "Configure the agent ID, command, arguments and environment variables.",
+              "settings.mcp.httpDialogDesc",
+              "Configure the MCP server ID, HTTP URL and request headers.",
             )}
           </DialogDescription>
         </DialogHeader>
@@ -106,10 +106,10 @@ export function SettingsAgentStdioDialog({
           <div className="flex flex-col gap-3 py-2">
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.agentId")}
+                {t("settings.mcp.mcpId", "MCP Server ID")}
               </label>
               <Input
-                placeholder={t("settings.agents.agentId")}
+                placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
                 value={draft.id}
                 onChange={(e) => setDraft({ ...draft, id: e.target.value })}
                 className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
@@ -117,41 +117,23 @@ export function SettingsAgentStdioDialog({
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.command")}
+                {t("settings.mcp.url", "URL")}
               </label>
               <Input
-                placeholder={t("settings.agents.command")}
-                value={draft.command}
-                spellCheck={false}
-                autoComplete="off"
-                autoCapitalize="off"
-                onChange={(e) => setDraft({ ...draft, command: e.target.value })}
+                placeholder={t("settings.mcp.url", "URL")}
+                value={draft.url}
+                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
                 className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
               />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.args")}
+                {t("settings.mcp.headers", "Headers (JSON)")}
               </label>
               <Textarea
-                placeholder={t("settings.agents.args")}
-                spellCheck={false}
-                autoComplete="off"
-                autoCapitalize="off"
-                value={argsRaw}
-                onChange={(e) => setArgsRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-[60px] break-all max-w-full"
-                rows={3}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.envVars", "Env vars")}
-              </label>
-              <Textarea
-                placeholder={t("settings.agents.envJson")}
-                value={envRaw}
-                onChange={(e) => setEnvRaw(e.target.value)}
+                placeholder={t("settings.mcp.headersJson", "Headers (JSON)")}
+                value={headersRaw}
+                onChange={(e) => setHeadersRaw(e.target.value)}
                 className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
               />
             </div>
@@ -165,10 +147,10 @@ export function SettingsAgentStdioDialog({
             onClick={() => onOpenChange(false)}
             className="h-7 text-xs"
           >
-            {t("settings.agents.cancel")}
+            {t("settings.mcp.cancel", "Cancel")}
           </Button>
           <Button size="sm" onClick={handleSave} className="h-7 text-xs">
-            {t("settings.agents.save")}
+            {t("settings.mcp.save", "Save")}
           </Button>
         </DialogFooter>
       </DialogContent>

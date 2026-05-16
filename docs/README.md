@@ -7,3 +7,4 @@
 - [Storage](./storage.md)
 - [Coding Conventions](./coding-conventions.md)
 - [Custom Events](./custom-events.md)
+- [IPC Protocol](./ipc-protocol.md)

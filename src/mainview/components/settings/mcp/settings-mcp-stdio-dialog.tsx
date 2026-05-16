@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { HttpMcpServerInfo } from "../../../shared/schema";
+import type { StdioMcpServerInfo } from "../../../../shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,13 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 
-interface SettingsMcpHttpDialogProps {
+interface SettingsMcpStdioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialMcp: HttpMcpServerInfo | null;
-  onSave: (mcp: HttpMcpServerInfo) => Promise<void> | void;
+  initialMcp: StdioMcpServerInfo | null;
+  onSave: (mcp: StdioMcpServerInfo) => Promise<void> | void;
 }
 
 function parseStringMapJson(raw: string): Record<string, string> | null {
@@ -40,48 +40,47 @@ function parseStringMapJson(raw: string): Record<string, string> | null {
   return output;
 }
 
-export function SettingsMcpHttpDialog({
+export function SettingsMcpStdioDialog({
   open,
   onOpenChange,
   initialMcp,
   onSave,
-}: SettingsMcpHttpDialogProps) {
+}: SettingsMcpStdioDialogProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
-  const [draft, setDraft] = useState<HttpMcpServerInfo | null>(initialMcp);
-  const [headersRaw, setHeadersRaw] = useState("");
+  const [draft, setDraft] = useState<StdioMcpServerInfo | null>(initialMcp);
+  const [argsRaw, setArgsRaw] = useState("");
+  const [envRaw, setEnvRaw] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setDraft(initialMcp);
-    setHeadersRaw(
-      initialMcp && Object.keys(initialMcp.headers || {}).length > 0
-        ? JSON.stringify(initialMcp.headers)
+    setArgsRaw(initialMcp?.args?.join(" ") || "");
+    setEnvRaw(
+      initialMcp && Object.keys(initialMcp.env || {}).length > 0
+        ? JSON.stringify(initialMcp.env)
         : "",
     );
   }, [initialMcp, open]);
 
   const handleSave = async () => {
     if (!draft) return;
-    if (!draft.id.trim()) {
-      toast.error(t("settings.mcp.errorIdRequired", "ID is required."));
+    if (!draft.id.trim() || !draft.command.trim()) {
+      toast.error(t("settings.mcp.errorIdCommand", "ID and Command are required."));
       return;
     }
-    if (!draft.url.trim()) {
-      toast.error(t("settings.mcp.errorUrlRequired", "URL is required."));
-      return;
-    }
-    const headers = parseStringMapJson(headersRaw);
-    if (!headers) {
-      toast.error(t("settings.mcp.errorHeadersJson", "Headers must be a valid JSON object."));
+    const env = parseStringMapJson(envRaw);
+    if (!env) {
+      toast.error(t("settings.mcp.errorEnvJson", "Env must be a valid JSON object."));
       return;
     }
 
     await onSave({
       ...draft,
       id: draft.id.trim(),
-      url: draft.url.trim(),
-      headers,
+      command: draft.command.trim(),
+      args: argsRaw.split(/\s+/).filter(Boolean),
+      env,
     });
   };
 
@@ -92,12 +91,12 @@ export function SettingsMcpHttpDialog({
           <DialogTitle>
             {initialMcp?.id
               ? t("settings.mcp.editMcp", "Edit MCP Server")
-              : t("settings.mcp.addHttpMcp", "Add HTTP MCP Server")}
+              : t("settings.mcp.addStdioMcp", "Add Stdio MCP Server")}
           </DialogTitle>
           <DialogDescription>
             {t(
-              "settings.mcp.httpDialogDesc",
-              "Configure the MCP server ID, HTTP URL and request headers.",
+              "settings.mcp.dialogDesc",
+              "Configure the MCP server ID, command, arguments and environment variables.",
             )}
           </DialogDescription>
         </DialogHeader>
@@ -117,23 +116,41 @@ export function SettingsMcpHttpDialog({
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">
-                {t("settings.mcp.url", "URL")}
+                {t("settings.mcp.command", "Command")}
               </label>
               <Input
-                placeholder={t("settings.mcp.url", "URL")}
-                value={draft.url}
-                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                placeholder={t("settings.mcp.command", "Command")}
+                value={draft.command}
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="off"
+                onChange={(e) => setDraft({ ...draft, command: e.target.value })}
                 className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
               />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-muted-foreground">
-                {t("settings.mcp.headers", "Headers (JSON)")}
+                {t("settings.mcp.args", "Arguments")}
               </label>
               <Textarea
-                placeholder={t("settings.mcp.headersJson", "Headers (JSON)")}
-                value={headersRaw}
-                onChange={(e) => setHeadersRaw(e.target.value)}
+                placeholder={t("settings.mcp.args", "Arguments")}
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="off"
+                value={argsRaw}
+                onChange={(e) => setArgsRaw(e.target.value)}
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-[60px] break-all max-w-full"
+                rows={3}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted-foreground">
+                {t("settings.mcp.envVars", "Environment Variables (JSON)")}
+              </label>
+              <Textarea
+                placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
+                value={envRaw}
+                onChange={(e) => setEnvRaw(e.target.value)}
                 className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
               />
             </div>

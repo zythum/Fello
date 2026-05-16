@@ -86,13 +86,13 @@ export function Welcome() {
       {/* Title & Description */}
       <div className="text-center relative z-10 pointer-events-none">
         <div className="mb-1">
-          <AnimatedTitle text={t("sessionView.welcomeTitle")} />
+          <AnimatedTitle text={t("welcome.title")} />
         </div>
         <p
           className="mt-2 max-w-md text-sm text-muted-foreground animate-text-fade-in"
           style={{ animationDelay: "0.6s", animationFillMode: "both" }}
         >
-          {t("sessionView.welcomeDesc")}
+          {t("welcome.desc")}
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export function Welcome() {
         style={{ animationDelay: "1s", animationFillMode: "both" }}
       >
         <ArrowLeft className="size-3 animate-bounce-horizontal" />
-        <span>{t("sessionView.welcomeHint")}</span>
+        <span>{t("welcome.hint")}</span>
       </div>
     </div>
   );

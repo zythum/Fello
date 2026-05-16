@@ -323,7 +323,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
     try {
       // 2. Wait for the generation to complete
-      await request.sendMessage({
+      await request.sendPrompt({
         sessionId: session.id,
         contents,
       });

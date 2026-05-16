@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Folders, SquareTerminal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileTree } from "./file-tree";
-import { TerminalTabList } from "./terminal-tab-list";
+import { FilePanel } from "./file-panel/file-panel";
+import { TerminalPanel } from "./terminal-panel/terminal-panel";
 
 export type PanelTab = "files" | "terminal";
 
@@ -56,7 +56,7 @@ export function Panel({
         </div>
 
         <TabsContent value="files" className="flex-1 min-h-0">
-          <FileTree
+          <FilePanel
             projectId={projectId}
             previewFileId={previewFileId}
             onPreviewFile={onPreviewFile}
@@ -64,7 +64,7 @@ export function Panel({
         </TabsContent>
 
         <TabsContent value="terminal" className="flex-1 min-h-0">
-          <TerminalTabList
+          <TerminalPanel
             projectId={projectId}
             activeTerminalId={activeTerminalId}
             onSelectTerminal={onSelectTerminal}

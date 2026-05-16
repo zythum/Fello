@@ -20,7 +20,7 @@
   - `file-panel.tsx`：双击文件树节点，或者在 Git 变更列表（Summary）中点击文件时触发。
   - `tool-bubble.tsx`：在 Tool Call 气泡的 `summary` 区域中，点击 `locations` 标签按钮时触发。
 - **监听方 (Listeners)**：
-  - `session-view.tsx`：统一捕获事件，更新内部状态 `previewFile` 并打开 `FilePreviewSheet` 组件。
+  - `session.tsx`：统一捕获事件，更新内部状态 `previewFile` 并打开 `FilePreviewSheet` 组件。
 
 ## 2. `fello-add-to-chat`
 
@@ -35,7 +35,7 @@
   ```
 - **分发方 (Dispatchers)**：
   - `file-panel.tsx`：文件树右键菜单点击 "Add to Chat" 时触发（支持多选）。
-  - `file-preview.tsx`：在文件代码预览区域选中具体文本/代码行后，右键菜单点击 "Add to Chat" 时触发。
+  - `file-detail.tsx`（`detail/file/`）：在文件代码预览区域选中具体文本/代码行后，右键菜单点击 "Add to Chat" 时触发。
 - **监听方 (Listeners)**：
   - `chat-input.tsx`：收到事件后，将其转换为 react-mentions 支持的格式 `@[name](id)`，追加到输入框末尾并自动聚焦。
 

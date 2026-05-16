@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
-import { DetailView, type DetailType } from "./detail/detail-view";
+import { Detail, type DetailType } from "./detail/detail";
 import { Panel, type PanelTab } from "./panel/panel";
 import { Loader2 } from "lucide-react";
 import { request } from "../../backend";
@@ -12,7 +12,7 @@ import type { SessionInfo } from "../../../shared/schema";
 
 export { type PanelTab } from "./panel/panel";
 
-export function SessionView({ session }: { session: SessionInfo }) {
+export function Session({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isCreatingSession = useAppStore((s) => s.isCreatingSession);
@@ -165,7 +165,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
           <Loader2 className="size-8 animate-spin text-primary" />
           <p className="text-sm font-normal text-muted-foreground/60">
-            {t("sessionView.connecting")}
+            {t("session.connecting")}
           </p>
         </div>
       ) : sessionId ? (
@@ -190,7 +190,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
                   <>
                     {!compact && <ResizableHandle className="bg-border/70" />}
                     <ResizablePanel id="detail" defaultSize={400} minSize={300}>
-                      <DetailView
+                      <Detail
                         detailType={detailType}
                         projectId={currentProjectId}
                         file={detailFile}
@@ -229,7 +229,7 @@ export function SessionView({ session }: { session: SessionInfo }) {
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
               <Loader2 className="size-8 animate-spin text-primary" />
               <p className="text-sm font-normal text-foreground/50">
-                {t("sessionView.connecting")}
+                {t("session.connecting")}
               </p>
             </div>
           )}

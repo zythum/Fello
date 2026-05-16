@@ -23,19 +23,10 @@
     "save": "Save",
     "settings": "Settings",
     "agents": "Agents",
-    "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "language": "Language",
-    "english": "English",
-    "chinese": "简体中文",
     "addProjectFailed": "Failed to add project.",
     "newChatFailed": "Failed to create a new chat.",
     "loadSessionFailed": "Failed to load session.",
     "revealInFinderFailed": "Failed to reveal in Finder.",
-    "saveThemeFailed": "Failed to save theme setting.",
-    "saveLanguageFailed": "Failed to save language setting.",
     "projectExists": "Project already exists.",
     "projectNameEmpty": "Project name cannot be empty.",
     "chatNameEmpty": "Chat name cannot be empty.",
@@ -59,33 +50,35 @@
   },
   "skills": {
     "title": "Skills",
-    "installed": "Installed",
-    "store": "Store",
-    "other": "Other",
-    "noDescription": "No description provided.",
-    "revealInFinder": "Reveal in Finder",
-    "viewSkill": "View SKILL.md",
-    "uninstall": "Uninstall",
-    "uninstallTitle": "Uninstall Skill",
-    "uninstallConfirm": "Are you sure you want to uninstall {{name}}? ",
-    "cancel": "Cancel",
-    "uninstalledSuccess": "Skill {{name}} uninstalled",
-    "uninstallFailed": "Failed to uninstall: {{message}}",
-    "revealFailed": "Failed to reveal in Finder: {{message}}",
-    "loadFailed": "Failed to load skills",
-    "loadContentFailed": "Error loading skill content: {{message}}",
-    "noSkills": "No skills installed.",
-    "storeTitle": "Discover Skills",
-    "storeDesc": "Explore and install community skills to enhance your agents.",
-    "searchPlaceholder": "Search skills (e.g. pr-review, react-best-practices)...",
-    "install": "Install",
-    "installing": "Installing...",
-    "installSuccess": "Skill {{name}} installed",
-    "installFailed": "Install failed",
-    "noResults": "No skills found",
-    "installs": "{{count}} installs",
-    "installedStatus": "Installed",
-    "authorPrefix": "by "
+    "installed": {
+      "label": "Installed",
+      "noDescription": "No description provided.",
+      "revealInFinder": "Reveal in Finder",
+      "viewSkill": "View SKILL.md",
+      "uninstall": "Uninstall",
+      "uninstallTitle": "Uninstall Skill",
+      "uninstallConfirm": "Are you sure you want to uninstall {{name}}? ",
+      "cancel": "Cancel",
+      "uninstalledSuccess": "Skill {{name}} uninstalled",
+      "uninstallFailed": "Failed to uninstall: {{message}}",
+      "revealFailed": "Failed to reveal in Finder: {{message}}",
+      "loadFailed": "Failed to load skills",
+      "loadContentFailed": "Error loading skill content: {{message}}",
+      "noSkills": "No skills installed."
+    },
+    "skillsSh": {
+      "label": "skills.sh",
+      "title": "Discover Skills",
+      "desc": "Explore and install community skills to enhance your agents.",
+      "searchPlaceholder": "Search skills (e.g. pr-review, react-best-practices)...",
+      "install": "Install",
+      "installSuccess": "Skill {{name}} installed",
+      "installFailed": "Install failed",
+      "noResults": "No skills found",
+      "installs": "{{count}} installs",
+      "installedStatus": "Installed",
+      "authorPrefix": "by "
+    }
   },
   "contextMenu": {
     "cut": "Cut",
@@ -97,10 +90,18 @@
     "themeDesc": "Customize the appearance of the application",
     "languageDesc": "Select the display language",
     "title": "Settings",
-    "description": "Configure settings",
     "general": {
       "title": "General",
-      "desc": "Manage your application's appearance and language."
+      "desc": "Manage your application's appearance and language.",
+      "theme": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "language": "Language",
+      "english": "English",
+      "chinese": "简体中文",
+      "saveThemeFailed": "Failed to save theme setting.",
+      "saveLanguageFailed": "Failed to save language setting."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",
@@ -115,7 +116,6 @@
       "envJson": "Environment Variables (JSON)",
       "cancel": "Cancel",
       "save": "Save",
-      "saveChanges": "Save Changes",
       "noAgents": "No agents configured",
       "errorIdCommand": "ID and Command are required.",
       "errorDuplicateId": "An agent with this ID already exists.",
@@ -141,7 +141,6 @@
       "httpDialogDesc": "Configure the MCP server ID, HTTP URL and request headers.",
       "cancel": "Cancel",
       "save": "Save",
-      "saveChanges": "Save Changes",
       "noMcpServers": "No MCP servers configured",
       "errorIdRequired": "ID is required.",
       "errorUrlRequired": "URL is required.",
@@ -213,15 +212,6 @@
   "chatHeader": {
     "refresh": "Refresh"
   },
-  "sessionView": {
-    "connecting": "Connecting to agent...",
-    "files": "Files",
-    "terminal": "Terminal",
-    "welcomeTitle": "Fello",
-    "welcomeDesc": "Yet another Agent client based on the ACP protocol. Connect with the agent and begin collaborating.",
-    "welcomeHint": "Start a new chat from the sidebar",
-    "poweredBy": "Powered by Agent Client Protocol"
-  },
   "chatInput": {
     "placeholderDisabled": "Start a new chat to begin...",
     "placeholderActive": "Ask anything... (Enter to send)",
@@ -233,17 +223,6 @@
     "tokensUsage": "In: {{input}} Out: {{output}} Total: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
     "generationFailed": "Generation failed."
-  },
-  "filePreview": {
-    "fileNotFound": "File not found",
-    "fileTooLarge": "File is too large to preview",
-    "fileFormatNotSupported": "File format not supported for preview",
-    "errorLoading": "Error loading file",
-    "loading": "Loading...",
-    "preview": "Preview",
-    "code": "Code",
-    "compare": "Compare",
-    "close": "Close"
   },
   "filePanel": {
     "title": "Files",
@@ -261,11 +240,11 @@
     "cancel": "Cancel",
     "moveToTrash": "Move to Trash",
     "moveToRecycleBin": "Move to Recycle Bin",
-    "noActiveSession": "No active session",
     "loading": "Loading...",
     "collapseFolders": "Collapse Folders",
     "refresh": "Refresh",
-    "addToChat": "Add to Chat"
+    "addToChat": "Add to Chat",
+    "noProject": "No project selected"
   },
   "toolBubble": {
     "tool": "Tool"
@@ -308,7 +287,8 @@
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
-    "usageSummaryCached": "  ↻ {{cached}}"
+    "usageSummaryCached": "  ↻ {{cached}}",
+    "connecting": "Connecting to agent..."
   },
   "terminalPanel": {
     "title": "Terminal",
@@ -328,12 +308,6 @@
     "terminal": "Terminal",
     "noProjectSelected": "No project selected"
   },
-  "detailView": {
-    "noContent": "No content"
-  },
-  "fileTree": {
-    "noProject": "No project selected"
-  },
   "contentBlock": {
     "unsupported": "Unsupported block type: {{type}}",
     "download": "Download",
@@ -347,5 +321,23 @@
     "audio": "Audio:",
     "imageAlt": "Agent provided image",
     "fileTooLarge": "File is too large (exceeds 20MB)"
+  },
+  "detail": {
+    "noContent": "No content"
+  },
+  "fileDetail": {
+    "fileNotFound": "File not found",
+    "fileTooLarge": "File is too large to preview",
+    "fileFormatNotSupported": "File format not supported for preview",
+    "errorLoading": "Error loading file",
+    "loading": "Loading...",
+    "preview": "Preview",
+    "code": "Code",
+    "compare": "Compare"
+  },
+  "welcome": {
+    "title": "Fello",
+    "desc": "Yet another Agent client based on the ACP protocol. Connect with the agent and begin collaborating.",
+    "hint": "Start a new chat from the sidebar"
   }
 }

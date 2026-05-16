@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Circle } from "lucide-react";
-import { request } from "../../../backend";
-import { useAppStore } from "../../../store";
-import { getOrCreateTerminalInstance } from "../../../lib/terminal-manager";
+import { request } from "../../../../backend";
+import { useAppStore } from "../../../../store";
+import { getOrCreateTerminalInstance } from "../../../../lib/terminal-manager";
 import { cn } from "@/lib/utils";
 
 interface TerminalDetailProps {

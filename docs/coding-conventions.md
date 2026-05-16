@@ -8,7 +8,7 @@
 
 ## 命名与文件组织
 
-- 文件名统一 kebab-case（如 `chat-input.tsx`、`acp-bridge.ts`、`session-state-reducer.ts`）
+- 文件名统一 kebab-case（如 `chat-input.tsx`、`agent-bridge.ts`、`session-state-reducer.ts`）
 - React 组件文件以功能命名，按页面结构放入 `components/` 对应的模块目录下（如 `session/`、`session/chat/`、`settings/`、`skills/` 等）
 - 消息气泡按角色拆分到 `components/session/chat/bubbles/`
 - 多模态消息内容块按类型拆分到 `components/content-blocks/`
@@ -52,7 +52,7 @@
 ## Agent 开发约定
 
 - Agent 实现须满足 ACP `Agent` 接口（`src/agents/openai-compatible-agent.ts`）
-- Agent 进程 spawner 须实现 `AgentProcess` 接口（`src/backend/agents/type.ts`）
+- Agent 进程 spawner 须实现 `AgentProcess` 接口（`src/backend/agent/base-agent.ts`）
 - API Agent 会话状态（modelId、allowedToolKinds）须通过 `src/agents/storage.ts` 持久化
 - 权限记忆通过 `src/agents/permission.ts` 管理，支持"始终允许"并持久化
 

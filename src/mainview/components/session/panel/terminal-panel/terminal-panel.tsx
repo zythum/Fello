@@ -1,23 +1,23 @@
 import { useTranslation } from "react-i18next";
 import { Plus, SquareTerminal, X, Circle } from "lucide-react";
-import { request, clientId } from "../../../backend";
-import { useAppStore, useProjectState } from "../../../store";
-import { destroyTerminalInstance } from "../../../lib/terminal-manager";
+import { request, clientId } from "../../../../backend";
+import { useAppStore, useProjectState } from "../../../../store";
+import { destroyTerminalInstance } from "../../../../lib/terminal-manager";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-interface TerminalTabListProps {
+interface TerminalPanelProps {
   projectId: string;
   activeTerminalId: string | null;
   onSelectTerminal: (terminalId: string) => void;
 }
 
-export function TerminalTabList({
+export function TerminalPanel({
   projectId,
   activeTerminalId,
   onSelectTerminal,
-}: TerminalTabListProps) {
+}: TerminalPanelProps) {
   const { t } = useTranslation();
   const projectState = useProjectState(projectId);
   const terminals = projectState.terminals;
@@ -57,7 +57,7 @@ export function TerminalTabList({
       <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
           <SquareTerminal className="size-4" />
-          <span className="text-xs font-medium text-nowrap">{t("sessionView.terminal")}</span>
+          <span className="text-xs font-medium text-nowrap">{t("panel.terminal")}</span>
         </div>
         <div className="ml-auto mr-2 flex items-center">
           <Button

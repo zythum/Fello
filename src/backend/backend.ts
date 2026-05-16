@@ -29,7 +29,7 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { ACPBridge } from "./acp-bridge";
+import { ACPBridge } from "./agent/agent-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
@@ -121,7 +121,7 @@ const pendingPermissions = new Map<
 // Track sessions that are currently streaming to sync multiple clients
 const activeStreamingSessions = new Set<string>();
 
-// Track generation locks to prevent race conditions during concurrent sendMessage calls
+// Track generation locks to prevent race conditions during concurrent sendPrompt calls
 const sessionGenerationLocks = new Map<string, string>();
 
 // Track sessions that are currently being restored (via loadSession) to block duplicate/invalid replays from agent
@@ -168,7 +168,7 @@ function getILinkBridge(): ILinkBridge {
         ];
 
         try {
-          await backendHandlers.sendMessage({ sessionId, contents });
+          await backendHandlers.sendPrompt({ sessionId, contents });
         } catch (err) {
           console.error("[iLink] Failed to route message to session:", err);
           // Try to notify the WeChat user about the error
@@ -940,7 +940,7 @@ export const backendHandlers: {
     };
   },
 
-  async sendMessage({ sessionId, contents }) {
+  async sendPrompt({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
 

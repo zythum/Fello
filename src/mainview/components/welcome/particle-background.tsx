@@ -180,7 +180,7 @@ export function ParticleBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-auto cursor-pointer"
+      className="absolute inset-0 pointer-events-auto"
       aria-hidden="true"
     />
   );

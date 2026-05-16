@@ -334,8 +334,8 @@ export type FelloIPCRequests = {
       isStreaming: boolean;
     };
   };
-  /** 向会话发送用户消息 */
-  sendMessage: {
+  /** 向会话发送用户 Prompt */
+  sendPrompt: {
     params: {
       sessionId: string;
       contents: ContentBlock[];

@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { request } from "../../../backend";
+import { request } from "../../../../backend";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { File } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CodeView } from "../../common/code-view";
-import { CodeCompareView } from "../../common/code-compare-view";
-import { StreamMarkdown } from "../../common/stream-markdown";
-import { ImageView } from "../../common/image-view";
+import { CodeView } from "../../../common/code-view";
+import { CodeCompareView } from "../../../common/code-compare-view";
+import { StreamMarkdown } from "../../../common/stream-markdown";
+import { ImageView } from "../../../common/image-view";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/context-menu";
 import { MessageSquarePlus, Copy, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
-import { useSearchHighlight } from "./use-search-highlight";
+import { useSearchHighlight } from "../../../common/use-search-highlight";
 
-export interface FilePreviewProps {
+export interface FileDetailProps {
   projectId: string | null;
   file: string | null;
   onClose?: () => void;
@@ -28,7 +28,7 @@ export interface FilePreviewProps {
 type FileKind = "image" | "markdown" | "text";
 type ViewMode = "preview" | "code" | "compare";
 
-export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
+export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
@@ -120,13 +120,13 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
         });
         if (!active) return;
         if (!info || !info.isFile) {
-          setErrorMsg(t("filePreview.fileNotFound"));
+          setErrorMsg(t("fileDetail.fileNotFound"));
           setLoading(false);
           return;
         }
 
         if (info.size > 10 * 1024 * 1024) {
-          setErrorMsg(t("filePreview.fileTooLarge"));
+          setErrorMsg(t("fileDetail.fileTooLarge"));
           setLoading(false);
           return;
         }
@@ -153,7 +153,7 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
         }
 
         if (info.isBinary) {
-          setErrorMsg(t("filePreview.fileFormatNotSupported"));
+          setErrorMsg(t("fileDetail.fileFormatNotSupported"));
           setLoading(false);
           return;
         }
@@ -171,7 +171,7 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
       } catch (e) {
         if (!active) return;
         console.error(e);
-        setErrorMsg(t("filePreview.errorLoading"));
+        setErrorMsg(t("fileDetail.errorLoading"));
       } finally {
         if (active) setLoading(false);
       }
@@ -368,7 +368,7 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
           <div ref={contentRef} className="w-full min-w-max">
             {loading ? (
               <div className="text-sm text-muted-foreground text-center mt-10">
-                {t("filePreview.loading")}
+                {t("fileDetail.loading")}
               </div>
             ) : errorMsg ? (
               <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
@@ -444,14 +444,14 @@ export function FilePreview({ projectId, file, onClose }: FilePreviewProps) {
           <TabsList className="h-8 border border-border shadow-lg">
             {fileKind === "markdown" && (
               <TabsTrigger value="preview" className="text-xs min-w-18">
-                {t("filePreview.preview")}
+                {t("fileDetail.preview")}
               </TabsTrigger>
             )}
             <TabsTrigger value="code" className="text-xs min-w-18">
-              {t("filePreview.code")}
+              {t("fileDetail.code")}
             </TabsTrigger>
             <TabsTrigger value="compare" disabled={!canCompare} className="text-xs min-w-18">
-              {t("filePreview.compare")}
+              {t("fileDetail.compare")}
             </TabsTrigger>
           </TabsList>
         </Tabs>

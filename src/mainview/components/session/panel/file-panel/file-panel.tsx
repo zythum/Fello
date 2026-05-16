@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
-import { request, subscribe, isWebUI } from "../../../backend";
-import { electron } from "../../../electron";
-import { useAppStore } from "../../../store";
+import { request, subscribe, isWebUI } from "../../../../backend";
+import { electron } from "../../../../electron";
+import { useAppStore } from "../../../../store";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMessage } from "../../providers/message";
+import { useMessage } from "../../../providers/message";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -355,17 +355,17 @@ function TreeItem({
   );
 }
 
-export interface FileTreeProps {
+export interface FilePanelProps {
   projectId: string;
   previewFileId: string | null;
   onPreviewFile: (file: string) => void;
 }
 
-export const FileTree = memo(function FileTree({
+export const FilePanel = memo(function FilePanel({
   projectId,
   previewFileId,
   onPreviewFile,
-}: FileTreeProps) {
+}: FilePanelProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
@@ -620,7 +620,7 @@ export const FileTree = memo(function FileTree({
         return next;
       });
 
-      if (node.isFolder && node.children === undefined && activeProjectId) {
+      if (node.isFolder && activeProjectId) {
         request
           .readDir({ projectId: activeProjectId, relativePath: id })
           .then((children) => {
@@ -1301,7 +1301,7 @@ export const FileTree = memo(function FileTree({
   if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        {t("fileTree.noProject", "No project selected")}
+        {t("filePanel.noProject", "No project selected")}
       </div>
     );
   }

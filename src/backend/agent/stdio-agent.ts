@@ -1,5 +1,5 @@
 import { spawn, ChildProcess, execFileSync } from "child_process";
-import type { AgentProcess } from "./type";
+import type { AgentProcess } from "./base-agent";
 import { WORKSPACE_TEMP_DIR } from "../storage";
 import { Writable, Readable } from "stream";
 

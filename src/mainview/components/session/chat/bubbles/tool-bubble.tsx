@@ -26,7 +26,7 @@ import { CodeCompareView } from "../../../common/code-compare-view";
 import type { ToolCallMessage } from "../../../../lib/chat-message";
 import type { ToolCallStatus } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../../../shared/schema";
-import type { BaseBubbleProps } from "./types";
+import type { BaseBubbleProps } from "./base-bubble";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,

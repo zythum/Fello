@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { SystemMessage } from "../../../../lib/chat-message";
-import type { BaseBubbleProps } from "./types";
+import type { BaseBubbleProps } from "./base-bubble";
 
 export const SystemBubble = memo(function SystemBubble({
   session: _session,

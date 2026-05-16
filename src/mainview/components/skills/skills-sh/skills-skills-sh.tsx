@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PackageSearch, Search, Download, Loader2 } from "lucide-react";
-import { request } from "../../backend";
-import { Input } from "../ui/input";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
+import { request } from "../../../backend";
+import { Input } from "../../ui/input";
+import { Card } from "../../ui/card";
+import { Button } from "../../ui/button";
 import { toast } from "sonner";
-import { ScrollArea } from "../ui/scroll-area";
-import type { SkillInfo } from "../../../shared/schema";
+import { ScrollArea } from "../../ui/scroll-area";
+import type { SkillInfo } from "../../../../shared/schema";
 
 type SearchResult = {
   name: string;
@@ -16,7 +16,7 @@ type SearchResult = {
   skillId: string;
 };
 
-export function SkillsSkillsSh() {
+export function SkillsSh() {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -56,7 +56,7 @@ export function SkillsSkillsSh() {
       setResults(data);
     } catch (error) {
       console.error("Search failed:", error);
-      toast.error(t("skills.noResults"));
+      toast.error(t("skills.skillsSh.noResults"));
     } finally {
       setIsLoading(false);
     }
@@ -66,13 +66,13 @@ export function SkillsSkillsSh() {
     setInstallingId(item.skillId);
     try {
       await request.installSkillFromSkillsSh({ source: item.source, slug: item.skillId });
-      toast.success(t("skills.installSuccess", { name: item.name }));
+      toast.success(t("skills.skillsSh.installSuccess", { name: item.name }));
       // Refresh installed catalog
       const newCatalog = await request.getSkillsCatalog({});
       setInstalledSkills(newCatalog);
     } catch (error: any) {
       console.error("Install failed:", error);
-      toast.error(`${t("skills.installFailed")}: ${error.message}`);
+      toast.error(`${t("skills.skillsSh.installFailed")}: ${error.message}`);
     } finally {
       setInstallingId(null);
     }
@@ -91,7 +91,7 @@ export function SkillsSkillsSh() {
         <div className="relative z-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder={t("skills.searchPlaceholder")}
+            placeholder={t("skills.skillsSh.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9 h-10 bg-accent focus-visible:ring-0.5"
@@ -111,8 +111,8 @@ export function SkillsSkillsSh() {
               <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
                 <PackageSearch className="size-8 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold tracking-tight">{t("skills.storeTitle")}</h2>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("skills.storeDesc")}</p>
+              <h2 className="text-xl font-semibold tracking-tight">{t("skills.skillsSh.title")}</h2>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("skills.skillsSh.desc")}</p>
             </div>
           ) : results.length > 0 ? (
             <div className="grid pb-6">
@@ -129,12 +129,12 @@ export function SkillsSkillsSh() {
                       <h3 className="font-medium truncate text-foreground/90">{item.name}</h3>
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                         <span className="truncate">
-                          {t("skills.authorPrefix")}
+                          {t("skills.skillsSh.authorPrefix")}
                           {item.source}
                         </span>
                         <span className="flex items-center gap-1 shrink-0">
                           <Download className="size-3" />
-                          {t("skills.installs", { count: item.installs.toLocaleString() })}
+                          {t("skills.skillsSh.installs", { count: item.installs.toLocaleString() })}
                         </span>
                       </div>
                     </div>
@@ -146,7 +146,7 @@ export function SkillsSkillsSh() {
                           disabled
                           className="w-16 text-xs font-normal"
                         >
-                          {t("skills.installedStatus")}
+                          {t("skills.skillsSh.installedStatus")}
                         </Button>
                       ) : (
                         <Button
@@ -159,7 +159,7 @@ export function SkillsSkillsSh() {
                           {isInstalling ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            t("skills.install")
+                            t("skills.skillsSh.install")
                           )}
                         </Button>
                       )}
@@ -170,7 +170,7 @@ export function SkillsSkillsSh() {
             </div>
           ) : !isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="text-sm text-muted-foreground">{t("skills.noResults")}</p>
+              <p className="text-sm text-muted-foreground">{t("skills.skillsSh.noResults")}</p>
             </div>
           ) : null}
         </div>

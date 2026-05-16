@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { HttpMcpServerInfo, McpServerInfo, StdioMcpServerInfo } from "../../../shared/schema";
-import { useAppStore } from "../../store";
-import { request } from "../../backend";
+import type { HttpMcpServerInfo, McpServerInfo, StdioMcpServerInfo } from "../../../../shared/schema";
+import { useAppStore } from "../../../store";
+import { request } from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 import {
   DndContext,
   closestCenter,

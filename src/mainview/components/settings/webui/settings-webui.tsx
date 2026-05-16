@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "../../store";
-import { request, isWebUI } from "../../backend";
+import { useAppStore } from "../../../store";
+import { request, isWebUI } from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Check, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { extractErrorMessage } from "@/lib/utils";
-import { useMessage } from "../providers/message";
+import { useMessage } from "../../providers/message";
 
 export function SettingsWebUI() {
   const { t } = useTranslation();
