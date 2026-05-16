@@ -847,9 +847,7 @@ export const backendHandlers: {
       // If the session is already active in the agent (e.g., just created via newSession),
       // check if configuration (cwd, mcpServers) has changed. If so, close and reload.
       if (b.isSessionLoaded(session.resumeId)) {
-        if (
-          b.hasSessionConfigChanged(session.resumeId, session.cwd, activeMcpServers)
-        ) {
+        if (b.hasSessionConfigChanged(session.resumeId, session.cwd, activeMcpServers)) {
           console.log(
             `[Fello] Session ${session.resumeId} config changed, closing and reloading...`,
           );

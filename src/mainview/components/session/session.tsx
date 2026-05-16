@@ -164,9 +164,7 @@ export function Session({ session }: { session: SessionInfo }) {
         <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
           <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-sm font-normal text-muted-foreground/60">
-            {t("session.connecting")}
-          </p>
+          <p className="text-sm font-normal text-muted-foreground/60">{t("session.connecting")}</p>
         </div>
       ) : sessionId ? (
         <div className="relative flex h-full flex-col flex-1 min-h-0">
@@ -180,6 +178,8 @@ export function Session({ session }: { session: SessionInfo }) {
                   id="chat"
                   minSize={400}
                   disabled={compact && detailOpen}
+                  collapsible={!compact && detailOpen}
+                  collapsedSize={0}
                   maxSize={compact && detailOpen ? 0 : undefined}
                 >
                   <Chat session={session} />
@@ -228,9 +228,7 @@ export function Session({ session }: { session: SessionInfo }) {
           {(isLoading || isCreatingSession) && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
               <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm font-normal text-foreground/50">
-                {t("session.connecting")}
-              </p>
+              <p className="text-sm font-normal text-foreground/50">{t("session.connecting")}</p>
             </div>
           )}
         </div>

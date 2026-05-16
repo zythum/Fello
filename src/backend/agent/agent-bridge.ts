@@ -364,11 +364,7 @@ export class ACPBridge {
   /**
    * Compare current session config with the cached config to check if reload is needed.
    */
-  hasSessionConfigChanged(
-    sessionId: string,
-    cwd: string,
-    mcpServers: McpServer[],
-  ): boolean {
+  hasSessionConfigChanged(sessionId: string, cwd: string, mcpServers: McpServer[]): boolean {
     const oldCwd = this._sessionsCwdMap.get(sessionId);
     if (oldCwd !== cwd) return true;
 

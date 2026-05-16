@@ -598,7 +598,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               appendSpaceOnAdd
               renderSuggestion={(suggestion) => {
                 const name = String(suggestion.id).split("/").pop();
-                {/* display format is determined by searchFileItemItemToSuggestItem above */}
+                {
+                  /* display format is determined by searchFileItemItemToSuggestItem above */
+                }
                 const isFolder = suggestion.display?.startsWith("#folder:");
                 return (
                   <div className="flex items-center gap-1">

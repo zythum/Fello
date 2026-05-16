@@ -57,7 +57,9 @@ export function SettingsGeneral() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium leading-none">{t("settings.general.theme")}</label>
+                <label className="text-sm font-medium leading-none">
+                  {t("settings.general.theme")}
+                </label>
                 <span className="text-xs text-muted-foreground">
                   {t("settings.themeDesc", "Customize the appearance of the application")}
                 </span>
@@ -90,7 +92,9 @@ export function SettingsGeneral() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium leading-none">{t("settings.general.language")}</label>
+                <label className="text-sm font-medium leading-none">
+                  {t("settings.general.language")}
+                </label>
                 <span className="text-xs text-muted-foreground">
                   {t("settings.languageDesc", "Select the display language")}
                 </span>

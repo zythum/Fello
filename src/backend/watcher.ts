@@ -119,9 +119,6 @@ async function createWatcher(projectId: string, cwd: string) {
 
     subscriptions.set(projectId, subscription);
   } catch (err) {
-    console.error(
-      `[Watcher] Failed to subscribe for ${projectId} (${cwd}):`,
-      err,
-    );
+    console.error(`[Watcher] Failed to subscribe for ${projectId} (${cwd}):`, err);
   }
 }

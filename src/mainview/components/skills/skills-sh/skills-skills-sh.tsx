@@ -112,7 +112,9 @@ export function SkillsSh() {
                 <PackageSearch className="size-8 text-primary" />
               </div>
               <h2 className="text-xl font-semibold tracking-tight">{t("skills.skillsSh.title")}</h2>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("skills.skillsSh.desc")}</p>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                {t("skills.skillsSh.desc")}
+              </p>
             </div>
           ) : results.length > 0 ? (
             <div className="grid pb-6">

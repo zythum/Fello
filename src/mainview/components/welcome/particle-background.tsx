@@ -178,10 +178,6 @@ export function ParticleBackground() {
   }, [resize, initParticles]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-auto"
-      aria-hidden="true"
-    />
+    <canvas ref={canvasRef} className="absolute inset-0 pointer-events-auto" aria-hidden="true" />
   );
 }

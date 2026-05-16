@@ -12,7 +12,7 @@ import type { BaseBubbleProps } from "./base-bubble";
 /** 转义 markdown 特殊字符，使文本原样显示，不触发 markdown / HTML 渲染 */
 function escapeMarkdown(text: string): string {
   return text
-    .replace(/\\/g, "\\\\")   // 必须先转义反斜杠
+    .replace(/\\/g, "\\\\") // 必须先转义反斜杠
     .replace(/\*/g, "\\*")
     .replace(/#/g, "\\#")
     .replace(/\//g, "\\/")
@@ -121,11 +121,7 @@ export const UserBubble = memo(function UserBubble({
               {isExpanded ? (
                 <ScrollArea className="h-full max-h-45">
                   <div className="-my-2 px-0.5 pr-1" ref={contentRef}>
-                    <ContentBlocks
-                      blocks={safeContents}
-                      role={message.role}
-                      session={session}
-                    />
+                    <ContentBlocks blocks={safeContents} role={message.role} session={session} />
                   </div>
                 </ScrollArea>
               ) : (

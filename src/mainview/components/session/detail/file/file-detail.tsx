@@ -8,6 +8,10 @@ import { CodeView } from "../../../common/code-view";
 import { CodeCompareView } from "../../../common/code-compare-view";
 import { StreamMarkdown } from "../../../common/stream-markdown";
 import { ImageView } from "../../../common/image-view";
+import { PdfView } from "../../../common/pdf-view";
+import { DocxView } from "../../../common/docx-view";
+import { PptxView } from "../../../common/pptx-view";
+import { XlsxView } from "../../../common/xlsx-view";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -25,15 +29,36 @@ export interface FileDetailProps {
   onClose?: () => void;
 }
 
-type FileKind = "image" | "markdown" | "text";
+type FileKind = "image" | "markdown" | "text" | "pdf" | "docx" | "pptx" | "xlsx";
 type ViewMode = "preview" | "code" | "compare";
+
+const fileModesMap: Record<FileKind, ViewMode[]> = {
+  text: ["code", "compare"],
+  markdown: ["preview", "code", "compare"],
+  image: ["preview"],
+  pdf: ["preview"],
+  docx: ["preview"],
+  pptx: ["preview"],
+  xlsx: ["preview"],
+};
+
+/** 将 Base64 字符串解码为 ArrayBuffer */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryStr = atob(base64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [gitContent, setGitContent] = useState<string | null>(null);
   const [fileKind, setFileKind] = useState<FileKind | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("code");
+  const [viewMode, setViewMode] = useState<ViewMode>(fileModesMap["text"][0]);
+  const [viewModes, setViewModes] = useState<ViewMode[]>(fileModesMap["text"]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [imageBase64, setImageBase64] = useState("");
@@ -132,12 +157,19 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
         }
 
         const ext = safeRelativePath.split(".").pop()?.toLowerCase() || "";
-        const isMarkdown = ext === "md";
         const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
+        const officeExts: Record<string, FileKind> = {
+          pdf: "pdf",
+          docx: "docx",
+          pptx: "pptx",
+          xlsx: "xlsx",
+          xls: "xlsx",
+        };
 
         if (imageExts.includes(ext)) {
           setFileKind("image");
-          setViewMode("preview");
+          setViewModes(fileModesMap["image"]);
+          setViewMode(fileModesMap["image"][0]);
           const base64 = await request.readFile({
             projectId: safeProjectId,
             relativePath: safeRelativePath,
@@ -148,6 +180,24 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           if (ext === "svg") mimeType = "svg+xml";
           else if (ext === "jpg") mimeType = "jpeg";
           setImageBase64(`data:image/${mimeType};base64,${base64}`);
+          setLoading(false);
+          return;
+        }
+
+        // Office 文档类型检测（二进制文件但可预览）
+        const officeKind = officeExts[ext];
+        if (officeKind) {
+          setFileKind(officeKind);
+          setViewModes(fileModesMap[officeKind]);
+          setViewMode(fileModesMap[officeKind][0]);
+          const base64 = await request.readFile({
+            projectId: safeProjectId,
+            relativePath: safeRelativePath,
+            encoding: "base64",
+          });
+          if (!active) return;
+          // 复用 imageBase64 状态暂存 base64 数据（互斥，不会同时使用）
+          setImageBase64(base64);
           setLoading(false);
           return;
         }
@@ -164,8 +214,11 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           new Promise((resolve) => setTimeout(resolve, 300)),
         ]);
         if (!active) return;
-        setFileKind(isMarkdown ? "markdown" : "text");
-        setViewMode(isMarkdown ? "preview" : "code");
+        const isMarkdown = ext === "md";
+        const fileKind: FileKind = isMarkdown ? "markdown" : "text";
+        setFileKind(fileKind);
+        setViewModes(fileModesMap[fileKind]);
+        setViewMode(fileModesMap[fileKind][0]);
         setContent(current);
         setGitContent(git);
       } catch (e) {
@@ -183,36 +236,43 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   }, [projectId, file]);
 
   const fileName = file?.split("/").pop() ?? "";
-  const canCompare = gitContent != null;
-  const showTabs = !loading && !errorMsg && fileKind !== null && fileKind !== "image";
+  const finalViewModes = viewModes.filter((mode) => {
+    if (mode === "compare") return gitContent != null;
+    return true;
+  });
+
+  const showTabs = !loading && !errorMsg && fileKind !== null && finalViewModes.length > 1;
 
   /** Calculate the 1-based column position within a .line element from a DOM selection range */
-  const getColumnInLine = useCallback((container: Element, node: Node, offset: number): number | undefined => {
-    const lineEl =
-      node.nodeType === Node.TEXT_NODE
-        ? (node.parentElement?.closest(".line") as Element | null)
-        : (node as Element).closest(".line");
-    if (!lineEl) return undefined;
+  const getColumnInLine = useCallback(
+    (container: Element, node: Node, offset: number): number | undefined => {
+      const lineEl =
+        node.nodeType === Node.TEXT_NODE
+          ? (node.parentElement?.closest(".line") as Element | null)
+          : (node as Element).closest(".line");
+      if (!lineEl) return undefined;
 
-    // Walk through all text nodes within the line, summing lengths to find the column
-    const walker = document.createTreeWalker(lineEl, NodeFilter.SHOW_TEXT, null);
-    let col = 0;
-    let found = false;
-    let textNode: Node | null = walker.firstChild();
-    while (textNode) {
-      if (textNode === node) {
-        col += offset;
-        found = true;
-        break;
+      // Walk through all text nodes within the line, summing lengths to find the column
+      const walker = document.createTreeWalker(lineEl, NodeFilter.SHOW_TEXT, null);
+      let col = 0;
+      let found = false;
+      let textNode: Node | null = walker.firstChild();
+      while (textNode) {
+        if (textNode === node) {
+          col += offset;
+          found = true;
+          break;
+        }
+        col += textNode.textContent?.length ?? 0;
+        textNode = walker.nextSibling();
       }
-      col += textNode.textContent?.length ?? 0;
-      textNode = walker.nextSibling();
-    }
 
-    if (!found) return undefined;
-    // Return 1-based column
-    return col + 1;
-  }, []);
+      if (!found) return undefined;
+      // Return 1-based column
+      return col + 1;
+    },
+    [],
+  );
 
   const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     if (viewMode !== "code" && viewMode !== "compare") return;
@@ -364,29 +424,40 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
         )}
       </div>
       <div className="relative flex-1 min-h-0">
-        <ScrollArea className="w-full h-full">
-          <div ref={contentRef} className="w-full min-w-max">
-            {loading ? (
-              <div className="text-sm text-muted-foreground text-center mt-10">
-                {t("fileDetail.loading")}
-              </div>
-            ) : errorMsg ? (
-              <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
+        {loading ? (
+          <div className="text-sm text-muted-foreground text-center mt-10">
+            {t("fileDetail.loading")}
+          </div>
+        ) : errorMsg ? (
+          <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
+        ) : viewMode === 'preview' && finalViewModes.includes("preview") ? (
+          // Office 文档使用全高度独立渲染（自带滚动和工具栏）
+          <div className="w-full h-full">
+            {fileKind === "pdf" ? (
+              <PdfView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+            ) : fileKind === "docx" ? (
+              <DocxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+            ) : fileKind === "pptx" ? (
+              <PptxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+            ) : fileKind === "xlsx" ? (
+              <XlsxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
             ) : fileKind === "image" ? (
-              <ImageView src={imageBase64} filename={fileName} />
-            ) : viewMode === "compare" ? (
-              <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
-                <CodeCompareView
-                  oldContent={gitContent ?? ""}
-                  newContent={content}
-                  filename={fileName}
-                />
-              </div>
-            ) : fileKind === "markdown" && viewMode === "preview" ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
-                <StreamMarkdown>{content}</StreamMarkdown>
-              </div>
-            ) : (
+              <ScrollArea className="w-full h-full">
+                <div className="w-max">
+                  <ImageView src={imageBase64} filename={fileName} />
+                </div>
+              </ScrollArea>
+            ) : fileKind === "markdown" ? (
+              <ScrollArea className="w-full h-full">
+                <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
+                  <StreamMarkdown>{content}</StreamMarkdown>
+                </div>
+              </ScrollArea>
+            ) : null}
+          </div>
+        ) : viewMode === 'code' && finalViewModes.includes("code") ? (
+          <ScrollArea className="w-full h-full">
+            <div ref={contentRef} className="w-max">
               <ContextMenu
                 onOpenChange={(open) => {
                   if (!open) {
@@ -418,9 +489,19 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
                   </ContextMenuContent>
                 )}
               </ContextMenu>
-            )}
+            </div>
+          </ScrollArea>
+        ) : viewMode === 'compare' && finalViewModes.includes("compare") ? (
+          <div className="w-max">
+            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
+              <CodeCompareView
+                oldContent={gitContent ?? ""}
+                newContent={content}
+                filename={fileName}
+              />
+            </div>
           </div>
-        </ScrollArea>
+        ) : null}
         {searchOpen && (
           <SearchBar
             searchTerm={searchTerm}
@@ -433,29 +514,36 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           />
         )}
       </div>
-      <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center pointer-events-none">
-        <Tabs
-          value={viewMode}
-          onValueChange={(v: ViewMode) => setViewMode(v)}
-          className={cn("pointer-events-auto", {
-            "pointer-events-none opacity-50 transition-all": !showTabs,
-          })}
-        >
-          <TabsList className="h-8 border border-border shadow-lg">
-            {fileKind === "markdown" && (
-              <TabsTrigger value="preview" className="text-xs min-w-18">
-                {t("fileDetail.preview")}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="code" className="text-xs min-w-18">
-              {t("fileDetail.code")}
-            </TabsTrigger>
-            <TabsTrigger value="compare" disabled={!canCompare} className="text-xs min-w-18">
-              {t("fileDetail.compare")}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      {showTabs && (
+        <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center">
+          <Tabs value={viewMode} onValueChange={(v: ViewMode) => setViewMode(v)}>
+            <TabsList className="h-8 border border-border shadow-lg">
+              {viewModes.map((mode) => {
+                if (mode === "preview") {
+                  return (
+                    <TabsTrigger key="preview" value="preview" className="text-xs min-w-18">
+                      {t("fileDetail.preview")}
+                    </TabsTrigger>
+                  );
+                } else if (mode === "code") {
+                  return (
+                    <TabsTrigger key="code" value="code" className="text-xs min-w-18">
+                      {t("fileDetail.code")}
+                    </TabsTrigger>
+                  );
+                } else if (mode === "compare") {
+                  return (
+                    <TabsTrigger key="compare" value="compare" className="text-xs min-w-18">
+                      {t("fileDetail.compare")}
+                    </TabsTrigger>
+                  );
+                }
+                return null;
+              })}
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }

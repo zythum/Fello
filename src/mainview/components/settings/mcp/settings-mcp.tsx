@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { HttpMcpServerInfo, McpServerInfo, StdioMcpServerInfo } from "../../../../shared/schema";
+import type {
+  HttpMcpServerInfo,
+  McpServerInfo,
+  StdioMcpServerInfo,
+} from "../../../../shared/schema";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
 import { Button } from "@/components/ui/button";
@@ -282,9 +286,7 @@ export function SettingsMcp() {
                             <Switch
                               size="sm"
                               checked={!mcp.disabled}
-                              onCheckedChange={(checked) =>
-                                handleToggleDisabled(mcp.id, !checked)
-                              }
+                              onCheckedChange={(checked) => handleToggleDisabled(mcp.id, !checked)}
                             />
                           </div>
                         </div>
