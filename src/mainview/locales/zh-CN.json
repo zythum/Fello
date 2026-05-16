@@ -210,7 +210,7 @@
     }
   },
   "chatHeader": {
-    "refresh": "刷新"
+    "refresh": "重启会话"
   },
   "chatInput": {
     "placeholderDisabled": "请先开启新的会话...",
