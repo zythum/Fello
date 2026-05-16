@@ -13,7 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Folder, Library, Wrench } from "lucide-react";
+import {
+  ArrowUp,
+  Square,
+  Paperclip,
+  X,
+  ImageIcon,
+  FileText,
+  Folder,
+  Library,
+  Wrench,
+} from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";

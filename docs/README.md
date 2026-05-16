@@ -8,3 +8,4 @@
 - [Coding Conventions](./coding-conventions.md)
 - [Custom Events](./custom-events.md)
 - [IPC Protocol](./ipc-protocol.md)
+- [Built-in ACP Tools](./builtin-tools.md)

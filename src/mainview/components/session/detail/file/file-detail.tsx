@@ -495,7 +495,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             </div>
           </ScrollArea>
         ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
-          <div className="w-max">
+          <ScrollArea className="w-full h-full">
             <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
               <CodeCompareView
                 oldContent={gitContent ?? ""}
@@ -503,7 +503,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
                 filename={fileName}
               />
             </div>
-          </div>
+          </ScrollArea>
         ) : null}
         {searchOpen && (
           <SearchBar

@@ -11,6 +11,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { toEnvVariables } from "./utils";
+import { extractOutline, outlineToSummary } from "./file-outline";
 
 export type ACPAgentTerminalMap = Map<string, TerminalHandle>;
 export type ACPSessionTools = {
@@ -29,14 +30,22 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
   const terminals: ACPAgentTerminalMap = new Map();
   const tools: ToolSet = {
     ReadFile: tool({
-      description: `Read a text file from the local filesystem.`,
+      description: `Read a text file from the local filesystem.
+NOTE: Files larger than 100KB cannot be read fully without setting force=true.
+Always prefer using line/limit to read specific sections, or use GetFileOutline first.`,
       inputSchema: z.object({
         path: z.string().describe("File path to read."),
         line: z.number().int().positive().optional().describe("1-based start line."),
         limit: z.number().int().positive().optional().describe("Max number of lines to read."),
         cwd: z.string().optional().describe("Absolute working directory."),
+        force: z
+          .boolean()
+          .optional()
+          .describe(
+            "Bypass the 100KB size limit. Only use when you absolutely need the full file content.",
+          ),
       }),
-      execute: async ({ path, line, limit, cwd }, { toolCallId }) => {
+      execute: async ({ path, line, limit, cwd, force }, { toolCallId }) => {
         const connection = params.getConnection();
         if (!connection) {
           throw new Error("ACP connection is not available.");
@@ -61,7 +70,7 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
               line: line,
             },
           ],
-          rawInput: { filename, line, limit },
+          rawInput: { filename, line, limit, force },
         };
         await connection.sessionUpdate({
           sessionId: params.sessionId,
@@ -72,12 +81,31 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
         });
 
         try {
-          const output = await connection.readTextFile({
+          const MAX_SIZE_BYTES = 100 * 1024; // 100KB
+
+          // For targeted reads (line/limit specified), always allow
+          const isFullFileRead = !line && !limit;
+
+          let output = await connection.readTextFile({
             sessionId: params.sessionId,
             path: filename,
             line,
             limit,
           });
+
+          // Check size limit on full-file reads
+          if (isFullFileRead && output.content && !force) {
+            // Use TextEncoder for accurate byte count (handles UTF-8 multi-byte chars)
+            const byteSize = new TextEncoder().encode(output.content).length;
+            if (byteSize > MAX_SIZE_BYTES) {
+              const sizeKB = (byteSize / 1024).toFixed(1);
+              throw new Error(
+                `File is ${sizeKB}KB (limit: 100KB). Use GetFileOutline first to see file structure, then ReadFile with line/limit to read specific sections. ` +
+                  `If you genuinely need the full content, set force=true.`,
+              );
+            }
+          }
+
           const toolCallCompleteUpdate: ToolCallUpdate = {
             toolCallId,
             status: "completed",
@@ -532,6 +560,78 @@ This tool directly sends a plan update to the client, which replaces the entire 
         });
 
         return { success: true, entriesCount: entries.length };
+      },
+    }),
+    GetFileOutline: tool({
+      description: `Get a structural outline of a file WITHOUT reading its full content.
+Uses AST parsing (ast-grep) to extract function/class/interface/type/property signatures with line ranges and JSDoc comments.
+Returns tree-structured metadata only - no code body is included.
+Not subject to ReadFile's 100KB limit (only metadata is returned).
+Use this FIRST before ReadFile to understand a file's structure.
+Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx).`,
+      inputSchema: z.object({
+        path: z.string().describe("File path to analyze."),
+        cwd: z.string().optional().describe("Absolute working directory."),
+      }),
+      execute: async ({ path, cwd }, { toolCallId }) => {
+        const connection = params.getConnection();
+        if (!connection) {
+          throw new Error("ACP connection is not available.");
+        }
+
+        const filename = resolve(cwd ?? params.cwd, path);
+        const title = `GetFileOutline ${filename}`;
+        const toolCall: ToolCall = {
+          toolCallId,
+          title,
+          kind: "read",
+          status: "in_progress",
+          locations: [{ path: filename }],
+          rawInput: { filename },
+        };
+        await connection.sessionUpdate({
+          sessionId: params.sessionId,
+          update: { sessionUpdate: "tool_call", ...toolCall },
+        });
+
+        try {
+          const fileContent = await connection.readTextFile({
+            sessionId: params.sessionId,
+            path: filename,
+          });
+
+          const outline = await extractOutline(filename, fileContent.content);
+          const summary = outlineToSummary(outline);
+
+          const toolCallCompleteUpdate: ToolCallUpdate = {
+            toolCallId,
+            status: "completed",
+            rawOutput: summary,
+          };
+          await connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: { sessionUpdate: "tool_call_update", ...toolCallCompleteUpdate },
+          });
+          return summary;
+        } catch (error) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          const toolCallErrorUpdate: ToolCallUpdate = {
+            toolCallId,
+            status: "failed",
+            rawOutput: { error: errorText },
+            content: [
+              {
+                type: "content",
+                content: { type: "text", text: errorText },
+              },
+            ],
+          };
+          await connection.sessionUpdate({
+            sessionId: params.sessionId,
+            update: { sessionUpdate: "tool_call_update", ...toolCallErrorUpdate },
+          });
+          throw error;
+        }
       },
     }),
   };

@@ -20,6 +20,9 @@ Agent Architecture
 - Agent process interface: src/backend/agent/base-agent.ts (AgentProcess: input WritableStream, output ReadableStream, close)
 - ACP bridge: src/backend/agent/agent-bridge.ts manages agent process lifecycle & session routing
 
+Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan, GetFileOutline)
+- GetFileOutline: src/agents/file-outline.ts (AST file outline via @ast-grep/napi)
+
 Sessions & Persistence
 - Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
 - API agent session persistence: src/agents/storage.ts (stores session.json + history.jsonl under ~/.fello/api-agents/<agent_id>/sessions/<session_id>/)
