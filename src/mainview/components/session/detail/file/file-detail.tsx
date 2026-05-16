@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { request } from "../../../../backend";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +12,7 @@ import { PdfView } from "../../../common/pdf-view";
 import { DocxView } from "../../../common/docx-view";
 import { PptxView } from "../../../common/pptx-view";
 import { XlsxView } from "../../../common/xlsx-view";
-import { cn } from "@/lib/utils";
+
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -236,6 +236,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   }, [projectId, file]);
 
   const fileName = file?.split("/").pop() ?? "";
+  // Memoize ArrayBuffer conversion to prevent creating a new reference on every render,
+  // which would cause PdfView/DocxView/PptxView/XlsxView to re-process their data and flicker
+  const arrayBuffer = useMemo(() => base64ToArrayBuffer(imageBase64), [imageBase64]);
   const finalViewModes = viewModes.filter((mode) => {
     if (mode === "compare") return gitContent != null;
     return true;
@@ -430,17 +433,17 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           </div>
         ) : errorMsg ? (
           <div className="text-sm text-muted-foreground text-center mt-10">{errorMsg}</div>
-        ) : viewMode === 'preview' && finalViewModes.includes("preview") ? (
+        ) : viewMode === "preview" && finalViewModes.includes("preview") ? (
           // Office 文档使用全高度独立渲染（自带滚动和工具栏）
           <div className="w-full h-full">
             {fileKind === "pdf" ? (
-              <PdfView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+              <PdfView data={arrayBuffer} filename={fileName} />
             ) : fileKind === "docx" ? (
-              <DocxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+              <DocxView data={arrayBuffer} filename={fileName} />
             ) : fileKind === "pptx" ? (
-              <PptxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+              <PptxView data={arrayBuffer} filename={fileName} />
             ) : fileKind === "xlsx" ? (
-              <XlsxView data={base64ToArrayBuffer(imageBase64)} filename={fileName} />
+              <XlsxView data={arrayBuffer} filename={fileName} />
             ) : fileKind === "image" ? (
               <ScrollArea className="w-full h-full">
                 <div className="w-max">
@@ -455,7 +458,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
               </ScrollArea>
             ) : null}
           </div>
-        ) : viewMode === 'code' && finalViewModes.includes("code") ? (
+        ) : viewMode === "code" && finalViewModes.includes("code") ? (
           <ScrollArea className="w-full h-full">
             <div ref={contentRef} className="w-max">
               <ContextMenu
@@ -491,7 +494,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
               </ContextMenu>
             </div>
           </ScrollArea>
-        ) : viewMode === 'compare' && finalViewModes.includes("compare") ? (
+        ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
           <div className="w-max">
             <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
               <CodeCompareView

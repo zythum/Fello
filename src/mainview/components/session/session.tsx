@@ -178,7 +178,6 @@ export function Session({ session }: { session: SessionInfo }) {
                   id="chat"
                   minSize={400}
                   disabled={compact && detailOpen}
-                  collapsible={!compact && detailOpen}
                   collapsedSize={0}
                   maxSize={compact && detailOpen ? 0 : undefined}
                 >

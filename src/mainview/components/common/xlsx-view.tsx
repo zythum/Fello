@@ -10,7 +10,7 @@ export interface XlsxViewProps {
 /**
  * 将 SheetJS 的工作表渲染为 HTML 表格
  */
-function sheetToHtml(ws: XLSX.WorkSheet, sheetName: string): string {
+function sheetToHtml(ws: XLSX.WorkSheet, _sheetName: string): string {
   const ref = ws["!ref"];
   if (!ref) return "<p class='text-sm text-muted-foreground p-4'>Empty sheet</p>";
 
@@ -50,7 +50,6 @@ function sheetToHtml(ws: XLSX.WorkSheet, sheetName: string): string {
 
   // 添加表头（首行作为表头）
   html += "<thead>";
-  const headerRow = XLSX.utils.encode_row(range.s.r);
   html += "<tr>";
   for (let c = range.s.c; c <= range.e.c; c++) {
     if (isMergedCell(range.s.r, c)) continue;

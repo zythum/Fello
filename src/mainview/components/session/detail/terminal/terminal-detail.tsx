@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { X, Circle } from "lucide-react";
 import { request } from "../../../../backend";
 import { useAppStore } from "../../../../store";
@@ -13,7 +12,6 @@ interface TerminalDetailProps {
 }
 
 export function TerminalDetail({ terminalId, projectId, onClose }: TerminalDetailProps) {
-  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const fitRequestedRef = useRef(false);

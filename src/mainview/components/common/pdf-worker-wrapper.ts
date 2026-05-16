@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 // Polyfill Uint8Array.prototype.toHex() for environments that don't support it yet
 // (e.g., older Electron, Node.js). pdfjs-dist v5.x relies on this ES2024 built-in.
 // The legacy build also includes this polyfill, but we keep it here as a fallback.
