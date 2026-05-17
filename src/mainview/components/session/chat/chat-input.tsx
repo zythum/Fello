@@ -256,10 +256,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         )
         .map((s) => skillInfoToSuggestItem(s));
 
-      // Read MCP servers from store
+      // Read MCP servers from store — only suggest servers active in the current session
       const enabledMcpServers = useAppStore
         .getState()
-        .configuredMcpServers.filter((m) => !m.disabled);
+        .configuredMcpServers.filter((m) => session.mcpServers.includes(m.id));
       const mcpItems = enabledMcpServers
         .filter(
           (m) =>
@@ -295,13 +295,13 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             const refreshedSkills = filtered.map((s) => skillInfoToSuggestItem(s));
             const refreshedMcp = useAppStore
               .getState()
-              .configuredMcpServers.filter((m) => !m.disabled)
-              .filter(
+              .configuredMcpServers.filter(
                 (m) =>
-                  !search ||
-                  m.id.toLowerCase().includes(lowerSearch) ||
-                  (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
-                  (m.type === "http" && m.url.toLowerCase().includes(lowerSearch)),
+                  session.mcpServers.includes(m.id) &&
+                  (!search ||
+                    m.id.toLowerCase().includes(lowerSearch) ||
+                    (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
+                    (m.type === "http" && m.url.toLowerCase().includes(lowerSearch))),
               )
               .map((m) => mcpServerInfoToSuggestItem(m));
 
