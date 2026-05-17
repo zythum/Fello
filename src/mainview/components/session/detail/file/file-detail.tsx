@@ -139,7 +139,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           </div>
         ) : viewMode === "code" && finalViewModes.includes("code") ? (
           /* code view with context menu */
-          <ScrollArea className="w-full h-full">
+          <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
             <div ref={contentRef} className="w-max">
               <ContextMenu
                 onOpenChange={(open) => {
@@ -147,7 +147,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
                 }}
               >
                 <ContextMenuTrigger
-                  className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono block select-text -mx-3 pb-20"
+                  className="min-h-full text-[12px] font-mono block select-text -mx-3 pb-20"
                   onContextMenu={handleContextMenu}
                 >
                   <CodeView content={content} filename={fileName} />
@@ -173,8 +173,8 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           </ScrollArea>
         ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
           /* git diff view */
-          <ScrollArea className="w-full h-full">
-            <div className="min-h-full bg-[#ffffff] dark:bg-[#24292e] text-[12px] font-mono pb-20">
+          <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
+            <div className="min-h-full text-[12px] font-mono pb-20">
               <CodeCompareView
                 oldContent={gitContent ?? ""}
                 newContent={content}

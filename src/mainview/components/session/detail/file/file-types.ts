@@ -18,9 +18,7 @@ export const FILE_MODES_MAP: Record<FileKind, ViewMode[]> = {
   xlsx: ["preview"],
 };
 
-export const IMAGE_EXTENSIONS = [
-  "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico",
-];
+export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
 
 export const OFFICE_EXTENSIONS: Record<string, FileKind> = {
   pdf: "pdf",
