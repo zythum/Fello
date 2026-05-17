@@ -26,10 +26,7 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export function useFileLoading(
-  projectId: string | null,
-  file: string | null,
-): FileLoadingResult {
+export function useFileLoading(projectId: string | null, file: string | null): FileLoadingResult {
   const { t } = useTranslation();
 
   const [content, setContent] = useState<string>("");

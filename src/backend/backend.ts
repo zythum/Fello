@@ -802,10 +802,9 @@ export const backendHandlers: {
     const b = await ensureBridge(agentId);
 
     // Use the user-selected MCP servers, falling back to all non-disabled servers as default
-    const sessionMcpIds = mcpServers ??
-      (storageOps.getSettings().mcpServers || [])
-        .filter((s) => !s.disabled)
-        .map((s) => s.id);
+    const sessionMcpIds =
+      mcpServers ??
+      (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
     const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
 
     const {
