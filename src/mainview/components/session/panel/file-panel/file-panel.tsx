@@ -60,6 +60,7 @@ interface Actions {
   previewFile: (id: string) => void;
   copyPath: (id: string, isAbsolute: boolean) => void;
   addToChat: (id: string) => void;
+  refresh: () => void;
 }
 
 const GIT_FOLDER_STATUS = {
@@ -268,6 +269,10 @@ function TreeItem({
                 <FolderPlus />
                 {t("filePanel.newFolder")}
               </ContextMenuItem>
+              <ContextMenuItem onClick={() => actions.refresh()}>
+                <RefreshCw />
+                {t("filePanel.refresh", "Refresh")}
+              </ContextMenuItem>
               <ContextMenuSeparator />
             </>
           ) : (
@@ -279,6 +284,10 @@ function TreeItem({
               <ContextMenuItem onClick={() => actions.createIn(null, true)}>
                 <FolderPlus />
                 {t("filePanel.newFolder")}
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => actions.refresh()}>
+                <RefreshCw />
+                {t("filePanel.refresh", "Refresh")}
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
@@ -1136,6 +1145,7 @@ export const FilePanel = memo(function FilePanel({
       });
       document.dispatchEvent(new CustomEvent("fello-add-to-chat", { detail: nodesPayloads }));
     },
+    refresh,
   };
 
   const gitStatusMap = useMemo(() => {
@@ -1444,6 +1454,10 @@ export const FilePanel = memo(function FilePanel({
             <ContextMenuItem onClick={() => createIn(null, true)}>
               <FolderPlus />
               {t("filePanel.newFolder")}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={refresh}>
+              <RefreshCw />
+              {t("filePanel.refresh", "Refresh")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             {!isWebUI && (

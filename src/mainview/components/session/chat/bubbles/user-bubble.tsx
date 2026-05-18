@@ -23,6 +23,7 @@ function escapeMarkdown(text: string): string {
     .replace(/</g, "\\<")
     .replace(/>/g, "\\>")
     .replace(/_/g, "\\_")
+    .replace(/-/g, "\\-")
     .replace(/`/g, "\\`");
 }
 

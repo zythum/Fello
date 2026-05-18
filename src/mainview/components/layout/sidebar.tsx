@@ -7,12 +7,12 @@ import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -43,7 +43,6 @@ import {
   LoaderCircle,
   MessageCircle,
   MessageCirclePlus,
-  MoreHorizontal,
   Pencil,
   Settings,
   Trash2,
@@ -372,204 +371,190 @@ export function Sidebar() {
             const expanded = isProjectExpanded(project.id);
             return (
               <div key={project.id} className="space-y-0.5">
-                <div
-                  onClick={() => toggleProject(project.id)}
-                  className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
-                    openProjectMenuId === project.id
-                      ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
-                      : ""
-                  }`}
+                <ContextMenu
+                  onOpenChange={(open) => {
+                    setOpenProjectMenuId((prev) =>
+                      open ? project.id : prev === project.id ? null : prev,
+                    );
+                  }}
                 >
-                  {expanded ? (
-                    <FolderOpen className="size-3.5" />
-                  ) : (
-                    <FolderClosed className="size-3.5" />
-                  )}
-                  <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
-                    {project.title}
-                  </span>
-                  <DropdownMenu
-                    onOpenChange={(open) => {
-                      setOpenProjectMenuId((prev) =>
-                        open ? project.id : prev === project.id ? null : prev,
-                      );
+                  <ContextMenuTrigger
+                    render={<div />}
+                    className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                      openProjectMenuId === project.id
+                        ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
+                        : ""
+                    }`}
+                    onClick={() => toggleProject(project.id)}
+                    onContextMenu={(e) => {
+                      e.stopPropagation();
                     }}
                   >
-                    <DropdownMenuTrigger
-                      onClick={(e) => e.stopPropagation()}
-                      className={`flex size-4 items-center justify-center rounded-sm transition-opacity ${
-                        openProjectMenuId === project.id
-                          ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
-                          : "opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                      }`}
-                      aria-label={t("sidebar.projectActions", {
-                        defaultValue: "Project actions for {{title}}",
+                    {expanded ? (
+                      <FolderOpen className="size-3.5" />
+                    ) : (
+                      <FolderClosed className="size-3.5" />
+                    )}
+                    <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
+                      {project.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openNewSessionDialog(project.id);
+                      }}
+                      className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                      aria-label={t("sidebar.createChatInProject", {
+                        defaultValue: "Create chat in {{title}}",
                         title: project.title,
                       })}
                     >
-                      <MoreHorizontal />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      side="right"
-                      align="start"
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-auto"
-                    >
-                      {!isWebUI && (
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleRevealProjectInFinder(project);
-                          }}
-                        >
-                          <FolderOpen />
-                          {t("sidebar.revealInFinder")}
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRenameProject(project);
-                        }}
-                      >
-                        <Pencil />
-                        {t("sidebar.rename")}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteProject(project);
-                        }}
-                      >
-                        <Trash2 />
-                        {t("sidebar.delete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openNewSessionDialog(project.id);
-                    }}
-                    className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
-                    aria-label={t("sidebar.createChatInProject", {
-                      defaultValue: "Create chat in {{title}}",
-                      title: project.title,
-                    })}
+                      <MessageCirclePlus />
+                    </button>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-auto"
                   >
-                    <MessageCirclePlus />
-                  </button>
-                </div>
+                    <ContextMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openNewSessionDialog(project.id);
+                      }}
+                    >
+                      <MessageCirclePlus />
+                      {t("sidebar.newChat", "New Chat")}
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    {!isWebUI && (
+                      <ContextMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleRevealProjectInFinder(project);
+                        }}
+                      >
+                        <FolderOpen />
+                        {t("sidebar.revealInFinder")}
+                      </ContextMenuItem>
+                    )}
+                    <ContextMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRenameProject(project);
+                      }}
+                    >
+                      <Pencil />
+                      {t("sidebar.rename")}
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      variant="destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProject(project);
+                      }}
+                    >
+                      <Trash2 />
+                      {t("sidebar.delete")}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
                 {expanded &&
                   projectSessions.map((session) => (
-                    <div
+                    <ContextMenu
                       key={session.id}
-                      onClick={() => handleSelectSession(session)}
-                      className={`group flex h-8 cursor-default items-center justify-between rounded-md px-1.5 text-xs font-normal transition-colors ${
-                        activeSessionId === session.id
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-                      } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
+                      onOpenChange={(open) => {
+                        setOpenSessionMenuId((prev) =>
+                          open ? session.id : prev === session.id ? null : prev,
+                        );
+                      }}
                     >
-                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                        {(() => {
-                          const isStreaming = sessionStates.get(session.id)?.isStreaming;
-                          if (isStreaming) {
-                            return <LoaderCircle className="size-3 animate-spin" />;
-                          }
-                          if (activeIlinkSessionId === session.id) {
-                            return <MessageCircle className="size-3 shrink-0 text-green-500" />;
-                          }
-                          return <LoaderCircle className="size-3 invisible" />;
-                        })()}
-                        <Badge
-                          variant="outline"
-                          className="px-1 -ml-0.5 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
-                        >
-                          {configuredAgents.find((a) => a.id === session.agentId)?.id ||
-                            session.agentId}
-                        </Badge>
-                        <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                          {session.title || t("sidebar.newChat", "New Chat")}
-                        </span>
-                      </div>
-                      <DropdownMenu
-                        onOpenChange={(open) => {
-                          setOpenSessionMenuId((prev) =>
-                            open ? session.id : prev === session.id ? null : prev,
-                          );
+                      <ContextMenuTrigger
+                        render={<div />}
+                        onClick={() => handleSelectSession(session)}
+                        className={`group flex h-8 cursor-default items-center justify-between rounded-md px-1.5 text-xs font-normal transition-colors ${
+                          activeSessionId === session.id
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                        } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
+                        onContextMenu={(e) => {
+                          e.stopPropagation();
                         }}
                       >
-                        <DropdownMenuTrigger
-                          onClick={(e) => e.stopPropagation()}
-                          className={`ml-1.5 flex size-4 items-center justify-center rounded-sm transition-opacity ${
-                            openSessionMenuId === session.id
-                              ? "opacity-100 bg-sidebar-accent/25 text-sidebar-foreground/70"
-                              : "opacity-0 group-hover:opacity-80 text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/75"
-                          }`}
-                          aria-label={t("sidebar.chatActions", {
-                            defaultValue: "Chat actions for {{title}}",
-                            title: session.title || t("sidebar.newChat", "New Chat"),
-                          })}
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                          {(() => {
+                            const isStreaming = sessionStates.get(session.id)?.isStreaming;
+                            if (isStreaming) {
+                              return <LoaderCircle className="size-3 animate-spin" />;
+                            }
+                            if (activeIlinkSessionId === session.id) {
+                              return <MessageCircle className="size-3 shrink-0 text-green-500" />;
+                            }
+                            return <LoaderCircle className="size-3 invisible" />;
+                          })()}
+                          <Badge
+                            variant="outline"
+                            className="px-1 -ml-0.5 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
+                          >
+                            {configuredAgents.find((a) => a.id === session.agentId)?.id ||
+                              session.agentId}
+                          </Badge>
+                          <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                            {session.title || t("sidebar.newChat", "New Chat")}
+                          </span>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-auto"
+                      >
+                        <ContextMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameSession(session);
+                          }}
                         >
-                          <MoreHorizontal />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          side="right"
-                          align="start"
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-auto"
-                        >
-                          <DropdownMenuItem
+                          <Pencil />
+                          {t("sidebar.rename")}
+                        </ContextMenuItem>
+                        {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                          <ContextMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRenameSession(session);
+                              request
+                                .setActiveIlinkSession({ sessionId: session.id })
+                                .catch(() => {});
                             }}
                           >
-                            <Pencil />
-                            {t("sidebar.rename")}
-                          </DropdownMenuItem>
-                          {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                request
-                                  .setActiveIlinkSession({ sessionId: session.id })
-                                  .catch(() => {});
-                              }}
-                            >
-                              <MessageCircle />
-                              {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                            </DropdownMenuItem>
-                          )}
-                          {ilinkStatus.connected && activeIlinkSessionId === session.id && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
-                              }}
-                            >
-                              <MessageCircle />
-                              {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
+                            <MessageCircle />
+                            {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                          </ContextMenuItem>
+                        )}
+                        {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                          <ContextMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              void handleDeleteSession(session);
+                              request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
                             }}
                           >
-                            <Trash2 />
-                            {t("sidebar.delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                            <MessageCircle />
+                            {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                          </ContextMenuItem>
+                        )}
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDeleteSession(session);
+                          }}
+                        >
+                          <Trash2 />
+                          {t("sidebar.delete")}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   ))}
               </div>
             );

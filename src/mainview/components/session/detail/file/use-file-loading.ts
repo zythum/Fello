@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { request } from "../../../../backend";
 import type { FileKind, ViewMode } from "./file-types";
@@ -14,6 +14,7 @@ export interface FileLoadingResult {
   errorMsg: string;
   imageBase64: string;
   setViewMode: (mode: ViewMode) => void;
+  refresh: () => void;
 }
 
 /** 将 Base64 字符串解码为 ArrayBuffer */
@@ -37,6 +38,11 @@ export function useFileLoading(projectId: string | null, file: string | null): F
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [imageBase64, setImageBase64] = useState("");
+  const [loadKey, setLoadKey] = useState(0);
+
+  const refresh = useCallback(() => {
+    setLoadKey((k) => k + 1);
+  }, []);
 
   // Synchronously reset view mode when file changes (before async load completes)
   useEffect(() => {
@@ -154,7 +160,7 @@ export function useFileLoading(projectId: string | null, file: string | null): F
     };
     // Note: t is stable (from i18next), can be safely excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, file]);
+  }, [projectId, file, loadKey]);
 
   return {
     content,
@@ -166,5 +172,6 @@ export function useFileLoading(projectId: string | null, file: string | null): F
     errorMsg,
     imageBase64,
     setViewMode,
+    refresh,
   };
 }
