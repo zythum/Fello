@@ -160,13 +160,13 @@ export function SettingsGeneral() {
                       {t("settings.general.autoWatchFiles")}
                     </label>
                     <span className="text-xs text-muted-foreground/90">
-                      {t("settings.general.autoWatchFilesDesc", "Automatically watch project file changes")}
+                      {t(
+                        "settings.general.autoWatchFilesDesc",
+                        "Automatically watch project file changes",
+                      )}
                     </span>
                   </div>
-                  <Switch
-                    checked={fileWatcher.enabled}
-                    onCheckedChange={handleFileWatcherChange}
-                  />
+                  <Switch checked={fileWatcher.enabled} onCheckedChange={handleFileWatcherChange} />
                 </div>
               </div>
             </div>

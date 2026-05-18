@@ -34,7 +34,7 @@ import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./we
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
 import { storageOps } from "./storage";
-import { ILinkBridge, readActiveSessionId, writeActiveSessionId } from "./ilink/ilink-bridge";
+import { ILinkBridge, readActiveSessionId, writeActiveSessionId, extractMessageText } from "./ilink/ilink-bridge";
 import { deletePersistedSessionDirectory } from "../agents/storage";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
@@ -157,7 +157,7 @@ function getILinkBridge(): ILinkBridge {
           return;
         }
 
-        const text = (await import("./ilink/ilink-bridge")).extractMessageText(msg);
+        const text = extractMessageText(msg);
         if (!text.trim()) return;
 
         const contents: import("@agentclientprotocol/sdk").ContentBlock[] = [

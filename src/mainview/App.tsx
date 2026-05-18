@@ -11,7 +11,7 @@ import { GlobalTextContextMenu } from "./components/global/global-text-context-m
 import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
-import { electron } from "./electron";
+import { electron, UpdaterEvent } from "./electron";
 
 const UPDATE_TOAST_ID = "fello-app-update";
 
@@ -83,7 +83,6 @@ function AppContent() {
   ]);
 
   useEffect(() => {
-    let unlistenFullScreen: (() => void) | undefined;
     const flushPendingSessionUpdates = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
@@ -260,10 +259,27 @@ function AppContent() {
       toast.error(message || t("updater.actionFailed", "Update action failed"));
     };
 
-    const handleUpdaterEvent = (detail: BackendEvents["updater-event"]) => {
-      switch (detail.type) {
+    subscribe.on("session-update", handleSessionUpdate);
+    subscribe.on("permission-request", handlePermissionRequest);
+    subscribe.on("permission-resolved", handlePermissionResolved);
+    subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
+    subscribe.on("webui-status-changed", handleWebUIStatusChanged);
+    subscribe.on("projects-changed", handleProjectsChanged);
+    subscribe.on("sessions-changed", handleSessionsChanged);
+    subscribe.on("session-changed", handleSessionChanged);
+    subscribe.on("ilink-status-changed", handleIlinkStatusChanged);
+    subscribe.on("ilink-active-session-changed", handleIlinkActiveSessionChanged);
+
+    let unlistenFullScreen: (() => void) | undefined;
+    if (isMacApp) {
+      unlistenFullScreen = electron.onMacFullScreen((isFull) => setIsFullScreen(isFull));
+    }
+
+    let unlistenUpdater: (() => void) | undefined;
+    const handleUpdaterEvent = (event: UpdaterEvent) => {
+      switch (event.type) {
         case "checking":
-          if (detail.manual) {
+          if (event.manual) {
             toast.loading(t("updater.checking", "Checking for updates..."), {
               id: UPDATE_TOAST_ID,
               duration: Infinity,
@@ -271,12 +287,12 @@ function AppContent() {
           }
           break;
         case "available": {
-          const version = detail.info.version
-            ? `v${detail.info.version}`
+          const version = event.info.version
+            ? `v${event.info.version}`
             : t("updater.newVersion", "a new version");
           toast.info(t("updater.available", "Update available"), {
             id: UPDATE_TOAST_ID,
-            description: detail.info.releaseName || version,
+            description: event.info.releaseName || version,
             duration: Infinity,
             action: {
               label: t("updater.updateNow", "Update now"),
@@ -296,7 +312,7 @@ function AppContent() {
           break;
         }
         case "not-available":
-          if (detail.manual) {
+          if (event.manual) {
             toast.success(t("updater.upToDate", "Fello is up to date."), {
               id: UPDATE_TOAST_ID,
               duration: 3000,
@@ -306,7 +322,7 @@ function AppContent() {
         case "download-progress":
           toast.loading(
             t("updater.downloading", "Downloading update {{percent}}%", {
-              percent: Math.round(detail.percent),
+              percent: Math.round(event.percent),
             }),
             {
               id: UPDATE_TOAST_ID,
@@ -315,8 +331,8 @@ function AppContent() {
           );
           break;
         case "downloaded": {
-          const version = detail.info.version
-            ? `v${detail.info.version}`
+          const version = event.info.version
+            ? `v${event.info.version}`
             : t("updater.newVersion", "new version");
           toast.success(t("updater.ready", "Update ready to install"), {
             id: UPDATE_TOAST_ID,
@@ -338,7 +354,7 @@ function AppContent() {
           break;
         }
         case "disabled":
-          if (detail.manual) {
+          if (event.manual) {
             toast.info(t("updater.disabled", "Updates are available only in packaged builds."), {
               id: UPDATE_TOAST_ID,
               duration: 4000,
@@ -346,8 +362,8 @@ function AppContent() {
           }
           break;
         case "error":
-          if (detail.manual) {
-            toast.error(detail.message, {
+          if (event.manual) {
+            toast.error(event.message, {
               id: UPDATE_TOAST_ID,
               duration: 5000,
             });
@@ -355,33 +371,17 @@ function AppContent() {
           break;
       }
     };
-
-    subscribe.on("session-update", handleSessionUpdate);
-    subscribe.on("permission-request", handlePermissionRequest);
-    subscribe.on("permission-resolved", handlePermissionResolved);
-    subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
-    subscribe.on("webui-status-changed", handleWebUIStatusChanged);
-    subscribe.on("projects-changed", handleProjectsChanged);
-    subscribe.on("sessions-changed", handleSessionsChanged);
-    subscribe.on("session-changed", handleSessionChanged);
-    subscribe.on("ilink-status-changed", handleIlinkStatusChanged);
-    subscribe.on("ilink-active-session-changed", handleIlinkActiveSessionChanged);
-    subscribe.on("updater-event", handleUpdaterEvent);
-
     void electron.getUpdaterStatus().then((event) => {
       if (event?.type === "available" || event?.type === "downloaded") {
         handleUpdaterEvent(event);
       }
     });
     void electron.checkForUpdates(false).catch(() => {});
-
-    const fello = window.fello;
-    if (isMacApp && fello?.onMacFullScreen) {
-      unlistenFullScreen = fello.onMacFullScreen((isFull) => setIsFullScreen(isFull));
-    }
+    unlistenUpdater = electron.onUpdater((event) => handleUpdaterEvent(event));
 
     return () => {
       if (unlistenFullScreen) unlistenFullScreen();
+      if (unlistenUpdater) unlistenUpdater();
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("permission-request", handlePermissionRequest);
       subscribe.off("permission-resolved", handlePermissionResolved);
@@ -392,7 +392,7 @@ function AppContent() {
       subscribe.off("session-changed", handleSessionChanged);
       subscribe.off("ilink-status-changed", handleIlinkStatusChanged);
       subscribe.off("ilink-active-session-changed", handleIlinkActiveSessionChanged);
-      subscribe.off("updater-event", handleUpdaterEvent);
+
       if (sessionUpdateFlushRafIdRef.current != null) {
         cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
         sessionUpdateFlushRafIdRef.current = null;

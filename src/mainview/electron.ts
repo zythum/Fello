@@ -1,5 +1,7 @@
 import { isWebUI } from "./backend";
-import type { UpdaterEvent } from "../shared/updater";
+import type { UpdaterEvent } from "../electron/updater";
+
+export { type UpdaterEvent };
 
 export const electron = {
   showOpenDialog: async (): Promise<string | null> => {
@@ -47,5 +49,16 @@ export const electron = {
   installUpdate: async (): Promise<void> => {
     if (isWebUI) return;
     return window.fello!.invoke("installUpdate");
+  },
+
+  onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
+    if (isWebUI || !window.fello) return () => {};
+    const handler = (isFullScreen: boolean) => callback(isFullScreen);
+    return window.fello.onMacFullScreen(handler);
+  },
+  onUpdater: (callback: (updaterEvent: UpdaterEvent) => void) => {
+    if (isWebUI || !window.fello) return () => {};
+    const handler = (updaterEvent: UpdaterEvent) => callback(updaterEvent);
+    return window.fello.onUpdater(handler);
   },
 };

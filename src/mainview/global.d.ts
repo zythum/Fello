@@ -1,5 +1,5 @@
 import type { FelloIPCSchema } from "../shared/schema";
-import type { UpdaterEvent } from "../shared/updater";
+import type { UpdaterEvent } from "../electron/updater";
 
 export type ElectronIPCRequests = {
   showOpenDialog: { params: void; response: string | null };
@@ -18,7 +18,9 @@ declare global {
   interface Window {
     fello?: {
       isMacApp: boolean;
-      onMacFullScreen?: (callback: (isFullScreen: boolean) => void) => () => void;
+      onMacFullScreen: (callback: (isFullScreen: boolean) => void) => () => void;
+      onUpdater: (callback: (updaterEvent: UpdaterEvent) => void) => () => void;
+
       invoke<K extends keyof AllIPCRequests>(
         channel: K,
         params?: AllIPCRequests[K]["params"],

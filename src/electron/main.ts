@@ -22,7 +22,7 @@ import {
   createUpdaterProgressEvent,
   normalizeUpdaterInfo,
   type UpdaterEvent,
-} from "../shared/updater";
+} from "./updater";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
@@ -34,13 +34,6 @@ if (isDev) {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let lastUpdaterEvent: UpdaterEvent | null = null;
-let lastUpdateCheckManual = false;
-let isUpdateChecking = false;
-let isUpdateDownloading = false;
-let hasDownloadedUpdate = false;
-let isInstallingUpdate = false;
-const autoUpdateCheckGate = createAutoUpdateCheckGate();
 
 function safeSend<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
@@ -49,11 +42,6 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   mainWindow.webContents.send(channel, payload);
   return true;
-}
-
-function sendUpdaterEvent(event: UpdaterEvent) {
-  lastUpdaterEvent = event;
-  safeSend("updater-event", event);
 }
 
 initBackend(safeSend);
@@ -140,6 +128,19 @@ ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
     throw new Error(extractErrorMessage(error));
   }
 });
+
+const autoUpdateCheckGate = createAutoUpdateCheckGate();
+let lastUpdaterEvent: UpdaterEvent | null = null;
+let lastUpdateCheckManual = false;
+let isUpdateChecking = false;
+let isUpdateDownloading = false;
+let hasDownloadedUpdate = false;
+let isInstallingUpdate = false;
+function sendUpdaterEvent(event: UpdaterEvent) {
+  lastUpdaterEvent = event;
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  mainWindow.webContents.send("electron:updater-event", event);
+}
 
 ipcMain.handle("getUpdaterStatus", () => lastUpdaterEvent);
 
@@ -308,10 +309,10 @@ function createMainWindow() {
 
   if (process.platform === "darwin") {
     win.on("enter-full-screen", () => {
-      win.webContents.send("ui:mac-fullscreen", true);
+      win.webContents.send("electron:mac-fullscreen", true);
     });
     win.on("leave-full-screen", () => {
-      win.webContents.send("ui:mac-fullscreen", false);
+      win.webContents.send("electron:mac-fullscreen", false);
     });
   }
 
