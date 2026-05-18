@@ -373,6 +373,7 @@ function AppContent() {
         handleUpdaterEvent(event);
       }
     });
+    void electron.checkForUpdates(false).catch(() => {});
 
     const fello = window.fello;
     if (isMacApp && fello?.onMacFullScreen) {

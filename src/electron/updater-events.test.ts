@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createUpdaterEvent, createUpdaterProgressEvent } from "./updater-events.ts";
+import {
+  createAutoUpdateCheckGate,
+  createUpdaterEvent,
+  createUpdaterProgressEvent,
+} from "./updater-events.ts";
 
 test("normalizes update info for renderer events", () => {
   const event = createUpdaterEvent("available", {
@@ -35,4 +39,20 @@ test("normalizes download progress for renderer events", () => {
     total: 5678,
     bytesPerSecond: 9012,
   });
+});
+
+test("allows the first automatic update check only once", () => {
+  const gate = createAutoUpdateCheckGate();
+
+  assert.equal(gate.shouldStart(false), true);
+  assert.equal(gate.shouldStart(false), false);
+});
+
+test("manual update checks bypass the automatic update check gate", () => {
+  const gate = createAutoUpdateCheckGate();
+
+  assert.equal(gate.shouldStart(false), true);
+  assert.equal(gate.shouldStart(false), false);
+  assert.equal(gate.shouldStart(true), true);
+  assert.equal(gate.shouldStart(true), true);
 });

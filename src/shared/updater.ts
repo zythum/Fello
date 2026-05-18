@@ -20,6 +20,10 @@ export type UpdaterEvent =
   | { type: "error"; manual: boolean; message: string }
   | { type: "disabled"; manual: boolean; reason: string };
 
+export type AutoUpdateCheckGate = {
+  shouldStart: (manual: boolean) => boolean;
+};
+
 type RawObject = Record<string, unknown>;
 
 function asObject(value: unknown): RawObject {
@@ -69,5 +73,18 @@ export function createUpdaterProgressEvent(progress: unknown): UpdaterEvent {
     transferred: optionalNumber(source.transferred),
     total: optionalNumber(source.total),
     bytesPerSecond: optionalNumber(source.bytesPerSecond),
+  };
+}
+
+export function createAutoUpdateCheckGate(): AutoUpdateCheckGate {
+  let didStartAutomaticCheck = false;
+
+  return {
+    shouldStart(manual: boolean) {
+      if (manual) return true;
+      if (didStartAutomaticCheck) return false;
+      didStartAutomaticCheck = true;
+      return true;
+    },
   };
 }

@@ -17,6 +17,7 @@ import { backendHandlers, initBackend, killBridge, type FelloIPCSchema } from ".
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
 import {
+  createAutoUpdateCheckGate,
   createUpdaterEvent,
   createUpdaterProgressEvent,
   normalizeUpdaterInfo,
@@ -39,6 +40,7 @@ let isUpdateChecking = false;
 let isUpdateDownloading = false;
 let hasDownloadedUpdate = false;
 let isInstallingUpdate = false;
+const autoUpdateCheckGate = createAutoUpdateCheckGate();
 
 function safeSend<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
@@ -158,6 +160,8 @@ function isUpdaterEnabled() {
 }
 
 async function checkForUpdates({ manual }: { manual: boolean }) {
+  if (!autoUpdateCheckGate.shouldStart(manual)) return;
+
   if (isDev || !app.isPackaged) {
     console.log("[checkForUpdates] skipped in dev mode");
     sendUpdaterEvent({
@@ -440,10 +444,6 @@ function setupAutoUpdater() {
     console.log("[autoUpdater] update downloaded");
     sendUpdaterEvent({ type: "downloaded", info: normalizeUpdaterInfo(info) });
   });
-
-  setTimeout(() => {
-    void checkForUpdates({ manual: false }).catch(() => {});
-  }, 3000);
 }
 
 let isQuitting = false;
