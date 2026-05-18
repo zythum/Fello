@@ -1,4 +1,5 @@
 import { isWebUI } from "./backend";
+import type { UpdaterEvent } from "../shared/updater";
 
 export const electron = {
   showOpenDialog: async (): Promise<string | null> => {
@@ -30,5 +31,21 @@ export const electron = {
       return;
     }
     return window.fello!.invoke("trashFile", path);
+  },
+  getUpdaterStatus: async (): Promise<UpdaterEvent | null> => {
+    if (isWebUI) return null;
+    return window.fello!.invoke("getUpdaterStatus");
+  },
+  checkForUpdates: async (manual = true): Promise<void> => {
+    if (isWebUI) return;
+    return window.fello!.invoke("checkForUpdates", { manual });
+  },
+  downloadUpdate: async (): Promise<void> => {
+    if (isWebUI) return;
+    return window.fello!.invoke("downloadUpdate");
+  },
+  installUpdate: async (): Promise<void> => {
+    if (isWebUI) return;
+    return window.fello!.invoke("installUpdate");
   },
 };

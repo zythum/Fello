@@ -272,6 +272,21 @@
     "activeSessionDeleted": "Current session was deleted",
     "activeSessionDeletedWithTitle": "Current session \"{{title}}\" was deleted"
   },
+  "updater": {
+    "actionFailed": "Update action failed",
+    "checking": "Checking for updates...",
+    "newVersion": "a new version",
+    "available": "Update available",
+    "updateNow": "Update now",
+    "startingDownload": "Starting download...",
+    "later": "Later",
+    "upToDate": "Fello is up to date.",
+    "downloading": "Downloading update {{percent}}%",
+    "ready": "Update ready to install",
+    "restartToInstall": "Restart to install {{version}}.",
+    "restart": "Restart",
+    "disabled": "Updates are available only in packaged builds."
+  },
   "chatArea": {
     "thinking": "Thinking...",
     "scrollToBottom": "Scroll to bottom",
