@@ -353,7 +353,8 @@
     "loading": "加载中...",
     "preview": "预览",
     "code": "源码",
-    "compare": "对比"
+    "compare": "对比",
+    "fileModifiedNotice": "文件已被修改，请刷新"
   },
   "welcome": {
     "title": "Fello",

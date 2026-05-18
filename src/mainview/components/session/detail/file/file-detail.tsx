@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { File, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,7 +18,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { MessageSquarePlus, Copy, FolderOpen, RefreshCw } from "lucide-react";
-import { request, isWebUI } from "../../../../backend";
+import { request, isWebUI, subscribe } from "../../../../backend";
 import { electron } from "../../../../electron";
 
 import type { FileDetailProps } from "./file-types";
@@ -114,6 +114,29 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     electron.revealInFinder(absPath);
   }, [projectId, file]);
 
+  // ── detect external file modifications via file watcher ──
+  const [fileModified, setFileModified] = useState(false);
+
+  useEffect(() => {
+    if (!projectId || !file) return;
+
+    const handler = (payload: { projectId: string; changes: string[] }) => {
+      if (payload.projectId === projectId && payload.changes.includes(file)) {
+        setFileModified(true);
+      }
+    };
+
+    subscribe.on("fs-changed", handler);
+    return () => {
+      subscribe.off("fs-changed", handler);
+    };
+  }, [projectId, file]);
+
+  const handleRefreshWithReset = useCallback(() => {
+    setFileModified(false);
+    refresh();
+  }, [refresh]);
+
   // Memoize ArrayBuffer conversion to prevent creating a new reference on every render,
   // which would cause PdfView/DocxView/PptxView/XlsxView to re-process their data and flicker
   const arrayBuffer = useMemo(() => base64ToArrayBuffer(imageBase64), [imageBase64]);
@@ -155,6 +178,20 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
 
       {/* ── main content area ── */}
       <div className="relative flex-1 min-h-0">
+        {/* file modified floating toast */}
+        {fileModified && (
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-3 px-3 py-2 rounded-lg shadow-md bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-200">
+            <span>{t("fileDetail.fileModifiedNotice", "文件已被修改，请刷新")}</span>
+            <button
+              type="button"
+              onClick={handleRefreshWithReset}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-sky-200/60 hover:bg-sky-300/60 dark:bg-sky-800/50 dark:hover:bg-sky-700/50 transition-colors shrink-0"
+            >
+              <RefreshCw className="size-3" />
+              {t("filePanel.refresh", "刷新")}
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="text-sm text-muted-foreground text-center mt-10">
             {t("fileDetail.loading")}
@@ -189,7 +226,6 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
         ) : viewMode === "code" && finalViewModes.includes("code") ? (
           /* code view with context menu */
           <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
-            <div ref={contentRef} className="w-max">
               <ContextMenu
                 onOpenChange={(open) => {
                   if (!open) clearSelection();
@@ -199,7 +235,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
                   className="min-h-full text-[12px] font-mono block select-text -mx-3 pb-20"
                   onContextMenu={handleContextMenu}
                 >
-                  <CodeView content={content} filename={fileName} />
+                  <div ref={contentRef} className="w-max">
+                    <CodeView content={content} filename={fileName} />
+                  </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   {selectedText && (
@@ -244,7 +282,6 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
                   )}
                 </ContextMenuContent>
               </ContextMenu>
-            </div>
           </ScrollArea>
         ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
           /* git diff view */

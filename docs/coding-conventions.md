@@ -1,10 +1,12 @@
 # 编码规范
 
+> ⚠️ AI Agent 注意：对任何源文件做修改后，必须先执行 `npm run typecheck` 确认无类型错误，再提交结果。这是项目的基本质量门禁。
+
 ## 基础格式
 
 - 缩进统一 2 空格，禁止 Tab
 - 使用 `oxfmt` 进行格式化，命令：`npm run format`
-- 提交前至少通过 `npm run lint` 与 `npm run typecheck`
+- 每次修改后必须执行 `npm run typecheck` 确认类型正确
 
 ## 命名与文件组织
 

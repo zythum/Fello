@@ -353,7 +353,8 @@
     "loading": "Loading...",
     "preview": "Preview",
     "code": "Code",
-    "compare": "Compare"
+    "compare": "Compare",
+    "fileModifiedNotice": "File modified. Please refresh."
   },
   "welcome": {
     "title": "Fello",

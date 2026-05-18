@@ -82,7 +82,7 @@
   - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
-  - `session/detail/file/file-detail.tsx`：文件内容与图片预览（支持关闭按钮）
+  - `session/detail/file/file-detail.tsx`：文件内容与图片预览（支持关闭按钮），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
   - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）

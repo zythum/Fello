@@ -473,7 +473,7 @@ export function Sidebar() {
                       <ContextMenuTrigger
                         render={<div />}
                         onClick={() => handleSelectSession(session)}
-                        className={`group flex h-8 cursor-default items-center justify-between rounded-md px-1.5 text-xs font-normal transition-colors ${
+                        className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
                           activeSessionId === session.id
                             ? "bg-sidebar-accent text-sidebar-accent-foreground"
                             : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"

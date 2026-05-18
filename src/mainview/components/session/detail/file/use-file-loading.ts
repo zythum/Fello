@@ -17,9 +17,11 @@ export interface FileLoadingResult {
   refresh: () => void;
 }
 
-/** 将 Base64 字符串解码为 ArrayBuffer */
+/** 将 Base64 字符串解码为 ArrayBuffer（兼容 data URI 格式，如 "data:image/png;base64,..."） */
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryStr = atob(base64);
+  // Strip data URI prefix if present (e.g., "data:image/png;base64,...")
+  const base64Data = base64.includes(",") ? base64.split(",")[1]! : base64;
+  const binaryStr = atob(base64Data);
   const bytes = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) {
     bytes[i] = binaryStr.charCodeAt(i);
