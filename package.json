@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.2.0",
+  "version": "0.1.10",
   "description": "ACP Client desktop app powered by Electron",
   "author": {
     "name": "Zythum",
