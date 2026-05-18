@@ -731,6 +731,9 @@ export const backendHandlers: {
 
   async updateSettings(settings) {
     storageOps.updateSettings(settings);
+    // Re-sync file watchers; syncWatchers() internally checks the persisted
+    // fileWatcher.enabled setting and starts/stops watchers accordingly.
+    await syncWatchers();
   },
 
   async listSessions() {

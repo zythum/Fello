@@ -82,6 +82,7 @@ export interface AppState {
   configuredMcpServers: SettingsInfo["mcpServers"];
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
+  fileWatcher: SettingsInfo["fileWatcher"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
     connected: boolean;
@@ -139,6 +140,7 @@ export interface AppState {
   setConfiguredMcpServers: (mcpServers: SettingsInfo["mcpServers"]) => void;
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
+  setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -177,6 +179,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   configuredMcpServers: [],
   theme: { themeMode: "system" },
   i18n: { language: "en" },
+  fileWatcher: { enabled: true },
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
@@ -315,6 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConfiguredMcpServers: (mcpServers) => set({ configuredMcpServers: mcpServers }),
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
+  setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),

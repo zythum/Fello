@@ -4,6 +4,13 @@ import type { FelloIPCSchema } from "../shared/schema";
 import { relative } from "path";
 import { toPosixPath } from "./utils";
 
+/**
+ * Check whether file watcher is enabled in global settings.
+ */
+function isFileWatcherEnabled(): boolean {
+  return storageOps.getSettings().fileWatcher?.enabled ?? true;
+}
+
 const subscriptions = new Map<string, watcher.AsyncSubscription>();
 const MAX_BATCH_CHANGES = 1000;
 
@@ -44,8 +51,18 @@ export function initWatcher(
 }
 
 export async function syncWatchers() {
+  const enabled = isFileWatcherEnabled();
   const projects = storageOps.listProjects();
   const currentProjects = new Map(projects.map((p) => [p.id, p]));
+
+  // If file watcher is disabled, shut down all existing watchers
+  if (!enabled) {
+    for (const [projectId, subscription] of subscriptions.entries()) {
+      await subscription.unsubscribe();
+      subscriptions.delete(projectId);
+    }
+    return;
+  }
 
   // Remove watchers for deleted projects
   for (const [projectId, subscription] of subscriptions.entries()) {
