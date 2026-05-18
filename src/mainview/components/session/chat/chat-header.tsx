@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../../store";
-import { MoreHorizontal, RefreshCw } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../../backend";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../../lib/session-state-reducer";
@@ -139,7 +139,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                 {/* MCP server toggles */}
                 {configuredMcpServers.length > 0 && (
                   <>
-                    <div className="px-2 py-1 text-[10px] font-normal text-muted-foreground/70">
+                    <div className="px-2 py-1 text-xs font-normal text-muted-foreground/70">
                       {t("settings.mcp.title", "MCP Servers")}
                     </div>
                     {configuredMcpServers.map((mcp) => (
@@ -161,12 +161,11 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
                 {/* Refresh — only enabled when local state differs from session */}
                 <Button
-                  size="sm"
+                  size="xs"
                   disabled={!hasLocalChanges}
-                  className="flex w-full items-center gap-2 h-8 mt-1 text-xs"
+                  className="flex w-full items-center gap-2 h-7 mt-1 text-xs font-normal"
                   onClick={hasLocalChanges ? handleSyncAndRefresh : undefined}
                 >
-                  <RefreshCw className="size-3.5 shrink-0" />
                   <span>{t("chatHeader.refresh", "Refresh")}</span>
                 </Button>
               </PopoverPrimitive.Popup>
