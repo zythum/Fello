@@ -6,6 +6,7 @@ import type {
   SessionModelState,
   ContentBlock,
 } from "@agentclientprotocol/sdk";
+import type { UpdaterEvent } from "./updater";
 
 /**
  * 扩展 SessionNotification 结构
@@ -551,6 +552,8 @@ export type FelloIPCEvents = {
   "agent-terminal-output": { sessionId: string; terminalId: string; data: string };
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
+  /** App 自动更新状态变更 */
+  "updater-event": UpdaterEvent;
   /** iLink 连接状态变更的事件 */
   "ilink-status-changed": { status: ILinkStatus };
   /** iLink 活跃 session 变更的事件 */

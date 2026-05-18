@@ -267,6 +267,21 @@
     "activeSessionDeleted": "当前会话已被删除",
     "activeSessionDeletedWithTitle": "当前会话“{{title}}”已被删除"
   },
+  "updater": {
+    "actionFailed": "更新操作失败",
+    "checking": "正在检查更新...",
+    "newVersion": "新版本",
+    "available": "发现新版本",
+    "updateNow": "立即更新",
+    "startingDownload": "开始下载更新...",
+    "later": "稍后",
+    "upToDate": "Fello 已是最新版本。",
+    "downloading": "正在下载更新 {{percent}}%",
+    "ready": "更新已准备好安装",
+    "restartToInstall": "重启以安装 {{version}}。",
+    "restart": "重启",
+    "disabled": "更新仅在已打包应用中可用。"
+  },
   "chatArea": {
     "thinking": "思考中...",
     "scrollToBottom": "滚动到底部",

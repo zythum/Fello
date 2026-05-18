@@ -116,6 +116,7 @@ bridge.on("terminal-output", (payload) => emit("terminal-output", payload));
 bridge.on("terminal-exit", (payload) => emit("terminal-exit", payload));
 bridge.on("agent-terminal-output", (payload) => emit("agent-terminal-output", payload));
 bridge.on("webui-status-changed", (payload) => emit("webui-status-changed", payload));
+bridge.on("updater-event", (payload) => emit("updater-event", payload));
 bridge.on("fs-changed", (payload) => emit("fs-changed", payload));
 bridge.on("projects-changed", (payload) => emit("projects-changed", payload));
 bridge.on("sessions-changed", (payload) => emit("sessions-changed", payload));
