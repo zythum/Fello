@@ -268,6 +268,11 @@ function setupMenu() {
       submenu: [
         { role: "toggleDevTools" },
         { label: "Check for Updates...", click: () => void checkForUpdates({ manual: true }) },
+        { type: "separator" },
+        {
+          label: "Fello on GitHub",
+          click: () => void shell.openExternal("https://github.com/Zythum/fello"),
+        },
       ] satisfies MenuItemConstructorOptions[],
     },
   ];
