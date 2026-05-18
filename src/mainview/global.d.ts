@@ -40,3 +40,14 @@ declare module "react" {
     WebkitAppRegion?: "drag" | "no-drag";
   }
 }
+
+// Vite 显式资源导入：让 TypeScript 认识 ?url 和 ?worker 后缀
+declare module "*?url" {
+  const url: string;
+  export default url;
+}
+
+declare module "*?worker" {
+  const workerConstructor: { new (): Worker };
+  export default workerConstructor;
+}

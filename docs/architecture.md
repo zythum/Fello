@@ -38,13 +38,13 @@
 - **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
 - **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、Skills/iLink IPC 注册
-- **`src/backend/acp-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
+- **`src/backend/agent/agent-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
 - **`src/backend/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
 - **`src/backend/webui.ts`**：WebUI 模式下的 WebSocket 及 HTTP 静态服务
 - **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装
-- **`src/backend/agents/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
-- **`src/backend/agents/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
-- **`src/backend/agents/type.ts`**：AgentProcess 统一接口（input/output streams + close）
+- **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
+- **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
+- **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
 - **`src/backend/ilink/ilink-bridge.ts`**：微信 iLink 连接管理、QR 登录、长轮询、消息收发
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
@@ -74,16 +74,16 @@
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
-  - `session/session-view.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
+  - `session/session.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
   - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader）
   - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新）
   - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
-  - `session/panel/file-tree.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
-  - `session/panel/terminal-tab-list.tsx`：垂直终端列表、创建/删除/切换终端
-  - `session/detail/detail-view.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
-  - `session/detail/file-preview.tsx`：文件内容与图片预览（支持关闭按钮）
-  - `session/detail/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
+  - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
+  - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
+  - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
+  - `session/detail/file/file-detail.tsx`：文件内容与图片预览（支持关闭按钮）
+  - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
   - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
@@ -201,7 +201,7 @@ Renderer: resetSessionState(sessionId)
 ```
 ChatInput submit
   → 立即写入本地 user message + isStreaming=true
-  → Main: sendMessage
+  → Main: sendPrompt
   → Agent: prompt
   → session-update chunk 持续到达（text-delta / reasoning-delta / file / tool-call / tool-result）
   → reduceSessionUpdate / calculateToolCall

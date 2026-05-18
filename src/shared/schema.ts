@@ -335,8 +335,8 @@ export type FelloIPCRequests = {
       isStreaming: boolean;
     };
   };
-  /** 向会话发送用户消息 */
-  sendMessage: {
+  /** 向会话发送用户 Prompt */
+  sendPrompt: {
     params: {
       sessionId: string;
       contents: ContentBlock[];
@@ -403,7 +403,7 @@ export type FelloIPCRequests = {
    */
   searchFiles: {
     params: { projectId: string; query?: string };
-    response: Array<{ id: string; filename: string }>;
+    response: Array<{ id: string; filename: string; isFolder: boolean }>;
   };
   /**
    * 读取目录内容

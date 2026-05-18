@@ -13,12 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Square, Paperclip, X, ImageIcon, FileText, Library } from "lucide-react";
+import {
+  ArrowUp,
+  Square,
+  Paperclip,
+  X,
+  ImageIcon,
+  FileText,
+  Folder,
+  Library,
+  Wrench,
+} from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
-import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
+import type { SessionInfo, SkillInfo, McpServerInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
 // Define an interface for the staged file
@@ -32,6 +42,7 @@ interface StagedAttachment {
 interface SearchFileItem {
   id: string;
   filename: string;
+  isFolder: boolean;
 }
 
 interface SuggestItem {
@@ -46,10 +57,17 @@ function skillInfoToSuggestItem(s: SkillInfo): SuggestItem {
   };
 }
 
-function searchFileItemItemToSuggestItem(f: SearchFileItem): SuggestItem {
+function mcpServerInfoToSuggestItem(m: McpServerInfo): SuggestItem {
+  return {
+    id: m.id,
+    display: `@mcp:${m.id}`,
+  };
+}
+
+function searchFileItemToSuggestItem(f: SearchFileItem): SuggestItem {
   return {
     id: f.id,
-    display: `#file:${f.filename}`,
+    display: f.isFolder ? `#folder:${f.filename}` : `#file:${f.filename}`,
   };
 }
 
@@ -149,7 +167,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const customEvent = e as CustomEvent;
       const nodes = customEvent.detail as { id: string; name: string; isFolder: boolean }[];
       if (!nodes || nodes.length === 0) return;
-      const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
+      const mentions = nodes
+        .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
+        .join(" ");
       setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
       // Focus the textarea
       requestAnimationFrame(() => {
@@ -194,7 +214,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
   const fetchFileSuggestions = useCallback(
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
-      callback(searchFileCacheRef.current.map((f) => searchFileItemItemToSuggestItem(f)));
+      callback(searchFileCacheRef.current.map((f) => searchFileItemToSuggestItem(f)));
 
       if (searchFileTimeoutRef.current) {
         clearTimeout(searchFileTimeoutRef.current);
@@ -207,25 +227,52 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           .then((results) => {
             if (requestId !== searchFileRequestIdRef.current) return;
             searchFileCacheRef.current = results;
-            const suggests = results.map((f) => searchFileItemItemToSuggestItem(f));
+            const suggests = results.map((f) => searchFileItemToSuggestItem(f));
             callback(suggests);
           })
           .catch(() => {
             if (requestId !== searchFileRequestIdRef.current) return;
             const results: SearchFileItem[] = [];
             searchFileCacheRef.current = results;
-            callback(results.map((f) => searchFileItemItemToSuggestItem(f)));
+            callback(results.map((f) => searchFileItemToSuggestItem(f)));
           });
       }, 100);
     },
     [session],
   );
 
-  /** Fetch skill suggestions from backend (cached and filtered locally) */
-  const fetchSkillSuggestions = useCallback(
+  /** Fetch @ suggestions: skills + MCP servers (cached and filtered locally) */
+  const fetchAtSuggestions = useCallback(
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
-      callback(skillsCacheRef.current.map((s) => skillInfoToSuggestItem(s)));
+      const lowerSearch = (search || "").toLowerCase();
 
+      // Return skills from cache immediately (avoids flash)
+      const cachedSkills = skillsCacheRef.current
+        .filter(
+          (s) =>
+            !search ||
+            s.name.toLowerCase().includes(lowerSearch) ||
+            s.description?.toLowerCase().includes(lowerSearch),
+        )
+        .map((s) => skillInfoToSuggestItem(s));
+
+      // Read MCP servers from store — only suggest servers active in the current session
+      const enabledMcpServers = useAppStore
+        .getState()
+        .configuredMcpServers.filter((m) => session.mcpServers.includes(m.id));
+      const mcpItems = enabledMcpServers
+        .filter(
+          (m) =>
+            !search ||
+            m.id.toLowerCase().includes(lowerSearch) ||
+            (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
+            (m.type === "http" && m.url.toLowerCase().includes(lowerSearch)),
+        )
+        .map((m) => mcpServerInfoToSuggestItem(m));
+
+      callback([...cachedSkills, ...mcpItems]);
+
+      // Async refresh skills from backend
       if (skillsTimeoutRef.current) {
         clearTimeout(skillsTimeoutRef.current);
       }
@@ -237,7 +284,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           .then((results) => {
             if (requestId !== skillsRequestIdRef.current) return;
 
-            const lowerSearch = (search || "").toLowerCase();
             const filtered = results.filter(
               (s) =>
                 !search ||
@@ -245,13 +291,26 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 s.description?.toLowerCase().includes(lowerSearch),
             );
             skillsCacheRef.current = filtered;
-            callback(filtered.map((s) => skillInfoToSuggestItem(s)));
+
+            const refreshedSkills = filtered.map((s) => skillInfoToSuggestItem(s));
+            const refreshedMcp = useAppStore
+              .getState()
+              .configuredMcpServers.filter(
+                (m) =>
+                  session.mcpServers.includes(m.id) &&
+                  (!search ||
+                    m.id.toLowerCase().includes(lowerSearch) ||
+                    (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
+                    (m.type === "http" && m.url.toLowerCase().includes(lowerSearch))),
+              )
+              .map((m) => mcpServerInfoToSuggestItem(m));
+
+            callback([...refreshedSkills, ...refreshedMcp]);
           })
           .catch(() => {
             if (requestId !== skillsRequestIdRef.current) return;
-            const results: SkillInfo[] = [];
-            skillsCacheRef.current = results;
-            callback(results.map((s) => skillInfoToSuggestItem(s)));
+            skillsCacheRef.current = [];
+            callback(mcpItems);
           });
       }, 100);
     },
@@ -320,7 +379,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
     try {
       // 2. Wait for the generation to complete
-      await request.sendMessage({
+      await request.sendPrompt({
         sessionId: session.id,
         contents,
       });
@@ -403,7 +462,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       try {
         const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
         if (nodes.length === 0) return;
-        const mentions = nodes.map((n) => `@[#file:${n.name}](${n.id})`).join(" ");
+        const mentions = nodes
+          .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
+          .join(" ");
         setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
         // Focus the textarea after drop
@@ -494,8 +555,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             relativePath: relPath,
           });
           if (info) {
-            const name = relPath.replace(/\\/g, "/").split("/").pop() || relPath;
-            insertText = `@[#file:${name}](${absPath}) `;
+            const isFolder = !info.isFile;
+            const displayPath = relPath.replace(/\\/g, "/");
+            const prefix = isFolder ? "#folder:" : "#file:";
+            insertText = `@[${prefix}${displayPath}](${absPath}) `;
           }
         } catch {
           // ignore
@@ -591,9 +654,17 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               appendSpaceOnAdd
               renderSuggestion={(suggestion) => {
                 const name = String(suggestion.id).split("/").pop();
+                {
+                  /* display format is determined by searchFileItemToSuggestItem above */
+                }
+                const isFolder = suggestion.display?.startsWith("#folder:");
                 return (
                   <div className="flex items-center gap-1">
-                    <FileText className="size-3.5 text-muted-foreground" />
+                    {isFolder ? (
+                      <Folder className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <FileText className="size-3.5 text-muted-foreground" />
+                    )}
                     <span className="text-xs whitespace-nowrap text-foreground">{name}</span>
                     <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
                       {suggestion.display?.slice(1)}
@@ -604,12 +675,33 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             />
             <Mention
               trigger="@"
-              data={fetchSkillSuggestions}
+              data={fetchAtSuggestions}
               markup={MENTION_MARKUP}
               displayTransform={(_id, display) => display}
               style={mentionStyle}
               appendSpaceOnAdd
-              renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, _focused) => {
+              renderSuggestion={(suggestion) => {
+                const display = suggestion.display ?? "";
+                const isMcp = display.startsWith("@mcp:");
+                if (isMcp) {
+                  const mcpServers = useAppStore.getState().configuredMcpServers;
+                  const mcp = mcpServers.find((m) => m.id === suggestion.id);
+                  return (
+                    <div className="flex items-center gap-1">
+                      <Wrench className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs whitespace-nowrap text-foreground">
+                        {mcp?.id ?? suggestion.id}
+                      </span>
+                      <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
+                        {mcp?.type === "stdio"
+                          ? `${mcp.command} ${(mcp.args ?? []).join(" ")}`
+                          : mcp?.type === "http"
+                            ? mcp.url
+                            : ""}
+                      </span>
+                    </div>
+                  );
+                }
                 const skill = skillsCacheRef.current.find(
                   (skillInfo) => skillInfo.id === suggestion.id,
                 );

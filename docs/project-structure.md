@@ -17,16 +17,16 @@ fello/
 │   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
 │   │   ├── backend.ts                # IPC handlers 注册、文件/终端/Skills/iLink API 实现
-│   │   ├── acp-bridge.ts             # Agent 连接封装（类型路由、生命周期管理）
+│   │   ├── agent/                    # Agent 连接与进程管理
 │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
 │   │   ├── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
 │   │   ├── watcher.ts                # 文件系统监控（chokidar 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成
-│   │   ├── agents/                   # Agent 进程 spawner
-│   │   │   ├── type.ts               # AgentProcess 统一接口
-│   │   │   ├── stdio-agent.ts        # Stdio Agent 进程 spawn（child_process）
+│   │   │   ├── agent-bridge.ts           # Agent 连接封装（类型路由、生命周期管理）
+│   │   │   ├── base-agent.ts            # AgentProcess 统一接口
+│   │   │   ├── stdio-agent.ts           # Stdio Agent 进程 spawn（child_process）
 │   │   │   └── openai-compatible-api-agent.ts # API Agent 进程内启动
 │   │   └── ilink/                    # 微信 iLink 集成
 │   │       ├── ilink-bridge.ts       # iLink 连接管理、QR 登录、消息收发
@@ -72,32 +72,44 @@ fello/
 │       │   │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
 │       │   │   │   ├── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
 │       │   │   │   └── chat-timeline.tsx # 聊天时间线导航
-│       │   │   ├── session-view.tsx  # 主工作区布局 (ResizablePanelGroup 三栏: Chat + Detail + Panel)
+│       │   │   ├── session.tsx       # 主工作区布局 (ResizablePanelGroup 三栏: Chat + Detail + Panel)
 │       │   │   ├── panel/            # 右侧标签面板
 │       │   │   │   ├── panel.tsx         # 带标签的面板容器 (Files / Terminal 切换)
-│       │   │   │   ├── file-tree.tsx     # 文件树、重命名、拖拽移动等 (原 file-panel.tsx)
-│       │   │   │   └── terminal-tab-list.tsx # 垂直终端列表 (创建/删除/切换)
+│       │   │   │   ├── file-panel/
+│       │   │   │   │   └── file-panel.tsx   # 文件树、重命名、拖拽移动等
+│       │   │   │   └── terminal-panel/
+│       │   │   │       └── terminal-panel.tsx # 垂直终端列表 (创建/删除/切换)
 │       │   │   └── detail/           # 详情视图 (嵌入左侧聊天区域)
-│       │   │       ├── detail-view.tsx   # 详情视图容器 (根据类型分发)
-│       │   │       ├── file-preview.tsx  # 文件内容与图片预览 (带关闭按钮)
-│       │   │       └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
+│       │   │       ├── detail.tsx         # 详情视图容器 (根据类型分发)
+│       │   │       ├── file/
+│       │   │       │   ├── file-detail.tsx    # 文件内容与图片预览 (带关闭按钮)
+│       │   │       │   └── search-bar.tsx     # 文件搜索条
+│       │   │       └── terminal/
+│       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件
 │       │   │   └── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
 │       │   ├── settings/             # 设置相关页面组件
 │       │   │   ├── settings-layout.tsx          # 设置页侧边导航布局
-│       │   │   ├── settings-general.tsx         # 通用设置
-│       │   │   ├── settings-agents.tsx          # Agents 配置页面
-│       │   │   ├── settings-agent-stdio-dialog.tsx # Stdio Agent 配置弹窗
-│       │   │   ├── settings-agent-api-dialog.tsx    # API Agent 配置弹窗
-│       │   │   ├── settings-mcp.tsx             # MCP Servers 配置页面
-│       │   │   ├── settings-mcp-stdio-dialog.tsx    # Stdio MCP 配置弹窗
-│       │   │   ├── settings-mcp-http-dialog.tsx     # HTTP MCP 配置弹窗
-│       │   │   ├── settings-webui.tsx           # WebUI 配置页面
-│       │   │   └── settings-ilink.tsx           # 微信 iLink 配置页面
+│       │   │   ├── general/
+│       │   │   │   └── settings-general.tsx         # 通用设置
+│       │   │   ├── agents/
+│       │   │   │   ├── settings-agents.tsx          # Agents 配置页面
+│       │   │   │   ├── settings-agent-stdio-dialog.tsx # Stdio Agent 配置弹窗
+│       │   │   │   └── settings-agent-api-dialog.tsx    # API Agent 配置弹窗
+│       │   │   ├── mcp/
+│       │   │   │   ├── settings-mcp.tsx             # MCP Servers 配置页面
+│       │   │   │   ├── settings-mcp-stdio-dialog.tsx    # Stdio MCP 配置弹窗
+│       │   │   │   └── settings-mcp-http-dialog.tsx     # HTTP MCP 配置弹窗
+│       │   │   ├── webui/
+│       │   │   │   └── settings-webui.tsx           # WebUI 配置页面
+│       │   │   └── ilink/
+│       │   │       └── settings-ilink.tsx           # 微信 iLink 配置页面
 │       │   ├── skills/               # Skills 管理页面
 │       │   │   ├── skills-layout.tsx     # Skills 页侧边导航布局
-│       │   │   ├── skills-installed.tsx  # 已安装 Skills 列表
-│       │   │   └── skills-skill-sh.tsx   # skills.sh 市场浏览与安装
+│       │   │   ├── installed/
+│       │   │   │   └── skills-installed.tsx  # 已安装 Skills 列表
+│       │   │   └── skills-sh/
+│       │   │       └── skills-skills-sh.tsx   # skills.sh 市场浏览与安装
 │       │   ├── global/               # 全局浮层与菜单
 │       │   │   ├── error-boundary.tsx           # 全局错误边界与异常提示
 │       │   │   ├── global-text-context-menu.tsx # 文本选中全局右键菜单

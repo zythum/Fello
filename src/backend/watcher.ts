@@ -1,11 +1,30 @@
-import chokidar, { type FSWatcher } from "chokidar";
+import watcher from "@parcel/watcher";
 import { storageOps } from "./storage";
 import type { FelloIPCSchema } from "../shared/schema";
 import { relative } from "path";
-import { isIgnorePath, toPosixPath } from "./utils";
+import { toPosixPath } from "./utils";
 
-const watchers = new Map<string, FSWatcher>();
+const subscriptions = new Map<string, watcher.AsyncSubscription>();
 const MAX_BATCH_CHANGES = 1000;
+
+/**
+ * Glob patterns for paths that should be excluded from watching.
+ * Mirrors the ignore set previously defined in utils.ts isIgnorePath().
+ * @parcel/watcher uses picomatch globs matched against relative paths from the
+ * watched root.
+ */
+const IGNORE = [
+  "**/.git/**",
+  "**/.svn/**",
+  "**/.hg/**",
+  "**/node_modules/**",
+  "**/bower_components/**",
+  "**/.cache/**",
+  "**/venv/**",
+  "**/.venv/**",
+  "**/vendor/**",
+  "**/__pycache__/**",
+];
 
 let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
   channel: K,
@@ -19,42 +38,43 @@ export function initWatcher(
   ) => boolean,
 ) {
   sendEvent = emitter;
-  syncWatchers();
+  // Fire-and-forget: at init time there are no stale subscriptions to clean
+  // up, only new ones to create. Subscriptions are native and set up quickly.
+  void syncWatchers();
 }
 
-export function syncWatchers() {
+export async function syncWatchers() {
   const projects = storageOps.listProjects();
   const currentProjects = new Map(projects.map((p) => [p.id, p]));
 
   // Remove watchers for deleted projects
-  for (const [projectId, watcher] of watchers.entries()) {
+  for (const [projectId, subscription] of subscriptions.entries()) {
     if (!currentProjects.has(projectId)) {
-      watcher.close();
-      watchers.delete(projectId);
+      await subscription.unsubscribe();
+      subscriptions.delete(projectId);
     }
   }
 
   // Add watchers for new projects
   for (const [projectId, project] of currentProjects) {
-    if (!watchers.has(projectId)) {
-      createWatcher(projectId, project.cwd);
+    if (!subscriptions.has(projectId)) {
+      await createWatcher(projectId, project.cwd);
     }
   }
 }
 
-function createWatcher(projectId: string, cwd: string) {
-  const watcher = chokidar.watch(cwd, {
-    ignored: (fullPath: string) => {
-      return isIgnorePath(fullPath, cwd);
-    },
-    followSymlinks: false,
-    ignoreInitial: true,
-    depth: 15, // Prevent infinite deep directory recursion
-  });
-
+async function createWatcher(projectId: string, cwd: string) {
   const changes = new Set<string>();
   let overflowed = false;
   let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const flush = () => {
+    if (changes.size > 0) {
+      sendEvent("fs-changed", { projectId, changes: Array.from(changes) });
+      changes.clear();
+      overflowed = false;
+    }
+  };
 
   const onChange = (path: string) => {
     if (!overflowed) {
@@ -67,35 +87,38 @@ function createWatcher(projectId: string, cwd: string) {
       }
     }
     if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      if (changes.size > 0) {
-        sendEvent("fs-changed", { projectId, changes: Array.from(changes) });
-        changes.clear();
-        overflowed = false;
-      }
-    }, 500);
+    timeout = setTimeout(flush, 500);
   };
 
-  watcher.on("all", (event, path) => {
-    if (
-      event === "add" ||
-      event === "change" ||
-      event === "unlink" ||
-      event === "addDir" ||
-      event === "unlinkDir"
-    ) {
-      // Map the absolute path to a relative path before emitting
-      // File watcher paths are emitted using the native OS separator.
-      // We normalize them to POSIX paths (using forward slashes) before sending to the frontend.
-      onChange(toPosixPath(relative(cwd, path)));
-    }
-  });
+  try {
+    const subscription = await watcher.subscribe(
+      cwd,
+      (err, events) => {
+        if (err) {
+          // @parcel/watcher uses native OS backends. Common errors:
+          // - EMFILE (Linux): inotify watch limit reached.
+          //   → Install Watchman (`brew install watchman` / `apt install watchman`)
+          //     and @parcel/watcher will auto-detect it.
+          //   → Or increase `fs.inotify.max_user_watches` via sysctl.
+          // - EBADF (macOS): watched directory was deleted/moved externally.
+          //   → The subscription is dead; it will be cleaned up on next
+          //     syncWatchers() call (e.g. when user re-adds the project).
+          console.error(`[Watcher] Error for ${projectId} (${cwd}):`, err);
+          return;
+        }
 
-  watcher.on("error", (error) => {
-    console.error(`[Watcher] Error for ${projectId} (${cwd}):`, error);
-    // On EMFILE or other fatal errors, we don't aggressively reconnect here
-    // to avoid infinite loops. It can be re-synced if the project is re-added or restarted.
-  });
+        for (const event of events) {
+          // @parcel/watcher event types: 'create', 'update', 'delete'
+          // 'create' covers both files and directories (add + addDir).
+          // 'delete' covers both files and directories (unlink + unlinkDir).
+          onChange(toPosixPath(relative(cwd, event.path)));
+        }
+      },
+      { ignore: IGNORE },
+    );
 
-  watchers.set(projectId, watcher);
+    subscriptions.set(projectId, subscription);
+  } catch (err) {
+    console.error(`[Watcher] Failed to subscribe for ${projectId} (${cwd}):`, err);
+  }
 }

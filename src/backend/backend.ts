@@ -29,7 +29,7 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { ACPBridge } from "./acp-bridge";
+import { ACPBridge } from "./agent/agent-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
@@ -70,7 +70,7 @@ function buildMcpServersConfig(sessionMcpIds: string[]): McpServer[] {
 
   for (const id of sessionMcpIds) {
     const config = globalSettings.mcpServers?.find((s) => s.id === id);
-    if (config && !config.disabled) {
+    if (config) {
       if (config.type === "stdio") {
         servers.push({
           name: id,
@@ -96,7 +96,7 @@ export const SEARCH_MAX_RESULTS = 10;
 export const SEARCH_FUSE_THRESHOLD = 0.4;
 const SEARCH_CACHE_TTL_MS = 60_000;
 
-type SearchFileItem = { id: string; filename: string };
+type SearchFileItem = { id: string; filename: string; isFolder: boolean };
 type SearchFileCacheEntry = {
   version: number;
   builtAt: number;
@@ -121,7 +121,7 @@ const pendingPermissions = new Map<
 // Track sessions that are currently streaming to sync multiple clients
 const activeStreamingSessions = new Set<string>();
 
-// Track generation locks to prevent race conditions during concurrent sendMessage calls
+// Track generation locks to prevent race conditions during concurrent sendPrompt calls
 const sessionGenerationLocks = new Map<string, string>();
 
 // Track sessions that are currently being restored (via loadSession) to block duplicate/invalid replays from agent
@@ -168,7 +168,7 @@ function getILinkBridge(): ILinkBridge {
         ];
 
         try {
-          await backendHandlers.sendMessage({ sessionId, contents });
+          await backendHandlers.sendPrompt({ sessionId, contents });
         } catch (err) {
           console.error("[iLink] Failed to route message to session:", err);
           // Try to notify the WeChat user about the error
@@ -344,7 +344,7 @@ async function buildSearchIndex(cwd: string): Promise<SearchFileItem[]> {
       if (fileScene.has(full)) continue;
       const rel = relative(cwd, full);
       const posixRel = toPosixPath(rel);
-      allFiles.push({ id: posixRel, filename: rel });
+      allFiles.push({ id: posixRel, filename: rel, isFolder: s.isDirectory() });
       if (s.isDirectory()) await collect(full);
     }
   }
@@ -746,7 +746,7 @@ export const backendHandlers: {
     if (!projectFsVersions.has(ProjectInfo.id)) {
       projectFsVersions.set(ProjectInfo.id, 0);
     }
-    syncWatchers();
+    await syncWatchers();
     sendEvent("projects-changed", undefined);
     return ProjectInfo;
   },
@@ -759,10 +759,25 @@ export const backendHandlers: {
   async deleteProject(projectId: string) {
     const projectSessions = storageOps
       .listSessions()
-      .filter((session) => session.projectId === projectId)
-      .map((session) => ({ agentId: session.agentId, resumeId: session.resumeId }));
+      .filter((session) => session.projectId === projectId);
     storageOps.deleteProject(projectId);
     for (const session of projectSessions) {
+      // Close the session on the agent side if still active
+      try {
+        const connectPromise = bridgePool.get(session.agentId);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) {
+            await b.closeSession(session.resumeId);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+
       try {
         deletePersistedSessionDirectory({
           agentId: session.agentId,
@@ -776,7 +791,7 @@ export const backendHandlers: {
       }
     }
     clearProjectSearchState(projectId);
-    syncWatchers();
+    await syncWatchers();
     sendEvent("projects-changed", undefined);
     sendEvent("sessions-changed", undefined);
   },
@@ -786,13 +801,10 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
 
-    // Extract enabled global MCP servers
-    const globalSettings = storageOps.getSettings();
-    const enabledGlobalMcpIds = (globalSettings.mcpServers || [])
-      .filter((s) => !s.disabled)
-      .map((s) => s.id);
-    const desiredMcpIds = new Set(mcpServers ?? enabledGlobalMcpIds);
-    const sessionMcpIds = enabledGlobalMcpIds.filter((id) => desiredMcpIds.has(id));
+    // Use the user-selected MCP servers, falling back to all non-disabled servers as default
+    const sessionMcpIds =
+      mcpServers ??
+      (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
     const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
 
     const {
@@ -829,30 +841,62 @@ export const backendHandlers: {
     restoringSessions.add(session.id);
     let loadResult;
     try {
-      loadResult = await b.loadSession({
-        sessionId: session.resumeId,
-        cwd: session.cwd,
-        mcpServers: activeMcpServers,
-      });
+      // If the session is already active in the agent (e.g., just created via newSession),
+      // check if configuration (cwd, mcpServers) has changed. If so, close and reload.
+      if (b.isSessionLoaded(session.resumeId)) {
+        if (b.hasSessionConfigChanged(session.resumeId, session.cwd, activeMcpServers)) {
+          console.log(
+            `[Fello] Session ${session.resumeId} config changed, closing and reloading...`,
+          );
+          await b.closeSession(session.resumeId);
+          loadResult = await b.loadSession({
+            sessionId: session.resumeId,
+            cwd: session.cwd,
+            mcpServers: activeMcpServers,
+          });
+        }
+        // else: config unchanged, skip reload and use cached state
+      } else {
+        loadResult = await b.loadSession({
+          sessionId: session.resumeId,
+          cwd: session.cwd,
+          mcpServers: activeMcpServers,
+        });
+      }
     } finally {
       restoringSessions.delete(session.id);
     }
 
-    let finalModels = loadResult.models ?? null;
-    let finalModes = loadResult.modes ?? null;
+    // Use models/modes from loadResult if available, otherwise fall back to bridge cache or storage
+    let finalModels = loadResult?.models ?? null;
+    let finalModes = loadResult?.modes ?? null;
 
     let shouldUpdateCache = false;
 
     if (finalModels) {
       shouldUpdateCache = true;
     } else {
-      finalModels = session.models;
+      // Try bridge cache (populated during newSession)
+      const cachedModels = b.getModelState(session.resumeId);
+      if (cachedModels) {
+        finalModels = cachedModels;
+        shouldUpdateCache = true;
+      } else {
+        finalModels = session.models;
+      }
     }
 
     if (finalModes) {
       shouldUpdateCache = true;
     } else {
-      finalModes = session.modes;
+      // Try bridge cache (populated during newSession)
+      const cachedModes = b.getModeState(session.resumeId);
+      if (cachedModes) {
+        finalModes = cachedModes;
+        shouldUpdateCache = true;
+      } else {
+        finalModes = session.modes;
+      }
     }
 
     if (shouldUpdateCache || b.initializeInfo) {
@@ -891,7 +935,7 @@ export const backendHandlers: {
     };
   },
 
-  async sendMessage({ sessionId, contents }) {
+  async sendPrompt({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
 
@@ -1021,6 +1065,25 @@ export const backendHandlers: {
 
   async deleteSession(sessionId: string) {
     const session = storageOps.getSession(sessionId);
+
+    // Close the session on the agent side if it's still active
+    if (session) {
+      try {
+        const connectPromise = bridgePool.get(session.agentId);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) {
+            await b.closeSession(session.resumeId);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${message}`,
+        );
+      }
+    }
+
     storageOps.deleteSession(sessionId);
     if (activeIlinkSessionId === sessionId) {
       activeIlinkSessionId = null;
@@ -1204,15 +1267,17 @@ export const backendHandlers: {
 
     if (!query || query.trim() === "") {
       const entries = await readdir(cwd).catch(() => []);
-      const results: Array<{ id: string; filename: string }> = [];
+      const results: Array<{ id: string; filename: string; isFolder: boolean }> = [];
       for (const name of entries) {
         const full = join(cwd, name);
         if (isIgnorePath(full, cwd)) continue;
 
         if (fileScene.has(full)) continue;
         fileScene.add(full);
+        const s = await stat(full).catch(() => null);
+        if (!s) continue;
         const rel = relative(cwd, full);
-        results.push({ id: toPosixPath(rel), filename: rel });
+        results.push({ id: toPosixPath(rel), filename: rel, isFolder: s.isDirectory() });
         if (results.length >= SEARCH_MAX_RESULTS) break;
       }
       results.sort((a, b) => a.filename.localeCompare(b.filename));

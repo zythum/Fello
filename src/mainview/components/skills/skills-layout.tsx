@@ -16,13 +16,13 @@ export function SkillsLayout() {
       id: "installed",
       href: "/skills/installed",
       icon: <Library className="size-4" />,
-      label: t("skills.installed"),
+      label: t("skills.installed.label"),
     },
     {
-      id: "store",
-      href: "/skills/store",
+      id: "skills-sh",
+      href: "/skills/skills-sh",
       icon: <PackageSearch className="size-4" />,
-      label: `${t("skills.store")} skills.sh`,
+      label: t("skills.skillsSh.label"),
     },
   ];
 
