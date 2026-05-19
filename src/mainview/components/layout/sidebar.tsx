@@ -172,6 +172,7 @@ export function Sidebar() {
     }
   };
 
+  const creating = useAppStore((s) => s.isCreatingSession);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
   const [newSessionAgentId, setNewSessionAgentId] = useState<string>("");
@@ -724,8 +725,10 @@ export function Sidebar() {
               size="sm"
               className="h-8 text-xs"
               variant="default"
+              disabled={creating}
               onClick={handleCreateNewSession}
             >
+              {creating && <LoaderCircle className="size-3 animate-spin" />}
               {t("sidebar.newSessionDialog.create", { defaultValue: "Create" })}
             </Button>
           </DialogFooter>
