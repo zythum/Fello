@@ -4,6 +4,7 @@ import type {
   SessionNotification,
   PromptResponse,
   McpServer,
+  ContentBlock,
   ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
@@ -38,6 +39,7 @@ import {
   ILinkBridge,
   readActiveSessionId,
   writeActiveSessionId,
+  hasImageItems,
   extractMessageText,
 } from "./ilink/ilink-bridge";
 import { deletePersistedSessionDirectory } from "../agents/storage";
@@ -162,12 +164,11 @@ function getILinkBridge(): ILinkBridge {
           return;
         }
 
-        const { extractMessageText, hasImageItems } = await import("./ilink/ilink-bridge");
         const text = extractMessageText(msg);
         const hasImages = hasImageItems(msg);
         if (!text.trim() && !hasImages) return;
 
-        const contents: import("@agentclientprotocol/sdk").ContentBlock[] = [];
+        const contents: ContentBlock[] = [];
 
         if (text.trim()) {
           contents.push({ type: "text", text: `[来自微信] ${text}` });
