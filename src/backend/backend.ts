@@ -157,15 +157,32 @@ function getILinkBridge(): ILinkBridge {
           return;
         }
 
-        const text = (await import("./ilink/ilink-bridge")).extractMessageText(msg);
-        if (!text.trim()) return;
+        const { extractMessageText, hasImageItems } = await import("./ilink/ilink-bridge");
+        const text = extractMessageText(msg);
+        const hasImages = hasImageItems(msg);
+        if (!text.trim() && !hasImages) return;
 
-        const contents: import("@agentclientprotocol/sdk").ContentBlock[] = [
-          {
-            type: "text",
-            text: `[来自微信] ${text}`,
-          },
-        ];
+        const contents: import("@agentclientprotocol/sdk").ContentBlock[] = [];
+
+        if (text.trim()) {
+          contents.push({ type: "text", text: `[来自微信] ${text}` });
+        }
+
+        if (hasImages && ilinkBridge) {
+          for (const item of msg.item_list ?? []) {
+            if (item.type !== 2 || !item.image_item) continue;
+            try {
+              const base64 = await ilinkBridge.downloadImage(item.image_item);
+              if (base64) {
+                contents.push({ type: "image", data: base64, mimeType: "image/jpeg" });
+              }
+            } catch (err) {
+              console.error("[iLink] Failed to download image:", err);
+            }
+          }
+        }
+
+        if (contents.length === 0) return;
 
         try {
           await backendHandlers.sendMessage({ sessionId, contents });
