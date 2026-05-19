@@ -965,6 +965,23 @@ export const backendHandlers: {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
 
+    // If this session is currently streaming, cancel the previous generation first
+    if (activeStreamingSessions.has(sessionId)) {
+      console.log(
+        `[Fello] Session ${sessionId} is already streaming, cancelling previous generation...`,
+      );
+      const connectPromise = bridgePool.get(session.agentId);
+      if (connectPromise) {
+        const b = await connectPromise;
+        await b.cancel({ sessionId: session.resumeId }).catch((err) => {
+          console.warn(
+            `[Fello] Failed to cancel previous generation for session ${sessionId}: ${err}`,
+          );
+        });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+
     // Fallback: If it's a new chat, simulate an agent title update
     if (!session.title) {
       const firstTextContent = contents.find((c) => c.type === "text");

@@ -51,47 +51,41 @@ export function resolveSafePath(cwd: string, relativePath: string): string {
 }
 
 export function extractErrorMessage(error: unknown): string {
-  const visited = new Set<unknown>();
+  if (typeof error === "boolean" || typeof error === "undefined" || error === null) {
+    return "Errored";
+  }
 
-  const walk = (value: unknown, depth: number): string | null => {
-    if (depth > 4) return null;
-    if (typeof value === "string") {
-      const text = value.trim();
-      return text.length > 0 ? text : null;
+  if (typeof error === "string" || typeof error === "number") {
+    return String(error);
+  }
+
+  if (typeof error === "object" && error) {
+    const messages = [];
+    if ("error" in error && typeof error.error !== "object") {
+      messages.push(`[${error.error}]`);
     }
-    if (value instanceof Error) {
-      const text = value.message?.trim();
-      return text?.length ? text : null;
+    if ("code" in error && typeof error.code !== "object") {
+      messages.push(`[${error.code}]`);
     }
-    if (!value || typeof value !== "object") return null;
-    if (visited.has(value)) return null;
-    visited.add(value);
-
-    const record = value as Record<string, unknown>;
-    const candidates = [
-      record.message,
-      record.error,
-      record.data,
-      typeof record.data === "object" && record.data
-        ? (record.data as Record<string, unknown>).message
-        : null,
-      typeof record.data === "object" && record.data
-        ? (record.data as Record<string, unknown>).error
-        : null,
-    ];
-    for (const candidate of candidates) {
-      const message = walk(candidate, depth + 1);
-      if (message) return message;
+    if ("message" in error) {
+      messages.push(error.message);
     }
-    return null;
-  };
-
-  const message = walk(error, 0);
-  if (message) return message;
-
-  if (error === null || error === undefined) return "";
-
-  const fallback = String(error).trim();
-  if (fallback && fallback !== "[object Object]") return fallback;
-  return "";
+    if ("data" in error && typeof error.data === "object" && error.data) {
+      for (const name in error.data) {
+        const value = (error.data as any)[name];
+        if (typeof value === "string" || typeof value === "number") {
+          messages.push(`${name}:${value}`);
+        }
+      }
+    }
+    if (messages.length) {
+      return messages.join(" ");
+    }
+  }
+  try {
+    return JSON.stringify(error);
+  } catch (err) {
+    console.warn("[Utils] ExtractErrorMessage Error.", err);
+    return "";
+  }
 }

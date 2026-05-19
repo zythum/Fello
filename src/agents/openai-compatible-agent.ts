@@ -418,7 +418,7 @@ export class OpenaiCompatibleAgent implements Agent {
             maxOutputTokens: 100,
             temperature: 0.3,
             providerOptions: {
-              "openai-compatible": {
+              openaiCompatible: {
                 thinking: { type: "disabled" },
                 enable_thinking: false,
                 reasoning_effort: "low",

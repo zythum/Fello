@@ -1,6 +1,7 @@
 import type { ToolSet } from "ai";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ContentBlockSchema } from "@modelcontextprotocol/sdk/types.js";
 import type {
   AgentSideConnection,
   ContentBlock,
@@ -183,21 +184,56 @@ export async function createMCPSessionTools(
 
             try {
               const output: any = await toolDef.execute(input, options);
-              if (output.isError === true) {
-                throw new Error("Errored");
+
+              const contents: any[] = [];
+              if (
+                typeof output === "string" ||
+                typeof output === "boolean" ||
+                typeof output === "number"
+              ) {
+                contents.push(output);
+              } else if (typeof output === "object" && output && output.content) {
+                if (Array.isArray(output.content) && output.content.length > 0) {
+                  contents.push(...output.content);
+                } else if (output.content) {
+                  contents.push(output.content);
+                }
               }
+
               if (connection && toolCallId) {
                 const toolCallComplateUpdate: ToolCallUpdate = {
                   toolCallId,
-                  status: "completed",
-                  content: ([] as ContentBlock[])
-                    .concat(output.content ?? [])
-                    .map((contentBlock) => {
-                      return {
-                        type: "content" as const,
-                        content: contentBlock,
-                      };
-                    }),
+                  status: output?.isError ? "failed" : "completed",
+                  content: contents.map((content) => {
+                    let contentBlock: ContentBlock;
+                    if (ContentBlockSchema.safeParse(content).success) {
+                      contentBlock = content;
+                    } else {
+                      if (typeof content === "object" && content) {
+                        try {
+                          contentBlock = {
+                            type: "text",
+                            text: JSON.stringify(content),
+                          };
+                        } catch (err) {
+                          contentBlock = {
+                            type: "text",
+                            text: "",
+                          };
+                          console.warn("[MCP] Parse ContentBlock Error", err);
+                        }
+                      } else {
+                        contentBlock = {
+                          type: "text",
+                          text: String(content),
+                        };
+                      }
+                    }
+                    return {
+                      type: "content" as const,
+                      content: contentBlock,
+                    };
+                  }),
                 };
                 await connection.sessionUpdate({
                   sessionId: params.sessionId,
