@@ -109,6 +109,14 @@ export function extractMessageText(msg: WeixinMessage): string {
 }
 
 /**
+ * Check if a WeixinMessage contains image items.
+ */
+export function hasImageItems(msg: WeixinMessage): boolean {
+  if (!msg.item_list) return false;
+  return msg.item_list.some((item) => item.type === 2 && item.image_item);
+}
+
+/**
  * Split long text for WeChat (2000 char limit per message).
  * Prefers splitting at \n\n, then \n, then space, then hard cut.
  */
@@ -340,6 +348,27 @@ export class ILinkBridge {
         base_info: { channel_version: "0.1.0" },
       });
     }
+  }
+
+  /**
+   * Download and decrypt an image from a WeixinMessage image_item.
+   * Returns base64-encoded image data.
+   */
+  async downloadImage(imageItem: import("./ilink-client").ImageItem): Promise<string | null> {
+    if (!this.client) return null;
+    const encryptQueryParam = imageItem.media?.encrypt_query_param;
+    if (!encryptQueryParam) return null;
+
+    const encrypted = await this.client.downloadFromCdn(encryptQueryParam);
+    const aesKeyRaw = imageItem.media?.aes_key || imageItem.aeskey;
+    if (!aesKeyRaw) return encrypted.toString("base64");
+
+    const { decryptAesEcb, decodeAesKey, decodeAesKeyHex } = await import("./ilink-crypto");
+    const key = aesKeyRaw.length <= 32 && /^[0-9a-fA-F]+$/.test(aesKeyRaw)
+      ? decodeAesKeyHex(aesKeyRaw)
+      : decodeAesKey(aesKeyRaw);
+    const decrypted = decryptAesEcb(encrypted, key);
+    return decrypted.toString("base64");
   }
 
   /**
