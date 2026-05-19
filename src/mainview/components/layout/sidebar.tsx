@@ -137,6 +137,8 @@ export function Sidebar() {
       const projectInfo = await request.addProject(selectedPath);
       await refreshData();
       setExpandedProjects((prev) => ({ ...prev, [projectInfo.id]: true }));
+      // 自动弹出创建 session 弹层
+      openNewSessionDialog(projectInfo.id);
     } catch (err) {
       const message = getErrorMessage(err, t("sidebar.addProjectFailed", "Failed to add project."));
       if (message === "Project selection was canceled") return;
@@ -404,7 +406,11 @@ export function Sidebar() {
                         e.stopPropagation();
                         openNewSessionDialog(project.id);
                       }}
-                      className="flex size-4 items-center justify-center rounded-sm transition-opacity opacity-0 group-hover:opacity-100 text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70"
+                      className={`flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70 ${
+                        projectSessions.length === 0
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      }`}
                       aria-label={t("sidebar.createChatInProject", {
                         defaultValue: "Create chat in {{title}}",
                         title: project.title,

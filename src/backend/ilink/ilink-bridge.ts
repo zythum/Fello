@@ -364,9 +364,10 @@ export class ILinkBridge {
     if (!aesKeyRaw) return encrypted.toString("base64");
 
     const { decryptAesEcb, decodeAesKey, decodeAesKeyHex } = await import("./ilink-crypto");
-    const key = aesKeyRaw.length <= 32 && /^[0-9a-fA-F]+$/.test(aesKeyRaw)
-      ? decodeAesKeyHex(aesKeyRaw)
-      : decodeAesKey(aesKeyRaw);
+    const key =
+      aesKeyRaw.length <= 32 && /^[0-9a-fA-F]+$/.test(aesKeyRaw)
+        ? decodeAesKeyHex(aesKeyRaw)
+        : decodeAesKey(aesKeyRaw);
     const decrypted = decryptAesEcb(encrypted, key);
     return decrypted.toString("base64");
   }
