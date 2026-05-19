@@ -413,10 +413,7 @@ export function Sidebar() {
                       <MessageCirclePlus />
                     </button>
                   </ContextMenuTrigger>
-                  <ContextMenuContent
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-auto"
-                  >
+                  <ContextMenuContent onClick={(e) => e.stopPropagation()} className="w-auto">
                     <ContextMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
@@ -505,10 +502,7 @@ export function Sidebar() {
                           </span>
                         </div>
                       </ContextMenuTrigger>
-                      <ContextMenuContent
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-auto"
-                      >
+                      <ContextMenuContent onClick={(e) => e.stopPropagation()} className="w-auto">
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();

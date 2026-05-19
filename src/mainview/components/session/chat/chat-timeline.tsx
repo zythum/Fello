@@ -52,9 +52,7 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
     if (items.length < 2) return [];
 
     // 需要截断时使用基数，让活跃消息完美居中
-    const size = items.length > windowSize && windowSize % 2 === 0
-      ? windowSize - 1
-      : windowSize;
+    const size = items.length > windowSize && windowSize % 2 === 0 ? windowSize - 1 : windowSize;
 
     const activeIndex = activeDisplayId
       ? items.findIndex((item) => item.displayId === activeDisplayId)

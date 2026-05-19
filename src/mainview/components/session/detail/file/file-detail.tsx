@@ -226,62 +226,62 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
         ) : viewMode === "code" && finalViewModes.includes("code") ? (
           /* code view with context menu */
           <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
-              <ContextMenu
-                onOpenChange={(open) => {
-                  if (!open) clearSelection();
-                }}
+            <ContextMenu
+              onOpenChange={(open) => {
+                if (!open) clearSelection();
+              }}
+            >
+              <ContextMenuTrigger
+                className="min-h-full text-[12px] font-mono block select-text -mx-3 pb-20"
+                onContextMenu={handleContextMenu}
               >
-                <ContextMenuTrigger
-                  className="min-h-full text-[12px] font-mono block select-text -mx-3 pb-20"
-                  onContextMenu={handleContextMenu}
-                >
-                  <div ref={contentRef} className="w-max">
-                    <CodeView content={content} filename={fileName} />
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  {selectedText && (
-                    <ContextMenuItem onClick={handleCopy}>
-                      <Copy />
-                      {t("userBubble.copy")}
-                    </ContextMenuItem>
-                  )}
-                  <ContextMenuItem onClick={handleCopyFileContent}>
+                <div ref={contentRef} className="w-max">
+                  <CodeView content={content} filename={fileName} />
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                {selectedText && (
+                  <ContextMenuItem onClick={handleCopy}>
                     <Copy />
-                    {t("fileDetail.copyFileContent", "复制文件内容")}
+                    {t("userBubble.copy")}
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={refresh}>
-                    <RefreshCw />
-                    {t("filePanel.refresh", "刷新")}
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={handleAddFileToChat}>
+                )}
+                <ContextMenuItem onClick={handleCopyFileContent}>
+                  <Copy />
+                  {t("fileDetail.copyFileContent", "复制文件内容")}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={refresh}>
+                  <RefreshCw />
+                  {t("filePanel.refresh", "刷新")}
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={handleAddFileToChat}>
+                  <MessageSquarePlus />
+                  {t("fileDetail.addFileToChat", "添加文件到会话")}
+                </ContextMenuItem>
+                {selectedLineRange && (
+                  <ContextMenuItem onClick={handleAddToChat}>
                     <MessageSquarePlus />
-                    {t("fileDetail.addFileToChat", "添加文件到会话")}
+                    {t("fileDetail.addSelectionToChat", "添加选中内容到会话")}
                   </ContextMenuItem>
-                  {selectedLineRange && (
-                    <ContextMenuItem onClick={handleAddToChat}>
-                      <MessageSquarePlus />
-                      {t("fileDetail.addSelectionToChat", "添加选中内容到会话")}
-                    </ContextMenuItem>
-                  )}
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={handleCopyPath}>
-                    <Copy />
-                    {t("filePanel.copyPath")}
+                )}
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={handleCopyPath}>
+                  <Copy />
+                  {t("filePanel.copyPath")}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleCopyRelativePath}>
+                  <Copy />
+                  {t("filePanel.copyRelativePath")}
+                </ContextMenuItem>
+                {!isWebUI && (
+                  <ContextMenuItem onClick={handleRevealInFinder}>
+                    <FolderOpen />
+                    {t("filePanel.revealInFinder")}
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={handleCopyRelativePath}>
-                    <Copy />
-                    {t("filePanel.copyRelativePath")}
-                  </ContextMenuItem>
-                  {!isWebUI && (
-                    <ContextMenuItem onClick={handleRevealInFinder}>
-                      <FolderOpen />
-                      {t("filePanel.revealInFinder")}
-                    </ContextMenuItem>
-                  )}
-                </ContextMenuContent>
-              </ContextMenu>
+                )}
+              </ContextMenuContent>
+            </ContextMenu>
           </ScrollArea>
         ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
           /* git diff view */
