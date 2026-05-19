@@ -8,15 +8,15 @@ import { SettingsLayout } from "./components/settings/settings-layout";
 
 // Pages
 import { Welcome } from "./components/welcome/welcome";
-import { SessionView } from "./components/session/session-view";
-import { SettingsGeneral } from "./components/settings/settings-general";
-import { SettingsAgents } from "./components/settings/settings-agents";
-import { SettingsMcp } from "./components/settings/settings-mcp";
-import { SettingsWebUI } from "./components/settings/settings-webui";
-import { SettingsILink } from "./components/settings/settings-ilink";
+import { Session } from "./components/session/session";
+import { SettingsGeneral } from "./components/settings/general/settings-general";
+import { SettingsAgents } from "./components/settings/agents/settings-agents";
+import { SettingsMcp } from "./components/settings/mcp/settings-mcp";
+import { SettingsWebUI } from "./components/settings/webui/settings-webui";
+import { SettingsILink } from "./components/settings/ilink/settings-ilink";
 import { SkillsLayout } from "./components/skills/skills-layout";
-import { SkillsInstalled } from "./components/skills/skills-installed";
-import { SkillsSkillsSh } from "./components/skills/skills-skill-sh";
+import { SkillsInstalled } from "./components/skills/installed/skills-installed";
+import { SkillsSh } from "./components/skills/skills-sh/skills-skills-sh";
 
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -26,7 +26,7 @@ function SessionWrapper() {
     return <Navigate to="/" replace />;
   }
 
-  return <SessionView session={sessionInfo} />;
+  return <Session session={sessionInfo} />;
 }
 
 export function AppRouter() {
@@ -46,7 +46,7 @@ export function AppRouter() {
         </Route>
         <Route path="/skills" element={<SkillsLayout />}>
           <Route path="installed" element={<SkillsInstalled />} />
-          <Route path="store" element={<SkillsSkillsSh />} />
+          <Route path="skills-sh" element={<SkillsSh />} />
         </Route>
       </Routes>
     </div>

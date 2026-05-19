@@ -1,11 +1,16 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { FelloIPCSchema } from "../../shared/schema";
+import type { UpdaterEvent } from "../../electron/updater";
 
 type ElectronIPCRequests = {
   showOpenDialog: { params: void; response: string | null };
   revealInFinder: { params: string; response: void };
   openInBrowser: { params: string; response: void };
   trashFile: { params: string; response: void };
+  getUpdaterStatus: { params: void; response: UpdaterEvent | null };
+  checkForUpdates: { params: { manual?: boolean } | void; response: void };
+  downloadUpdate: { params: void; response: void };
+  installUpdate: { params: void; response: void };
 };
 
 type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
@@ -23,8 +28,13 @@ contextBridge.exposeInMainWorld("fello", {
   isMacApp: process.platform === "darwin",
   onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
     const handler = (_event: unknown, isFullScreen: boolean) => callback(isFullScreen);
-    ipcRenderer.on("ui:mac-fullscreen", handler);
-    return () => ipcRenderer.removeListener("ui:mac-fullscreen", handler);
+    ipcRenderer.on("electron:mac-fullscreen", handler);
+    return () => ipcRenderer.removeListener("electron:mac-fullscreen", handler);
+  },
+  onUpdater: (callback: (updaterEvent: UpdaterEvent) => void) => {
+    const handler = (_event: unknown, updaterEvent: UpdaterEvent) => callback(updaterEvent);
+    ipcRenderer.on("electron:updater-event", handler);
+    return () => ipcRenderer.removeListener("electron:updater-event", handler);
   },
   invoke<K extends keyof AllIPCRequests>(channel: K, params?: AllIPCRequests[K]["params"]) {
     return ipcRenderer.invoke(channel, params) as Promise<AllIPCRequests[K]["response"]>;

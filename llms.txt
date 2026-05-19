@@ -14,11 +14,14 @@ IPC
 
 Agent Architecture
 - Two agent types supported:
-  1. Stdio agents: spawned via child_process (src/backend/agents/stdio-agent.ts) communicating over NDJSON stdio via ACP SDK
-  2. API agents: OpenAI-compatible HTTP API (src/backend/agents/openai-compatible-api-agent.ts) running in-process via @ai-sdk/openai-compatible
+  1. Stdio agents: spawned via child_process (src/backend/agent/stdio-agent.ts) communicating over NDJSON stdio via ACP SDK
+  2. API agents: OpenAI-compatible HTTP API (src/backend/agent/openai-compatible-api-agent.ts) running in-process via @ai-sdk/openai-compatible
 - Agent implementation: src/agents/openai-compatible-agent.ts implements the ACP Agent interface using the Vercel AI SDK (streamText, generateText)
-- Agent process interface: src/backend/agents/type.ts (AgentProcess: input WritableStream, output ReadableStream, close)
-- ACP bridge: src/backend/acp-bridge.ts manages agent process lifecycle & session routing
+- Agent process interface: src/backend/agent/base-agent.ts (AgentProcess: input WritableStream, output ReadableStream, close)
+- ACP bridge: src/backend/agent/agent-bridge.ts manages agent process lifecycle & session routing
+
+Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan, GetFileOutline)
+- GetFileOutline: src/agents/file-outline.ts (AST file outline via @ast-grep/napi)
 
 Sessions & Persistence
 - Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
@@ -39,27 +42,27 @@ Sessions & Persistence
 - Chat input attachments: src/mainview/components/session/chat/chat-input.tsx (file picker + drag-and-drop; filters by agent promptCapabilities)
 - Chat timeline dots + scroll tracking: src/mainview/components/session/chat/chat-area.tsx and src/mainview/components/session/chat/chat-timeline.tsx
 - Chat header: src/mainview/components/session/chat/chat-header.tsx (agent badge, title, project path, MCP server toggle menu, refresh)
-- Session view layout: src/mainview/components/session/session-view.tsx (ResizablePanelGroup 3-column: Chat + Detail + Panel, compact mode at < 1000px)
+- Session view layout: src/mainview/components/session/session.tsx (ResizablePanelGroup 3-column: Chat + Detail + Panel, compact mode at < 1000px)
 - Panel (tabbed): src/mainview/components/session/panel/panel.tsx (Files / Terminal tabs)
-- File tree: src/mainview/components/session/panel/file-tree.tsx (formerly file-panel.tsx — tree only, no embedded preview)
-- Terminal tab list: src/mainview/components/session/panel/terminal-tab-list.tsx (vertical terminal list, create/delete/switch)
-- Detail view: src/mainview/components/session/detail/detail-view.tsx (dispatches to FilePreview or TerminalDetail)
-- File preview: src/mainview/components/session/detail/file-preview.tsx (image, markdown, code, diff; close button)
-- Terminal detail: src/mainview/components/session/detail/terminal-detail.tsx (full-size xterm.js, ResizeObserver auto-fit)
+- File tree: src/mainview/components/session/panel/file-panel/file-panel.tsx (formerly file-panel.tsx — tree only, no embedded preview)
+- Terminal tab list: src/mainview/components/session/panel/terminal-panel/terminal-panel.tsx (vertical terminal list, create/delete/switch)
+- Detail view: src/mainview/components/session/detail/detail.tsx (dispatches to FilePreview or TerminalDetail)
+- File preview: src/mainview/components/session/detail/file/file-detail.tsx (image, markdown, code, diff; close button)
+- Terminal detail: src/mainview/components/session/detail/terminal/terminal-detail.tsx (full-size xterm.js, ResizeObserver auto-fit)
 - Chat bubbles: src/mainview/components/session/chat/bubbles/ (agent, user, system, tool, thinking, plan)
 
 iLink (WeChat) Integration
 - Bridge: src/backend/ilink/ilink-bridge.ts (connection lifecycle, QR login, long-polling, message routing, typing indicators)
 - HTTP Client: src/backend/ilink/ilink-client.ts (iLink REST API)
 - Crypto: src/backend/ilink/ilink-crypto.ts
-- Settings UI: src/mainview/components/settings/settings-ilink.tsx
+- Settings UI: src/mainview/components/settings/ilink/settings-ilink.tsx
 - Persisted credentials: ~/.fello/ilink/credentials.json
 - Active session tracking: ~/.fello/ilink/active-session.json
 
 Skills System
 - Catalog scanning: src/backend/skills.ts (user/project level, fello/agents/claude scopes)
 - skills.sh marketplace integration: search & install
-- UI: src/mainview/components/skills/ (skills-layout, skills-installed, skills-skill-sh)
+- UI: src/mainview/components/skills/ (skills-layout, installed/skills-installed, skills-sh/skills-skills-sh)
 - Skill files stored under: ~/.fello/skills/, ~/.agents/skills/, ~/.claude/skills/
 
 Dev / Build Commands

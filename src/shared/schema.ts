@@ -116,6 +116,14 @@ export interface SettingI18nInfo {
 }
 
 /**
+ * 文件监听配置信息
+ */
+export interface SettingFileWatcherInfo {
+  /** 是否启用自动监听项目文件变更 */
+  enabled: boolean;
+}
+
+/**
  * 应用的全局设置信息
  */
 export interface SettingsInfo {
@@ -127,6 +135,8 @@ export interface SettingsInfo {
   theme: SettingThemeInfo;
   /** 国际化（语言）设置 */
   i18n: SettingI18nInfo;
+  /** 文件监听开关：是否自动监听项目文件变更 */
+  fileWatcher: SettingFileWatcherInfo;
 }
 
 /**
@@ -334,8 +344,8 @@ export type FelloIPCRequests = {
       isStreaming: boolean;
     };
   };
-  /** 向会话发送用户消息 */
-  sendMessage: {
+  /** 向会话发送用户 Prompt */
+  sendPrompt: {
     params: {
       sessionId: string;
       contents: ContentBlock[];
@@ -402,7 +412,7 @@ export type FelloIPCRequests = {
    */
   searchFiles: {
     params: { projectId: string; query?: string };
-    response: Array<{ id: string; filename: string }>;
+    response: Array<{ id: string; filename: string; isFolder: boolean }>;
   };
   /**
    * 读取目录内容

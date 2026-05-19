@@ -1,9 +1,13 @@
 name: Release
 
+permissions:
+  contents: write
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -34,20 +38,53 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - name: Build and publish (optional signing)
+
+      - name: Build and publish macOS
+        if: runner.os == 'macOS'
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [[ -n "${{ secrets.CSC_LINK }}" ]]; then
-            echo "Code signing enabled"
-            export CSC_LINK="${{ secrets.CSC_LINK }}"
-            export CSC_KEY_PASSWORD="${{ secrets.CSC_KEY_PASSWORD }}"
-            export APPLE_ID="${{ secrets.APPLE_ID }}"
-            export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
-            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
-          else
-            echo "Code signing disabled (CSC_LINK not set)"
+          missing=()
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing required macOS signing/notarization secrets: ${missing[*]}"
+            exit 1
           fi
 
+          echo "Code signing and notarization enabled"
           ${{ matrix.script }}
+
+      - name: Build and publish
+        if: runner.os != 'macOS'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ${{ matrix.script }}
+
+  publish-release:
+    name: Publish release
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --draft=false

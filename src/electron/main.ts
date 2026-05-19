@@ -16,6 +16,13 @@ import { fileURLToPath } from "url";
 import { backendHandlers, initBackend, killBridge, type FelloIPCSchema } from "../backend/backend";
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
+import {
+  createAutoUpdateCheckGate,
+  createUpdaterEvent,
+  createUpdaterProgressEvent,
+  normalizeUpdaterInfo,
+  type UpdaterEvent,
+} from "./updater";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
@@ -122,13 +129,103 @@ ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
   }
 });
 
-function checkForUpdates() {
+const autoUpdateCheckGate = createAutoUpdateCheckGate();
+let lastUpdaterEvent: UpdaterEvent | null = null;
+let lastUpdateCheckManual = false;
+let isUpdateChecking = false;
+let isUpdateDownloading = false;
+let hasDownloadedUpdate = false;
+let isInstallingUpdate = false;
+function sendUpdaterEvent(event: UpdaterEvent) {
+  lastUpdaterEvent = event;
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  mainWindow.webContents.send("electron:updater-event", event);
+}
+
+ipcMain.handle("getUpdaterStatus", () => lastUpdaterEvent);
+
+ipcMain.handle("checkForUpdates", async (_event: unknown, params?: { manual?: boolean }) => {
+  await checkForUpdates({ manual: Boolean(params?.manual) });
+});
+
+ipcMain.handle("downloadUpdate", async () => {
+  await downloadAvailableUpdate();
+});
+
+ipcMain.handle("installUpdate", async () => {
+  await installDownloadedUpdate();
+});
+
+function isUpdaterEnabled() {
+  return !isDev && app.isPackaged;
+}
+
+async function checkForUpdates({ manual }: { manual: boolean }) {
+  if (!autoUpdateCheckGate.shouldStart(manual)) return;
+
   if (isDev || !app.isPackaged) {
     console.log("[checkForUpdates] skipped in dev mode");
+    sendUpdaterEvent({
+      type: "disabled",
+      manual,
+      reason: "Updates are available only in packaged builds.",
+    });
     return;
   }
-  autoUpdater.autoDownload = false;
-  void autoUpdater.checkForUpdates();
+
+  if (isUpdateChecking) return;
+
+  lastUpdateCheckManual = manual;
+  isUpdateChecking = true;
+  sendUpdaterEvent({ type: "checking", manual });
+
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    isUpdateChecking = false;
+    lastUpdateCheckManual = false;
+    sendUpdaterEvent({
+      type: "error",
+      manual,
+      message: extractErrorMessage(error),
+    });
+    throw new Error(extractErrorMessage(error));
+  }
+}
+
+async function downloadAvailableUpdate() {
+  if (!isUpdaterEnabled()) {
+    throw new Error("Updates are available only in packaged builds.");
+  }
+  if (isUpdateDownloading || hasDownloadedUpdate) return;
+  if (lastUpdaterEvent?.type !== "available") {
+    const message = "No update is ready to download.";
+    sendUpdaterEvent({ type: "error", manual: true, message });
+    throw new Error(message);
+  }
+
+  isUpdateDownloading = true;
+  try {
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    isUpdateDownloading = false;
+    sendUpdaterEvent({
+      type: "error",
+      manual: true,
+      message: extractErrorMessage(error),
+    });
+    throw new Error(extractErrorMessage(error));
+  }
+}
+
+async function installDownloadedUpdate() {
+  if (!hasDownloadedUpdate) {
+    throw new Error("No downloaded update is ready to install.");
+  }
+
+  isInstallingUpdate = true;
+  await killBridge().catch(() => {});
+  autoUpdater.quitAndInstall(false, true);
 }
 
 function setupMenu() {
@@ -170,7 +267,12 @@ function setupMenu() {
       label: "Help",
       submenu: [
         { role: "toggleDevTools" },
-        { label: "Check for Updates...", click: checkForUpdates },
+        { label: "Check for Updates...", click: () => void checkForUpdates({ manual: true }) },
+        { type: "separator" },
+        {
+          label: "Fello on GitHub",
+          click: () => void shell.openExternal("https://github.com/Zythum/fello"),
+        },
       ] satisfies MenuItemConstructorOptions[],
     },
   ];
@@ -212,10 +314,10 @@ function createMainWindow() {
 
   if (process.platform === "darwin") {
     win.on("enter-full-screen", () => {
-      win.webContents.send("ui:mac-fullscreen", true);
+      win.webContents.send("electron:mac-fullscreen", true);
     });
     win.on("leave-full-screen", () => {
-      win.webContents.send("ui:mac-fullscreen", false);
+      win.webContents.send("electron:mac-fullscreen", false);
     });
   }
 
@@ -310,30 +412,49 @@ function setupAutoUpdater() {
   if (isDev || !app.isPackaged) return;
 
   autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
 
   autoUpdater.on("error", (error: unknown) => {
-    console.error("[autoUpdater:error]", extractErrorMessage(error));
+    isUpdateChecking = false;
+    isUpdateDownloading = false;
+    const manual = lastUpdateCheckManual;
+    lastUpdateCheckManual = false;
+    const message = extractErrorMessage(error);
+    console.error("[autoUpdater:error]", message);
+    sendUpdaterEvent({ type: "error", manual, message });
   });
 
-  autoUpdater.on("update-available", () => {
-    console.log("[autoUpdater] update available, downloading");
-    void autoUpdater.downloadUpdate();
+  autoUpdater.on("update-available", (info: unknown) => {
+    isUpdateChecking = false;
+    hasDownloadedUpdate = false;
+    console.log("[autoUpdater] update available");
+    sendUpdaterEvent(createUpdaterEvent("available", info, lastUpdateCheckManual));
+    lastUpdateCheckManual = false;
   });
 
-  autoUpdater.on("update-not-available", () => {
+  autoUpdater.on("update-not-available", (info: unknown) => {
+    isUpdateChecking = false;
     console.log("[autoUpdater] no update available");
+    sendUpdaterEvent(createUpdaterEvent("not-available", info, lastUpdateCheckManual));
+    lastUpdateCheckManual = false;
   });
 
-  autoUpdater.on("update-downloaded", () => {
-    console.log("[autoUpdater] update downloaded, quit and install");
-    autoUpdater.quitAndInstall();
+  autoUpdater.on("download-progress", (progress: unknown) => {
+    isUpdateDownloading = true;
+    sendUpdaterEvent(createUpdaterProgressEvent(progress));
   });
 
-  void autoUpdater.checkForUpdates();
+  autoUpdater.on("update-downloaded", (info: unknown) => {
+    isUpdateDownloading = false;
+    hasDownloadedUpdate = true;
+    console.log("[autoUpdater] update downloaded");
+    sendUpdaterEvent({ type: "downloaded", info: normalizeUpdaterInfo(info) });
+  });
 }
 
 let isQuitting = false;
 app.on("before-quit", (event) => {
+  if (isInstallingUpdate) return;
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;

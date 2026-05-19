@@ -6,7 +6,7 @@ import { AgentBubble } from "./agent-bubble";
 import { SystemBubble } from "./system-bubble";
 import { PlanBubble } from "./plan-bubble";
 import type { ChatMessage } from "../../../../lib/chat-message";
-import type { BaseBubbleProps } from "./types";
+import type { BaseBubbleProps } from "./base-bubble";
 
 export const MessageBubble = memo(function MessageBubble({
   session,

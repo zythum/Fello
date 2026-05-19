@@ -82,6 +82,9 @@ interface SettingsMeta {
   i18n: {
     language: string;
   };
+  fileWatcher: {
+    enabled: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -91,6 +94,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     language: "en",
   },
   mcpServers: {},
+  fileWatcher: {
+    enabled: true,
+  },
 };
 
 interface ProjectMeta {
@@ -234,7 +240,12 @@ function readSettings(): SettingsMeta {
       return next;
     })();
 
-    return { agents, theme, i18n, mcpServers };
+    const fileWatcher: SettingsMeta["fileWatcher"] =
+      rawObj && isObject(rawObj.fileWatcher) && typeof rawObj.fileWatcher.enabled === "boolean"
+        ? { enabled: rawObj.fileWatcher.enabled }
+        : DEFAULT_SETTINGS.fileWatcher;
+
+    return { agents, theme, i18n, mcpServers, fileWatcher };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -475,6 +486,9 @@ export const storageOps = {
       theme: {
         themeMode: meta.theme.theme_mode,
       },
+      fileWatcher: {
+        enabled: meta.fileWatcher.enabled,
+      },
     };
   },
 
@@ -554,6 +568,14 @@ export const storageOps = {
           }
         });
         return nextMcpServers;
+      })(),
+      fileWatcher: (() => {
+        if (!settings.fileWatcher) {
+          return prevMeta.fileWatcher;
+        }
+        return {
+          enabled: settings.fileWatcher.enabled,
+        };
       })(),
     };
     writeSettings(meta);

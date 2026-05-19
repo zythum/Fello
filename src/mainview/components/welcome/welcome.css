@@ -1,0 +1,95 @@
+/* Welcome page particle colors — dark mode needs a brighter tint for visibility */
+:root {
+  --welcome-particle: oklch(0.511 0.096 186.391);
+}
+
+.dark {
+  --welcome-particle: oklch(0.78 0.1 175);
+}
+
+/* Icon glow pulse */
+@utility animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Text reveal (blur → clear + slide up) */
+@utility animate-text-reveal {
+  animation: text-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Text fade in */
+@utility animate-text-fade-in {
+  animation: text-fade-in 0.7s ease-out both;
+}
+
+/* Per-character bounce entrance */
+@utility animate-char-bounce {
+  animation: char-bounce 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Horizontal bounce (arrow hint) */
+@utility animate-bounce-horizontal {
+  animation: bounce-horizontal 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes text-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes char-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.3);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.05);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes bounce-horizontal {
+  0%, 100% {
+    transform: translateX(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateX(-6px);
+    opacity: 1;
+  }
+}
