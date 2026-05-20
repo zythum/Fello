@@ -128,7 +128,7 @@ function AskUserOptions({
         value,
       })
       .catch(() => {})
-      .then(() => onResolved())
+      .then(() => onResolved());
   };
 
   // 否则作为自定义回复
@@ -142,7 +142,7 @@ function AskUserOptions({
         reason: trimmed || "",
       })
       .catch(() => {})
-      .then(() => onResolved())
+      .then(() => onResolved());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -179,9 +179,13 @@ function AskUserOptions({
                 <span className="inline-flex size-5 items-center justify-center rounded bg-muted-foreground/10 text-[10px] font-mono shrink-0 self-start mt-0.5">
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 whitespace-normal self-start py-1">{option.label}</span>
+                <span className="min-w-0 flex-1 whitespace-normal self-start py-1">
+                  {option.label}
+                </span>
               </span>
-              <div className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">{option.priority}</div>
+              <div className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">
+                {option.priority}
+              </div>
             </div>
           ))}
           {showOther && (

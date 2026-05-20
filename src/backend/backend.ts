@@ -1096,9 +1096,9 @@ export const backendHandlers: {
         for (const [askUserId, request] of Array.from(pendingAskUserRequests.entries())) {
           if (request.sessionId === sessionId) {
             try {
-              await this.respondAskUser({ sessionId, askUserId, value: null, reason: '' })
-            } catch(err) {
-              console.warn('[SendPrompt] Respond Previous Ask User Error', err);
+              await this.respondAskUser({ sessionId, askUserId, value: null, reason: "" });
+            } catch (err) {
+              console.warn("[SendPrompt] Respond Previous Ask User Error", err);
             }
           }
         }
@@ -1202,9 +1202,9 @@ export const backendHandlers: {
     for (const [askUserId, request] of Array.from(pendingAskUserRequests.entries())) {
       if (request.sessionId === sessionId) {
         try {
-          await this.respondAskUser({ sessionId, askUserId, value: null, reason: '' })
-        } catch(err) {
-          console.warn('[CancelPrompt] Respond Previous Ask User Error', err);
+          await this.respondAskUser({ sessionId, askUserId, value: null, reason: "" });
+        } catch (err) {
+          console.warn("[CancelPrompt] Respond Previous Ask User Error", err);
         }
       }
     }
