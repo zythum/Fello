@@ -38,7 +38,7 @@ import type {
   SessionNotificationFelloExt,
   FelloIPCSchema,
   AskUserRequest,
-  AskUserResponse,
+  AskUserRequestOption,
 } from "../shared/schema";
 import { storageOps } from "./storage";
 import {
@@ -124,10 +124,28 @@ type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
 const USER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 分钟
 
-const pendingRequests = new Map<
+// ── askUser 内部类型 ────────────────────────────────────────────────
+
+/** askUser 的输入参数（调用者传入，无需关心 askUserId） */
+interface AskUserOptions {
+  sessionId: string;
+  title: string;
+  description: string;
+  options: AskUserRequestOption[];
+  allowCustomInput?: boolean;
+}
+
+/** askUser 的返回值（调用者获取，只有结果信息） */
+interface AskUserResult {
+  value: string | null;
+  reason: string | null;
+}
+
+/** 挂起的 askUser 请求池：askUserId → 回调/超时/会话信息 */
+const pendingAskUserRequests = new Map<
   string,
   {
-    resolve: (value: AskUserResponse) => void;
+    resolve: (value: AskUserResult) => void;
     timeoutId: ReturnType<typeof setTimeout>;
     sessionId: string;
     request: AskUserRequest; // 存储完整请求，用于 WeChat 序号匹配等
@@ -172,11 +190,13 @@ function formatAskUserForWeChat(request: AskUserRequest): string {
 
 /**
  * 通用 askUser 机制：向用户展示问题并等待选择
- * 会发送 "user-request" 事件给前端，并返回一个 Promise，
+ * 会发送 "ask-user-request" 事件给前端，并返回一个 Promise，
  * 该 Promise 在用户选择或超时时 resolve。
  */
-async function askUser(request: AskUserRequest): Promise<AskUserResponse> {
-  const { toolCallId, sessionId } = request;
+async function askUser(options: AskUserOptions): Promise<AskUserResult> {
+  const { sessionId } = options;
+  const askUserId = randomUUID();
+  const request: AskUserRequest = { ...options, askUserId };
 
   const sent = sendEvent("ask-user-request", request);
 
@@ -192,26 +212,28 @@ async function askUser(request: AskUserRequest): Promise<AskUserResponse> {
   }
 
   if (!sent) {
-    return { sessionId, toolCallId, value: null, reason: "no_client" };
+    return { value: null, reason: "no_client" };
   }
 
-  return new Promise<AskUserResponse>((resolve) => {
+  return new Promise<AskUserResult>((resolve) => {
     const timeoutId = setTimeout(() => {
-      const pending = pendingRequests.get(toolCallId);
+      const pending = pendingAskUserRequests.get(askUserId);
       if (pending) {
-        pendingRequests.delete(toolCallId);
-        const response: AskUserResponse = {
-          sessionId: pending.sessionId,
-          toolCallId,
+        pendingAskUserRequests.delete(askUserId);
+        const response: AskUserResult = { value: null, reason: "timeout" };
+        resolve(response);
+        sendEvent("ask-user-response", {
+          sessionId,
+          askUserId,
           value: null,
           reason: "timeout",
-        };
-        resolve(response);
-        sendEvent("ask-user-response", response);
+        });
+      } else {
+        console.warn(`[askUser] timeout fired but no pending request found for ${askUserId}`);
       }
     }, USER_REQUEST_TIMEOUT_MS);
 
-    pendingRequests.set(toolCallId, { resolve, timeoutId, sessionId, request });
+    pendingAskUserRequests.set(askUserId, { resolve, timeoutId, sessionId, request });
   });
 }
 
@@ -263,11 +285,11 @@ function getILinkBridge(): ILinkBridge {
         if (contents.length === 0) return;
 
         // ── askUser 拦截：如果该 session 有 pending 的 askUser 请求，拦截回复 ──
-        const pendingEntry = Array.from(pendingRequests.entries()).find(
+        const pendingEntry = Array.from(pendingAskUserRequests.entries()).find(
           ([, p]) => p.sessionId === sessionId,
         );
         if (pendingEntry) {
-          const [toolCallId, pendingReq] = pendingEntry;
+          const [askUserId, pendingReq] = pendingEntry;
           const trimmed = text.trim();
           const options = pendingReq.request.options;
 
@@ -278,7 +300,7 @@ function getILinkBridge(): ILinkBridge {
             if (option) {
               await backendHandlers.respondAskUser({
                 sessionId,
-                toolCallId,
+                askUserId,
                 value: option.value,
               });
               return;
@@ -288,8 +310,8 @@ function getILinkBridge(): ILinkBridge {
           // 否则作为自定义回复
           await backendHandlers.respondAskUser({
             sessionId,
-            toolCallId,
-            value: "",
+            askUserId,
+            value: null,
             reason: trimmed || "无输入",
           });
           return; // 已拦截，不调用 sendPrompt
@@ -573,7 +595,6 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
       broadcastAndSaveSessionUpdate(sessionId, notification);
     },
     onPermissionRequest: async (request: RequestPermissionRequest) => {
-      const toolCallId = request.toolCall.toolCallId;
       const sessionId = `${agentId}:${request.sessionId}`;
       const session = storageOps.getSession(sessionId);
 
@@ -594,7 +615,6 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
       // 通过通用 askUser 通道向用户展示权限选项
       const userResponse = await askUser({
         sessionId,
-        toolCallId,
         title: request.toolCall.title ?? "权限请求",
         description: request.toolCall.rawInput ? JSON.stringify(request.toolCall.rawInput) : "",
         allowCustomInput: false,
@@ -1073,6 +1093,15 @@ export const backendHandlers: {
       );
       const connectPromise = bridgePool.get(session.agentId);
       if (connectPromise) {
+        for (const [askUserId, request] of Array.from(pendingAskUserRequests.entries())) {
+          if (request.sessionId === sessionId) {
+            try {
+              await this.respondAskUser({ sessionId, askUserId, value: null, reason: '' })
+            } catch(err) {
+              console.warn('[SendPrompt] Respond Previous Ask User Error', err);
+            }
+          }
+        }
         const b = await connectPromise;
         await b.cancel({ sessionId: session.resumeId }).catch((err) => {
           console.warn(
@@ -1170,6 +1199,15 @@ export const backendHandlers: {
   async cancelPrompt({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) return;
+    for (const [askUserId, request] of Array.from(pendingAskUserRequests.entries())) {
+      if (request.sessionId === sessionId) {
+        try {
+          await this.respondAskUser({ sessionId, askUserId, value: null, reason: '' })
+        } catch(err) {
+          console.warn('[CancelPrompt] Respond Previous Ask User Error', err);
+        }
+      }
+    }
     const connectPromise = bridgePool.get(session.agentId);
     if (connectPromise) {
       const b = await connectPromise;
@@ -1179,7 +1217,7 @@ export const backendHandlers: {
 
   async getPendingAskUserRequests({ sessionId }) {
     const result: AskUserRequest[] = [];
-    for (const pending of pendingRequests.values()) {
+    for (const pending of pendingAskUserRequests.values()) {
       if (pending.sessionId === sessionId) {
         result.push(pending.request);
       }
@@ -1187,23 +1225,20 @@ export const backendHandlers: {
     return result;
   },
 
-  async respondAskUser({ sessionId, toolCallId, value, reason }) {
-    const pending = pendingRequests.get(toolCallId);
+  async respondAskUser({ sessionId, askUserId, value, reason }) {
+    const pending = pendingAskUserRequests.get(askUserId);
     if (pending) {
       clearTimeout(pending.timeoutId);
-      pending.resolve({
-        sessionId: pending.sessionId,
-        toolCallId,
-        value,
-        reason: reason ?? null,
-      });
-      pendingRequests.delete(toolCallId);
+      pending.resolve({ value, reason: reason ?? null });
+      pendingAskUserRequests.delete(askUserId);
       sendEvent("ask-user-response", {
         sessionId,
-        toolCallId,
+        askUserId,
         value,
         reason: reason ?? null,
       });
+    } else {
+      console.warn(`[askUser] respond fired but no pending request found for ${askUserId}`);
     }
   },
 

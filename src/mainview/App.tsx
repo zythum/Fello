@@ -190,7 +190,7 @@ function AppContent() {
     const handleAskUserResponse = (detail: BackendEvents["ask-user-response"]) => {
       const sid = detail.sessionId;
       if (!sid) return;
-      useAppStore.getState().removeAskUserRequest(sid, detail.toolCallId);
+      useAppStore.getState().removeAskUserRequest(sid, detail.askUserId);
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {

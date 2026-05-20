@@ -76,11 +76,13 @@ export interface AskUserRequestOption {
 }
 
 /**
- * 通用 askUser 请求：向后端发送一个需要用户选择的问题
+ * 通用 askUser 请求：后端发送给前端的事件载荷
+ * 包含 `askUserId`，前端据此将用户响应关联到具体请求。
  */
 export interface AskUserRequest {
   sessionId: string;
-  toolCallId: string;
+  /** 请求的唯一标识，由后端自动生成 */
+  askUserId: string;
   title: string;
   description: string;
   options: AskUserRequestOption[];
@@ -89,11 +91,11 @@ export interface AskUserRequest {
 }
 
 /**
- * 通用 askUser 响应：用户选择的结果
+ * 通用 askUser 响应：后端发送给前端的事件载荷（用于移除队列中的请求）
  */
 export interface AskUserResponse {
   sessionId: string;
-  toolCallId: string;
+  askUserId: string;
   value: string | null;
   reason: string | null;
 }
@@ -388,7 +390,7 @@ export type FelloIPCRequests = {
   cancelPrompt: { params: { sessionId: string }; response: void };
   /** 响应通用 askUser 请求（支持自定义选项） */
   respondAskUser: {
-    params: { sessionId: string; toolCallId: string; value: string; reason?: string };
+    params: { sessionId: string; askUserId: string; value: string | null; reason?: string };
     response: void;
   };
   /** 获取指定 session 中所有 pending 的 askUser 请求（用于窗口重连后恢复） */

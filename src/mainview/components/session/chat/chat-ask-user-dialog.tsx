@@ -85,7 +85,7 @@ export function AskUserDialog({ sessionId }: Props) {
           )}
 
           <AskUserOptions
-            key={currentRequest.toolCallId}
+            key={currentRequest.askUserId}
             request={currentRequest}
             onResolved={handleResolved}
           />
@@ -124,7 +124,7 @@ function AskUserOptions({
     backend.request
       .respondAskUser({
         sessionId: request.sessionId,
-        toolCallId: request.toolCallId,
+        askUserId: request.askUserId,
         value,
       })
       .catch(() => {})
@@ -137,8 +137,8 @@ function AskUserOptions({
     backend.request
       .respondAskUser({
         sessionId: request.sessionId,
-        toolCallId: request.toolCallId,
-        value: "",
+        askUserId: request.askUserId,
+        value: null,
         reason: trimmed || "",
       })
       .catch(() => {})

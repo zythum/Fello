@@ -123,7 +123,7 @@ export interface AppState {
   setIsStreaming: (sessionId: string, v: boolean) => void;
   setAskUserRequest: (sessionId: string, req: AskUserRequest | null) => void;
   addAskUserRequest: (sessionId: string, req: AskUserRequest) => void;
-  removeAskUserRequest: (sessionId: string, toolCallId: string) => void;
+  removeAskUserRequest: (sessionId: string, askUserId: string) => void;
 
   // ==========================================================================
   // Terminal log mutators
@@ -257,9 +257,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().updateSessionState(sessionId, (s) => ({
       askUserRequests: [...s.askUserRequests, req],
     })),
-  removeAskUserRequest: (sessionId, toolCallId) =>
+  removeAskUserRequest: (sessionId, askUserId) =>
     get().updateSessionState(sessionId, (s) => ({
-      askUserRequests: s.askUserRequests.filter((r) => r.toolCallId !== toolCallId),
+      askUserRequests: s.askUserRequests.filter((r) => r.askUserId !== askUserId),
     })),
 
   // ==========================================================================
