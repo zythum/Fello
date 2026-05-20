@@ -86,6 +86,10 @@
     "paste": "粘贴",
     "selectAll": "全选"
   },
+  "common": {
+    "edit": "编辑",
+    "delete": "删除"
+  },
   "settings": {
     "themeDesc": "自定义应用的外观",
     "languageDesc": "选择应用显示的语言",
@@ -113,8 +117,14 @@
       "description": "配置智能体",
       "title": "智能体",
       "addAgent": "添加智能体",
+      "addStdioAgent": "添加 Stdio Agent",
+      "addApiAgent": "添加 API Agent",
       "editAgent": "编辑智能体",
       "agentId": "智能体 ID (名称)",
+      "apiProvider": "提供商",
+      "apiBaseUrl": "Base URL",
+      "apiKey": "API Key",
+      "apiHeaders": "请求头 (JSON)",
       "command": "命令",
       "args": "参数",
       "envVars": "环境变量 (JSON)",
@@ -227,7 +237,9 @@
     "send": "发送",
     "tokensUsage": "输入: {{input}} 输出: {{output}} 总计: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "generationFailed": "生成失败。"
+    "generationFailed": "生成失败。",
+    "attach": "附加文件",
+    "selectModel": "选择模型"
   },
   "filePanel": {
     "title": "文件",
@@ -316,7 +328,8 @@
     "addTerminal": "添加终端"
   },
   "permission": {
-    "title": "需要权限"
+    "title": "需要权限",
+    "error": "响应权限请求失败"
   },
   "errorBoundary": {
     "title": "出了点问题",
@@ -354,7 +367,17 @@
     "preview": "预览",
     "code": "源码",
     "compare": "对比",
-    "fileModifiedNotice": "文件已被修改，请刷新"
+    "fileModifiedNotice": "文件已被修改，请刷新",
+    "copyFileContent": "复制文件内容",
+    "addFileToChat": "添加文件到会话",
+    "addSelectionToChat": "添加选中内容到会话",
+    "loadError": "加载失败",
+    "zoomOut": "缩小",
+    "zoomIn": "放大",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "previousSlide": "上一张",
+    "nextSlide": "下一张"
   },
   "welcome": {
     "title": "Fello",

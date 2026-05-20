@@ -86,6 +86,10 @@
     "paste": "Paste",
     "selectAll": "Select All"
   },
+  "common": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
   "settings": {
     "themeDesc": "Customize the appearance of the application",
     "languageDesc": "Select the display language",
@@ -113,8 +117,14 @@
       "description": "Configure agents",
       "title": "Agents",
       "addAgent": "Add Agent",
+      "addStdioAgent": "Add Stdio Agent",
+      "addApiAgent": "Add API Agent",
       "editAgent": "Edit Agent",
       "agentId": "Agent ID (Name)",
+      "apiProvider": "Provider",
+      "apiBaseUrl": "Base URL",
+      "apiKey": "API Key",
+      "apiHeaders": "Headers (JSON)",
       "command": "Command",
       "args": "Arguments",
       "envVars": "Environment Variables (JSON)",
@@ -227,7 +237,9 @@
     "send": "Send",
     "tokensUsage": "In: {{input}} Out: {{output}} Total: {{total}}{{thoughtStr}}",
     "tokensTotal": "{{total}}k tokens",
-    "generationFailed": "Generation failed."
+    "generationFailed": "Generation failed.",
+    "attach": "Attach file",
+    "selectModel": "Select model"
   },
   "filePanel": {
     "title": "Files",
@@ -316,7 +328,8 @@
     "addTerminal": "Add terminal"
   },
   "permission": {
-    "title": "Permission Required"
+    "title": "Permission Required",
+    "error": "Failed to respond to permission request"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -354,7 +367,17 @@
     "preview": "Preview",
     "code": "Code",
     "compare": "Compare",
-    "fileModifiedNotice": "File modified. Please refresh."
+    "fileModifiedNotice": "File modified. Please refresh.",
+    "copyFileContent": "Copy File Content",
+    "addFileToChat": "Add File to Chat",
+    "addSelectionToChat": "Add Selection to Chat",
+    "loadError": "Failed to load",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide"
   },
   "welcome": {
     "title": "Fello",

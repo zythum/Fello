@@ -2,12 +2,14 @@ import { readFile, writeFile, mkdir, rm } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { FELLO_DIR } from "../storage";
+import { decryptAesEcb, decodeAesKey, decodeAesKeyHex } from "./ilink-crypto";
 import {
   ILinkClient,
   type ILinkCredentials,
   type ILinkCursor,
   type WeixinMessage,
   type GetUpdatesResponse,
+  type ImageItem,
 } from "./ilink-client";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -354,7 +356,7 @@ export class ILinkBridge {
    * Download and decrypt an image from a WeixinMessage image_item.
    * Returns base64-encoded image data.
    */
-  async downloadImage(imageItem: import("./ilink-client").ImageItem): Promise<string | null> {
+  async downloadImage(imageItem: ImageItem): Promise<string | null> {
     if (!this.client) return null;
     const encryptQueryParam = imageItem.media?.encrypt_query_param;
     if (!encryptQueryParam) return null;
@@ -363,7 +365,6 @@ export class ILinkBridge {
     const aesKeyRaw = imageItem.media?.aes_key || imageItem.aeskey;
     if (!aesKeyRaw) return encrypted.toString("base64");
 
-    const { decryptAesEcb, decodeAesKey, decodeAesKeyHex } = await import("./ilink-crypto");
     const key =
       aesKeyRaw.length <= 32 && /^[0-9a-fA-F]+$/.test(aesKeyRaw)
         ? decodeAesKeyHex(aesKeyRaw)
