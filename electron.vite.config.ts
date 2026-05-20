@@ -20,6 +20,7 @@ export default defineConfig({
         entry: {
           "electron-preload/preload": resolve(__dirname, "src/scripts/electron-preload/preload.ts"),
           "mcp-skills/server": resolve(__dirname, "src/scripts/mcp-skills/server.ts"),
+          "mcp-ask-user/server": resolve(__dirname, "src/scripts/mcp-ask-user/server.ts"),
         },
       },
       outDir: "out/scripts",

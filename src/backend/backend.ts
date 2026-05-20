@@ -32,6 +32,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { ACPBridge } from "./agent/agent-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
+import { startSocketServer, type SocketServer } from "./socket-server";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type {
   AgentInfo,
@@ -40,7 +41,8 @@ import type {
   AskUserRequest,
   AskUserRequestOption,
 } from "../shared/schema";
-import { storageOps } from "./storage";
+import { askUserRequestSchema, askUserRespondSchema } from "../shared/zod/ask-user-mcp-schema";
+import { storageOps, SOCKETS_DIR } from "./storage";
 import {
   ILinkBridge,
   readActiveSessionId,
@@ -63,22 +65,37 @@ const execFileAsync = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const builtinMcpServers: McpServer[] = [
-  {
-    name: "skills",
-    command: process.argv0,
-    args: [join(__dirname, "../scripts/mcp-skills/server.mjs")],
-    env: [
-      {
-        name: "ELECTRON_RUN_AS_NODE",
-        value: "1",
-      },
-    ],
-  },
-];
+function buildMcpServersConfig(sessionMcpIds: string[], socketPath: string | null): McpServer[] {
+  // Built-in MCP servers — always first
+  const servers: McpServer[] = [
+    {
+      name: "skills",
+      command: process.argv0,
+      args: [join(__dirname, "../scripts/mcp-skills/server.mjs")],
+      env: [
+        {
+          name: "ELECTRON_RUN_AS_NODE",
+          value: "1",
+        },
+      ],
+    },
+  ];
 
-function buildMcpServersConfig(sessionMcpIds: string[]): McpServer[] {
-  const servers: McpServer[] = [...builtinMcpServers];
+  // Dynamically add ask-user MCP server if socket server is running
+  if (socketPath) {
+    servers.push({
+      name: "ask-user",
+      command: process.argv0,
+      args: [join(__dirname, "../scripts/mcp-ask-user/server.mjs"), "--socket-path", socketPath],
+      env: [
+        {
+          name: "ELECTRON_RUN_AS_NODE",
+          value: "1",
+        },
+      ],
+    });
+  }
+
   const globalSettings = storageOps.getSettings();
 
   for (const id of sessionMcpIds) {
@@ -124,10 +141,46 @@ type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
 const USER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 分钟
 
+/** 每个 session 独立维护一个 socket server，用于 MCP 工具与 backend 通信 */
+const sessionSocketServers = new Map<string, SocketServer>();
+
+function generateSessionSocketPath(key: string): string {
+  return join(SOCKETS_DIR, `${key}-${Date.now()}.socket`);
+}
+
+/** 创建或复用 session 对应的 socket server，并注册 ask-user 路由 */
+async function createSessionSocketServer(
+  sessionId: string,
+  options: { socketPath: string },
+): Promise<SocketServer> {
+  let ss = sessionSocketServers.get(sessionId);
+  if (ss) return ss;
+
+  ss = await startSocketServer(options.socketPath);
+  ss.registry("ask-user", async (payload) => {
+    const request = askUserRequestSchema.parse(payload);
+    const result = await askUser({
+      sessionId,
+      ...request,
+    });
+    return askUserRespondSchema.parse(result);
+  });
+  sessionSocketServers.set(sessionId, ss);
+  return ss;
+}
+
+function stopSessionSocketServer(sessionId: string) {
+  const ss = sessionSocketServers.get(sessionId);
+  if (ss) {
+    ss.stop();
+  }
+  sessionSocketServers.delete(sessionId);
+}
+
 // ── askUser 内部类型 ────────────────────────────────────────────────
 
 /** askUser 的输入参数（调用者传入，无需关心 askUserId） */
-interface AskUserOptions {
+export interface AskUserOptions {
   sessionId: string;
   title: string;
   description: string;
@@ -136,7 +189,7 @@ interface AskUserOptions {
 }
 
 /** askUser 的返回值（调用者获取，只有结果信息） */
-interface AskUserResult {
+export interface AskUserResult {
   value: string | null;
   reason: string | null;
 }
@@ -193,7 +246,7 @@ function formatAskUserForWeChat(request: AskUserRequest): string {
  * 会发送 "ask-user-request" 事件给前端，并返回一个 Promise，
  * 该 Promise 在用户选择或超时时 resolve。
  */
-async function askUser(options: AskUserOptions): Promise<AskUserResult> {
+export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
   const { sessionId } = options;
   const askUserId = randomUUID();
   const request: AskUserRequest = { ...options, askUserId };
@@ -665,7 +718,11 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
   return newConnectPromise;
 }
 
-export async function killBridge() {
+export async function clearBackend() {
+  for (const ss of sessionSocketServers.values()) {
+    ss.stop();
+  }
+  sessionSocketServers.clear();
   const killPromises: Promise<void>[] = [new Promise((resolve) => setTimeout(resolve, 100))];
   for (const p of bridgePool.values()) {
     killPromises.push(p.then((b) => b.kill()).catch(() => {}));
@@ -948,11 +1005,13 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
 
+    const socketPath = generateSessionSocketPath(randomUUID());
+
     // Use the user-selected MCP servers, falling back to all non-disabled servers as default
     const sessionMcpIds =
       mcpServers ??
       (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
-    const activeMcpServers = buildMcpServersConfig(sessionMcpIds);
+    const activeMcpServers = buildMcpServersConfig(sessionMcpIds, socketPath);
 
     const {
       sessionId: resumeId,
@@ -969,6 +1028,9 @@ export const backendHandlers: {
       modes: modes ?? null,
       initializeInfo: b.initializeInfo,
     });
+
+    await createSessionSocketServer(sessionInfo.id, { socketPath });
+
     sendEvent("sessions-changed", undefined);
     return {
       sessionId: sessionInfo.id,
@@ -983,7 +1045,9 @@ export const backendHandlers: {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const b = await ensureBridge(session.agentId);
-    const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
+
+    const socketPath = generateSessionSocketPath(randomUUID());
+    const activeMcpServers = buildMcpServersConfig(session.mcpServers || [], socketPath);
 
     restoringSessions.add(session.id);
     let loadResult;
@@ -996,11 +1060,13 @@ export const backendHandlers: {
             `[Fello] Session ${session.resumeId} config changed, closing and reloading...`,
           );
           await b.closeSession(session.resumeId);
+          await stopSessionSocketServer(session.id);
           loadResult = await b.loadSession({
             sessionId: session.resumeId,
             cwd: session.cwd,
             mcpServers: activeMcpServers,
           });
+          await createSessionSocketServer(session.id, { socketPath });
         }
         // else: config unchanged, skip reload and use cached state
       } else {
@@ -1009,6 +1075,7 @@ export const backendHandlers: {
           cwd: session.cwd,
           mcpServers: activeMcpServers,
         });
+        await createSessionSocketServer(session.id, { socketPath });
       }
     } finally {
       restoringSessions.delete(session.id);
@@ -1127,12 +1194,14 @@ export const backendHandlers: {
 
     if (!b.isSessionLoaded(session.resumeId)) {
       console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
-      const activeMcpServers = buildMcpServersConfig(session.mcpServers || []);
+      const socketPath = generateSessionSocketPath(randomUUID());
+      const activeMcpServers = buildMcpServersConfig(session.mcpServers || [], socketPath);
       await b.loadSession({
         sessionId: session.resumeId,
         cwd: session.cwd,
         mcpServers: activeMcpServers,
       });
+      await createSessionSocketServer(session.id, { socketPath });
     }
 
     storageOps.touchSession(sessionId);
@@ -1280,6 +1349,9 @@ export const backendHandlers: {
     }
 
     storageOps.deleteSession(sessionId);
+
+    stopSessionSocketServer(sessionId);
+
     if (activeIlinkSessionId === sessionId) {
       activeIlinkSessionId = null;
       ilinkReplyBuffer = "";

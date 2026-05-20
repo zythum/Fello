@@ -3,32 +3,61 @@
 ## 整体架构
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────────────────────────┐
 │                              Electron Desktop App                             │
 │                                                                               │
 │  ┌─────────────────────────────┐              ┌─────────────────────────────┐ │
-│  │ Renderer (React + Vite)     │    IPC       │ Main Process (Node.js)      │ │
+│  │ Renderer (Electron)         │    IPC       │ Main Process (Node.js)      │ │
 │  │ - Sidebar / Chat / Panel    │ ◄──────────► │ - IPC handlers              │ │
-│  │ - FileTree / TerminalDetail │              │ - ACPBridge lifecycle       │ │
-│  │ - Skills / Settings UI      │              │ - FS / Dialog / Menu        │ │
-│  │ - Zustand session store     │              │ - WebUI Server (ws)         │ │
-│  └─────────────────────────────┘              │ - iLink Bridge              │ │
-│                 ▲                             │ - Skills Catalog            │ │
-│                 │ WebSocket (WebUI Mode)      └───────────┬─────────────────┘ │
-│  ┌──────────────▼──────────────┐                          │                   │
-│  │ Remote Browser (WebUI)      │            ┌─────────────▼─────────────────┐ │
-│  │ - App.tsx / backend.ts      │            │ Agent Process (2 types)      │ │
-│  └─────────────────────────────┘            │                              │ │
-│                                             │ ┌─ Stdio Agent ────────────┐ │ │
-│                                             │ │ kiro-cli acp (subprocess)│ │ │
-│                                             │ │ NDJSON over stdio        │ │ │
-│                                             │ └──────────────────────────┘ │ │
-│                                             │ ┌─ API Agent ──────────────┐ │ │
-│                                             │ │ OpenAI-compatible (in-   │ │ │
-│                                             │ │ process, @ai-sdk)        │ │ │
-│                                             │ └──────────────────────────┘ │ │
-│                                             └─────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────────────┘
+│  │ - FileTree / TerminalDetail │              │ - ACPBridge                 │ │
+│  │ - Skills / Settings UI      │              │ - WebUI Server (ws)         │ │
+│  │ - Zustand session store     │              │ - SocketServer (per session)│ │
+│  │ - AskUserDialog             │              │ - iLink Bridge              │ │
+│  │                             │              │ - Skills Catalog            │ │
+│  └─────────────────────────────┘              └──────────┬──────────────────┘ │
+│                                                          │                    │
+│  ┌────────────────────────────────────────────┐          │                    │
+│  │ Shared frontend code (App.tsx / backend.ts)│          │                    │
+│  │ Electron: contextBridge → IPC              │          │                    │
+│  │ WebUI:    WebSocket    → WebUI Server      │          │                    │
+│  └────────────────────────────────────────────┘          │                    │
+│                                                          │                    │
+│  ┌─────────────────────────────┐                         │                    │
+│  │ Remote Browser (WebUI)      │  WebSocket              │                    │
+│  │ - Same App.tsx / backend.ts │─────────────────────────┘                    │
+│  └─────────────────────────────┘                                              │
+│                                                                               │
+│                                                    ┌─────────────────────────┘│
+│                                                    │  Main Process spawns     │
+│                                                    │  Agent                   │
+│                                                    ▼                          │
+│                              ┌─────────────────────────────────────┐          │
+│                              │ Agent Process (2 types)             │          │
+│                              │                                     │          │
+│                              │ Stdio: subprocess (kiro-cli acp)    │          │
+│                              │ API:   in-process (@ai-sdk)         │          │
+│                              │                                     │          │
+│                              │  ┌─ MCP Client ────────────────┐    │          │
+│                              │  │ spawns & manages subprocs   │    │          │
+│                              │  │ stdio (MCP protocol)        │    │          │
+│                              │  └──────┬──────────┬───────────┘    │          │
+│                              └─────────┼──────────┼────────────────┘          │
+│                                        │          │                           │
+│                              stdio ────┘          │                           │
+│                              (MCP)                │                           │
+│                                        ┌──────────┘                           │
+│                                        ▼                                      │
+│  ┌─────────────────────────────────┐  ┌──────────────────────────────────┐    │
+│  │ mcp-skills                      │  │ mcp-ask-user                     │    │
+│  │ (ELECTRON_RUN_AS_NODE)          │  │ (ELECTRON_RUN_AS_NODE)           │    │
+│  │ Skills MCP server               │  │ Ask User MCP server              │    │
+│  │ stdio ↔ Agent                   │  │ stdio ↔ Agent                    │    │
+│  └─────────────────────────────────┘  │ Unix Socket → Main SocketServer  │    │
+│                                       └──────────────┬───────────────────┘    │
+│                                                      │ HTTP POST              │
+│                                                      ▼                        │
+│                                            (Main Process SocketServer)        │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 进程与模块职责
@@ -49,7 +78,9 @@
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
 - **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录
+- **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
+- **`src/shared/zod/ask-user-mcp-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
 
 ### Agent Session Logic（`src/agents/`）
 
@@ -68,14 +99,15 @@
 
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 提示管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
 - `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页）
-- `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 iLink 状态、全屏状态
+- `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 askUserRequests 队列、iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
   - `sidebar.tsx`：项目分组会话列表、会话切换、项目/会话重命名与删除
   - `session/session.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
-  - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader）
+  - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader + AskUserDialog）
+  - `session/chat/chat-ask-user-dialog.tsx`：Ask User 对话框，支持选项选择与自定义输入、排队动画
   - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新）
   - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
@@ -86,6 +118,15 @@
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
   - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
+
+### MCP 子进程
+
+Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`ELECTRON_RUN_AS_NODE=1`），通过 stdio 与 Agent 通信：
+
+- **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 Skill 级别工具（搜索文件、读取文件等）
+- **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`，将 Agent 的询问请求转发到 `askUser()` 函数
+
+MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
 
 ### Agent 进程（两种类型）
 
@@ -208,16 +249,16 @@ ChatInput submit
   → reduceFlushStreaming 收尾，结束 streaming 状态
 ```
 
-### D. 权限请求
+### D. 权限请求（通过 askUser 通用通道）
 
 ```
 Agent requestPermission
-  → Main: pendingPermissions.set(toolCallId, resolver)
-  → Renderer: 显示 PermissionDialog
-  → 用户选择 optionId（可勾选"始终允许"）
+  → Main: 通过 askUser() 统一通道
+  → Renderer: 显示 AskUserDialog（选项含 danger 标记）
+  → 用户选择 optionId
   → Main: resolve pending permission
   → Agent 继续执行 tool
-  → 若勾选"始终允许"，持久化到 session state
+  → 若选择"始终允许"，持久化到 session state
 ```
 
 ### E. 终端输出链路
@@ -238,6 +279,26 @@ Renderer: createTerminal(sessionId, cwd)
   → Renderer store 更新 ilinkStatus
   → Agent 处理消息并回复
   → Main: ILinkBridge.sendTextReply() → iLink Server → 用户微信
+```
+
+### G. Ask User（Agent 主动询问用户）
+
+```
+正向：Agent → 用户
+  Agent 调用 ask_user MCP tool
+    → MCP ask-user server: HTTP POST /ask-user over Unix Socket
+    → Main SocketServer: askUserRequestSchema 校验
+    → Main askUser(): 生成 askUserId, sendEvent("ask-user-request")
+    → Renderer store: 追加到 askUserRequests 队列
+    → AskUserDialog: 展示选项或输入框
+
+反向：用户 → Agent
+  用户点击选项 / 提交输入
+    → Renderer: backend.request.respondAskUser({ sessionId, askUserId, value })
+    → Main: resolve pendingAskUserRequests Promise
+    → SocketServer: 返回 { value, reason } 给 MCP server
+    → MCP server: 格式化为 MCP 文本响应
+    → Agent: 收到 tool call 结果
 ```
 
 ## 生命周期与退出策略
