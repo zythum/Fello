@@ -145,7 +145,12 @@ const USER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 分钟
 const sessionSocketServers = new Map<string, SocketServer>();
 
 function generateSessionSocketPath(key: string): string {
-  return join(SOCKETS_DIR, `${key}-${Date.now()}.socket`);
+  const timestamp = Date.now();
+  if (process.platform === "win32") {
+    // Windows 使用命名管道，退出后由 OS 自动清理
+    return `\\\\.\\pipe\\fello-${key}-${timestamp}`;
+  }
+  return join(SOCKETS_DIR, `${key}-${timestamp}.socket`);
 }
 
 /** 创建或复用 session 对应的 socket server，并注册 ask-user 路由 */

@@ -2,6 +2,11 @@ import { createServer, type Server } from "http";
 import { dirname } from "path";
 import { mkdirSync, existsSync, unlinkSync } from "fs";
 
+/** 判断路径是否为 Windows 命名管道路径（以 \.\pipe\ 或 \?\pipe\ 开头） */
+function isWindowsPipePath(p: string) {
+  return /^\\\\.\\pipe\\/i.test(p);
+}
+
 export interface SocketServer {
   /** 停止 socket server 并清理 socket 文件 */
   stop: () => void;
@@ -17,12 +22,15 @@ export interface SocketServer {
  * 返回 { stop, registry, socketPath }，调用方通过 registry 注册路由。
  */
 export async function startSocketServer(socketPath: string): Promise<SocketServer> {
-  // Ensure socket directory exists
-  mkdirSync(dirname(socketPath), { recursive: true });
+  // Windows named pipe 无需文件系统操作（由 OS 管理，进程退出自动清理）
+  if (!isWindowsPipePath(socketPath)) {
+    // Ensure socket directory exists
+    mkdirSync(dirname(socketPath), { recursive: true });
 
-  // Clean up old socket file if exists
-  if (existsSync(socketPath)) {
-    unlinkSync(socketPath);
+    // Clean up old socket file if exists
+    if (existsSync(socketPath)) {
+      unlinkSync(socketPath);
+    }
   }
 
   const routes = new Map<string, (payload: unknown) => unknown | Promise<unknown>>();
@@ -87,10 +95,13 @@ export async function startSocketServer(socketPath: string): Promise<SocketServe
         stop: () => {
           server.close();
           server.closeAllConnections?.();
-          if (existsSync(socketPath)) {
-            try {
-              unlinkSync(socketPath);
-            } catch {}
+          // Windows named pipe 由 OS 自动清理，无需 unlink
+          if (!isWindowsPipePath(socketPath)) {
+            if (existsSync(socketPath)) {
+              try {
+                unlinkSync(socketPath);
+              } catch {}
+            }
           }
         },
         registry: (path, handler) => {
