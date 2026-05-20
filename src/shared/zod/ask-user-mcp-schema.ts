@@ -11,7 +11,7 @@ export const askUserRequestSchema = z.object({
         priority: z.enum(["high", "medium", "low"]),
       }),
     )
-    .min(1)
+    .max(6)
     .describe("List of options the user can choose from."),
   allowCustomInput: z
     .boolean()
@@ -27,6 +27,6 @@ export const askUserRespondSchema = z.object({
     .describe("The selected option value, or null if the user did not select an option."),
   reason: z
     .string()
-    .optional()
+    .or(z.null())
     .describe("The reason for the response, such as 'timeout', 'no_client', or custom input text."),
 });
