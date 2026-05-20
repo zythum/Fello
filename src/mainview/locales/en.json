@@ -383,5 +383,12 @@
     "title": "Fello",
     "desc": "Yet another Agent client based on the ACP protocol. Connect with the agent and begin collaborating.",
     "hint": "Start a new chat from the sidebar"
+  },
+  "askUser": {
+    "title": "Request",
+    "other": "Other...",
+    "back": "Back",
+    "inputPlaceholder": "Type your response...",
+    "submit": "Submit"
   }
 }

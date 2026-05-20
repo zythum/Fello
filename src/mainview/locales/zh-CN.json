@@ -383,5 +383,12 @@
     "title": "Fello",
     "desc": "又一个基于 ACP 协议的 Agent 客户端，连接智能体并开始协作。",
     "hint": "从左侧边栏新建会话开始"
+  },
+  "askUser": {
+    "title": "请求",
+    "other": "其他...",
+    "back": "返回",
+    "inputPlaceholder": "输入你的回复...",
+    "submit": "提交"
   }
 }
