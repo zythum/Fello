@@ -33,7 +33,13 @@ import { promisify } from "util";
 import { ACPBridge } from "./agent/agent-bridge";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
-import type { AgentInfo, SessionNotificationFelloExt, FelloIPCSchema } from "../shared/schema";
+import type {
+  AgentInfo,
+  SessionNotificationFelloExt,
+  FelloIPCSchema,
+  AskUserRequest,
+  AskUserResponse,
+} from "../shared/schema";
 import { storageOps } from "./storage";
 import {
   ILinkBridge,
@@ -116,12 +122,15 @@ const searchFileCache = new Map<string, SearchFileCacheEntry>();
 
 type AgentType = string;
 const bridgePool = new Map<AgentType, Promise<ACPBridge>>();
-const pendingPermissions = new Map<
+const USER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 分钟
+
+const pendingRequests = new Map<
   string,
   {
-    resolve: (value: RequestPermissionResponse) => void;
+    resolve: (value: AskUserResponse) => void;
     timeoutId: ReturnType<typeof setTimeout>;
     sessionId: string;
+    request: AskUserRequest; // 存储完整请求，用于 WeChat 序号匹配等
   }
 >();
 
@@ -141,6 +150,69 @@ const pendingToolCalls = new Map<string, ToolCallUpdate>();
 
 function getPendingToolCallKey(sessionId: string, toolCallId: string) {
   return `${sessionId}:${toolCallId}`;
+}
+
+/**
+ * 将 askUser 请求格式化为带序号的 Markdown 文本，用于微信转发
+ */
+function formatAskUserForWeChat(request: AskUserRequest): string {
+  const lines: string[] = [];
+  if (request.title) lines.push(`**${request.title}**`, "");
+  if (request.description) lines.push(request.description, "");
+  if (request.options.length > 0) {
+    lines.push("请回复序号选择：");
+    request.options.forEach((opt, i) => {
+      lines.push(`${i + 1}. ${opt.label}`);
+    });
+    lines.push("");
+    lines.push("或输入其他内容作为自定义回复。");
+  }
+  return lines.join("\n");
+}
+
+/**
+ * 通用 askUser 机制：向用户展示问题并等待选择
+ * 会发送 "user-request" 事件给前端，并返回一个 Promise，
+ * 该 Promise 在用户选择或超时时 resolve。
+ */
+async function askUser(request: AskUserRequest): Promise<AskUserResponse> {
+  const { toolCallId, sessionId } = request;
+
+  const sent = sendEvent("ask-user-request", request);
+
+  // 如果是活跃 WeChat session，转发给微信用户
+  if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+    const userId = ilinkBridge.userId;
+    if (userId) {
+      const weChatText = formatAskUserForWeChat(request);
+      ilinkBridge.sendTextReply(userId, weChatText).catch((err) => {
+        console.warn("[iLink] Failed to forward askUser to WeChat:", err);
+      });
+    }
+  }
+
+  if (!sent) {
+    return { sessionId, toolCallId, value: null, reason: "no_client" };
+  }
+
+  return new Promise<AskUserResponse>((resolve) => {
+    const timeoutId = setTimeout(() => {
+      const pending = pendingRequests.get(toolCallId);
+      if (pending) {
+        pendingRequests.delete(toolCallId);
+        const response: AskUserResponse = {
+          sessionId: pending.sessionId,
+          toolCallId,
+          value: null,
+          reason: "timeout",
+        };
+        resolve(response);
+        sendEvent("ask-user-response", response);
+      }
+    }, USER_REQUEST_TIMEOUT_MS);
+
+    pendingRequests.set(toolCallId, { resolve, timeoutId, sessionId, request });
+  });
 }
 
 // ── iLink State ─────────────────────────────────────────────────────
@@ -189,6 +261,39 @@ function getILinkBridge(): ILinkBridge {
         }
 
         if (contents.length === 0) return;
+
+        // ── askUser 拦截：如果该 session 有 pending 的 askUser 请求，拦截回复 ──
+        const pendingEntry = Array.from(pendingRequests.entries()).find(
+          ([, p]) => p.sessionId === sessionId,
+        );
+        if (pendingEntry) {
+          const [toolCallId, pendingReq] = pendingEntry;
+          const trimmed = text.trim();
+          const options = pendingReq.request.options;
+
+          // 纯数字 → 匹配选项序号（1-based）
+          if (/^\d+$/.test(trimmed)) {
+            const index = parseInt(trimmed, 10) - 1;
+            const option = options[index];
+            if (option) {
+              await backendHandlers.respondAskUser({
+                sessionId,
+                toolCallId,
+                value: option.value,
+              });
+              return;
+            }
+          }
+
+          // 否则作为自定义回复
+          await backendHandlers.respondAskUser({
+            sessionId,
+            toolCallId,
+            value: "",
+            reason: trimmed || "无输入",
+          });
+          return; // 已拦截，不调用 sendPrompt
+        }
 
         try {
           await backendHandlers.sendPrompt({ sessionId, contents });
@@ -467,54 +572,50 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
 
       broadcastAndSaveSessionUpdate(sessionId, notification);
     },
-    onPermissionRequest: (request: RequestPermissionRequest) => {
+    onPermissionRequest: async (request: RequestPermissionRequest) => {
       const toolCallId = request.toolCall.toolCallId;
       const sessionId = `${agentId}:${request.sessionId}`;
       const session = storageOps.getSession(sessionId);
+
+      // allow-all 模式：直接自动审批，不走 askUser
       if (session?.permissionMode === "allow-all") {
         const allowOption =
           request.options.find((o) => o.kind === "allow_always") ??
           request.options.find((o) => o.kind === "allow_once") ??
           request.options[0];
-        return Promise.resolve({
+        return {
           outcome: {
             outcome: "selected",
             optionId: allowOption?.optionId ?? "deny",
           },
-        } satisfies RequestPermissionResponse);
+        } satisfies RequestPermissionResponse;
       }
 
-      const sent = sendEvent("permission-request", { sessionId, request });
-      if (!sent) {
-        return Promise.resolve({
-          outcome: { outcome: "selected", optionId: "deny" },
-        } satisfies RequestPermissionResponse);
-      }
-      return new Promise<RequestPermissionResponse>((resolve) => {
-        const timeoutId = setTimeout(
-          () => {
-            const pending = pendingPermissions.get(toolCallId);
-            if (pending) {
-              pendingPermissions.delete(toolCallId);
-              // Instead of rejecting (which might crash or hang the tool call),
-              // we resolve with a 'deny' action automatically when it times out.
-              resolve({ outcome: { outcome: "selected", optionId: "deny" } });
-
-              sendEvent("permission-resolved", {
-                sessionId: pending.sessionId,
-                toolCallId,
-                optionId: "deny",
-              });
-            }
-          },
-          30 * 60 * 1000,
-        );
-        pendingPermissions.set(toolCallId, {
-          resolve,
-          timeoutId,
-          sessionId,
-        });
+      // 通过通用 askUser 通道向用户展示权限选项
+      const userResponse = await askUser({
+        sessionId,
+        toolCallId,
+        title: request.toolCall.title ?? "权限请求",
+        description: request.toolCall.rawInput ? JSON.stringify(request.toolCall.rawInput) : "",
+        allowCustomInput: false,
+        options: request.options.map((o) => ({
+          value: o.optionId,
+          label: o.name,
+          priority: o.kind === "allow_always" ? "high" : "medium",
+          danger: o.kind === "reject_once" || o.kind === "reject_always",
+        })),
       });
+
+      // 将通用响应转回 ACP 协议格式
+      if (userResponse.value === null) {
+        return { outcome: { outcome: "selected", optionId: "deny" } };
+      }
+      return {
+        outcome: {
+          outcome: "selected",
+          optionId: userResponse.value,
+        },
+      } satisfies RequestPermissionResponse;
     },
     onAgentTerminalOutput: (resumeId: string, terminalId: string, data: string) => {
       const sessionId = `${agentId}:${resumeId}`;
@@ -1076,16 +1177,32 @@ export const backendHandlers: {
     }
   },
 
-  async respondPermission({ toolCallId, optionId }) {
-    const pending = pendingPermissions.get(toolCallId);
-    if (pending && optionId) {
+  async getPendingAskUserRequests({ sessionId }) {
+    const result: AskUserRequest[] = [];
+    for (const pending of pendingRequests.values()) {
+      if (pending.sessionId === sessionId) {
+        result.push(pending.request);
+      }
+    }
+    return result;
+  },
+
+  async respondAskUser({ sessionId, toolCallId, value, reason }) {
+    const pending = pendingRequests.get(toolCallId);
+    if (pending) {
       clearTimeout(pending.timeoutId);
-      pending.resolve({ outcome: { outcome: "selected", optionId } });
-      pendingPermissions.delete(toolCallId);
-      sendEvent("permission-resolved", {
+      pending.resolve({
         sessionId: pending.sessionId,
         toolCallId,
-        optionId,
+        value,
+        reason: reason ?? null,
+      });
+      pendingRequests.delete(toolCallId);
+      sendEvent("ask-user-response", {
+        sessionId,
+        toolCallId,
+        value,
+        reason: reason ?? null,
       });
     }
   },

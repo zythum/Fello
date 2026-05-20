@@ -1,6 +1,7 @@
 import { ChatHeader } from "./chat-header";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
+import { AskUserDialog } from "./chat-ask-user-dialog";
 import type { SessionInfo } from "../../../../shared/schema";
 
 export function Chat({ session }: { session: SessionInfo }) {
@@ -9,6 +10,7 @@ export function Chat({ session }: { session: SessionInfo }) {
       <ChatHeader session={session} />
       <ChatArea session={session} />
       <ChatInput session={session} />
+      <AskUserDialog sessionId={session.id} />
     </div>
   );
 }

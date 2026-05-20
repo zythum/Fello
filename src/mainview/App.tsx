@@ -6,7 +6,7 @@ import { reduceSessionUpdate } from "./lib/session-state-reducer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
-import { PermissionDialog } from "./components/global/permission-dialog";
+
 import { GlobalTextContextMenu } from "./components/global/global-text-context-menu";
 import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
@@ -68,6 +68,18 @@ function AppContent() {
         setI18n(settings.i18n);
         i18n.changeLanguage(settings.i18n.language);
       }
+      // 恢复所有 session 中 pending 的 askUser 请求
+      for (const session of sessions ?? []) {
+        try {
+          const pending = await request.getPendingAskUserRequests({ sessionId: session.id });
+          for (const req of pending) {
+            useAppStore.getState().addAskUserRequest(session.id, req);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       setIsReady(true);
     }
     void loadData();
@@ -169,27 +181,16 @@ function AppContent() {
       scheduleFlushPendingSessionUpdates();
     };
 
-    const handlePermissionRequest = (detail: BackendEvents["permission-request"]) => {
+    const handleAskUserRequest = (detail: BackendEvents["ask-user-request"]) => {
       const sid = detail.sessionId;
       if (!sid) return;
-      useAppStore.getState().addPermissionRequest(sid, detail.request);
-
-      toast.custom(
-        (t: string | number) => (
-          <PermissionDialog request={detail.request} sessionId={sid} toastId={t} />
-        ),
-        {
-          duration: Infinity,
-          id: `perm-${sid}-${detail.request.toolCall.toolCallId}`,
-        },
-      );
+      useAppStore.getState().addAskUserRequest(sid, detail);
     };
 
-    const handlePermissionResolved = (detail: BackendEvents["permission-resolved"]) => {
+    const handleAskUserResponse = (detail: BackendEvents["ask-user-response"]) => {
       const sid = detail.sessionId;
       if (!sid) return;
-      useAppStore.getState().removePermissionRequest(sid, detail.toolCallId);
-      toast.dismiss(`perm-${sid}-${detail.toolCallId}`);
+      useAppStore.getState().removeAskUserRequest(sid, detail.toolCallId);
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
@@ -260,8 +261,8 @@ function AppContent() {
     };
 
     subscribe.on("session-update", handleSessionUpdate);
-    subscribe.on("permission-request", handlePermissionRequest);
-    subscribe.on("permission-resolved", handlePermissionResolved);
+    subscribe.on("ask-user-request", handleAskUserRequest);
+    subscribe.on("ask-user-response", handleAskUserResponse);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -383,8 +384,8 @@ function AppContent() {
       if (unlistenFullScreen) unlistenFullScreen();
       if (unlistenUpdater) unlistenUpdater();
       subscribe.off("session-update", handleSessionUpdate);
-      subscribe.off("permission-request", handlePermissionRequest);
-      subscribe.off("permission-resolved", handlePermissionResolved);
+      subscribe.off("ask-user-request", handleAskUserRequest);
+      subscribe.off("ask-user-response", handleAskUserResponse);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);

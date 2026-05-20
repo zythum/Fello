@@ -38,6 +38,7 @@ import {
   FolderOpen,
   FolderPlus,
   Globe,
+  HelpCircle,
   Home,
   Library,
   LoaderCircle,
@@ -488,14 +489,16 @@ export function Sidebar() {
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                           {(() => {
-                            const isStreaming = sessionStates.get(session.id)?.isStreaming;
+                            const state = sessionStates.get(session.id);
+                            const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
+                            const isStreaming = state?.isStreaming;
+                            if (hasAskUser) {
+                              return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+                            }
                             if (isStreaming) {
-                              return <LoaderCircle className="size-3 animate-spin" />;
+                              return <LoaderCircle className="size-3 animate-spin shrink-0" />;
                             }
-                            if (activeIlinkSessionId === session.id) {
-                              return <MessageCircle className="size-3 shrink-0 text-green-500" />;
-                            }
-                            return <LoaderCircle className="size-3 invisible" />;
+                            return <div className="size-3 shrink-0" />;
                           })()}
                           <Badge
                             variant="outline"
@@ -507,6 +510,9 @@ export function Sidebar() {
                           <span className="min-w-0 flex-1 truncate leading-normal select-none">
                             {session.title || t("sidebar.newChat", "New Chat")}
                           </span>
+                          {activeIlinkSessionId === session.id && (
+                            <MessageCircle className="size-3 shrink-0 text-green-500" />
+                          )}
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent onClick={(e) => e.stopPropagation()} className="w-auto">

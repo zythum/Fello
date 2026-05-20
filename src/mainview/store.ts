@@ -5,11 +5,10 @@ import type {
   ProjectInfo,
   SettingsInfo,
   SessionNotificationFelloExt,
+  AskUserRequest,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
-import type { RequestPermissionRequest, UsageUpdate } from "@agentclientprotocol/sdk";
-
-export type PermissionRequest = Omit<RequestPermissionRequest, "sessionId">;
+import type { UsageUpdate } from "@agentclientprotocol/sdk";
 
 export interface TerminalItem {
   id: string;
@@ -35,7 +34,7 @@ export interface SessionState {
   isStreaming: boolean;
   isLoading: boolean;
   terminalLogs: Record<string, string>;
-  permissionRequests: PermissionRequest[];
+  askUserRequests: AskUserRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
   pendingUpdates: SessionNotificationFelloExt["update"][];
 }
@@ -46,7 +45,7 @@ const emptySessionState = (): SessionState => ({
   isStreaming: false,
   isLoading: false,
   terminalLogs: {},
-  permissionRequests: [],
+  askUserRequests: [],
   activeToolCalls: new Map(),
   pendingUpdates: [],
 });
@@ -122,9 +121,9 @@ export interface AppState {
   setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setIsStreaming: (sessionId: string, v: boolean) => void;
-  setPermissionRequest: (sessionId: string, req: PermissionRequest | null) => void;
-  addPermissionRequest: (sessionId: string, req: PermissionRequest) => void;
-  removePermissionRequest: (sessionId: string, toolCallId: string) => void;
+  setAskUserRequest: (sessionId: string, req: AskUserRequest | null) => void;
+  addAskUserRequest: (sessionId: string, req: AskUserRequest) => void;
+  removeAskUserRequest: (sessionId: string, toolCallId: string) => void;
 
   // ==========================================================================
   // Terminal log mutators
@@ -250,17 +249,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   addMessage: (sessionId, message) =>
     get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),
   setIsStreaming: (sessionId, v) => get().updateSessionState(sessionId, () => ({ isStreaming: v })),
-  setPermissionRequest: (sessionId, req) =>
+  setAskUserRequest: (sessionId, req) =>
     get().updateSessionState(sessionId, () => ({
-      permissionRequests: req ? [req] : [],
+      askUserRequests: req ? [req] : [],
     })),
-  addPermissionRequest: (sessionId, req) =>
+  addAskUserRequest: (sessionId, req) =>
     get().updateSessionState(sessionId, (s) => ({
-      permissionRequests: [...s.permissionRequests, req],
+      askUserRequests: [...s.askUserRequests, req],
     })),
-  removePermissionRequest: (sessionId, toolCallId) =>
+  removeAskUserRequest: (sessionId, toolCallId) =>
     get().updateSessionState(sessionId, (s) => ({
-      permissionRequests: s.permissionRequests.filter((r) => r.toolCall.toolCallId !== toolCallId),
+      askUserRequests: s.askUserRequests.filter((r) => r.toolCallId !== toolCallId),
     })),
 
   // ==========================================================================

@@ -509,8 +509,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
   }, []);
 
-  const { isLoading } = useSessionState(session.id);
-  const disabled = !session.id || isLoading;
+  const { isLoading, askUserRequests } = useSessionState(session.id);
+  const hasActiveAskUser = askUserRequests.length > 0;
+  const disabled = !session.id || isLoading || hasActiveAskUser;
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -573,7 +574,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   );
 
   return (
-    <div className="p-6 -mt-6 relative">
+    <div
+      className={`p-6 -mt-6 relative transition-opacity duration-300 ${hasActiveAskUser ? "opacity-30 pointer-events-none" : ""}`}
+    >
       <div className="mx-auto max-w-5xl">
         <div
           ref={containerRef}

@@ -1,5 +1,4 @@
 import type {
-  RequestPermissionRequest,
   SessionNotification,
   InitializeResponse,
   SessionModeState,
@@ -65,6 +64,39 @@ export interface ApiAgentInfo extends BaseAgentInfo {
 
 /** 代理配置联合类型：本地 stdio / 远程 api */
 export type AgentInfo = StdioAgentInfo | ApiAgentInfo;
+
+/**
+ * 通用 askUser 请求中的选项
+ */
+export interface AskUserRequestOption {
+  value: string;
+  label: string;
+  priority: "high" | "medium" | "low";
+  danger?: boolean;
+}
+
+/**
+ * 通用 askUser 请求：向后端发送一个需要用户选择的问题
+ */
+export interface AskUserRequest {
+  sessionId: string;
+  toolCallId: string;
+  title: string;
+  description: string;
+  options: AskUserRequestOption[];
+  /** 是否允许用户输入自定义回复（显示 "其他" 按钮），默认 true */
+  allowCustomInput?: boolean;
+}
+
+/**
+ * 通用 askUser 响应：用户选择的结果
+ */
+export interface AskUserResponse {
+  sessionId: string;
+  toolCallId: string;
+  value: string | null;
+  reason: string | null;
+}
 
 /**
  * MCP 服务器的通用配置信息
@@ -354,8 +386,16 @@ export type FelloIPCRequests = {
   };
   /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };
-  /** 响应代理的权限请求（如允许执行命令、修改文件等） */
-  respondPermission: { params: { toolCallId: string; optionId: string }; response: void };
+  /** 响应通用 askUser 请求（支持自定义选项） */
+  respondAskUser: {
+    params: { sessionId: string; toolCallId: string; value: string; reason?: string };
+    response: void;
+  };
+  /** 获取指定 session 中所有 pending 的 askUser 请求（用于窗口重连后恢复） */
+  getPendingAskUserRequests: {
+    params: { sessionId: string };
+    response: AskUserRequest[];
+  };
   /** 更新会话的标题 */
   updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
   /** 更新会话的 MCP 服务器配置 */
@@ -549,10 +589,10 @@ export type FelloIPCEvents = {
   "session-changed": { session: SessionInfo };
   /** 会话状态更新的事件（如消息流、状态变更等） */
   "session-update": { sessionId: string; notification: SessionNotificationFelloExt };
-  /** 代理发出权限请求的事件 */
-  "permission-request": { sessionId: string; request: RequestPermissionRequest };
-  /** 代理权限请求已解决的事件（用于多端同步关闭弹窗） */
-  "permission-resolved": { sessionId: string; toolCallId: string; optionId: string };
+  /** 通用 askUser 请求事件（替换 permission-request） */
+  "ask-user-request": AskUserRequest;
+  /** 通用 askUser 响应事件（替换 permission-resolved） */
+  "ask-user-response": AskUserResponse;
   /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
   /** 终端退出的事件 */
