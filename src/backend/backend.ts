@@ -497,6 +497,23 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
     }
   }
 
+  // ── iLink forwarding: flush buffered text before tool call ──
+  // So WeChat users can see the agent's reasoning before a tool invocation.
+  if (
+    sessionUpdate === "tool_call" &&
+    ilinkBridge?.isConnected &&
+    sessionId === activeIlinkSessionId
+  ) {
+    const userId = ilinkBridge.userId;
+    if (userId && ilinkReplyBuffer) {
+      const text = ilinkReplyBuffer;
+      ilinkReplyBuffer = "";
+      ilinkBridge.sendTextReply(userId, text).catch((err) => {
+        console.warn("[iLink] Failed to forward pre-tool text to WeChat:", err);
+      });
+    }
+  }
+
   if (sessionUpdate === "tool_call_update") {
     const update = enrichedNotification.update;
     const toolCallId = update.toolCallId;
