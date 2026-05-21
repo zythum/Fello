@@ -144,6 +144,12 @@
       "addMcp": "添加 MCP 服务器",
       "addStdioMcp": "添加 Stdio MCP",
       "addHttpMcp": "添加 HTTP MCP",
+      "recommended": {
+        "exa": {
+          "name": "Exa",
+          "desc": "Exa MCP 服务器 — AI 网络搜索"
+        }
+      },
       "editMcp": "编辑 MCP 服务器",
       "mcpId": "MCP 服务器 ID (名称)",
       "command": "命令",

@@ -17,7 +17,13 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Pencil, Trash2, BookmarkPlus } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import {
@@ -62,7 +68,7 @@ function McpSortableItem({ id, children }: { id: string; children: React.ReactNo
           className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
           title="Drag to reorder"
         >
-          <GripVertical className="size-3.5" />
+          <GripVertical className="size-3.5 -ml-1" />
         </button>
         <div className="flex-1 min-w-0">{children}</div>
       </div>
@@ -161,6 +167,19 @@ export function SettingsMcp() {
     setHttpDialogOpen(true);
   };
 
+  const openRecommendedHttpDialog = (id: string, url: string) => {
+    setDialogOriginalId(null);
+    setStdioDialogItem(null);
+    setHttpDialogItem({
+      id,
+      type: "http",
+      url,
+      headers: {},
+      disabled: false,
+    });
+    setHttpDialogOpen(true);
+  };
+
   const openEditDialog = (mcp: McpServerInfo) => {
     setDialogOriginalId(mcp.id);
     if (isStdioMcp(mcp)) {
@@ -228,7 +247,7 @@ export function SettingsMcp() {
         </p>
       </div>
 
-      <div className="space-y-2 px-5 w-full max-w-4xl mx-auto">
+      <div className="space-y-2 px-4 w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between p-1">
           <h3 className="text-xs text-foreground/50">
             {t("settings.mcp.description", "Configure MCP Servers")}
@@ -252,6 +271,22 @@ export function SettingsMcp() {
               <Plus className="mr-1 size-3" />
               {t("settings.mcp.addHttpMcp", "Add HTTP MCP")}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background hover:bg-muted hover:text-foreground h-7 w-7 text-xs text-foreground/70">
+                <BookmarkPlus className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-50">
+                <DropdownMenuItem onClick={() => openRecommendedHttpDialog("exa", "https://mcp.exa.ai/mcp")}>
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="truncate flex flex-row items-center">
+                      <span>{t("settings.mcp.recommended.exa.name", "Exa")}</span>
+                      <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">· exa.ai</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/60 font-normal truncate">{t("settings.mcp.recommended.exa.desc", "Exa MCP Server — AI Web Search")}</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="border-t border-border -mx-4"></div>
@@ -259,7 +294,7 @@ export function SettingsMcp() {
 
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
-          <div className="space-y-3 m-3 pb-6">
+          <div className="space-y-3 m-5 pb-6">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}

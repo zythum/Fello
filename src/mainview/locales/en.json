@@ -144,6 +144,12 @@
       "addMcp": "Add MCP Server",
       "addStdioMcp": "Add Stdio MCP",
       "addHttpMcp": "Add HTTP MCP",
+      "recommended": {
+        "exa": {
+          "name": "Exa",
+          "desc": "Exa MCP Server — AI Web Search"
+        }
+      },
       "editMcp": "Edit MCP Server",
       "mcpId": "MCP Server ID (Name)",
       "command": "Command",

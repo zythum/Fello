@@ -58,7 +58,7 @@ function AgentSortableItem({ id, children }: { id: string; children: React.React
           className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
           title="Drag to reorder"
         >
-          <GripVertical className="size-3.5" />
+          <GripVertical className="size-3.5 -ml-1" />
         </button>
         <div className="flex-1 min-w-0">{children}</div>
       </div>
@@ -223,7 +223,7 @@ export function SettingsAgents() {
         </p>
       </div>
 
-      <div className="space-y-2 px-5 w-full max-w-4xl mx-auto">
+      <div className="space-y-2 px-4 w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between p-1">
           <h3 className="text-xs text-foreground/50">
             {t("settings.agents.description", "Configure agents")}
@@ -254,7 +254,7 @@ export function SettingsAgents() {
 
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
-          <div className="space-y-3 m-3 pb-6">
+          <div className="space-y-3 m-5 pb-6">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
