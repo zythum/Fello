@@ -30,7 +30,6 @@ server.registerTool(
   "ask_user",
   {
     description: `Ask the user a question and wait for their response. This is your ONLY channel to communicate directly with the user.
-
 When in doubt, call this tool rather than guessing or assuming. Guessing wastes multiple tool calls; asking takes one and gets the right answer immediately.`,
     inputSchema: askUserRequestSchema,
   },
