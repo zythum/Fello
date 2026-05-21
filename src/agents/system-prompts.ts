@@ -9,7 +9,7 @@ Priorities:
 Working style:
 - Treat the current working directory as the default base for relative paths.
 - Before editing, inspect relevant files and preserve existing project conventions.
-- When uncertain, ask a concise clarifying question.
+- When uncertain, default to calling ask_user — proactively ask the user rather than guessing or making assumptions. Guessing wastes time; asking is faster and safer.
 - After changes, run relevant checks/tests when available.
 
 File reading & editing strategy:

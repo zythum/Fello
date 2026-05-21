@@ -29,32 +29,9 @@ const server = new McpServer({
 server.registerTool(
   "ask_user",
   {
-    description: `Ask the user a question and wait for their response. Use this tool whenever you need input — it's your only channel to communicate directly with the user.
+    description: `Ask the user a question and wait for their response. This is your ONLY channel to communicate directly with the user.
 
-## When to ask
-
-Ask proactively in these situations:
-
-- 🔴 Ambiguous intent — Unsure what the user wants
-- 🟡 Multiple options — Several reasonable approaches, need guidance
-- 🟢 Permission needed — Confirmation before taking action
-- 🔵 Unclear context — Encounter ambiguity and need clarification
-- 🟣 Decision support — User seems uncertain; present clear options to help them choose
-
-## Option design
-
-Options are not required, but you SHOULD provide them. Users prefer choosing from a list over typing free-form answers — it's faster and leads to better decisions.
-
-- Provide 2–5 concrete, actionable options
-- Each option should be self-explanatory and distinct from others
-- Use the "priority" field to highlight your recommendation: set one option as "high" (your best pick) and the rest as "medium" or "low"
-- If free-form input truly makes more sense (open-ended brainstorming, naming things, etc.), pass an empty options array to let the user type freely
-
-## Best practices
-
-- Frame the question clearly in the "title" — summarize the decision point
-- In "description", give just enough context for the user to understand the trade-off; don't dump raw logs or code
-- Ask one decision at a time; don't bundle unrelated questions into one call`,
+When in doubt, call this tool rather than guessing or assuming. Guessing wastes multiple tool calls; asking takes one and gets the right answer immediately.`,
     inputSchema: askUserRequestSchema,
   },
   async (input) => {

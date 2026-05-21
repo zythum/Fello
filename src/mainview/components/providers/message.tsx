@@ -306,7 +306,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
       <Toaster />
 
       <Dialog open={isOpen} onOpenChange={handleClose} disablePointerDismissal>
-        <DialogContent showCloseButton={false} className="sm:max-w-105 gap-0.5">
+        <DialogContent showCloseButton={false} className="sm:max-w-105 gap-1.5">
           {activeDialog?.title && (
             <DialogHeader>
               <DialogTitle className="flex items-center">
