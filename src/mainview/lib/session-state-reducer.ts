@@ -237,7 +237,7 @@ export function reduceSessionUpdate(
 
         if (update.title && typeof update.title === "string") {
           // Note: update.title will be extracted by the App level listener
-          // which can call request.updateSessionTitle IPC to persist it.
+          // which can call request.updateSession IPC to persist it.
           // We can optionally keep it in state if needed, but Fello reads session title from global AppStore sessions.
         }
 

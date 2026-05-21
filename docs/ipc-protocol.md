@@ -99,14 +99,13 @@ sendPrompt: {
 | `renameProject` | `{ projectId, title }` | `void` | 重命名项目 |
 | `deleteProject` | `string` (projectId) | `void` | 删除项目 |
 | `deleteSession` | `string` (sessionId) | `void` | 删除会话 |
-| `updateSessionTitle` | `{ sessionId, title }` | `void` | 更新会话标题 |
-| `updateSessionMcpServers` | `{ sessionId, mcpServers }` | `void` | 更新会话 MCP 配置 |
+| `updateSession` | `{ sessionId, title?, mcpServers?, features? }` | `void` | 更新会话属性（标题 / MCP / features） |
 
 ### 会话交互
 
 | 方法 | params | response | 说明 |
 |---|---|---|---|
-| `newSession` | `{ projectId, agentId, mcpServers?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes, isStreaming }` | 创建新会话 |
+| `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes, isStreaming }` | 创建新会话 |
 | `loadSession` | `{ sessionId }` | `{ sessionId, initializeInfo, models, modes, isStreaming }` | 恢复已有关会话 |
 | `getSessionHistory` | `{ sessionId }` | `{ messages, isStreaming }` | 获取会话历史消息 |
 | `sendPrompt` | `{ sessionId, contents }` | `{ stopReason }` | 发送用户 Prompt |
@@ -170,8 +169,8 @@ sendPrompt: {
 |---|---|---|
 | `session-changed` | `{ session: SessionInfo }` | 会话元数据变更（标题、模型等） |
 | `session-update` | `{ sessionId, notification }` | 会话流式事件（消息、工具调用等） |
-| `permission-request` | `{ sessionId, request }` | Agent 发起权限请求 |
-| `permission-resolved` | `{ sessionId, toolCallId, optionId }` | 权限请求已处理 |
+| `ask-user-request` | `AskUserRequest` | Agent 发起 askUser 请求 |
+| `ask-user-response` | `AskUserResponse` | askUser 请求已响应 |
 | `terminal-output` | `{ terminalId, data }` | 终端输出数据 |
 | `terminal-exit` | `{ terminalId, exitCode }` | 终端进程退出 |
 | `agent-terminal-output` | `{ sessionId, terminalId, data }` | Agent 专属终端输出 |

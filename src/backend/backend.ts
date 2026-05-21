@@ -40,7 +40,9 @@ import type {
   FelloIPCSchema,
   AskUserRequest,
   AskUserRequestOption,
+  Feature,
 } from "../shared/schema";
+import { ALL_FEATURES } from "../shared/constants";
 import { askUserRequestSchema, askUserRespondSchema } from "../shared/zod/ask-user-mcp-schema";
 import { storageOps, SOCKETS_DIR } from "./storage";
 import {
@@ -65,7 +67,11 @@ const execFileAsync = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function buildMcpServersConfig(sessionMcpIds: string[], socketPath: string | null): McpServer[] {
+function buildMcpServersConfig(
+  sessionMcpIds: string[],
+  options: { socketPath: string | null; features?: Feature[] },
+): McpServer[] {
+  const { socketPath, features = ALL_FEATURES } = options;
   // Built-in MCP servers — always first
   const servers: McpServer[] = [
     {
@@ -81,8 +87,8 @@ function buildMcpServersConfig(sessionMcpIds: string[], socketPath: string | nul
     },
   ];
 
-  // Dynamically add ask-user MCP server if socket server is running
-  if (socketPath) {
+  // Dynamically add ask-user MCP server if socket server is running and ask_user feature is enabled
+  if (socketPath && features.includes("ask_user")) {
     servers.push({
       name: "ask-user",
       command: process.argv0,
@@ -1005,7 +1011,7 @@ export const backendHandlers: {
     sendEvent("sessions-changed", undefined);
   },
 
-  async newSession({ projectId, agentId, mcpServers, permissionMode }) {
+  async newSession({ projectId, agentId, mcpServers, permissionMode, features }) {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(agentId);
@@ -1016,7 +1022,8 @@ export const backendHandlers: {
     const sessionMcpIds =
       mcpServers ??
       (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
-    const activeMcpServers = buildMcpServersConfig(sessionMcpIds, socketPath);
+    const effectiveFeatures: Feature[] = features ?? ALL_FEATURES;
+    const activeMcpServers = buildMcpServersConfig(sessionMcpIds, { socketPath, features: effectiveFeatures });
 
     const {
       sessionId: resumeId,
@@ -1028,6 +1035,7 @@ export const backendHandlers: {
     });
     const sessionInfo = storageOps.createSession(project.id, resumeId, agentId, {
       mcpServers: sessionMcpIds,
+      features: effectiveFeatures,
       permissionMode: permissionMode ?? "ask",
       models: models ?? null,
       modes: modes ?? null,
@@ -1052,7 +1060,7 @@ export const backendHandlers: {
     const b = await ensureBridge(session.agentId);
 
     const socketPath = generateSessionSocketPath(randomUUID());
-    const activeMcpServers = buildMcpServersConfig(session.mcpServers || [], socketPath);
+    const activeMcpServers = buildMcpServersConfig(session.mcpServers, { socketPath, features: session.features });
 
     restoringSessions.add(session.id);
     let loadResult;
@@ -1200,7 +1208,7 @@ export const backendHandlers: {
     if (!b.isSessionLoaded(session.resumeId)) {
       console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
       const socketPath = generateSessionSocketPath(randomUUID());
-      const activeMcpServers = buildMcpServersConfig(session.mcpServers || [], socketPath);
+      const activeMcpServers = buildMcpServersConfig(session.mcpServers, { socketPath, features: session.features });
       await b.loadSession({
         sessionId: session.resumeId,
         cwd: session.cwd,
@@ -1316,14 +1324,8 @@ export const backendHandlers: {
     }
   },
 
-  async updateSessionTitle({ sessionId, title }) {
-    storageOps.updateSession(sessionId, { title });
-    const session = storageOps.getSession(sessionId);
-    if (session) sendEvent("session-changed", { session });
-  },
-
-  async updateSessionMcpServers({ sessionId, mcpServers }) {
-    storageOps.updateSession(sessionId, { mcpServers });
+  async updateSession({ sessionId, ...updates }) {
+    storageOps.updateSession(sessionId, updates);
     const session = storageOps.getSession(sessionId);
     if (session) sendEvent("session-changed", { session });
   },

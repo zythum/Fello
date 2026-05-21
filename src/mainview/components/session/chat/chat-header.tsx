@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { useMessage } from "../../providers/message";
-import type { SessionInfo } from "../../../../shared/schema";
+import type { SessionInfo, Feature } from "../../../../shared/schema";
+import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../../shared/constants";
 
 interface ChatHeaderProps {
   session: SessionInfo;
@@ -26,17 +27,24 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
   // Local state: only used while the popover is open, synced from session on open
   const [localMcpServers, setLocalMcpServers] = useState<string[]>([]);
+  const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
 
   // Check whether the local selection differs from what the session currently has
   const hasLocalChanges = useMemo(() => {
     const local = new Set(localMcpServers);
-    const sessionIds = new Set(session.mcpServers || []);
+    const sessionIds = new Set(session.mcpServers);
     if (local.size !== sessionIds.size) return true;
     for (const id of local) {
       if (!sessionIds.has(id)) return true;
     }
+    const localFeat = new Set(localFeatures);
+    const sessionFeat = new Set(session.features);
+    if (localFeat.size !== sessionFeat.size) return true;
+    for (const f of localFeat) {
+      if (!sessionFeat.has(f)) return true;
+    }
     return false;
-  }, [localMcpServers, session.mcpServers]);
+  }, [localMcpServers, session.mcpServers, localFeatures, session.features]);
 
   const handleToggle = useCallback((mcpId: string) => {
     setLocalMcpServers((prev) =>
@@ -47,9 +55,10 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   const handleSyncAndRefresh = async () => {
     if (!session) return;
     try {
-      await request.updateSessionMcpServers({
+      await request.updateSession({
         sessionId: session.id,
         mcpServers: localMcpServers,
+        features: localFeatures,
       });
     } catch (err) {
       console.error("Failed to update MCP servers:", err);
@@ -126,7 +135,8 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           onOpenChange={(open) => {
             if (open) {
               // Sync local state from session whenever popover opens
-              setLocalMcpServers(session.mcpServers || []);
+              setLocalMcpServers(session.mcpServers);
+              setLocalFeatures(session.features);
             }
           }}
         >
@@ -136,10 +146,36 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
               <PopoverPrimitive.Popup className="z-10 min-w-56 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-[var(--transform-origin)] data-[ending-style]:scale-90 data-[starting-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 transition-[transform,opacity] duration-100">
+                {/* Features toggles */}
+                <div className="px-2 py-1 text-xs font-normal text-muted-foreground/70">
+                  {t("constant.feature.title", "Features")}
+                </div>
+                {ALL_FEATURES.map((feature) => (
+                  <div
+                    key={feature}
+                    className="flex items-center justify-between rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="truncate mr-2">
+                      {t(FEATURE_I18N_KEYS[feature], feature)}
+                    </span>
+                    <Switch
+                      size="sm"
+                      checked={localFeatures.includes(feature)}
+                      onCheckedChange={(checked) => {
+                        setLocalFeatures((prev) =>
+                          checked
+                            ? [...prev, feature]
+                            : prev.filter((f) => f !== feature),
+                        );
+                      }}
+                    />
+                  </div>
+                ))}
+
                 {/* MCP server toggles */}
                 {configuredMcpServers.length > 0 && (
                   <>
-                    <div className="px-2 py-1 text-xs font-normal text-muted-foreground/70">
+                    <div className="px-2 py-1 mt-1 text-xs font-normal text-muted-foreground/70">
                       {t("settings.mcp.title", "MCP Servers")}
                     </div>
                     {configuredMcpServers.map((mcp) => (

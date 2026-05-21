@@ -15,7 +15,9 @@ import type {
   SessionInfo,
   SettingsInfo,
   SessionNotificationFelloExt,
+  Feature,
 } from "../shared/schema";
+import { ALL_FEATURES } from "../shared/constants";
 import type {
   SessionModelState,
   SessionModeState,
@@ -116,6 +118,7 @@ interface SessionMeta {
   created_at: number;
   updated_at: number;
   mcp_servers?: string[];
+  features?: Feature[];
   permission_mode?: "ask" | "allow-all";
   models?: SessionModelState | null;
   modes?: SessionModeState | null;
@@ -356,6 +359,9 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
       raw.permission_mode === "allow-all" || raw.permission_mode === "ask"
         ? raw.permission_mode
         : "ask";
+    const features: Feature[] = Array.isArray(raw.features)
+      ? raw.features.filter((v): v is Feature => ALL_FEATURES.includes(v))
+      : ALL_FEATURES;
     const models = raw.models ?? null;
     const modes = raw.modes ?? null;
     const initialize_info = raw.initialize_info ?? null;
@@ -370,6 +376,7 @@ function readSessionMeta(projectId: string, sessionId: string): SessionMeta | nu
       created_at,
       updated_at,
       mcp_servers,
+      features,
       permission_mode,
       models,
       modes,
@@ -646,6 +653,7 @@ export const storageOps = {
     updates?: Partial<{
       title: string;
       mcpServers: string[];
+      features: Feature[];
       permissionMode: "ask" | "allow-all";
       models: SessionModelState | null;
       modes: SessionModeState | null;
@@ -665,6 +673,7 @@ export const storageOps = {
       created_at: now,
       updated_at: now,
       mcp_servers: updates?.mcpServers ?? [],
+      features: updates?.features ?? ALL_FEATURES,
       permission_mode: updates?.permissionMode ?? "ask",
       models: updates?.models ?? null,
       modes: updates?.modes ?? null,
@@ -679,6 +688,7 @@ export const storageOps = {
     updates: Partial<{
       title: string;
       mcpServers: string[];
+      features: Feature[];
       permissionMode: "ask" | "allow-all";
       models: SessionModelState | null;
       modes: SessionModeState | null;
@@ -691,6 +701,7 @@ export const storageOps = {
 
     if (updates.title !== undefined) meta.title = updates.title;
     if (updates.mcpServers !== undefined) meta.mcp_servers = updates.mcpServers;
+    if (updates.features !== undefined) meta.features = updates.features;
     if (updates.permissionMode !== undefined) meta.permission_mode = updates.permissionMode;
     if (updates.models !== undefined) meta.models = updates.models;
     if (updates.modes !== undefined) meta.modes = updates.modes;
@@ -724,6 +735,7 @@ export const storageOps = {
           createdAt: meta.created_at,
           updatedAt: meta.updated_at,
           mcpServers: meta.mcp_servers ?? [],
+          features: meta.features ?? ALL_FEATURES,
           permissionMode: meta.permission_mode ?? "ask",
           models: meta.models ?? null,
           modes: meta.modes ?? null,
@@ -752,6 +764,7 @@ export const storageOps = {
       createdAt: meta.created_at,
       updatedAt: meta.updated_at,
       mcpServers: meta.mcp_servers ?? [],
+      features: meta.features ?? ALL_FEATURES,
       permissionMode: meta.permission_mode ?? "ask",
       models: meta.models ?? null,
       modes: meta.modes ?? null,

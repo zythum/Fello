@@ -133,6 +133,9 @@ export interface HttpMcpServerInfo extends BaseMcpServerInfo {
 /** MCP Server 配置联合类型：stdio / http */
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
 
+/** 会话级别的 feature 枚举 */
+export type Feature = "ask_user";
+
 /**
  * 应用的主题配置信息
  */
@@ -231,6 +234,8 @@ export interface SessionInfo {
    * 当前会话使用的 MCP 服务器 ID 列表
    */
   mcpServers: string[];
+  /** 当前会话启用的 feature 列表（如 "ask_user"） */
+  features: Feature[];
   /** 权限策略：每次询问（ask）或默认全部允许（allow-all） */
   permissionMode: "ask" | "allow-all";
   /** 缓存的 Model 配置状态，用于离线降级恢复 */
@@ -339,6 +344,7 @@ export type FelloIPCRequests = {
       projectId: string;
       agentId: string;
       mcpServers?: string[];
+      features?: Feature[];
       permissionMode?: "ask" | "allow-all";
     };
     response: {
@@ -398,10 +404,11 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: AskUserRequest[];
   };
-  /** 更新会话的标题 */
-  updateSessionTitle: { params: { sessionId: string; title: string }; response: void };
-  /** 更新会话的 MCP 服务器配置 */
-  updateSessionMcpServers: { params: { sessionId: string; mcpServers: string[] }; response: void };
+  /** 更新会话属性（title / mcpServers / features 等） */
+  updateSession: {
+    params: { sessionId: string } & Partial<Pick<SessionInfo, "title" | "mcpServers" | "features">>;
+    response: void;
+  };
   /** 更改会话的工作目录 */
   changeWorkDir: {
     params: { sessionId: string };

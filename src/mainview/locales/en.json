@@ -230,6 +230,12 @@
       "low": "Low"
     }
   },
+  "constant": {
+    "feature": {
+      "title": "Features",
+      "askUser": "Ask Me"
+    }
+  },
   "chatHeader": {
     "refresh": "Refresh"
   },

@@ -230,6 +230,12 @@
       "low": "低优先级"
     }
   },
+  "constant": {
+    "feature": {
+      "title": "功能",
+      "askUser": "向我提问"
+    }
+  },
   "chatHeader": {
     "refresh": "重启会话"
   },

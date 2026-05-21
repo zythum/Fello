@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
-import type { ProjectInfo, SessionInfo } from "../../../shared/schema";
+import type { ProjectInfo, SessionInfo, Feature } from "../../../shared/schema";
+import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../shared/constants";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
@@ -150,7 +151,7 @@ export function Sidebar() {
   const handleNewChat = async (
     projectId: string,
     agentId: string,
-    params?: { mcpServers?: string[]; permissionMode?: "ask" | "allow-all" },
+    params?: { mcpServers?: string[]; features?: Feature[]; permissionMode?: "ask" | "allow-all" },
   ): Promise<boolean> => {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
@@ -159,6 +160,7 @@ export function Sidebar() {
         projectId,
         agentId,
         mcpServers: params?.mcpServers,
+        features: params?.features,
         permissionMode: params?.permissionMode,
       });
       await refreshData();
@@ -178,6 +180,7 @@ export function Sidebar() {
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
   const [newSessionAgentId, setNewSessionAgentId] = useState<string>("");
   const [newSessionMcpIds, setNewSessionMcpIds] = useState<Set<string>>(new Set());
+  const [newSessionFeatures, setNewSessionFeatures] = useState<Feature[]>(ALL_FEATURES);
   const [newSessionPermissionMode, setNewSessionPermissionMode] = useState<"ask" | "allow-all">(
     "allow-all",
   );
@@ -190,6 +193,7 @@ export function Sidebar() {
     setNewSessionProjectId(projectId);
     setNewSessionAgentId(enabledAgents[0]?.id ?? "");
     setNewSessionMcpIds(new Set(configuredMcpServers.filter((s) => !s.disabled).map((s) => s.id)));
+    setNewSessionFeatures(ALL_FEATURES);
     setNewSessionPermissionMode("allow-all");
     setNewSessionDialogOpen(true);
   };
@@ -198,6 +202,7 @@ export function Sidebar() {
     if (!newSessionProjectId || !newSessionAgentId) return;
     const ok = await handleNewChat(newSessionProjectId, newSessionAgentId, {
       mcpServers: Array.from(newSessionMcpIds),
+      features: newSessionFeatures,
       permissionMode: newSessionPermissionMode,
     });
     if (ok) setNewSessionDialogOpen(false);
@@ -259,7 +264,7 @@ export function Sidebar() {
     });
 
     if (newName && newName !== "cancel") {
-      await request.updateSessionTitle({ sessionId: session.id, title: newName.trim() });
+      await request.updateSession({ sessionId: session.id, title: newName.trim() });
       await refreshData();
     }
   };
@@ -670,6 +675,40 @@ export function Sidebar() {
                     </Select>
                   );
                 })()}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-muted-foreground">
+                {t("constant.feature.title", { defaultValue: "Features" })}
+              </div>
+              <div className="flex flex-col gap-1">
+                {ALL_FEATURES.map((feature) => (
+                  <div
+                    key={feature}
+                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                  >
+                    <div
+                      className={cn(
+                        "text-xs truncate",
+                        !newSessionFeatures.includes(feature) ? "text-muted-foreground/50" : "text-muted-foreground",
+                      )}
+                    >
+                      {t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
+                    </div>
+                    <Switch
+                      size="sm"
+                      checked={newSessionFeatures.includes(feature)}
+                      onCheckedChange={(checked) => {
+                        setNewSessionFeatures((prev) =>
+                          checked
+                            ? [...prev, feature]
+                            : prev.filter((f) => f !== feature),
+                        );
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 

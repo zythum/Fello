@@ -129,7 +129,7 @@ function AppContent() {
 
         // 4. Handle side-effects
         if (nextTitle) {
-          request.updateSessionTitle({ sessionId: sid, title: nextTitle });
+          request.updateSession({ sessionId: sid, title: nextTitle });
         }
 
         // 5. Re-queue unprocessed updates
