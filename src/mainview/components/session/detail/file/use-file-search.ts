@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useSearchHighlight } from "../../../common/use-search-highlight";
 
 export interface UseFileSearchResult {
@@ -11,18 +11,15 @@ export interface UseFileSearchResult {
   currentMatch: number;
   goToNext: () => void;
   goToPrev: () => void;
-  /** Ref to attach to the code view container for DOM-based search */
-  contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useFileSearch(
   projectId: string | null,
   file: string | null,
   viewMode: string,
+  codeViewContainer: ShadowRoot | Document | DocumentFragment | HTMLElement | null,
 ): UseFileSearchResult {
   const [searchOpen, setSearchOpen] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
   const {
     searchTerm,
     setSearchTerm,
@@ -31,7 +28,7 @@ export function useFileSearch(
     goToNext,
     goToPrev,
     reset: resetSearch,
-  } = useSearchHighlight(searchOpen ? contentRef.current : null);
+  } = useSearchHighlight(searchOpen ? codeViewContainer : null);
 
   const openSearch = useCallback(() => {
     setSearchOpen(true);
@@ -46,7 +43,7 @@ export function useFileSearch(
   useEffect(() => {
     setSearchOpen(false);
     resetSearch();
-  }, [projectId, file, viewMode, resetSearch]);
+  }, [projectId, file, viewMode, codeViewContainer, resetSearch]);
 
   // Ctrl+F / Cmd+F to open search, Escape to close
   useEffect(() => {
@@ -81,6 +78,5 @@ export function useFileSearch(
     currentMatch,
     goToNext,
     goToPrev,
-    contentRef,
   };
 }

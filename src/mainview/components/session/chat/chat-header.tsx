@@ -155,17 +155,13 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                     key={feature}
                     className="flex items-center justify-between rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
                   >
-                    <span className="truncate mr-2">
-                      {t(FEATURE_I18N_KEYS[feature], feature)}
-                    </span>
+                    <span className="truncate mr-2">{t(FEATURE_I18N_KEYS[feature], feature)}</span>
                     <Switch
                       size="sm"
                       checked={localFeatures.includes(feature)}
                       onCheckedChange={(checked) => {
                         setLocalFeatures((prev) =>
-                          checked
-                            ? [...prev, feature]
-                            : prev.filter((f) => f !== feature),
+                          checked ? [...prev, feature] : prev.filter((f) => f !== feature),
                         );
                       }}
                     />

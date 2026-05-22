@@ -1,6 +1,5 @@
 import { useMemo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { File, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../common/code-view";
 import { CodeCompareView } from "../../../common/code-compare-view";
@@ -17,14 +16,12 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { MessageSquarePlus, Copy, FolderOpen, RefreshCw } from "lucide-react";
+import { File, MessageSquarePlus, Copy, FolderOpen, RefreshCw, X } from "lucide-react";
 import { request, isWebUI, subscribe } from "../../../../backend";
 import { electron } from "../../../../electron";
-
 import type { FileDetailProps } from "./file-types";
 import { useFileLoading, base64ToArrayBuffer } from "./use-file-loading";
 import { useFileSearch } from "./use-file-search";
-import { useFileContextMenu } from "./use-file-context-menu";
 import { FileViewTabs } from "./file-view-tabs";
 import { SearchBar } from "./search-bar";
 
@@ -32,6 +29,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
   const fileName = file?.split("/").pop() ?? "";
 
+  const [codeViewContainer, setCodeViewContainer] = useState<HTMLDivElement | null>(null);
   // ── file loading & type detection ──
   const {
     content,
@@ -56,18 +54,24 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     goToNext,
     goToPrev,
     closeSearch,
-    contentRef,
-  } = useFileSearch(projectId, file, viewMode);
+  } = useFileSearch(projectId, file, viewMode, codeViewContainer?.children[0]?.shadowRoot ?? null);
 
-  // ── right-click context menu (line selection / copy / add-to-chat) ──
-  const {
-    selectedText,
-    selectedLineRange,
-    handleContextMenu,
-    handleAddToChat,
-    handleCopy,
-    clearSelection,
-  } = useFileContextMenu(file, viewMode);
+  const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+
+  const handleMenuOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      const sel = window.getSelection();
+      const text = sel?.toString() ?? "";
+      setContextSelectedText(text);
+    } else {
+      setContextSelectedText(null);
+    }
+  }, []);
+
+  const handleCopySelected = useCallback(() => {
+    const text = contextSelectedText;
+    if (text) navigator.clipboard.writeText(text);
+  }, [contextSelectedText]);
 
   const handleCopyFileContent = useCallback(() => {
     if (content) {
@@ -177,7 +181,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       </div>
 
       {/* ── main content area ── */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         {/* file modified floating toast */}
         {fileModified && (
           <div className="absolute top-3 right-3 z-10 flex items-center gap-3 px-3 py-2 rounded-lg shadow-md bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-200">
@@ -225,79 +229,114 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           </div>
         ) : viewMode === "code" && finalViewModes.includes("code") ? (
           /* code view with context menu */
-          <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
-            <ContextMenu
-              onOpenChange={(open) => {
-                if (!open) clearSelection();
-              }}
-            >
-              <ContextMenuTrigger
-                className="min-h-full text-[12px] font-mono block select-text -mx-3 pb-20"
-                onContextMenu={handleContextMenu}
-              >
-                <div ref={contentRef} className="w-max">
-                  <CodeView content={content} filename={fileName} />
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                {selectedText && (
-                  <ContextMenuItem onClick={handleCopy}>
+          <div className="w-full h-full relative">
+            <ScrollArea className="w-full h-full">
+              <ContextMenu onOpenChange={handleMenuOpenChange}>
+                <ContextMenuTrigger render={<div className="h-full" ref={setCodeViewContainer} />}>
+                  <CodeView
+                    className="min-h-full"
+                    content={content}
+                    filename={fileName}
+                    addLineToChat={true}
+                  />
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  {contextSelectedText && (
+                    <ContextMenuItem onClick={handleCopySelected}>
+                      <Copy />
+                      {t("contextMenu.copy")}
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem onClick={handleCopyFileContent}>
                     <Copy />
-                    {t("userBubble.copy")}
+                    {t("fileDetail.copyFileContent")}
                   </ContextMenuItem>
-                )}
-                <ContextMenuItem onClick={handleCopyFileContent}>
-                  <Copy />
-                  {t("fileDetail.copyFileContent", "复制文件内容")}
-                </ContextMenuItem>
-                <ContextMenuItem onClick={refresh}>
-                  <RefreshCw />
-                  {t("filePanel.refresh", "刷新")}
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={handleAddFileToChat}>
-                  <MessageSquarePlus />
-                  {t("fileDetail.addFileToChat", "添加文件到会话")}
-                </ContextMenuItem>
-                {selectedLineRange && (
-                  <ContextMenuItem onClick={handleAddToChat}>
+                  <ContextMenuItem onClick={handleRefreshWithReset}>
+                    <RefreshCw />
+                    {t("filePanel.refresh")}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={handleAddFileToChat}>
                     <MessageSquarePlus />
-                    {t("fileDetail.addSelectionToChat", "添加选中内容到会话")}
+                    {t("fileDetail.addFileToChat")}
                   </ContextMenuItem>
-                )}
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={handleCopyPath}>
-                  <Copy />
-                  {t("filePanel.copyPath")}
-                </ContextMenuItem>
-                <ContextMenuItem onClick={handleCopyRelativePath}>
-                  <Copy />
-                  {t("filePanel.copyRelativePath")}
-                </ContextMenuItem>
-                {!isWebUI && (
-                  <ContextMenuItem onClick={handleRevealInFinder}>
-                    <FolderOpen />
-                    {t("filePanel.revealInFinder")}
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={handleCopyPath}>
+                    <Copy />
+                    {t("filePanel.copyPath")}
                   </ContextMenuItem>
-                )}
-              </ContextMenuContent>
-            </ContextMenu>
-          </ScrollArea>
+                  <ContextMenuItem onClick={handleCopyRelativePath}>
+                    <Copy />
+                    {t("filePanel.copyRelativePath")}
+                  </ContextMenuItem>
+                  {!isWebUI && (
+                    <ContextMenuItem onClick={handleRevealInFinder}>
+                      <FolderOpen />
+                      {t("filePanel.revealInFinder")}
+                    </ContextMenuItem>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
+            </ScrollArea>
+          </div>
         ) : viewMode === "compare" && finalViewModes.includes("compare") ? (
           /* git diff view */
-          <ScrollArea className="w-full h-full bg-[#ffffff] dark:bg-[#24292e]">
-            <div className="min-h-full text-[12px] font-mono pb-20">
-              <CodeCompareView
-                oldContent={gitContent ?? ""}
-                newContent={content}
-                filename={fileName}
-              />
-            </div>
-          </ScrollArea>
+          <div className="absolute inset-0">
+            {/* floating action bar when lines are selected */}
+            <ScrollArea className="w-full h-full">
+              <ContextMenu onOpenChange={handleMenuOpenChange}>
+                <ContextMenuTrigger className="h-full">
+                  <CodeCompareView
+                    className="min-h-full"
+                    oldContent={gitContent ?? ""}
+                    newContent={content}
+                    filename={fileName}
+                    addLineToChat={true}
+                  />
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  {contextSelectedText && (
+                    <ContextMenuItem onClick={handleCopySelected}>
+                      <Copy />
+                      {t("contextMenu.copy")}
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem onClick={handleCopyFileContent}>
+                    <Copy />
+                    {t("fileDetail.copyFileContent")}
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={refresh}>
+                    <RefreshCw />
+                    {t("filePanel.refresh")}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={handleAddFileToChat}>
+                    <MessageSquarePlus />
+                    {t("fileDetail.addFileToChat")}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={handleCopyPath}>
+                    <Copy />
+                    {t("filePanel.copyPath")}
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={handleCopyRelativePath}>
+                    <Copy />
+                    {t("filePanel.copyRelativePath")}
+                  </ContextMenuItem>
+                  {!isWebUI && (
+                    <ContextMenuItem onClick={handleRevealInFinder}>
+                      <FolderOpen />
+                      {t("filePanel.revealInFinder")}
+                    </ContextMenuItem>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
+            </ScrollArea>
+          </div>
         ) : null}
 
         {/* search overlay */}
-        {searchOpen && (
+        {searchOpen && viewMode === "code" && (
           <SearchBar
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}

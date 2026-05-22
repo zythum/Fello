@@ -1,79 +1,99 @@
-import { useEffect, useState, memo } from "react";
+import { memo, useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
-import {
-  getShikiHighlighter,
-  getShikiLanguageFromFilename,
-  getShikiTheme,
-} from "./shiki-highlighter";
+import { cn } from "@/lib/utils";
+import { File } from "@pierre/diffs/react";
+import type { SelectedLineRange } from "@pierre/diffs";
+import { shikiPreloadPromise, isShikiReady } from "@/lib/shiki-preload";
 
-export interface CodeViewProps {
-  content: string;
-  filename?: string;
+const unsafeCSS = `
+:host{--diffs-font-size:12px;user-select:text;}
+::highlight(file-search-all) {
+  background-color: #f59e0b80;
+  color: inherit;
 }
 
-export const CodeView = memo(function CodeView({ content, filename }: CodeViewProps) {
+::highlight(file-search-current) {
+  background-color: #f59e0b;
+  color: #000;
+}
+`;
+
+export interface CodeViewProps {
+  className?: string;
+  content: string;
+  filename?: string;
+  addLineToChat?: boolean;
+}
+
+export const CodeView = memo(function CodeView({
+  className,
+  content,
+  filename,
+  addLineToChat,
+}: CodeViewProps) {
   const { resolvedTheme } = useTheme();
-  const [html, setHtml] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const isDark = resolvedTheme === "dark";
+  const [highlighterReady, setHighlighterReady] = useState(isShikiReady());
+  const readyRef = useRef(highlighterReady);
 
+  // Ensure Shiki is fully initialized before rendering File.
+  // The preload was already started at app startup; we just wait for it if needed.
   useEffect(() => {
-    let active = true;
-
-    async function renderCode() {
-      setLoading(true);
-      try {
-        const hl = await getShikiHighlighter();
-        if (!active) return;
-
-        const lang = getShikiLanguageFromFilename(filename);
-        const theme = getShikiTheme(resolvedTheme);
-
-        try {
-          const finalHtml = hl.codeToHtml(content, {
-            lang,
-            theme,
-          });
-
-          if (active) setHtml(finalHtml);
-        } catch (e) {
-          console.error(e);
-          if (active) {
-            try {
-              const fallback = hl.codeToHtml(content, {
-                lang: "text",
-                theme,
-              });
-              setHtml(fallback);
-            } catch {
-              setHtml(
-                `<pre><code>${content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`,
-              );
-            }
-          }
-        }
-      } catch (e) {
-        console.error(e);
-        if (!active) return;
-        setHtml(`<pre><code>${content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`);
-      } finally {
-        if (active) setLoading(false);
+    if (readyRef.current) return;
+    let cancelled = false;
+    shikiPreloadPromise.then(() => {
+      if (!cancelled) {
+        readyRef.current = true;
+        setHighlighterReady(true);
       }
-    }
-
-    renderCode();
+    });
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [content, filename, resolvedTheme]);
+  }, []);
 
-  if (loading) {
-    return null;
+  if (!highlighterReady) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center p-4 text-xs text-muted-foreground",
+          className,
+        )}
+      >
+        Loading syntax highlighter...
+      </div>
+    );
   }
 
+  const onGutterUtilityClick = useCallback(
+    (range: SelectedLineRange) => {
+      if (addLineToChat && filename) {
+        const position =
+          range.start === range.end ? `:${range.start}` : `:${range.start}-${range.end}`;
+
+        document.dispatchEvent(
+          new CustomEvent("fello-add-to-chat", {
+            detail: [{ id: filename, name: filename + position, isFolder: false }],
+          }),
+        );
+      }
+    },
+    [addLineToChat, filename],
+  );
+
   return (
-    <div
-      dangerouslySetInnerHTML={{ __html: html }}
-      className="[&_pre]:bg-transparent [&_pre]:p-4 [&_pre]:m-0 [&_code]:block [&_code]:w-max [&_code]:[counter-reset:step] [&_code]:[counter-increment:step_0] [&_.line::before]:content-[counter(step)] [&_.line::before]:[counter-increment:step] [&_.line::before]:w-6 [&_.line::before]:mr-4 [&_.line::before]:inline-block [&_.line::before]:text-right [&_.line::before]:text-muted-foreground/60 [&_.line::before]:select-none"
+    <File
+      className={className}
+      file={{ name: filename ?? "file", contents: content || "" }}
+      options={{
+        theme: isDark ? "github-dark" : "github-light",
+        themeType: isDark ? "dark" : "light",
+        unsafeCSS,
+        disableFileHeader: true,
+        enableLineSelection: Boolean(filename) && addLineToChat,
+        enableGutterUtility: Boolean(filename) && addLineToChat,
+        onGutterUtilityClick,
+      }}
     />
   );
 });

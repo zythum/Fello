@@ -118,7 +118,7 @@ Always prefer using line/limit to read specific sections, or use GetFileOutline 
               ...toolCallCompleteUpdate,
             },
           });
-          return output;
+          return output.content;
         } catch (error) {
           const errorText = error instanceof Error ? error.message : String(error);
           const toolCallErrorUpdate: ToolCallUpdate = {
@@ -167,7 +167,7 @@ Always prefer using line/limit to read specific sections, or use GetFileOutline 
           kind: "edit",
           status: "in_progress",
           locations: [{ path: filename }],
-          rawInput: { filename, content },
+          rawInput: { ok: true },
         };
         await connection.sessionUpdate({
           sessionId: params.sessionId,

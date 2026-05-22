@@ -389,10 +389,7 @@ function getILinkBridge(): ILinkBridge {
           console.error("[iLink] Failed to route message to session:", err);
           // Try to notify the WeChat user about the error
           if (msg.from_user_id) {
-            await ilinkBridge?.sendTextReply(
-              msg.from_user_id,
-              t("ilink.errorProcessing"),
-            );
+            await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
           }
         }
       },
@@ -706,11 +703,16 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
           label: (() => {
             const name = o.name;
             switch (o.kind) {
-              case "allow_once": return t("ilink.permissionAllowOnce", { name });
-              case "allow_always": return t("ilink.permissionAllowAlways", { name });
-              case "reject_once": return t("ilink.permissionRejectOnce", { name });
-              case "reject_always": return t("ilink.permissionRejectAlways", { name });
-              default: return name;
+              case "allow_once":
+                return t("ilink.permissionAllowOnce", { name });
+              case "allow_always":
+                return t("ilink.permissionAllowAlways", { name });
+              case "reject_once":
+                return t("ilink.permissionRejectOnce", { name });
+              case "reject_always":
+                return t("ilink.permissionRejectAlways", { name });
+              default:
+                return name;
             }
           })(),
           priority: o.kind === "allow_always" ? "high" : "medium",
@@ -1054,7 +1056,10 @@ export const backendHandlers: {
       mcpServers ??
       (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
     const effectiveFeatures: Feature[] = features ?? ALL_FEATURES;
-    const activeMcpServers = buildMcpServersConfig(sessionMcpIds, { socketPath, features: effectiveFeatures });
+    const activeMcpServers = buildMcpServersConfig(sessionMcpIds, {
+      socketPath,
+      features: effectiveFeatures,
+    });
 
     const {
       sessionId: resumeId,
@@ -1091,7 +1096,10 @@ export const backendHandlers: {
     const b = await ensureBridge(session.agentId);
 
     const socketPath = generateSessionSocketPath(randomUUID());
-    const activeMcpServers = buildMcpServersConfig(session.mcpServers, { socketPath, features: session.features });
+    const activeMcpServers = buildMcpServersConfig(session.mcpServers, {
+      socketPath,
+      features: session.features,
+    });
 
     restoringSessions.add(session.id);
     let loadResult;
@@ -1239,7 +1247,10 @@ export const backendHandlers: {
     if (!b.isSessionLoaded(session.resumeId)) {
       console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
       const socketPath = generateSessionSocketPath(randomUUID());
-      const activeMcpServers = buildMcpServersConfig(session.mcpServers, { socketPath, features: session.features });
+      const activeMcpServers = buildMcpServersConfig(session.mcpServers, {
+        socketPath,
+        features: session.features,
+      });
       await b.loadSession({
         sessionId: session.resumeId,
         cwd: session.cwd,

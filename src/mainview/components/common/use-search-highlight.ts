@@ -16,7 +16,9 @@ function scrollToRange(range: Range) {
   }
 }
 
-export function useSearchHighlight(containerEl: HTMLElement | null) {
+export function useSearchHighlight(
+  containerEl: ShadowRoot | Document | DocumentFragment | HTMLElement | null,
+) {
   const [searchTerm, setSearchTerm] = useState("");
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatch, setCurrentMatch] = useState(0);

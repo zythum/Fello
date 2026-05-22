@@ -51,10 +51,13 @@ export function SearchBar({
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        autoComplete="off"
+        autoCapitalize="off"
+        spellCheck={false}
         className="h-6 w-44 border-none bg-transparent px-1 text-xs focus-visible:ring-0"
         placeholder="Find..."
       />
-      <span className="text-xs text-muted-foreground tabular-nums shrink-0 select-none min-w-[2.5rem] text-right">
+      <span className="text-xs text-muted-foreground tabular-nums shrink-0 select-none min-w-10 text-right">
         {matchCount > 0 ? `${currentMatch}/${matchCount}` : "0/0"}
       </span>
       <button

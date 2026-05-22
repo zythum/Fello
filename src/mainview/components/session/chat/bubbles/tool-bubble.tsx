@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -122,8 +123,13 @@ export function ToolItem({ session, message }: ToolItemProps) {
             } else if (content.type === "diff") {
               return (
                 <div key={index} className="border-b border-border last:border-b-0 flex flex-col">
-                  <div className="px-3 py-1 bg-muted/50 border-b border-border text-[10px] font-mono text-muted-foreground truncate">
-                    {content.path}
+                  <div className="px-2 py-2 bg-muted/50 border-b border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
+                    <FileIcon className="size-3.5" />
+                    <span>
+                      {content.path.startsWith(session.cwd)
+                        ? content.path.slice(session.cwd.length + 1)
+                        : content.path}
+                    </span>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     {content.oldText == null ? (

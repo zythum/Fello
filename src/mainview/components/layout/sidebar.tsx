@@ -696,7 +696,9 @@ export function Sidebar() {
                     <div
                       className={cn(
                         "text-xs truncate",
-                        !newSessionFeatures.includes(feature) ? "text-muted-foreground/50" : "text-muted-foreground",
+                        !newSessionFeatures.includes(feature)
+                          ? "text-muted-foreground/50"
+                          : "text-muted-foreground",
                       )}
                     >
                       {t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
@@ -706,9 +708,7 @@ export function Sidebar() {
                       checked={newSessionFeatures.includes(feature)}
                       onCheckedChange={(checked) => {
                         setNewSessionFeatures((prev) =>
-                          checked
-                            ? [...prev, feature]
-                            : prev.filter((f) => f !== feature),
+                          checked ? [...prev, feature] : prev.filter((f) => f !== feature),
                         );
                       }}
                     />

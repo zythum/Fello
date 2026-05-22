@@ -276,13 +276,19 @@ export function SettingsMcp() {
                 <BookmarkPlus className="size-3" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-50">
-                <DropdownMenuItem onClick={() => openRecommendedHttpDialog("exa", "https://mcp.exa.ai/mcp")}>
+                <DropdownMenuItem
+                  onClick={() => openRecommendedHttpDialog("exa", "https://mcp.exa.ai/mcp")}
+                >
                   <div className="flex flex-col gap-1 min-w-0">
                     <span className="truncate flex flex-row items-center">
                       <span>{t("settings.mcp.recommended.exa.name", "Exa")}</span>
-                      <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">· exa.ai</span>
+                      <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">
+                        · exa.ai
+                      </span>
                     </span>
-                    <span className="text-[10px] text-muted-foreground/60 font-normal truncate">{t("settings.mcp.recommended.exa.desc", "Exa MCP Server — AI Web Search")}</span>
+                    <span className="text-[10px] text-muted-foreground/60 font-normal truncate">
+                      {t("settings.mcp.recommended.exa.desc", "Exa MCP Server — AI Web Search")}
+                    </span>
                   </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
