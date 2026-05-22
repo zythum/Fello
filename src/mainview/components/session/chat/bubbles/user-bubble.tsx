@@ -1,7 +1,7 @@
 import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
-import { ChevronsUpDown, ChevronsDownUp, Copy, Check } from "lucide-react";
+import { ChevronsUpDown, ChevronsDownUp, Copy, Check, ArrowUpToLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
@@ -70,6 +70,16 @@ export const UserBubble = memo(function UserBubble({
     [message.contents],
   );
 
+  const handleLocate = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      document.dispatchEvent(
+        new CustomEvent("fello-scroll-to-message", { detail: message.displayId }),
+      );
+    },
+    [message.displayId],
+  );
+
   const hasText = message.contents.some((c) => c.type === "text");
 
   useEffect(() => {
@@ -92,7 +102,18 @@ export const UserBubble = memo(function UserBubble({
     <div className="flex flex-col">
       <div className="flex justify-end items-stretch group/user-bubble">
         {hasText && (
-          <div className="py-2 pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto">
+          <div className="py-2 pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={cn(
+                "size-6 shrink-0 bg-transparent hover:bg-transparent text-muted-foreground/60 hover:text-muted-foreground/80",
+              )}
+              onClick={handleLocate}
+              title={t("userBubble.locate", "Locate")}
+            >
+              <ArrowUpToLine className="size-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon-xs"

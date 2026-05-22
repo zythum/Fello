@@ -327,7 +327,8 @@
     "thought": "思考过程"
   },
   "userBubble": {
-    "copy": "复制"
+    "copy": "复制",
+    "locate": "定位"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",

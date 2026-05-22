@@ -312,6 +312,11 @@ export function Sidebar() {
     }
   };
 
+  const sortedProjects = useMemo(
+    () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
+    [projects],
+  );
+
   const sessionsByProject = useMemo(() => {
     const grouped: Record<string, SessionInfo[]> = {};
     for (const session of sessions) {
@@ -375,7 +380,7 @@ export function Sidebar() {
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-0.5 p-1.5">
-          {projects.map((project) => {
+          {sortedProjects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
             return (

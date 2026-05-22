@@ -1,0 +1,14 @@
+{
+  "ilink": {
+    "pleaseConfirm": "请您确认：",
+    "permissionAllowOnce": "允许一次 ({{name}})",
+    "permissionAllowAlways": "始终允许 ({{name}})",
+    "permissionRejectOnce": "拒绝一次 ({{name}})",
+    "permissionRejectAlways": "始终拒绝 ({{name}})",
+    "askUserReplyWithNumber": "请回复序号选择：",
+    "askUserCustomReply": "或输入其他内容作为自定义回复。",
+    "noInput": "无输入",
+    "errorProcessing": "抱歉，处理消息时出错了，请稍后再试。",
+    "permissionRequest": "权限请求"
+  }
+}

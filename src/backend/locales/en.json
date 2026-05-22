@@ -1,0 +1,14 @@
+{
+  "ilink": {
+    "pleaseConfirm": "Please confirm:",
+    "permissionAllowOnce": "{{name}}",
+    "permissionAllowAlways": "{{name}}",
+    "permissionRejectOnce": "{{name}}",
+    "permissionRejectAlways": "{{name}}",
+    "askUserReplyWithNumber": "Please reply with the number:",
+    "askUserCustomReply": "Or type something else as custom reply.",
+    "noInput": "No input",
+    "errorProcessing": "Sorry, something went wrong. Please try again.",
+    "permissionRequest": "Permission Request"
+  }
+}

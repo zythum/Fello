@@ -61,6 +61,7 @@ import {
   searchSkills,
   installSkill,
 } from "./skills";
+import { t, setLanguage } from "./i18n";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
@@ -239,15 +240,16 @@ function getPendingToolCallKey(sessionId: string, toolCallId: string) {
  */
 function formatAskUserForWeChat(request: AskUserRequest): string {
   const lines: string[] = [];
+  lines.push(`## ${t("ilink.pleaseConfirm")}`);
   if (request.title) lines.push(`**${request.title}**`, "");
   if (request.description) lines.push(request.description, "");
   if (request.options.length > 0) {
-    lines.push("请回复序号选择：");
+    lines.push(t("ilink.askUserReplyWithNumber"));
     request.options.forEach((opt, i) => {
       lines.push(`${i + 1}. ${opt.label}`);
     });
     lines.push("");
-    lines.push("或输入其他内容作为自定义回复。");
+    lines.push(t("ilink.askUserCustomReply"));
   }
   return lines.join("\n");
 }
@@ -329,7 +331,7 @@ function getILinkBridge(): ILinkBridge {
         const contents: ContentBlock[] = [];
 
         if (text.trim()) {
-          contents.push({ type: "text", text: `[来自微信] ${text}` });
+          contents.push({ type: "text", text });
         }
 
         if (hasImages && ilinkBridge) {
@@ -376,7 +378,7 @@ function getILinkBridge(): ILinkBridge {
             sessionId,
             askUserId,
             value: null,
-            reason: trimmed || "无输入",
+            reason: trimmed || t("ilink.noInput"),
           });
           return; // 已拦截，不调用 sendPrompt
         }
@@ -389,7 +391,7 @@ function getILinkBridge(): ILinkBridge {
           if (msg.from_user_id) {
             await ilinkBridge?.sendTextReply(
               msg.from_user_id,
-              "抱歉，处理消息时出错了，请稍后再试。",
+              t("ilink.errorProcessing"),
             );
           }
         }
@@ -696,12 +698,21 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
       // 通过通用 askUser 通道向用户展示权限选项
       const userResponse = await askUser({
         sessionId,
-        title: request.toolCall.title ?? "权限请求",
+        title: request.toolCall.title ?? t("ilink.permissionRequest"),
         description: request.toolCall.rawInput ? JSON.stringify(request.toolCall.rawInput) : "",
         allowCustomInput: false,
         options: request.options.map((o) => ({
           value: o.optionId,
-          label: o.name,
+          label: (() => {
+            const name = o.name;
+            switch (o.kind) {
+              case "allow_once": return t("ilink.permissionAllowOnce", { name });
+              case "allow_always": return t("ilink.permissionAllowAlways", { name });
+              case "reject_once": return t("ilink.permissionRejectOnce", { name });
+              case "reject_always": return t("ilink.permissionRejectAlways", { name });
+              default: return name;
+            }
+          })(),
           priority: o.kind === "allow_always" ? "high" : "medium",
           danger: o.kind === "reject_once" || o.kind === "reject_always",
         })),
@@ -960,6 +971,9 @@ export const backendHandlers: {
 
   async updateSettings(settings) {
     storageOps.updateSettings(settings);
+    if (settings.i18n?.language) {
+      setLanguage(settings.i18n.language);
+    }
     // Re-sync file watchers; syncWatchers() internally checks the persisted
     // fileWatcher.enabled setting and starts/stops watchers accordingly.
     await syncWatchers();

@@ -327,7 +327,8 @@
     "thought": "Thought"
   },
   "userBubble": {
-    "copy": "Copy"
+    "copy": "Copy",
+    "locate": "Locate"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",

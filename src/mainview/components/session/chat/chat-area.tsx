@@ -7,7 +7,7 @@ import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, Check, Copy, Bot } from "lucide-react";
+import { ArrowDown, ArrowUpToLine, Check, Copy, Bot } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 
 import type { SessionInfo } from "../../../../shared/schema";
@@ -290,6 +290,15 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     [getViewport],
   );
 
+  useEffect(() => {
+    const handleScrollToMessage = (e: Event) => {
+      const displayId = (e as CustomEvent<string>).detail;
+      scrollToUserMessage(displayId);
+    };
+    document.addEventListener("fello-scroll-to-message", handleScrollToMessage);
+    return () => document.removeEventListener("fello-scroll-to-message", handleScrollToMessage);
+  }, [scrollToUserMessage]);
+
   const getAgentText = useCallback(
     (groupMessages: typeof renderedMessages) => {
       const parts: string[] = [];
@@ -469,6 +478,24 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                     )}
                   </div>
                   <div className="flex items-center">
+                    {group.userMessage && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          document.dispatchEvent(
+                            new CustomEvent("fello-scroll-to-message", {
+                              detail: group.userMessage!.displayId,
+                            }),
+                          );
+                        }}
+                        title={t("userBubble.locate", "Locate")}
+                      >
+                        <ArrowUpToLine className="size-3.5" />
+                      </Button>
+                    )}
                     {groupHasText && (
                       <Button
                         variant="ghost"
