@@ -25,7 +25,9 @@ export const skillDetailSchema = z.object({
   id: z.string().describe("Unique identifier for the skill."),
   name: z.string().describe("Human-readable name of the skill."),
   description: z.string().describe("Full description of the skill's purpose and usage."),
-  instructions: z.string().describe("System prompt / instructions loaded when the skill is activated."),
+  instructions: z
+    .string()
+    .describe("System prompt / instructions loaded when the skill is activated."),
   root_path: z.string().describe("Absolute path to the skill's root directory on disk."),
   supporting_files: z
     .array(z.string())

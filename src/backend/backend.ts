@@ -46,7 +46,10 @@ import type {
   Feature,
 } from "../shared/schema";
 import { ALL_FEATURES } from "../shared/constants";
-import { askUserAskRequestSchema, askUserAskRespondSchema } from "../shared/zod/mcp-ask-user-schema";
+import {
+  askUserAskRequestSchema,
+  askUserAskRespondSchema,
+} from "../shared/zod/mcp-ask-user-schema";
 import {
   skillCatalogSchema,
   skillDetailRequestSchema,
@@ -1448,9 +1451,7 @@ export const backendHandlers: {
       // 同时结束该 session 所有 agent 启动的终端进程（SIGTERM）
       const killed = b.terminalManager.killBySession(session.resumeId);
       if (killed > 0) {
-        console.log(
-          `[CancelPrompt] Killed ${killed} agent terminal(s) for session ${sessionId}`,
-        );
+        console.log(`[CancelPrompt] Killed ${killed} agent terminal(s) for session ${sessionId}`);
       }
     }
   },

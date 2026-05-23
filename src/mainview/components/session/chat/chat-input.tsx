@@ -298,7 +298,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             );
             skillsCacheRef.current = filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-            const refreshedSkills = filtered.map((s) => skillInfoToSuggestItem(s)).slice(0, AT_SUGGESTION_MAX);
+            const refreshedSkills = filtered
+              .map((s) => skillInfoToSuggestItem(s))
+              .slice(0, AT_SUGGESTION_MAX);
             const refreshedMcp = useAppStore
               .getState()
               .configuredMcpServers.filter(
