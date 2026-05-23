@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { askUserRequestSchema, askUserRespondSchema } from "../../shared/zod/ask-user-mcp-schema";
+import { askUserAskRequestSchema, askUserAskRespondSchema } from "../../shared/zod/mcp-ask-user-schema";
 import * as http from "http";
 
 // ── Parse CLI args ──────────────────────────────────────────────────
@@ -11,9 +11,15 @@ function getArg(name: string): string | undefined {
 }
 
 const socketPath = getArg("socket-path");
+const projectDir = getArg("project-dir");
 
 if (!socketPath) {
   console.error("[mcp-ask-user] Missing required argument: --socket-path");
+  process.exit(1);
+}
+
+if (!projectDir) {
+  console.error("[mcp-ask-user] Missing required argument: --project-dir");
   process.exit(1);
 }
 
@@ -31,11 +37,11 @@ server.registerTool(
   {
     description: `Ask the user a question and wait for their response. This is your ONLY channel to communicate directly with the user.
 When in doubt, call this tool rather than guessing or assuming. Guessing wastes multiple tool calls; asking takes one and gets the right answer immediately.`,
-    inputSchema: askUserRequestSchema,
+    inputSchema: askUserAskRequestSchema,
   },
   async (input) => {
     try {
-      const result = askUserRespondSchema.parse(await postToSocket("/ask-user", input));
+      const result = askUserAskRespondSchema.parse(await postToSocket("/ask-user/ask", input));
 
       return {
         content: [
@@ -94,7 +100,7 @@ function postToSocket(path: string, body: unknown): Promise<any> {
       const chunks: Buffer[] = [];
       res.on("data", (chunk) => chunks.push(chunk));
       res.on("end", () => {
-        const raw = Buffer.concat(chunks).toString("utf-8");
+        const raw = Buffer.concat(chunks).toString("utf8");
         try {
           const parsed = JSON.parse(raw);
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {

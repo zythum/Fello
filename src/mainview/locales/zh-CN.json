@@ -233,7 +233,8 @@
   "constant": {
     "feature": {
       "title": "功能",
-      "askUser": "向我提问"
+      "askUser": "向我提问",
+      "skills": "技能"
     }
   },
   "chatHeader": {

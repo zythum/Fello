@@ -111,6 +111,9 @@ async function processAttachments(staged: StagedAttachment[]): Promise<ContentBl
   return blocks;
 }
 
+/** Max suggestions shown for skills / MCP in the @ mention autocomplete */
+const AT_SUGGESTION_MAX = 6;
+
 /** Markup format used by react-mentions: @[display](id) */
 const MENTION_MARKUP = "@[__display__](__id__)";
 const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
@@ -246,7 +249,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
       const lowerSearch = (search || "").toLowerCase();
 
-      // Return skills from cache immediately (avoids flash)
+      // Return skills from cache immediately (avoids flash), limited to AT_SUGGESTION_MAX
       const cachedSkills = skillsCacheRef.current
         .filter(
           (s) =>
@@ -254,9 +257,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             s.name.toLowerCase().includes(lowerSearch) ||
             s.description?.toLowerCase().includes(lowerSearch),
         )
-        .map((s) => skillInfoToSuggestItem(s));
+        .map((s) => skillInfoToSuggestItem(s))
+        .slice(0, AT_SUGGESTION_MAX);
 
-      // Read MCP servers from store — only suggest servers active in the current session
+      // Read MCP servers from store — only suggest servers active in the current session, limited to AT_SUGGESTION_MAX
       const enabledMcpServers = useAppStore
         .getState()
         .configuredMcpServers.filter((m) => session.mcpServers.includes(m.id));
@@ -268,9 +272,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
             (m.type === "http" && m.url.toLowerCase().includes(lowerSearch)),
         )
-        .map((m) => mcpServerInfoToSuggestItem(m));
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((m) => mcpServerInfoToSuggestItem(m))
+        .slice(0, AT_SUGGESTION_MAX);
 
-      callback([...cachedSkills, ...mcpItems]);
+      callback([...mcpItems, ...cachedSkills]);
 
       // Async refresh skills from backend
       if (skillsTimeoutRef.current) {
@@ -290,9 +296,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 s.name.toLowerCase().includes(lowerSearch) ||
                 s.description?.toLowerCase().includes(lowerSearch),
             );
-            skillsCacheRef.current = filtered;
+            skillsCacheRef.current = filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-            const refreshedSkills = filtered.map((s) => skillInfoToSuggestItem(s));
+            const refreshedSkills = filtered.map((s) => skillInfoToSuggestItem(s)).slice(0, AT_SUGGESTION_MAX);
             const refreshedMcp = useAppStore
               .getState()
               .configuredMcpServers.filter(
@@ -303,9 +309,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
                     (m.type === "http" && m.url.toLowerCase().includes(lowerSearch))),
               )
-              .map((m) => mcpServerInfoToSuggestItem(m));
+              .map((m) => mcpServerInfoToSuggestItem(m))
+              .slice(0, AT_SUGGESTION_MAX);
 
-            callback([...refreshedSkills, ...refreshedMcp]);
+            callback([...refreshedMcp, ...refreshedSkills]);
           })
           .catch(() => {
             if (requestId !== skillsRequestIdRef.current) return;

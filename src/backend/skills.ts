@@ -21,7 +21,7 @@ export function toSkillId(
   return `${level}://${scope}/${toPosixPath(relativePath)}`;
 }
 
-export function parseSkillId(id: string): {
+function parseSkillId(id: string): {
   level: SkillInfo["level"];
   scope: SkillInfo["scope"];
   relativePath: string;
@@ -38,7 +38,11 @@ export function parseSkillId(id: string): {
   return { level, scope, relativePath };
 }
 
-export function getSkillSystemPathFromId(id: string, projectRoot?: string): string | null {
+export function getSkillSystemPathFromId(
+  id: string,
+  options: { projectRoot?: string } = {},
+): string | null {
+  let { projectRoot } = options;
   const parsed = parseSkillId(id);
   if (!parsed) return null;
   const { level, scope, relativePath } = parsed;
@@ -97,8 +101,14 @@ export function parseSkillFrontmatter(text: string): {
   }
 }
 
-export function listSkillFiles(id: string, projectRoot?: string): string[] {
-  const dirPath = getSkillSystemPathFromId(id, projectRoot);
+export function listSkillFiles(
+  id: string,
+  options: {
+    projectRoot?: string;
+  } = {},
+): string[] {
+  const { projectRoot } = options;
+  const dirPath = getSkillSystemPathFromId(id, { projectRoot });
   if (!dirPath) {
     return [];
   }
@@ -130,9 +140,9 @@ export function listSkillFiles(id: string, projectRoot?: string): string[] {
 }
 
 export function getSkillsCatalog(
-  projectRoot?: string,
-  all: boolean = false,
-): Record<string, SkillInfo> {
+  options: { projectRoot?: string; all?: boolean } = {},
+): SkillInfo[] {
+  const { projectRoot, all = false } = options;
   const roots: { level: SkillInfo["level"]; rootPath: string }[] = [];
   if (projectRoot) {
     roots.push({ level: "project", rootPath: projectRoot });
@@ -140,7 +150,7 @@ export function getSkillsCatalog(
   roots.push({ level: "user", rootPath: os.homedir() });
 
   const skillScene = new Set<string>();
-  const skills: Record<string, SkillInfo> = {};
+  const skills: SkillInfo[] = [];
 
   for (const { level, rootPath } of roots) {
     if (!fs.existsSync(rootPath) || !fs.statSync(rootPath).isDirectory()) {
@@ -187,13 +197,7 @@ export function getSkillsCatalog(
         const name = metadata["name"] || path.basename(skillDir);
         const description = metadata["description"] || "";
         const id = toSkillId(level, scope, skillId);
-        skills[id] = {
-          description,
-          id,
-          level,
-          name,
-          scope: scope,
-        };
+        skills.push({ id, name, description, level, scope });
       }
     }
   }

@@ -47,16 +47,16 @@
 │                              (MCP)                │                           │
 │                                        ┌──────────┘                           │
 │                                        ▼                                      │
-│  ┌─────────────────────────────────┐  ┌──────────────────────────────────┐    │
-│  │ mcp-skills                      │  │ mcp-ask-user                     │    │
-│  │ (ELECTRON_RUN_AS_NODE)          │  │ (ELECTRON_RUN_AS_NODE)           │    │
-│  │ Skills MCP server               │  │ Ask User MCP server              │    │
-│  │ stdio ↔ Agent                   │  │ stdio ↔ Agent                    │    │
-│  └─────────────────────────────────┘  │ Unix Socket → Main SocketServer  │    │
-│                                       └──────────────┬───────────────────┘    │
-│                                                      │ HTTP POST              │
-│                                                      ▼                        │
-│                                            (Main Process SocketServer)        │
+│  ┌──────────────────────────────────┐  ┌──────────────────────────────────┐    │
+│  │ mcp-skills                       │  │ mcp-ask-user                     │    │
+│  │ (ELECTRON_RUN_AS_NODE)           │  │ (ELECTRON_RUN_AS_NODE)           │    │
+│  │ Skills MCP server                │  │ Ask User MCP server              │    │
+│  │ stdio ↔ Agent                    │  │ stdio ↔ Agent                    │    │
+│  │ Unix Socket → Main SocketServer  │  │ Unix Socket → Main SocketServer  │    │
+│  └──────────────┬───────────────────┘  └──────────────┬───────────────────┘    │
+│                 │ HTTP POST                           │ HTTP POST              │
+│                 ▼                                     ▼                        │
+│            (Main Process SocketServer)                                         │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,10 +77,11 @@
 - **`src/backend/ilink/ilink-bridge.ts`**：微信 iLink 连接管理、QR 登录、长轮询、消息收发
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
-- **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录
-- **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）
+- **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录、TEMP_DIR（临时文件目录）
+- **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）。详见 [`docs/socket-server.md`](./socket-server.md)
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
-- **`src/shared/zod/ask-user-mcp-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
+- **`src/shared/zod/mcp-ask-user-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
+- **`src/shared/zod/mcp-skills-schema.ts`**：Shared Zod schema，用于校验 Skills MCP 工具的请求与响应数据结构
 
 ### Agent Session Logic（`src/agents/`）
 
@@ -123,8 +124,10 @@
 
 Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`ELECTRON_RUN_AS_NODE=1`），通过 stdio 与 Agent 通信：
 
-- **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 Skill 级别工具（搜索文件、读取文件等）
-- **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`，将 Agent 的询问请求转发到 `askUser()` 函数
+- **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 `list_skills` 和 `activate_skill` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/skills/catalog`、`/skills/detail`）。Skills 本身是会话级 feature flag，可以通过 `features` 参数开关
+- **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/ask-user/ask`），将 Agent 的询问请求转发到 `askUser()` 函数
+
+Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `buildMcpServersConfig()` 按需注入。
 
 MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
 
@@ -281,13 +284,15 @@ Renderer: createTerminal(sessionId, cwd)
   → Main: ILinkBridge.sendTextReply() → iLink Server → 用户微信
 ```
 
-### G. Ask User（Agent 主动询问用户）
+### G. Ask User / Skills（Agent 通过 MCP 与主进程交互）
+
+#### Ask User
 
 ```
 正向：Agent → 用户
   Agent 调用 ask_user MCP tool
-    → MCP ask-user server: HTTP POST /ask-user over Unix Socket
-    → Main SocketServer: askUserRequestSchema 校验
+    → MCP ask-user server: HTTP POST /ask-user/ask over Unix Socket
+    → Main SocketServer: askUserAskRequestSchema 校验
     → Main askUser(): 生成 askUserId, sendEvent("ask-user-request")
     → Renderer store: 追加到 askUserRequests 队列
     → AskUserDialog: 展示选项或输入框
@@ -299,6 +304,16 @@ Renderer: createTerminal(sessionId, cwd)
     → SocketServer: 返回 { value, reason } 给 MCP server
     → MCP server: 格式化为 MCP 文本响应
     → Agent: 收到 tool call 结果
+```
+
+#### Skills
+
+```
+Agent 调用 list_skills / activate_skill MCP tool
+  → MCP skills server: HTTP POST /skills/catalog 或 /skills/detail over Unix Socket
+  → Main SocketServer: 查询 Skills 目录或读取指定 Skill 详情
+  → 返回结果给 MCP server
+  → Agent: 收到 tool call 结果
 ```
 
 ## 生命周期与退出策略

@@ -8,6 +8,7 @@ import type {
   ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
 import Fuse from "fuse.js";
+import { z } from "zod";
 import { homedir } from "os";
 import { spawn as spawnPty } from "node-pty";
 import { omit } from "es-toolkit";
@@ -26,6 +27,7 @@ import {
 } from "fs/promises";
 import * as mimeTypes from "mime-types";
 import { dirname, join, relative, extname, basename } from "path";
+import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { execFile } from "child_process";
@@ -35,6 +37,7 @@ import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./we
 import { startSocketServer, type SocketServer } from "./socket-server";
 import { isIgnorePath, resolveSafePath, toPosixPath } from "./utils";
 import type {
+  ProjectInfo,
   AgentInfo,
   SessionNotificationFelloExt,
   FelloIPCSchema,
@@ -43,8 +46,13 @@ import type {
   Feature,
 } from "../shared/schema";
 import { ALL_FEATURES } from "../shared/constants";
-import { askUserRequestSchema, askUserRespondSchema } from "../shared/zod/ask-user-mcp-schema";
-import { storageOps, SOCKETS_DIR } from "./storage";
+import { askUserAskRequestSchema, askUserAskRespondSchema } from "../shared/zod/mcp-ask-user-schema";
+import {
+  skillCatalogSchema,
+  skillDetailRequestSchema,
+  skillDetailSchema,
+} from "../shared/zod/mcp-skills-schema";
+import { storageOps, SOCKETS_DIR, TEMP_DIR } from "./storage";
 import {
   ILinkBridge,
   readActiveSessionId,
@@ -57,6 +65,8 @@ import { initWatcher, syncWatchers } from "./watcher";
 import {
   getSkillsCatalog,
   getSkillSystemPathFromId,
+  parseSkillFrontmatter,
+  listSkillFiles,
   SKILL_FILENAME,
   searchSkills,
   installSkill,
@@ -70,30 +80,58 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function buildMcpServersConfig(
   sessionMcpIds: string[],
-  options: { socketPath: string | null; features?: Feature[] },
+  options: {
+    project: ProjectInfo;
+    socketPath: string | null;
+    features?: Feature[];
+  },
 ): McpServer[] {
-  const { socketPath, features = ALL_FEATURES } = options;
+  const { project, socketPath, features = ALL_FEATURES } = options;
   // Built-in MCP servers — always first
-  const servers: McpServer[] = [
-    {
+  const servers: McpServer[] = [];
+
+  if (socketPath && features.includes("skills")) {
+    const skillCatalog: z.infer<typeof skillCatalogSchema> = getSkillsCatalog({
+      projectRoot: project.cwd,
+    }).map((skill) => omit(skill, ["scope", "level"]));
+
+    const skillCatalogFilename = join(TEMP_DIR, `project-${project.id}-${randomUUID()}.json`);
+
+    fs.writeFileSync(skillCatalogFilename, JSON.stringify(skillCatalog), "utf8");
+
+    servers.push({
       name: "skills",
       command: process.argv0,
-      args: [join(__dirname, "../scripts/mcp-skills/server.mjs")],
+      args: [
+        join(__dirname, "../scripts/mcp-skills/server.mjs"),
+        "--project-dir",
+        project.cwd,
+        "--socket-path",
+        socketPath,
+        "--catalog",
+        skillCatalogFilename,
+      ],
       env: [
         {
           name: "ELECTRON_RUN_AS_NODE",
           value: "1",
         },
       ],
-    },
-  ];
+    });
+  }
 
   // Dynamically add ask-user MCP server if socket server is running and ask_user feature is enabled
   if (socketPath && features.includes("ask_user")) {
     servers.push({
       name: "ask-user",
       command: process.argv0,
-      args: [join(__dirname, "../scripts/mcp-ask-user/server.mjs"), "--socket-path", socketPath],
+      args: [
+        join(__dirname, "../scripts/mcp-ask-user/server.mjs"),
+        "--project-dir",
+        project.cwd,
+        "--socket-path",
+        socketPath,
+      ],
       env: [
         {
           name: "ELECTRON_RUN_AS_NODE",
@@ -160,25 +198,82 @@ function generateSessionSocketPath(key: string): string {
   return join(SOCKETS_DIR, `${key}-${timestamp}.socket`);
 }
 
-/** 创建或复用 session 对应的 socket server，并注册 ask-user 路由 */
+/** 创建或复用 session 对应的 socket server，并注册 ask-user/skills 路由 */
 async function createSessionSocketServer(
   sessionId: string,
-  options: { socketPath: string },
+  options: {
+    socketPath: string;
+    project: ProjectInfo;
+  },
 ): Promise<SocketServer> {
-  let ss = sessionSocketServers.get(sessionId);
-  if (ss) return ss;
+  let sessionSocketServer = sessionSocketServers.get(sessionId);
+  if (sessionSocketServer) return sessionSocketServer;
 
-  ss = await startSocketServer(options.socketPath);
-  ss.registry("ask-user", async (payload) => {
-    const request = askUserRequestSchema.parse(payload);
-    const result = await askUser({
+  sessionSocketServer = await startSocketServer(options.socketPath);
+
+  // ask-user
+  sessionSocketServer.registry("ask-user/ask", async (payload) => {
+    const request = askUserAskRequestSchema.parse(payload);
+    const result: z.infer<typeof askUserAskRespondSchema> = await askUser({
       sessionId,
       ...request,
     });
-    return askUserRespondSchema.parse(result);
+    return result;
   });
-  sessionSocketServers.set(sessionId, ss);
-  return ss;
+
+  // skills
+  sessionSocketServer.registry("skills/catalog", async () => {
+    const catalog: z.infer<typeof skillCatalogSchema> = getSkillsCatalog({
+      projectRoot: options.project.cwd,
+    }).map((skill) => omit(skill, ["scope", "level"]));
+    return catalog;
+  });
+
+  sessionSocketServer.registry("skills/detail", async (payload) => {
+    const { id } = skillDetailRequestSchema.parse(payload);
+    const catalog = getSkillsCatalog({
+      projectRoot: options.project.cwd,
+    });
+    const skill = catalog.find((skill) => skill.id === id);
+    if (!skill) {
+      return {
+        error: `Skill '${id}' not found.`,
+        available_skills: catalog,
+      };
+    }
+    const skillDir = getSkillSystemPathFromId(skill.id, {
+      projectRoot: options.project.cwd,
+    });
+    if (!skillDir) {
+      return { error: `Failed to Read skill '${id}'` };
+    }
+    const skillFile = join(skillDir, SKILL_FILENAME);
+    let body = "";
+    try {
+      const text = fs.readFileSync(skillFile, "utf8");
+      const parsed = parseSkillFrontmatter(text);
+      body = parsed.body;
+    } catch {
+      return { error: `Failed to read skill '${id}'` };
+    }
+    let supportingFiles: string[] = [];
+    try {
+      supportingFiles = listSkillFiles(skill.id, {
+        projectRoot: options.project.cwd,
+      });
+    } catch {}
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      instructions: body,
+      root_path: skillDir,
+      supporting_files: supportingFiles,
+    } satisfies z.infer<typeof skillDetailSchema>;
+  });
+
+  sessionSocketServers.set(sessionId, sessionSocketServer);
+  return sessionSocketServer;
 }
 
 function stopSessionSocketServer(sessionId: string) {
@@ -775,6 +870,10 @@ export async function clearBackend() {
   terminals.clear();
   clientTerminals.clear();
   await Promise.all(killPromises);
+
+  for (const file of await readdir(TEMP_DIR)) {
+    await rm(join(TEMP_DIR, file), { recursive: true, force: true });
+  }
 }
 
 async function resolveTerminalCwd(preferredCwd: string) {
@@ -894,14 +993,10 @@ export const backendHandlers: {
 
   async getSkillsCatalog({ all, projectId }) {
     const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
-    const catalog = getSkillsCatalog(projectRoot, all);
-    return Object.values(catalog).map((s) => ({
-      scope: s.scope,
-      level: s.level,
-      id: s.id,
-      name: s.name,
-      description: s.description,
-    }));
+    return getSkillsCatalog({
+      projectRoot,
+      all,
+    });
   },
 
   async readSkillFile({ skillId, projectId }) {
@@ -917,7 +1012,7 @@ export const backendHandlers: {
 
   async getSkillFileSystemFilePath({ skillId, projectId }) {
     const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
-    const skillDir = getSkillSystemPathFromId(skillId, projectRoot);
+    const skillDir = getSkillSystemPathFromId(skillId, { projectRoot });
     if (!skillDir) {
       throw new Error(`Failed to read skill: ${skillId}`);
     }
@@ -926,7 +1021,7 @@ export const backendHandlers: {
 
   async uninstallSkill({ skillId, projectId }) {
     const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
-    const skillDir = getSkillSystemPathFromId(skillId, projectRoot);
+    const skillDir = getSkillSystemPathFromId(skillId, { projectRoot });
     if (!skillDir) {
       throw new Error(`Failed to read skill: ${skillId}`);
     }
@@ -1057,6 +1152,7 @@ export const backendHandlers: {
       (storageOps.getSettings().mcpServers || []).filter((s) => !s.disabled).map((s) => s.id);
     const effectiveFeatures: Feature[] = features ?? ALL_FEATURES;
     const activeMcpServers = buildMcpServersConfig(sessionMcpIds, {
+      project,
       socketPath,
       features: effectiveFeatures,
     });
@@ -1078,7 +1174,7 @@ export const backendHandlers: {
       initializeInfo: b.initializeInfo,
     });
 
-    await createSessionSocketServer(sessionInfo.id, { socketPath });
+    await createSessionSocketServer(sessionInfo.id, { socketPath, project });
 
     sendEvent("sessions-changed", undefined);
     return {
@@ -1093,10 +1189,13 @@ export const backendHandlers: {
   async loadSession({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
+    const project = storageOps.getProject(session.projectId);
+    if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(session.agentId);
 
     const socketPath = generateSessionSocketPath(randomUUID());
     const activeMcpServers = buildMcpServersConfig(session.mcpServers, {
+      project,
       socketPath,
       features: session.features,
     });
@@ -1118,7 +1217,7 @@ export const backendHandlers: {
             cwd: session.cwd,
             mcpServers: activeMcpServers,
           });
-          await createSessionSocketServer(session.id, { socketPath });
+          await createSessionSocketServer(session.id, { socketPath, project });
         }
         // else: config unchanged, skip reload and use cached state
       } else {
@@ -1127,7 +1226,7 @@ export const backendHandlers: {
           cwd: session.cwd,
           mcpServers: activeMcpServers,
         });
-        await createSessionSocketServer(session.id, { socketPath });
+        await createSessionSocketServer(session.id, { socketPath, project });
       }
     } finally {
       restoringSessions.delete(session.id);
@@ -1204,6 +1303,8 @@ export const backendHandlers: {
   async sendPrompt({ sessionId, contents }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
+    const project = storageOps.getProject(session.projectId);
+    if (!project) throw new Error("Project does not exist");
 
     // If this session is currently streaming, cancel the previous generation first
     if (activeStreamingSessions.has(sessionId)) {
@@ -1227,6 +1328,13 @@ export const backendHandlers: {
             `[Fello] Failed to cancel previous generation for session ${sessionId}: ${err}`,
           );
         });
+        // 同时结束之前 generation 启动的 agent 终端
+        const killed = b.terminalManager.killBySession(session.resumeId);
+        if (killed > 0) {
+          console.log(
+            `[SendPrompt] Killed ${killed} agent terminal(s) from previous generation for session ${sessionId}`,
+          );
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
@@ -1248,6 +1356,7 @@ export const backendHandlers: {
       console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
       const socketPath = generateSessionSocketPath(randomUUID());
       const activeMcpServers = buildMcpServersConfig(session.mcpServers, {
+        project,
         socketPath,
         features: session.features,
       });
@@ -1256,7 +1365,7 @@ export const backendHandlers: {
         cwd: session.cwd,
         mcpServers: activeMcpServers,
       });
-      await createSessionSocketServer(session.id, { socketPath });
+      await createSessionSocketServer(session.id, { socketPath, project });
     }
 
     storageOps.touchSession(sessionId);
@@ -1336,6 +1445,13 @@ export const backendHandlers: {
     if (connectPromise) {
       const b = await connectPromise;
       await b.cancel({ sessionId: session.resumeId });
+      // 同时结束该 session 所有 agent 启动的终端进程（SIGTERM）
+      const killed = b.terminalManager.killBySession(session.resumeId);
+      if (killed > 0) {
+        console.log(
+          `[CancelPrompt] Killed ${killed} agent terminal(s) for session ${sessionId}`,
+        );
+      }
     }
   },
 

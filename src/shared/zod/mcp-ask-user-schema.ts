@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const askUserRequestSchema = z.object({
+export const askUserAskRequestSchema = z.object({
   title: z.string().describe("A concise title or summary of the question."),
   description: z.string().describe("Detailed description of what you're asking the user."),
   options: z
@@ -20,7 +20,7 @@ export const askUserRequestSchema = z.object({
     .describe("Whether the user is allowed to enter a custom free-form response."),
 });
 
-export const askUserRespondSchema = z.object({
+export const askUserAskRespondSchema = z.object({
   value: z
     .string()
     .or(z.null())

@@ -9,3 +9,6 @@
 - [Custom Events](./custom-events.md)
 - [IPC Protocol](./ipc-protocol.md)
 - [Built-in ACP Tools](./builtin-tools.md)
+- [Socket Server (Unix Domain Socket IPC)](./socket-server.md)
+- [Skills — Agent 技能系统](./skills.md)
+- [Ask User — Agent 主动提问](./ask-user.md)

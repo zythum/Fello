@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 
 export interface AgentTerminalProcess {
   id: string;
+  sessionId: string;
   process: ChildProcess;
   outputBuffer: Buffer;
   outputByteLimit: number;
@@ -36,6 +37,7 @@ export class AgentTerminalManager {
 
     const terminal: AgentTerminalProcess = {
       id: terminalId,
+      sessionId,
       process: proc,
       outputBuffer: Buffer.alloc(0),
       outputByteLimit,
@@ -125,5 +127,17 @@ export class AgentTerminalManager {
       terminal.process.kill("SIGKILL");
     }
     this.terminals.delete(terminalId);
+  }
+
+  /** 杀死指定 session 的所有 agent 终端（发送 SIGTERM） */
+  killBySession(sessionId: string): number {
+    let count = 0;
+    for (const terminal of this.terminals.values()) {
+      if (terminal.sessionId === sessionId) {
+        this.kill(terminal.id);
+        count++;
+      }
+    }
+    return count;
   }
 }

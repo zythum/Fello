@@ -1,15 +1,47 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import * as fs from "fs";
-import * as path from "path";
 import {
-  getSkillsCatalog,
-  getSkillSystemPathFromId,
-  parseSkillFrontmatter,
-  listSkillFiles,
-  SKILL_FILENAME,
-} from "../../backend/skills";
+  skillCatalogSchema,
+  skillDetailRequestSchema,
+  skillDetailSchema,
+} from "../../shared/zod/mcp-skills-schema";
+import type { z } from "zod";
+import * as fs from "fs";
+import * as http from "http";
+
+// ── Parse CLI args ──────────────────────────────────────────────────
+
+function getArg(name: string): string | undefined {
+  const idx = process.argv.indexOf(`--${name}`);
+  return idx !== -1 ? process.argv[idx + 1] : undefined;
+}
+
+const socketPath = getArg("socket-path");
+const projectDir = getArg("project-dir");
+const catalogFile = getArg("catalog");
+
+if (!socketPath) {
+  console.error("[mcp-skills] Missing required argument: --socket-path");
+  process.exit(1);
+}
+
+if (!projectDir) {
+  console.error("[mcp-skills] Missing required argument: --project-dir");
+  process.exit(1);
+}
+
+let initialCatalog: z.infer<typeof skillCatalogSchema> = [];
+if (catalogFile) {
+  try {
+    initialCatalog = skillCatalogSchema.parse(JSON.parse(fs.readFileSync(catalogFile, "utf8")));
+  } finally {
+    try {
+      fs.unlinkSync(catalogFile);
+    } catch {}
+  }
+}
+
+// ── MCP Server Setup ────────────────────────────────────────────────
 
 const server = new McpServer({
   name: "Agent Skills",
@@ -20,239 +52,120 @@ const server = new McpServer({
 server.registerTool(
   "list_skills",
   {
-    description: `List all available agent skills with their names and descriptions.
-
-Scans project-level and user-level skill directories for SKILL.md files.
-Returns a JSON array of objects with name, description, and path for each skill.`,
-    inputSchema: z.object({
-      project_root: z
-        .string()
-        .optional()
-        .describe("Optional list of project root directory to scan for project-level skills."),
-    }),
+    title: "List Skills",
+    description:
+      `Get available **Agent Skills** Catalog with their id, name and description.` +
+      (() => {
+        if (initialCatalog.length <= 0) {
+          return "";
+        }
+        let result = "\nInitial Catalog:\n```json";
+        result += JSON.stringify(initialCatalog, null, "  ");
+        result += "\n```";
+        return result;
+      })(),
   },
-  async ({ project_root }) => {
-    const catalog = getSkillsCatalog(project_root);
-    const results = [];
-
-    for (const name of Object.keys(catalog).sort()) {
-      const info = catalog[name];
-      results.push({
-        name: info.name,
-        description: info.description,
-        id: info.id,
-      });
-    }
-
-    if (results.length === 0) {
+  async () => {
+    try {
+      const catalog = await postToSocket("/skills/catalog", {});
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                skills: [],
-                message: "No skills found. Create SKILL.md files in ~/.agents/skills/<skill-name>/",
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(catalog, null, 2),
           },
         ],
       };
+    } catch (err: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ error: `Failed to list skills: ${err.message}` }, null, 2),
+          },
+        ],
+        isError: true,
+      };
     }
-
-    return {
-      content: [
-        { type: "text", text: JSON.stringify({ skills: results, count: results.length }, null, 2) },
-      ],
-    };
   },
 );
 
 server.registerTool(
   "activate_skill",
   {
+    title: "Activate Skills",
     description:
-      "Activate a skill by id, loading its full instructions and listing supporting files.",
-    inputSchema: z.object({
-      id: z.string().describe("The id of the skill to activate (as returned by list_skills)."),
-      project_root: z
-        .string()
-        .optional()
-        .describe("Optional list of project root directory to scan for project-level skills."),
-    }),
+      "Activate a **Agent Skill** by id, loading its full instructions and listing supporting files.",
+    inputSchema: skillDetailRequestSchema,
   },
-  async ({ id, project_root }) => {
-    const catalog = getSkillsCatalog(project_root);
-
-    if (!catalog[id]) {
-      const available = Object.keys(catalog).sort();
+  async ({ id }) => {
+    try {
+      const detail = skillDetailSchema.parse(await postToSocket("/skills/detail", { id }));
+      return {
+        content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
+      };
+    } catch (err: any) {
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify(
-              {
-                error: `Skill '${id}' not found.`,
-                available_skills: available,
-              },
+              { error: `Failed to activate skill '${id}': ${err.message}` },
               null,
               2,
             ),
           },
         ],
-      };
-    }
-
-    const info = catalog[id];
-    let body = "";
-    try {
-      const skillDir = getSkillSystemPathFromId(info.id, project_root);
-      if (!skillDir) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: `Failed to read skill '${id}'` }, null, 2),
-            },
-          ],
-        };
-      }
-      const skillFile = path.join(skillDir, SKILL_FILENAME);
-      const text = fs.readFileSync(skillFile, "utf8");
-      const parsed = parseSkillFrontmatter(text);
-      body = parsed.body;
-    } catch (e: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ error: `Failed to read skill '${id}': ${e.message}` }, null, 2),
-          },
-        ],
-      };
-    }
-
-    const supporting_files = listSkillFiles(info.id, project_root);
-
-    const result: any = {
-      name: info.name,
-      description: info.description,
-      instructions: body,
-    };
-
-    if (supporting_files.length > 0) {
-      result.supporting_files = supporting_files;
-    }
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-    };
-  },
-);
-
-server.registerTool(
-  "read_skill_file",
-  {
-    description: "Read a supporting file from a skill's directory.",
-    inputSchema: z.object({
-      id: z.string().describe("The id of the skill that owns the file."),
-      file_path: z
-        .string()
-        .describe("Path to the file relative to the skill directory (e.g. 'scripts/extract.py')."),
-      project_root: z.string().optional(),
-    }),
-  },
-  async ({ id, file_path, project_root }) => {
-    const skillDir = getSkillSystemPathFromId(id, project_root);
-    if (!skillDir) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ error: `Failed to read skill '${id}'` }, null, 2),
-          },
-        ],
-      };
-    }
-
-    let requested;
-    try {
-      requested = path.resolve(skillDir, file_path);
-      if (!requested.startsWith(skillDir + path.sep) && requested !== skillDir) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  error: "Access denied: path traversal outside skill directory is not allowed.",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      }
-    } catch (e: any) {
-      return {
-        content: [
-          { type: "text", text: JSON.stringify({ error: `Invalid path: ${e.message}` }, null, 2) },
-        ],
-      };
-    }
-
-    if (!fs.existsSync(requested) || !fs.statSync(requested).isFile()) {
-      const available = listSkillFiles(id, project_root);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                error: `File '${file_path}' not found in skill '${id}'.`,
-                available_files: available,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    }
-
-    try {
-      const content = fs.readFileSync(requested, "utf-8");
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                id,
-                file_path,
-                content,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    } catch (e: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ error: `Failed to read file: ${e.message}` }, null, 2),
-          },
-        ],
+        isError: true,
       };
     }
   },
 );
+
+// ── HTTP Client over Unix Socket ────────────────────────────────────
+
+function postToSocket(path: string, body: unknown): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+
+    const options: http.RequestOptions = {
+      socketPath,
+      path,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      },
+    };
+
+    const req = http.request(options, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        try {
+          const parsed = JSON.parse(raw);
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(parsed);
+          } else {
+            reject(new Error(parsed.error || `HTTP ${res.statusCode}: ${raw}`));
+          }
+        } catch {
+          reject(new Error(`Invalid response (${res.statusCode}): ${raw}`));
+        }
+      });
+    });
+
+    req.on("error", (err) => {
+      reject(new Error(`Socket request failed: ${err.message}`));
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
+
+// ── Main ────────────────────────────────────────────────────────────
 
 async function main() {
   const transport = new StdioServerTransport();

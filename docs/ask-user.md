@@ -9,57 +9,47 @@
 ## 整体架构
 
 ```
+                    Agent 进程 (ACP 协议)
 
-                        Electron Main Process
-
-  ┌─────────────────────────────────────────────────────────────────┐
-  │                         Backend (backend.ts)                    │
-  │                                                                 │
-  │  ┌──────────────────┐          ┌──────────────────────┐        │
-  │  │   askUser() 函数  │◄────────│  SocketServer         │        │
-  │  │                   │         │  (per session)        │        │
-  │  │  • 发送 IPC 事件  │         │  路由: POST /ask-user │        │
-  │  │  • 等待前端响应    │         │                      │        │
-  │  │  • 超时机制(5min)  │         └──────────┬───────────┘        │
-  │  └────────┬──────────┘                    │                     │
-  │           │                   共享 Zod Schema 校验              │
-  │           │           (src/shared/zod/ask-user-mcp-schema.ts)    │
-  │           │                               │                     │
-  │           ▼                               ▼                     │
-  │  ┌─────────────────────────────────────────────────────────┐   │
-  │  │            Electron IPC (contextBridge)                  │   │
-  │  │  事件: ask-user-request / ask-user-response              │   │
-  │  └────────────────────┬────────────────────────────────────┘   │
-  └───────────────────────┼────────────────────────────────────────┘
-                          │
-  ┌───────────────────────┼────────────────────────────────────────┐
-  │           Electron Renderer (mainview/)                        │
-  │  ┌────────────────────┴──────────────────────────────────┐    │
-  │  │                    App (App.tsx)                       │    │
-  │  │  ┌─────────────────────────────────────────────────┐  │    │
-  │  │  │               Chat (chat.tsx)                   │  │    │
-  │  │  │  ┌───────────────────────────────────────────┐  │  │    │
-  │  │  │  │     AskUserDialog                          │  │  │    │
-  │  │  │  │  • 显示标题/描述                            │  │  │    │
-  │  │  │  │  • 选项列表 + "其他"输入                     │  │  │    │
-  │  │  │  │  • 排队/动画管理                            │  │  │    │
-  │  │  │  └───────────────────────────────────────────┘  │  │    │
-  │  │  └─────────────────────────────────────────────────┘  │    │
-  │  └───────────────────────────────────────────────────────┘    │
-  └────────────────────────────────────────────────────────────────┘
-
-                    MCP 子进程 (独立 Node.js 进程)
-
-  ┌─────────────────────────────────────────────────────────────────┐
-  │              mcp-ask-user/server.ts                             │
-  │  • 注册 ask_user MCP tool                                       │
-  │  • 通过 stdio 与 Agent (MCP Client) 通信                        │
-  │  • 通过 Unix Socket HTTP POST 调用 Backend                      │
-  │                             ↕ stdio (MCP 协议)                  │
-  │              Agent 进程 (ACP 协议)                               │
-  │  • 通过 MCP Client 调用 ask_user tool                            │
-  └─────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────┐
+  │  Agent 通过 MCP Client 调用 ask_user tool         │
+  └────────────────────┬─────────────────────────────┘
+                       ↕ stdio (MCP 协议)
+  ┌────────────────────┴─────────────────────────────┐
+  │          mcp-ask-user/server.ts                    │
+  │  (ELECTRON_RUN_AS_NODE 独立进程)                   │
+  │                                                    │
+  │  工具注册: ask_user                                │
+  │  后端通信: HTTP POST /ask-user/ask over Unix Socket│
+  └────────────────────┬─────────────────────────────┘
+                       │ (参见 docs/socket-server.md)
+                       ▼
+  ┌──────────────────────────────────────────────────┐
+  │            Main Process Backend                    │
+  │                                                    │
+  │  ┌──────────────────┐                              │
+  │  │   askUser() 函数  │                              │
+  │  │                   │                              │
+  │  │  • 发送 IPC 事件  │                              │
+  │  │  • 等待前端响应    │                              │
+  │  │  • 超时机制(5min)  │                              │
+  │  └────────┬──────────┘                              │
+  └───────────┼────────────────────────────────────────┘
+              │ IPC (contextBridge)
+              ▼
+  ┌──────────────────────────────────────────────────┐
+  │          Electron Renderer (mainview/)             │
+  │                                                    │
+  │  ┌──────────────────────────────────────────────┐ │
+  │  │               AskUserDialog                   │ │
+  │  │  • 显示标题/描述                              │ │
+  │  │  • 选项列表 + "其他"输入                       │ │
+  │  │  • 排队/动画管理                              │ │
+  │  └──────────────────────────────────────────────┘ │
+  └──────────────────────────────────────────────────┘
 ```
+
+> Socket Server 的详细架构请参考 [`docs/socket-server.md`](./socket-server.md)。
 
 ---
 
@@ -75,60 +65,28 @@
 |---|---|
 | 工具名 | `ask_user` |
 | 通信方式 | stdio (MCP 标准传输层) |
-| 后端通信 | HTTP POST over Unix Domain Socket |
+| 后端通信 | HTTP POST over Unix Domain Socket（路由 `/ask-user/ask`） |
 | 输入校验 | Zod schema（含 title, description, options, allowCustomInput） |
 
 **工作流：**
 1. Agent 调用 `ask_user` tool
-2. MCP Server 将 `input` 直接通过 HTTP POST `/ask-user` 发送到 Unix Socket
+2. MCP Server 将 `input` 通过 HTTP POST `/ask-user/ask` 发送到 Unix Socket
 3. 等待 Backend 返回 `{ value, reason }`
 4. 格式化为 MCP 文本响应返回给 Agent
 
-**与 Backend 的 schema 一致性：** 两边均使用 `src/shared/zod/ask-user-mcp-schema.ts` 中定义的 schema。
+**与 Backend 的 schema 一致性：** 两边均使用 `src/shared/zod/mcp-ask-user-schema.ts` 中定义的 schema。
 
 ---
 
 ### 2. Backend 层
 
-#### 2.1 Socket Server — `src/backend/socket-server.ts`
-
-**职责：** 轻量级 Unix Domain Socket HTTP 服务器，作为 MCP 子进程与主进程的 IPC 桥梁。
-
-| 功能 | 说明 |
-|---|---|
-| 启动 | `startSocketServer(socketPath)` — 创建 HTTP server 监听指定 socket 文件 |
-| 停止 | `stop()` — 关闭 server 并删除 socket 文件 |
-| 路由注册 | `registry(path, handler)` — 注册 POST 路由处理器 |
-| 健康检查 | `GET /health` → `{ ok: true }` |
-| 生命周期 | 每个 session 独立一个 server，在 session 创建时启动，删除时停止 |
-
-#### 2.2 Session Socket 管理 — `backend.ts`
-
-```
-sessionSocketServers = Map<sessionId, SocketServer>
-
-createSessionSocketServer(sessionId, { socketPath })  → 创建/复用
-stopSessionSocketServer(sessionId)                     → 停止并清理
-```
-
-**生命周期绑定：**
-
-| 事件 | 动作 |
-|---|---|
-| `newSession` | 生成 socket 路径 → 构建 MCP 配置 → 创建 socket server |
-| `loadSession` (配置变更) | stop 旧 server → 重载 session → 创建新 server |
-| `loadSession` (新加载) | 创建 socket server |
-| `sendPrompt` (懒加载) | 创建 socket server |
-| `deleteSession` | stop socket server |
-| `clearBackend` (退出) | stop 所有 socket servers |
-
-#### 2.3 askUser 核心函数 — `backend.ts`
+#### 2.1 askUser 核心函数 — `backend.ts`
 
 `askUser()` 是统一的用户询问入口，目前有两种触发路径：
 
 | 触发源 | 通路 |
 |---|---|
-| Agent 通过 MCP ask_user tool | Socket Server → askUser() |
+| Agent 通过 MCP ask_user tool | Socket Server → askUser()（详见 [socket-server.md](./socket-server.md)） |
 | Agent 权限请求 (permissionRequest) | 直接调用 askUser() |
 
 **流程：**
@@ -139,9 +97,9 @@ stopSessionSocketServer(sessionId)                     → 停止并清理
 5. 返回 Promise，等待用户响应或超时（5 分钟）
 6. 用户响应后 resolve Promise，返回 `{ value, reason }`
 
-#### 2.4 Schema 校验 — `src/shared/zod/ask-user-mcp-schema.ts`
+#### 2.2 Schema 校验 — `src/shared/zod/mcp-ask-user-schema.ts`
 
-**请求 Schema (askUserRequestSchema)：**
+**请求 Schema (askUserAskRequestSchema)：**
 
 ```
 {
@@ -156,7 +114,7 @@ stopSessionSocketServer(sessionId)                     → 停止并清理
 }
 ```
 
-**响应 Schema (askUserRespondSchema)：**
+**响应 Schema (askUserAskRespondSchema)：**
 
 ```
 {
@@ -229,10 +187,8 @@ Agent (MCP Client)
   │ 调用 ask_user tool
   ▼
 MCP Ask-User Server (子进程)
-  │ HTTP POST /ask-user (Unix Socket)
-  ▼
-Socket Server (主进程)
-  │ askUserRequestSchema.parse(payload)
+  │ HTTP POST /ask-user/ask (Unix Socket)
+  │ (参见 docs/socket-server.md)
   ▼
 askUser() 函数
   │ sendEvent("ask-user-request", request)
@@ -267,29 +223,9 @@ askUser() Promise resolved
 
 ## 关键设计决策
 
-### 为什么用 Unix Socket 而不是直接调用？
-
-MCP 子进程与主进程是独立的 Node.js 进程。Unix Domain Socket 相比其他 IPC 方式的优势：
-
-| 方式 | 优点 | 缺点 |
-|---|---|---|
-| Unix Socket | 性能好、支持双向、可加健康检查 | 需管理 socket 文件生命周期 |
-| TCP loopback | 简单 | 有网络栈开销，需选端口防冲突 |
-| stdio 回传 | 无需额外机制 | 单向、难扩展 |
-| 共享内存 | 高性能 | 复杂、易出错 |
-
-Socket 文件放在 `~/.fello/sockets/`，路径含随机 UUID，防止其他本地进程意外访问。
-
-### 为什么每个 Session 一个 Socket Server？
-
-每个 session 的 MCP 配置中嵌入了 ask-user socket 路径（作为 Agent 启动 MCP Server 的参数）。如果多个 session 共用同一个 socket，当某个 session 销毁时无法安全关闭。Session 级隔离确保：
-- 独立生命周期（创建/销毁不影响其他 session）
-- 独立路由注册（未来可扩展更多 per-session 路由）
-- 意外崩溃只影响单个 session
-
 ### Schema 共享策略
 
-Zod schema 在 `src/shared/zod/ask-user-mcp-schema.ts` 中定义一次，Backend 直接 import。MCP Server 侧的 `registerTool` 需要 inline schema（SDK 要求），但内容保持一致。这种"定义一次 + 手动同步"的取舍避免了跨进程依赖的复杂度。
+Zod schema 在 `src/shared/zod/mcp-ask-user-schema.ts` 中定义一次，Backend 直接 import。MCP Server 侧的 `registerTool` 需要 inline schema（SDK 要求），但内容保持一致。这种"定义一次 + 手动同步"的取舍避免了跨进程依赖的复杂度。
 
 ---
 
@@ -297,10 +233,10 @@ Zod schema 在 `src/shared/zod/ask-user-mcp-schema.ts` 中定义一次，Backend
 
 | 文件 | 层 | 职责 |
 |---|---|---|
-| `src/scripts/mcp-ask-user/server.ts` | MCP | MCP tool 注册 & Socket 转发 |
-| `src/backend/backend.ts` | Backend | `askUser()` 核心逻辑 + Socket 生命周期管理 |
-| `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器 |
-| `src/shared/zod/ask-user-mcp-schema.ts` | Shared | Zod schema 定义（请求 + 响应） |
+| `src/scripts/mcp-ask-user/server.ts` | MCP | ask_user MCP tool 注册 & Socket 转发 |
+| `src/backend/backend.ts` | Backend | `askUser()` 核心逻辑 |
+| `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器（详见 [socket-server.md](./socket-server.md)） |
+| `src/shared/zod/mcp-ask-user-schema.ts` | Shared | ask-user Zod schema 定义（请求 + 响应） |
 | `src/shared/schema.ts` | Shared | TypeScript 接口定义 |
 | `src/backend/storage.ts` | Backend | `SOCKETS_DIR` 常量 |
 | `src/mainview/store.ts` | Frontend | askUser 请求队列状态管理 |

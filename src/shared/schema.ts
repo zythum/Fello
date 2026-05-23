@@ -134,7 +134,7 @@ export interface HttpMcpServerInfo extends BaseMcpServerInfo {
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
-export type Feature = "ask_user";
+export type Feature = "skills" | "ask_user";
 
 /**
  * 应用的主题配置信息

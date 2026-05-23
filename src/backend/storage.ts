@@ -27,6 +27,7 @@ import type {
 export const FELLO_DIR = join(homedir(), ".fello");
 export const SOCKETS_DIR = join(FELLO_DIR, "sockets");
 export const PROJECTS_DIR = join(FELLO_DIR, "projects");
+export const TEMP_DIR = join(FELLO_DIR, "temp");
 export const WORKSPACES_DIR = join(FELLO_DIR, "workspaces");
 export const WORKSPACE_TEMP_DIR = join(WORKSPACES_DIR, "__temp__");
 
@@ -127,6 +128,7 @@ interface SessionMeta {
 
 mkdirSync(PROJECTS_DIR, { recursive: true });
 mkdirSync(SOCKETS_DIR, { recursive: true });
+mkdirSync(TEMP_DIR, { recursive: true });
 mkdirSync(WORKSPACES_DIR, { recursive: true });
 mkdirSync(WORKSPACE_TEMP_DIR, { recursive: true });
 
