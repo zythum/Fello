@@ -4,6 +4,7 @@ import { useSessionState } from "../../../store";
 import * as backend from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { HelpCircle, ArrowLeft } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
 import type { AskUserRequest } from "../../../../shared/schema";
@@ -69,26 +70,46 @@ export function AskUserDialog({ sessionId }: Props) {
             : "translate-y-0 opacity-100"
       }`}
     >
-      <div className="mx-auto w-full max-w-5xl px-6 pb-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5">
-          {/* 标题 */}
-          <div className="flex items-center gap-2 mb-3">
+      <div className="w-full max-w-5xl px-6 pb-4">
+        {/*
+          使用 CSS Grid 布局替代 flex 来解决高度链问题。
+          grid-rows-[auto_1fr_auto] 的三行结构：
+            - auto: title（固定高度）
+            - 1fr : description（占满剩余空间，有 max-h 约束）
+            - auto: options（固定高度）
+          max-h-[90vh] 约束整体高度，1fr 行在内容超出时会获得明确高度，
+          使内部的 ScrollArea → Viewport(height:100%) 高度链生效。
+        */}
+        <div className="grid grid-rows-[auto_1fr_auto] rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5 max-h-[90vh] overflow-hidden">
+          {/* 标题 — 固定不折叠 */}
+          <div className="flex items-center gap-2 mb-3 min-h-0">
             <HelpCircle className="size-4.5 shrink-0 text-sky-500" />
             <h3 className="text-sm font-medium leading-snug truncate">
               {currentRequest.title || t("askUser.title", "Request")}
             </h3>
           </div>
+
+          {/* description — 可滚动 */}
           {currentRequest.description && (
-            <pre className="text-xs text-muted-foreground my-3 overflow-x-auto rounded-md bg-muted/40 p-2 leading-relaxed whitespace-pre-wrap">
-              <code>{formatDescription(currentRequest.description)}</code>
-            </pre>
+            <div className="min-h-0 overflow-hidden">
+              <ScrollArea className="h-full rounded-md bg-muted/40">
+                <div className="py-3 px-2">
+                  <pre className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    <code>{formatDescription(currentRequest.description)}</code>
+                  </pre>
+                </div>
+              </ScrollArea>
+            </div>
           )}
 
-          <AskUserOptions
-            key={currentRequest.askUserId}
-            request={currentRequest}
-            onResolved={handleResolved}
-          />
+          {/* 选项 / 输入 — 固定不折叠 */}
+          <div className="pt-3 min-h-0">
+            <AskUserOptions
+              key={currentRequest.askUserId}
+              request={currentRequest}
+              onResolved={handleResolved}
+            />
+          </div>
         </div>
       </div>
     </div>
