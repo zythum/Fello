@@ -4,6 +4,7 @@ import type {
   SessionModeState,
   SessionModelState,
   ContentBlock,
+  Usage,
 } from "@agentclientprotocol/sdk";
 
 /**
@@ -60,6 +61,12 @@ export interface ApiAgentInfo extends BaseAgentInfo {
   apiKey: string;
   /** 可选的额外请求头（如组织 ID、自定义鉴权等） */
   headers?: Record<string, string>;
+  /**
+   * 模型上下文窗口大小（token 数），如 128000、200000 等。
+   * 用于 usage_update 通知中的 context window 展示。
+   * 如果留空，则使用默认值 128000。
+   */
+  contextWindowTokens?: number;
 }
 
 /** 代理配置联合类型：本地 stdio / 远程 api */
@@ -387,7 +394,7 @@ export type FelloIPCRequests = {
       sessionId: string;
       contents: ContentBlock[];
     };
-    response: { stopReason: string };
+    response: { stopReason: string, usage?: Usage | null | undefined };
   };
   /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };

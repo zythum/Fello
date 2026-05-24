@@ -241,6 +241,16 @@ body,
   }
 }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* File search highlight styles (CSS Custom Highlight API) */
 ::highlight(file-search-all) {
   background-color: #f59e0b80;

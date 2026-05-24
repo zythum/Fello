@@ -14,7 +14,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 ### Agent 类型
 
 - **Stdio Agent**：通过本地命令行进程启动（如 `kiro-cli acp`），使用 ACP SDK 通过 NDJSON stdio 通信
-- **API Agent**：通过 HTTP 连接 OpenAI 兼容 API（如任何兼容 `/v1/chat/completions` 的服务），在进程内运行，支持流式文本、推理和文件内容
+- **API Agent**：通过 HTTP 连接 OpenAI 兼容 API（如任何兼容 `/v1/chat/completions` 的服务），在进程内运行，支持流式文本、推理和文件内容。可配置 `contextWindowTokens` 指定上下文窗口大小（默认 128K），用于用量展示
 
 ### 会话与连接
 
@@ -35,6 +35,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 中断能力：支持手动 `cancelPrompt`
 - 超时兜底：30 秒无事件时自动结束 streaming 并注入系统提示
 - 全局交互：提供统一的文本右键上下文菜单，支持剪切、复制、粘贴和全选操作
+- Token 用量追踪：每轮对话结束时在输入区上方展示该轮 token 用量（输入/输出/总计/思考/缓存），并在会话头部以进度条直观显示上下文窗口占用比例
 
 ### 权限交互
 
@@ -73,11 +74,11 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
   - **右栏（固定像素）**：带标签的面板，在 Files 和 Terminal 标签页之间切换
 - 左侧聊天区域与详情视图共享一组内嵌 ResizablePanel，支持拖拽调节宽度
 - 当窗口宽度小于 1000px 且详情视图打开时，自动隐藏聊天区域以节省空间
-- 会话头部（ChatHeader）已提取为独立组件，包含 Agent Badge、会话标题、项目路径、时间戳、MCP 服务器切换和刷新菜单
+- 会话头部（ChatHeader）已提取为独立组件，包含 Agent Badge、会话标题、项目路径、时间戳、MCP 服务器切换、刷新菜单和用量按钮（UsageButton，展示上下文窗口进度条和上轮 Token 明细）
 
 ### 模型、模式与扩展
 
-- 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent（Stdio 或 API 类型），使用 ID 作为唯一标识
+- 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent（Stdio 或 API 类型），使用 ID 作为唯一标识。API Agent 支持配置 `contextWindowTokens`（上下文窗口大小），保存设置时自动校验为正整数
 - MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器（Stdio 和 HTTP 两种类型），并在会话菜单中随时启停，为 Agent 动态扩展能力
 - Skills 系统：浏览和安装来自 skills.sh 市场的 Skills，支持用户级和项目级作用域（fello/agents/claude 三个 scope）
 - 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）

@@ -87,9 +87,9 @@
 
 此目录是框架无关的 Agent 会话逻辑，同时被 backend（主进程）使用：
 
-- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、自动标题生成
-- **`session-state.ts`**：创建会话状态（SessionState），组装 ACP client tools + MCP session tools + 权限记忆
-- **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`
+- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、自动标题生成。每轮生成结束后通过 `result.usage` / `result.totalUsage` 采集每轮 Token 用量，并通过 ACP `usage_update` 事件发送上下文窗口占用通知
+- **`session-state.ts`**：创建会话状态（SessionState），组装 ACP client tools + MCP session tools + 权限记忆。新增 `contextUsedTokens` 字段追踪当前上下文窗口已用 Token 数
+- **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`。session.json 新增 `contextUsedTokens` 字段，支持跨会话持久化上下文用量
 - **`acp-client-tools.ts`**：创建 ACP 客户端工具集（文件读写、终端、搜索等）
 - **`mcp-tools.ts`**：创建 MCP 会话工具集（动态加载 MCP Server 提供的工具）
 - **`permission.ts`**：权限记忆系统，支持"始终允许"（Always Allow），持久化到会话状态
@@ -109,7 +109,7 @@
   - `session/session.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
   - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader + AskUserDialog）
   - `session/chat/chat-ask-user-dialog.tsx`：Ask User 对话框，支持选项选择与自定义输入、排队动画
-  - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新）
+  - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新、用量按钮）
   - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
   - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
@@ -148,7 +148,7 @@ type AgentInfo = StdioAgentInfo | ApiAgentInfo
 ```
 
 - **StdioAgentInfo**：`type: "stdio"`, `command`, `args`, `env`
-- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`
+- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`, `contextWindowTokens`（可选，默认 128000）
 
 `ACPBridge` 根据 `AgentInfo.type` 路由到对应的 spawner（`spawnStdioAgent` 或 `spawnOpenaiCompatibleApiAgent`），两者都实现统一的 `AgentProcess` 接口。
 
@@ -183,7 +183,8 @@ ACP sessionUpdate
 `store.ts` 使用 `Map<sessionId, SessionState>` 管理每个会话隔离的：
 
 - messages (`ChatMessage[]` 多态数组)
-- usage token 统计
+- `usage`: 上下文窗口用量（ACP `usage_update` 事件更新）
+- `lastTurnUsage`: 上轮 Token 明细（input/output/total/thought/cache）
 - permission 请求队列
 - activeToolCalls
 
@@ -249,6 +250,10 @@ ChatInput submit
   → Agent: prompt
   → session-update chunk 持续到达（text-delta / reasoning-delta / file / tool-call / tool-result）
   → reduceSessionUpdate / calculateToolCall
+  → 生成结束: Agent 通过 result.usage 采集 Token 用量
+    → 发送 sessionUpdate("usage_update", { used, size }) 更新上下文窗口进度
+    → prompt 返回 { stopReason, usage } 包含本轮 Token 明细
+  → ChatInput 收到 usage 后更新 sessionState.lastTurnUsage
   → reduceFlushStreaming 收尾，结束 streaming 状态
 ```
 
@@ -328,6 +333,6 @@ Agent 调用 list_skills / activate_skill MCP tool
 - 客户端本地保存项目元数据、会话元数据（`session.json`）
 - Stdio Agent 会话的聊天历史通过主进程进行落盘拦截，每个会话在其独立目录下维护完整的 `messages.jsonl` 事件流文件（NDJSON 格式）
 - API Agent 会话的聊天历史在 `OpenaiCompatibleAgent` 内部直接写入 `history.jsonl`
-- API Agent 会话状态（modelId、allowedToolKinds）持久化到 `session.json`
+- API Agent 会话状态（modelId、allowedToolKinds、contextUsedTokens）持久化到 `session.json`
 - 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话和日志）
 - iLink 凭证和游标持久化到 `~/.fello/ilink/`

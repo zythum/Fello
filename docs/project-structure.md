@@ -233,7 +233,7 @@ fello/
 
 `settings.json` 字段：
 
-- `agents`: 自定义的 Agent 列表，支持 `StdioAgentInfo` 和 `ApiAgentInfo` 两种类型
+- `agents`: 自定义的 Agent 列表，支持 `StdioAgentInfo` 和 `ApiAgentInfo` 两种类型。API Agent 支持 `contextWindowTokens` 字段配置上下文窗口大小
 - `mcpServers`: MCP Server 列表，支持 `StdioMcpServerInfo` 和 `HttpMcpServerInfo` 两种类型
 - `theme`: UI 主题配置（`themeMode`: `"light" | "dark" | "system"`）
 - `i18n`: 应用语言配置（`language`: `"en"` | `"zh-CN"`）
@@ -244,6 +244,12 @@ fello/
 - `title`: 项目名称
 - `cwd`: 项目工作目录
 - `createdAt` / `updatedAt`: 毫秒级时间戳
+
+`session.json` 字段（API Agent 会话）：
+
+- `modelId`: 当前使用的模型 ID
+- `allowedToolKinds`: 已允许的工具权限列表
+- `contextUsedTokens`: 上下文窗口已用 Token 数（可选，持久化后恢复用）
 
 `session.json` 字段（Stdio Agent 会话）：
 

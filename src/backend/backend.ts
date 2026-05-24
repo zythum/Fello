@@ -1057,6 +1057,19 @@ export const backendHandlers: {
   },
 
   async updateSettings(settings) {
+    // If agent config changed, invalidate pooled bridges so next ensureBridge picks up fresh config
+    const newAgents = settings.agents;
+    if (newAgents) {
+      const oldAgents = storageOps.getSettings().agents;
+      const changed = oldAgents.length !== newAgents.length ||
+        oldAgents.some((a, i) => JSON.stringify(a) !== JSON.stringify(newAgents[i]));
+      if (changed) {
+        for (const [agentId, p] of bridgePool) {
+          bridgePool.delete(agentId);
+          p.then((b) => b.kill()).catch(() => {});
+        }
+      }
+    }
     storageOps.updateSettings(settings);
     if (settings.i18n?.language) {
       setLanguage(settings.i18n.language);

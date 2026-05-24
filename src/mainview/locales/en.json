@@ -125,6 +125,7 @@
       "apiBaseUrl": "Base URL",
       "apiKey": "API Key",
       "apiHeaders": "Headers (JSON)",
+      "contextWindowTokens": "Context Window (tokens)",
       "command": "Command",
       "args": "Arguments",
       "envVars": "Environment Variables (JSON)",
@@ -135,6 +136,7 @@
       "errorIdCommand": "ID and Command are required.",
       "errorDuplicateId": "An agent with this ID already exists.",
       "errorEnvJson": "Env must be a valid JSON object.",
+      "errorContextWindowTokens": "Context Window must be a positive integer.",
       "updateFailed": "Failed to update configuration."
     },
     "mcp": {
@@ -238,7 +240,20 @@
     }
   },
   "chatHeader": {
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "contextWindow": "Context Window",
+    "used": "Used",
+    "size": "Size",
+    "percentUsed": "{{pct}}% used",
+    "remaining": "{{count}} remaining",
+    "lastTurn": "Last Turn",
+    "input": "Input",
+    "output": "Output",
+    "total": "Total",
+    "thought": "Thought",
+    "cacheRead": "Cache read",
+    "cacheWrite": "Cache write",
+    "cost": "Cost"
   },
   "chatInput": {
     "placeholderDisabled": "Start a new chat to begin...",

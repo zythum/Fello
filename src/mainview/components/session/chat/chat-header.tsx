@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "../../../store";
-import { MoreHorizontal } from "lucide-react";
-import { formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
+import { useAppStore, useSessionState } from "../../../store";
+import { Settings2, ReceiptTurkishLira } from "lucide-react";
+import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../../backend";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +130,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
         </span>
       </div>
       <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
+        <UsageButton sessionId={session.id} />
         <PopoverPrimitive.Root
           onOpenChange={(open) => {
             if (open) {
@@ -140,21 +141,30 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           }}
         >
           <PopoverPrimitive.Trigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors data-pressed:bg-sidebar-accent/40">
-            <MoreHorizontal className="size-4" />
+            <Settings2 className="size-4" />
           </PopoverPrimitive.Trigger>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
               <PopoverPrimitive.Popup className="z-10 min-w-56 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
                 {/* Features toggles */}
-                <div className="px-2 py-1 text-xs font-normal text-muted-foreground/70">
+                <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
                   {t("constant.feature.title", "Features")}
                 </div>
                 {ALL_FEATURES.map((feature) => (
                   <div
                     key={feature}
-                    className="flex items-center justify-between rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
+                    className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors"
                   >
-                    <span className="truncate mr-2">{t(FEATURE_I18N_KEYS[feature], feature)}</span>
+                    <span
+                      className={cn(
+                        "truncate mr-2",
+                        localFeatures.includes(feature)
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/50",
+                      )}
+                    >
+                      {t(FEATURE_I18N_KEYS[feature], feature)}
+                    </span>
                     <Switch
                       size="sm"
                       checked={localFeatures.includes(feature)}
@@ -167,19 +177,31 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                   </div>
                 ))}
 
+                {/* Divider */}
+                <div className="border-t border-border/50 my-1" />
+
                 {/* MCP server toggles */}
                 {configuredMcpServers.length > 0 && (
                   <>
-                    <div className="px-2 py-1 mt-1 text-xs font-normal text-muted-foreground/70">
+                    <div className="px-2 py-1 mt-1 text-xs font-semibold text-foreground/80">
                       {t("settings.mcp.title", "MCP Servers")}
                     </div>
                     {configuredMcpServers.map((mcp) => (
                       <div
                         key={mcp.id}
-                        className="flex items-center justify-between rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
+                        className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors"
                         onClick={() => handleToggle(mcp.id)}
                       >
-                        <span className="truncate mr-2">{mcp.id}</span>
+                        <span
+                          className={cn(
+                            "truncate mr-2",
+                            localMcpServers.includes(mcp.id)
+                              ? "text-muted-foreground"
+                              : "text-muted-foreground/50",
+                          )}
+                        >
+                          {mcp.id}
+                        </span>
                         <Switch
                           size="sm"
                           checked={localMcpServers.includes(mcp.id)}
@@ -204,6 +226,103 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
       </div>
+    </div>
+  );
+}
+
+function UsageButton({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
+  const { lastTurnUsage, usage } = useSessionState(sessionId);
+  const hasData = usage || lastTurnUsage;
+
+  if (!hasData) return null;
+
+  const pct = usage?.size ? (usage.used / usage.size) * 100 : 0;
+  const pctColor =
+    pct > 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-primary";
+
+  return (
+    <PopoverPrimitive.Root>
+      <PopoverPrimitive.Trigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors data-pressed:bg-sidebar-accent/40">
+        <ReceiptTurkishLira className="size-4" />
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
+          <PopoverPrimitive.Popup className="z-10 w-80 rounded-xl border border-border bg-popover text-popover-foreground shadow-lg outline-none p-4 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+            <div className="space-y-4 text-xs">
+              {/* Context window */}
+              {usage && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-foreground/80">{t("chatHeader.contextWindow")}</span>
+                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                      {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${pctColor}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[11px] text-muted-foreground/60">
+                    <span>{t("chatHeader.percentUsed", { pct: pct.toFixed(1) })}</span>
+                    <span>
+                      {t("chatHeader.remaining", { count: (usage.size - usage.used).toLocaleString() })}
+                    </span>
+                  </div>
+                  {/* Cost */}
+                  {usage.cost && (
+                    <div className="mt-2 flex justify-between text-[11px]">
+                      <span className="text-muted-foreground">{t("chatHeader.cost")}</span>
+                      <span className="font-mono tabular-nums text-foreground/80">
+                        {usage.cost.amount} {usage.cost.currency}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Last turn usage */}
+              {lastTurnUsage && (
+                <div>
+                  <div className="border-t border-border/50 pt-3">
+                    <div className="font-semibold text-foreground/80 mb-2">
+                      {t("chatHeader.lastTurn")}
+                    </div>
+                    <div className="space-y-1 text-[11px]">
+                      <Row label={t("chatHeader.input")} value={lastTurnUsage.inputTokens} />
+                      <Row label={t("chatHeader.output")} value={lastTurnUsage.outputTokens} />
+                      <Row label={t("chatHeader.total")} value={lastTurnUsage.totalTokens} bold />
+                      {lastTurnUsage.thoughtTokens != null && (
+                        <Row label={t("chatHeader.thought")} value={lastTurnUsage.thoughtTokens} />
+                      )}
+                      {lastTurnUsage.cachedReadTokens != null && (
+                        <Row label={t("chatHeader.cacheRead")} value={lastTurnUsage.cachedReadTokens} />
+                      )}
+                      {lastTurnUsage.cachedWriteTokens != null && (
+                        <Row label={t("chatHeader.cacheWrite")} value={lastTurnUsage.cachedWriteTokens} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono tabular-nums ${bold ? "font-semibold text-foreground/90" : "text-muted-foreground"}`}>
+        {value.toLocaleString()}
+      </span>
     </div>
   );
 }

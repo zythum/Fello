@@ -14,6 +14,8 @@ export type SessionState = {
   allowedToolKinds: AllowedToolKinds;
   acp: ACPSessionTools;
   mcp: MCPSessionTools;
+  /** Tokens currently in context window after the most recent turn. */
+  contextUsedTokens: number;
 };
 
 function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
@@ -66,5 +68,6 @@ export async function createSessionState(params: {
     allowedToolKinds,
     acp,
     mcp,
+    contextUsedTokens: 0,
   };
 }

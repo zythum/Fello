@@ -49,6 +49,7 @@ interface ApiAgentMeta extends BaseAgentMeta {
   baseUrl: string;
   apiKey: string;
   headers: Record<string, string>;
+  contextWindowTokens?: number;
 }
 
 type AgentMeta = StdioAgentMeta | ApiAgentMeta;
@@ -184,7 +185,9 @@ function readSettings(): SettingsMeta {
             }
             return nextHeaders;
           })();
-          next[id] = { type, provider, baseUrl, apiKey, headers, disabled, order };
+          const contextWindowTokens =
+            typeof cfg?.contextWindowTokens === "number" ? cfg.contextWindowTokens : undefined;
+          next[id] = { type, provider, baseUrl, apiKey, headers, disabled, order, contextWindowTokens };
         }
       }
       return next;
@@ -464,6 +467,7 @@ export const storageOps = {
               apiKey: agentMeta.apiKey,
               headers: Object.assign({}, agentMeta.headers),
               disabled: agentMeta.disabled,
+              contextWindowTokens: agentMeta.contextWindowTokens,
             };
           }
           throw new Error("Invalid agent type.");
@@ -532,6 +536,12 @@ export const storageOps = {
               headers: Object.assign({}, agent.headers || {}),
               disabled: agent.disabled,
               order: idx,
+              contextWindowTokens:
+                agent.contextWindowTokens !== undefined
+                  ? Number.isInteger(agent.contextWindowTokens) && agent.contextWindowTokens > 0
+                    ? agent.contextWindowTokens
+                    : undefined
+                  : undefined,
             };
           } else {
             throw new Error("Invalid agent type.");

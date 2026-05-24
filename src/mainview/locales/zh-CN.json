@@ -125,6 +125,7 @@
       "apiBaseUrl": "Base URL",
       "apiKey": "API Key",
       "apiHeaders": "请求头 (JSON)",
+      "contextWindowTokens": "上下文窗口 (token)",
       "command": "命令",
       "args": "参数",
       "envVars": "环境变量 (JSON)",
@@ -135,6 +136,7 @@
       "errorIdCommand": "ID 和命令不能为空。",
       "errorDuplicateId": "已存在具有该 ID 的智能体。",
       "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
+      "errorContextWindowTokens": "上下文窗口必须为正整数。",
       "updateFailed": "更新配置失败。"
     },
     "mcp": {
@@ -238,7 +240,20 @@
     }
   },
   "chatHeader": {
-    "refresh": "重启会话"
+    "refresh": "重启会话",
+    "contextWindow": "上下文窗口",
+    "used": "已用",
+    "size": "上限",
+    "percentUsed": "已用 {{pct}}%",
+    "remaining": "剩余 {{count}}",
+    "lastTurn": "上一轮",
+    "input": "输入",
+    "output": "输出",
+    "total": "总计",
+    "thought": "思考",
+    "cacheRead": "缓存读取",
+    "cacheWrite": "缓存写入",
+    "cost": "费用"
   },
   "chatInput": {
     "placeholderDisabled": "请先开启新的会话...",

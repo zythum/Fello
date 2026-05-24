@@ -389,13 +389,17 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
     try {
       // 2. Wait for the generation to complete
-      await request.sendPrompt({
+      const promptResponse = await request.sendPrompt({
         sessionId: session.id,
         contents,
       });
 
-      // 3. Generation completed successfully.
-      // Reset session.isSteaming
+      // 3. Store per-turn usage
+      if (promptResponse.usage) {
+        useAppStore.getState().updateSessionState(session.id, () => ({
+          lastTurnUsage: promptResponse.usage,
+        }));
+      }
     } catch (err) {
       // 4. Rollback on Network Failure
       const currentState = useAppStore.getState().getSessionState(session.id);

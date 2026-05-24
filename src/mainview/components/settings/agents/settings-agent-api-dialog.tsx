@@ -91,6 +91,19 @@ export function SettingsAgentApiDialog({
       return;
     }
 
+    if (draft.contextWindowTokens !== undefined) {
+      const v = draft.contextWindowTokens;
+      if (!Number.isInteger(v) || v < 1) {
+        toast.error(
+          t(
+            "settings.agents.errorContextWindowTokens",
+            "Context Window must be a positive integer.",
+          ),
+        );
+        return;
+      }
+    }
+
     await onSave({
       ...draft,
       id: draft.id.trim(),
@@ -182,6 +195,24 @@ export function SettingsAgentApiDialog({
                 value={headersRaw}
                 onChange={(e) => setHeadersRaw(e.target.value)}
                 className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted-foreground">
+                {t("settings.agents.contextWindowTokens", "Context Window (tokens)")}
+              </label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="128000"
+                value={draft.contextWindowTokens ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    contextWindowTokens: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+                className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
               />
             </div>
           </div>

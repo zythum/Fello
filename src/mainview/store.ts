@@ -8,7 +8,7 @@ import type {
   AskUserRequest,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
-import type { UsageUpdate } from "@agentclientprotocol/sdk";
+import type { Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 export interface TerminalItem {
   id: string;
@@ -31,6 +31,7 @@ const emptyProjectState = (): ProjectState => ({
 export interface SessionState {
   messages: ChatMessage[];
   usage: UsageUpdate | null;
+  lastTurnUsage: Usage | null;
   isLoading: boolean;
   terminalLogs: Record<string, string>;
   askUserRequests: AskUserRequest[];
@@ -41,6 +42,7 @@ export interface SessionState {
 const emptySessionState = (): SessionState => ({
   messages: [],
   usage: null,
+  lastTurnUsage: null,
   isLoading: false,
   terminalLogs: {},
   askUserRequests: [],

@@ -24,6 +24,7 @@ import type {
   SessionModelState,
   SetSessionModelRequest,
   SetSessionModelResponse,
+  Usage,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { ApiAgentInfo } from "../shared/schema";
@@ -47,6 +48,9 @@ import {
 } from "./utils";
 
 const MODEL_CONFIG_ID = "model";
+
+/** Default context window tokens when none is configured. */
+const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
 
 function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]): string {
   const extras =
@@ -77,6 +81,7 @@ export class OpenaiCompatibleAgent implements Agent {
   private baseUrl: string;
   private apiKey: string;
   private headers: Record<string, string>;
+  private contextWindowTokens: number;
   private modelsCache: SessionModelState | null = null;
   private modelsFetchedAt = 0;
   private modelsPending: Promise<SessionModelState> | null = null;
@@ -90,6 +95,7 @@ export class OpenaiCompatibleAgent implements Agent {
     this.apiKey = options.apiKey;
     this.agentId = options.id;
     this.headers = options.headers || {};
+    this.contextWindowTokens = options.contextWindowTokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
     this.provider = createOpenAICompatible({
       name: "openai-compatible",
       baseURL: this.baseUrl,
@@ -222,6 +228,7 @@ export class OpenaiCompatibleAgent implements Agent {
         sessionId: session.id,
         modelId: session.modelId,
         allowedToolKinds: Array.from(session.allowedToolKinds),
+        contextUsedTokens: session.contextUsedTokens,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -321,6 +328,20 @@ export class OpenaiCompatibleAgent implements Agent {
       modelState.availableModels.some((model) => model.modelId === active.modelId);
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
+    }
+    // Restore context usage from persisted state and notify client
+    if (persistedState) {
+      active.contextUsedTokens = persistedState.contextUsedTokens;
+    }
+    if (this.connection) {
+      await this.connection.sessionUpdate({
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: "usage_update",
+          used: active.contextUsedTokens,
+          size: this.contextWindowTokens,
+        },
+      });
     }
     await this.persistSessionState(active);
     const models =
@@ -518,7 +539,41 @@ export class OpenaiCompatibleAgent implements Agent {
       const response = await result.response;
       session.history.push(...response.messages);
       await this.appendSessionHistory(session.id, ...response.messages);
-      return { stopReason: "end_turn" };
+
+      // Get per-turn usage (sum of all steps) and last-step usage for context tracking
+      const [turnUsage, lastStepUsage] = await Promise.all([
+        result.totalUsage,
+        result.usage,
+      ]);
+      session.contextUsedTokens =
+        (lastStepUsage.inputTokens ?? 0) + (lastStepUsage.outputTokens ?? 0);
+
+      // Build ACP usage object (per-turn data)
+      const usage: Usage = {
+        totalTokens: turnUsage.totalTokens ?? 0,
+        inputTokens: turnUsage.inputTokens ?? 0,
+        outputTokens: turnUsage.outputTokens ?? 0,
+        thoughtTokens: turnUsage.outputTokenDetails?.reasoningTokens,
+        cachedReadTokens: turnUsage.inputTokenDetails?.cacheReadTokens,
+        cachedWriteTokens: turnUsage.inputTokenDetails?.cacheWriteTokens,
+      };
+
+      // Send context window usage_update via session/update
+      if (this.connection) {
+        await this.connection.sessionUpdate({
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "usage_update",
+            used: session.contextUsedTokens,
+            size: this.contextWindowTokens,
+          },
+        });
+      }
+
+      return {
+        stopReason: "end_turn",
+        usage,
+      };
     } catch (err) {
       if (abortController.signal.aborted) {
         return { stopReason: "cancelled" };
