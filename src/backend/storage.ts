@@ -132,6 +132,8 @@ mkdirSync(TEMP_DIR, { recursive: true });
 mkdirSync(WORKSPACES_DIR, { recursive: true });
 mkdirSync(WORKSPACE_TEMP_DIR, { recursive: true });
 
+const streamingSessions = new Set<string>();
+
 function settingsPath() {
   return join(FELLO_DIR, "settings.json");
 }
@@ -695,6 +697,7 @@ export const storageOps = {
       models: SessionModelState | null;
       modes: SessionModeState | null;
       initializeInfo: InitializeResponse | null;
+      isStreaming: boolean;
     }>,
     updateTime: boolean = true,
   ) {
@@ -713,10 +716,18 @@ export const storageOps = {
       meta.updated_at = Date.now();
     }
     writeSessionMeta(meta);
+    if (updates.isStreaming !== undefined) {
+      if (updates.isStreaming) {
+        streamingSessions.add(sessionId);
+      } else {
+        streamingSessions.delete(sessionId);
+      }
+    }
   },
 
   deleteSession(sessionId: string) {
     deleteSessionMeta(sessionId);
+    streamingSessions.delete(sessionId);
   },
 
   listSessions(): SessionInfo[] {
@@ -742,6 +753,7 @@ export const storageOps = {
           models: meta.models ?? null,
           modes: meta.modes ?? null,
           initializeInfo: meta.initialize_info ?? null,
+          isStreaming: streamingSessions.has(meta.id),
         });
       }
     }
@@ -771,6 +783,7 @@ export const storageOps = {
       models: meta.models ?? null,
       modes: meta.modes ?? null,
       initializeInfo: meta.initialize_info ?? null,
+      isStreaming: streamingSessions.has(meta.id),
     };
   },
 

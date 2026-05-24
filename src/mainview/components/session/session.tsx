@@ -131,7 +131,6 @@ export function Session({ session }: { session: SessionInfo }) {
           state = reduceSessionUpdate(state, update);
         }
 
-        state.isStreaming = result.isStreaming;
         state.isLoading = false;
         state.pendingUpdates = [];
 

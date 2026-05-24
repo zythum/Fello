@@ -31,7 +31,6 @@ const emptyProjectState = (): ProjectState => ({
 export interface SessionState {
   messages: ChatMessage[];
   usage: UsageUpdate | null;
-  isStreaming: boolean;
   isLoading: boolean;
   terminalLogs: Record<string, string>;
   askUserRequests: AskUserRequest[];
@@ -42,7 +41,6 @@ export interface SessionState {
 const emptySessionState = (): SessionState => ({
   messages: [],
   usage: null,
-  isStreaming: false,
   isLoading: false,
   terminalLogs: {},
   askUserRequests: [],
@@ -120,7 +118,6 @@ export interface AppState {
   resetSessionState: (sessionId: string) => void;
   setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
-  setIsStreaming: (sessionId: string, v: boolean) => void;
   setAskUserRequest: (sessionId: string, req: AskUserRequest | null) => void;
   addAskUserRequest: (sessionId: string, req: AskUserRequest) => void;
   removeAskUserRequest: (sessionId: string, askUserId: string) => void;
@@ -248,7 +245,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMessages: (sessionId, messages) => get().updateSessionState(sessionId, () => ({ messages })),
   addMessage: (sessionId, message) =>
     get().updateSessionState(sessionId, (s) => ({ messages: [...s.messages, message] })),
-  setIsStreaming: (sessionId, v) => get().updateSessionState(sessionId, () => ({ isStreaming: v })),
   setAskUserRequest: (sessionId, req) =>
     get().updateSessionState(sessionId, () => ({
       askUserRequests: req ? [req] : [],

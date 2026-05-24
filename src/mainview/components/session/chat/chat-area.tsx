@@ -25,7 +25,8 @@ function scrollToBottomNow(bottomEl: HTMLElement | null) {
 export function ChatArea({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
-  const { messages, isStreaming, activeToolCalls } = useSessionState(sessionId);
+  const isStreaming = session.isStreaming;
+  const { messages, activeToolCalls } = useSessionState(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -130,8 +130,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { addMessage, setIsStreaming } = useAppStore();
-  const { isStreaming } = useSessionState(session.id);
+  const { addMessage, updateSession } = useAppStore();
+  const isStreaming = session.isStreaming;
   const availableModels = session.models?.availableModels ?? [];
   const currentModelId = session.models?.currentModelId ?? null;
   const availableModes = session.modes?.availableModes ?? [];
@@ -384,6 +384,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       return [];
     });
     addMessage(session.id, userMessage);
+    updateSession({ ...session, isStreaming: true });
     document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
 
     try {
@@ -394,7 +395,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       });
 
       // 3. Generation completed successfully.
-      // The backend has already broadcasted isStreaming: false via session_info_update.
+      // Reset session.isSteaming
     } catch (err) {
       // 4. Rollback on Network Failure
       const currentState = useAppStore.getState().getSessionState(session.id);
@@ -417,8 +418,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       useAppStore
         .getState()
         .updateSessionState(session.id, () => reduceFlushStreaming(currentState));
+
+      updateSession({ ...session, isStreaming: false });
     }
-  }, [input, attachments, session.id, isStreaming, addMessage, setIsStreaming]);
+  }, [input, attachments, session, isStreaming, addMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;

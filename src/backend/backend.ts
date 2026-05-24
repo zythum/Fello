@@ -315,12 +315,6 @@ const pendingAskUserRequests = new Map<
   }
 >();
 
-// Track sessions that are currently streaming to sync multiple clients
-const activeStreamingSessions = new Set<string>();
-
-// Track generation locks to prevent race conditions during concurrent sendPrompt calls
-const sessionGenerationLocks = new Map<string, string>();
-
 // Track sessions that are currently being restored (via loadSession) to block duplicate/invalid replays from agent
 const restoringSessions = new Set<string>();
 
@@ -575,21 +569,6 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
           // Buffer chunks, send only when streaming ends
           ilinkReplyBuffer += content.text;
         }
-      } else if (sessionUpdate === "session_info_update") {
-        const meta = enrichedNotification.update._meta as Record<string, unknown> | undefined;
-        if (meta?.isStreaming === true) {
-          ilinkBridge.sendTyping(userId, true).catch(() => {});
-        } else if (meta?.isStreaming === false) {
-          ilinkBridge.sendTyping(userId, false).catch(() => {});
-          // Flush buffered reply
-          if (ilinkReplyBuffer) {
-            const text = ilinkReplyBuffer;
-            ilinkReplyBuffer = "";
-            ilinkBridge.sendTextReply(userId, text).catch((err) => {
-              console.warn("[iLink] Failed to forward reply to WeChat:", err);
-            });
-          }
-        }
       }
     }
   }
@@ -758,6 +737,14 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
       const sessionId = `${agentId}:${notification.sessionId}`;
       if (restoringSessions.has(sessionId)) {
         return; // Block agent replay during loadSession
+      }
+
+      if (notification.update?.sessionUpdate === "session_info_update") {
+        if (notification.update.title) {
+          storageOps.updateSession(sessionId, { title: notification.update.title });
+          const updated = storageOps.getSession(sessionId);
+          if (updated) sendEvent("session-changed", { session: updated });
+        }
       }
 
       if (notification.update?.sessionUpdate === "current_mode_update") {
@@ -1185,7 +1172,6 @@ export const backendHandlers: {
       initializeInfo: b.initializeInfo,
       models: models ?? null,
       modes: modes ?? null,
-      isStreaming: false,
     };
   },
 
@@ -1289,7 +1275,6 @@ export const backendHandlers: {
       initializeInfo: b.initializeInfo,
       models: finalModels,
       modes: finalModes,
-      isStreaming: activeStreamingSessions.has(session.id),
     };
   },
 
@@ -1299,7 +1284,6 @@ export const backendHandlers: {
     const messages = storageOps.readSessionMessages(sessionId);
     return {
       messages,
-      isStreaming: activeStreamingSessions.has(sessionId),
     };
   },
 
@@ -1310,7 +1294,7 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
 
     // If this session is currently streaming, cancel the previous generation first
-    if (activeStreamingSessions.has(sessionId)) {
+    if (session.isStreaming) {
       console.log(
         `[Fello] Session ${sessionId} is already streaming, cancelling previous generation...`,
       );
@@ -1371,14 +1355,15 @@ export const backendHandlers: {
       await createSessionSocketServer(session.id, { socketPath, project });
     }
 
-    storageOps.touchSession(sessionId);
+    storageOps.updateSession(sessionId, { isStreaming: true });
     const updated = storageOps.getSession(sessionId);
     if (updated) sendEvent("session-changed", { session: updated });
-
-    // Generate a unique ID for this generation attempt to prevent race conditions
-    const currentGenerationId = randomUUID();
-    sessionGenerationLocks.set(sessionId, currentGenerationId);
-    activeStreamingSessions.add(sessionId);
+    if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+      const userId = ilinkBridge.userId;
+      if (userId) {
+        ilinkBridge.sendTyping(userId, true).catch(() => {});
+      }
+    }
 
     // Broadcast user message to clients
     for (const content of contents) {
@@ -1392,16 +1377,6 @@ export const backendHandlers: {
       broadcastAndSaveSessionUpdate(session.id, notification);
     }
 
-    // Broadcast streaming start
-    const startNotification: SessionNotification = {
-      sessionId: session.resumeId,
-      update: {
-        sessionUpdate: "session_info_update",
-        _meta: { isStreaming: true },
-      },
-    };
-    broadcastAndSaveSessionUpdate(session.id, startNotification);
-
     let promptResponse: PromptResponse | undefined;
     try {
       promptResponse = await b.sendPrompt({
@@ -1410,24 +1385,22 @@ export const backendHandlers: {
       });
       return promptResponse;
     } finally {
-      // Only broadcast end and clear state if this is still the active generation
-      if (sessionGenerationLocks.get(sessionId) === currentGenerationId) {
-        sessionGenerationLocks.delete(sessionId);
-        activeStreamingSessions.delete(sessionId);
-
-        // Broadcast streaming end
-        const endNotification: SessionNotification = {
-          sessionId: session.resumeId,
-          update: {
-            sessionUpdate: "session_info_update",
-            _meta: {
-              isStreaming: false,
-              usage: promptResponse?.usage,
-              stopReason: promptResponse?.stopReason,
-            },
-          },
-        };
-        broadcastAndSaveSessionUpdate(session.id, endNotification);
+      storageOps.updateSession(sessionId, { isStreaming: false });
+      const updated = storageOps.getSession(sessionId);
+      if (updated) sendEvent("session-changed", { session: updated });
+      if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+        const userId = ilinkBridge.userId;
+        if (userId) {
+          ilinkBridge.sendTyping(userId, false).catch(() => {});
+          // Flush buffered reply
+          if (ilinkReplyBuffer) {
+            const text = ilinkReplyBuffer;
+            ilinkReplyBuffer = "";
+            ilinkBridge.sendTextReply(userId, text).catch((err) => {
+              console.warn("[iLink] Failed to forward reply to WeChat:", err);
+            });
+          }
+        }
       }
     }
   },

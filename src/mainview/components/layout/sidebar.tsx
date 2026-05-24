@@ -501,7 +501,7 @@ export function Sidebar() {
                           {(() => {
                             const state = sessionStates.get(session.id);
                             const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
-                            const isStreaming = state?.isStreaming;
+                            const isStreaming = session.isStreaming;
                             if (hasAskUser) {
                               return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
                             }

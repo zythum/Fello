@@ -102,20 +102,17 @@ function AppContent() {
       const start = performance.now();
 
       for (const [sid, updates] of pendingSessionUpdatesRef.current.entries()) {
-        // 1. Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
+        // Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
         pendingSessionUpdatesRef.current.delete(sid);
 
         let nextTitle: string | null = null;
         let processedCount = 0;
 
-        // 3. Apply batch of updates securely on top of the freshest state
+        // Apply batch of updates securely on top of the freshest state
         store.updateSessionState(sid, (currentState) => {
           let state = currentState;
           for (let i = 0; i < updates.length; i++) {
             const update = updates[i];
-            if (update?.sessionUpdate === "session_info_update" && update.title) {
-              nextTitle = update.title;
-            }
             state = reduceSessionUpdate(state, update);
             processedCount++;
 
@@ -127,24 +124,19 @@ function AppContent() {
           return state;
         });
 
-        // 4. Handle side-effects
-        if (nextTitle) {
-          request.updateSession({ sessionId: sid, title: nextTitle });
-        }
-
-        // 5. Re-queue unprocessed updates
+        // Re-queue unprocessed updates
         if (processedCount < updates.length) {
           // By setting it again, it moves to the end of Map iteration order
           pendingSessionUpdatesRef.current.set(sid, updates.slice(processedCount));
         }
 
-        // 6. Break outer loop if time budget exceeded
+        // Break outer loop if time budget exceeded
         if (performance.now() - start > budgetMs) {
           break;
         }
       }
 
-      // 7. Schedule next flush if there are still items in the queue
+      // Schedule next flush if there are still items in the queue
       if (pendingSessionUpdatesRef.current.size > 0) {
         scheduleFlushPendingSessionUpdates();
       }

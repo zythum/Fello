@@ -94,7 +94,6 @@ export function ChatHeader({ session }: ChatHeaderProps) {
         state = reduceSessionUpdate(state, update);
       }
 
-      state.isStreaming = result.isStreaming;
       state.pendingUpdates = [];
       state.isLoading = false;
 
@@ -145,7 +144,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           </PopoverPrimitive.Trigger>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
-              <PopoverPrimitive.Popup className="z-10 min-w-56 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-[var(--transform-origin)] data-[ending-style]:scale-90 data-[starting-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 transition-[transform,opacity] duration-100">
+              <PopoverPrimitive.Popup className="z-10 min-w-56 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
                 {/* Features toggles */}
                 <div className="px-2 py-1 text-xs font-normal text-muted-foreground/70">
                   {t("constant.feature.title", "Features")}

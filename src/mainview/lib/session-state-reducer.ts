@@ -229,57 +229,11 @@ export function reduceSessionUpdate(
       };
       break;
 
-    case "session_info_update":
-      if (update._meta) {
-        if (typeof update._meta.isStreaming === "boolean") {
-          nextState = { ...currentState, isStreaming: update._meta.isStreaming };
-        }
-
-        if (update.title && typeof update.title === "string") {
-          // Note: update.title will be extracted by the App level listener
-          // which can call request.updateSession IPC to persist it.
-          // We can optionally keep it in state if needed, but Fello reads session title from global AppStore sessions.
-        }
-
-        if (update._meta.usage) {
-          const usage = update._meta.usage as {
-            inputTokens: number;
-            outputTokens: number;
-            totalTokens: number;
-            cachedReadTokens?: number;
-          };
-          nextState = {
-            ...nextState,
-            messages: [
-              ...nextState.messages,
-              {
-                role: "system_message",
-                kind: "info",
-                displayId: update._meta?.fello?.displayId ?? generateUUID(),
-                receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
-                contents: [
-                  i18n.t("session.usageSummary", {
-                    total: usage.totalTokens,
-                    input: usage.inputTokens,
-                    output: usage.outputTokens,
-                    cachedPart: usage.cachedReadTokens
-                      ? i18n.t("session.usageSummaryCached", {
-                          cached: usage.cachedReadTokens,
-                        })
-                      : "",
-                  }),
-                ],
-              } satisfies ChatMessage,
-            ],
-          };
-        }
-      }
-      break;
-
     case "usage_update":
       nextState = calculateUsageUpdate(currentState, update);
       break;
 
+    case "session_info_update":
     case "current_mode_update":
       // modes state is now updated via session-changed IPC
       break;
@@ -303,6 +257,5 @@ export function reduceFlushStreaming(currentState: SessionState): SessionState {
     ...currentState,
     messages: newMessages,
     activeToolCalls: new Map(), // clearToolCalls logic
-    isStreaming: false, // finalize the streaming cycle
   };
 }

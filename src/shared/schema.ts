@@ -244,6 +244,8 @@ export interface SessionInfo {
   modes: SessionModeState | null;
   /** 缓存的代理初始化信息 */
   initializeInfo: InitializeResponse | null;
+  /** 是否在输出中 */
+  isStreaming: boolean;
 }
 
 /**
@@ -356,8 +358,6 @@ export type FelloIPCRequests = {
       models: SessionModelState | null;
       /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
-      /** 会话是否正在流式生成响应中 */
-      isStreaming: boolean;
     };
   };
   /** 加载已有会话 */
@@ -372,8 +372,6 @@ export type FelloIPCRequests = {
       models: SessionModelState | null;
       /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
-      /** 会话是否正在流式生成响应中 */
-      isStreaming: boolean;
     };
   };
   /** 获取会话历史记录 */
@@ -381,7 +379,6 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: {
       messages: SessionNotificationFelloExt[];
-      isStreaming: boolean;
     };
   };
   /** 向会话发送用户 Prompt */
