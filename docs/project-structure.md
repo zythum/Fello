@@ -21,9 +21,14 @@ fello/
 │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
 │   │   ├── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
-│   │   ├── watcher.ts                # 文件系统监控（chokidar 封装）
+│   │   ├── watcher.ts                # 文件系统监控（@parcel/watcher 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成
+│   │   ├── socket-server.ts          # Unix Domain Socket HTTP 服务器（MCP 子进程 IPC）
+│   │   ├── i18n.ts                   # 后端多语言初始化
+│   │   ├── locales/                  # 后端多语言 JSON 字典
+│   │   │   ├── en.json
+│   │   │   └── zh-CN.json
 │   │   │   ├── agent-bridge.ts           # Agent 连接封装（类型路由、生命周期管理）
 │   │   │   ├── base-agent.ts            # AgentProcess 统一接口
 │   │   │   ├── stdio-agent.ts           # Stdio Agent 进程 spawn（child_process）
@@ -33,12 +38,25 @@ fello/
 │   │       ├── ilink-client.ts       # iLink REST API 客户端
 │   │       └── ilink-crypto.ts       # iLink 加密工具
 │   │
-│   ├── electron/                     # Electron 主进程 + preload
+│   ├── electron/                     # Electron 主进程
 │   │   ├── main.ts                   # 应用入口、窗口生命周期、系统菜单、全屏管理
-│   │   └── preload.ts                # contextBridge 暴露 window.fello.invoke/on/off
+│   │   ├── updater.ts                # 自动更新逻辑
+│   │   └── env.ts                    # 环境变量配置
+│   │
+│   ├── scripts/                      # 构建脚本入口（preload + MCP 子进程）
+│   │   ├── electron-preload/
+│   │   │   └── preload.ts            # contextBridge 暴露 window.fello.invoke/on/off
+│   │   ├── mcp-skills/
+│   │   │   └── server.ts             # Skills MCP server
+│   │   └── mcp-ask-user/
+│   │       └── server.ts             # Ask User MCP server
 │   │
 │   ├── shared/                       # 前后端共享类型与常量
-│   │   └── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
+│   │   ├── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
+│   │   ├── constants.ts              # 共享常量（Feature 列表、i18n key 映射等）
+│   │   └── zod/                      # 共享 Zod schema
+│   │       ├── mcp-ask-user-schema.ts
+│   │       └── mcp-skills-schema.ts
 │   │
 │   └── mainview/                     # Renderer（React SPA）
 │       ├── App.tsx                   # 根组件，订阅全局事件，挂载路由与全局上下文
@@ -58,6 +76,7 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
+│       │   ├── shiki-preload.ts      # Shiki 代码高亮预加载（@pierre/diffs 内置）
 │       │   ├── chat-message.ts       # 多态消息类型定义与 ContentBlock 鉴别器
 │       │   ├── regexp.ts             # 正则表达式工具
 │       │   ├── terminal-manager.ts   # 终端输出管理器
@@ -83,7 +102,11 @@ fello/
 │       │   │       ├── detail.tsx         # 详情视图容器 (根据类型分发)
 │       │   │       ├── file/
 │       │   │       │   ├── file-detail.tsx    # 文件内容与图片预览 (带关闭按钮)
-│       │   │       │   └── search-bar.tsx     # 文件搜索条
+│       │   │       │   ├── search-bar.tsx     # 文件搜索条
+│       │   │       │   ├── file-view-tabs.tsx # 文件视图标签切换
+│       │   │       │   ├── file-types.ts      # 文件类型判断工具
+│       │   │       │   ├── use-file-loading.ts # 文件加载 Hook
+│       │   │       │   └── use-file-search.ts  # 文件搜索 Hook
 │       │   │       └── terminal/
 │       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件
@@ -118,14 +141,21 @@ fello/
 │       │   │   ├── message.tsx       # 全局消息/Toast 提示管理
 │       │   │   └── theme.tsx         # 基于 next-themes 的主题控制
 │       │   ├── welcome/              # 欢迎页面
-│       │   │   └── welcome.tsx
+│       │   │   ├── welcome.tsx
+│       │   │   ├── welcome.css
+│       │   │   └── particle-background.tsx  # 粒子动画背景
 │       │   ├── common/               # 通用业务组件
 │       │   │   ├── agent-terminal-output.tsx    # Agent 终端输出渲染
-│       │   │   ├── code-view.tsx               # 代码高亮展示
-│       │   │   ├── code-compare-view.tsx        # 代码 Diff 对比视图
+│       │   │   ├── code-view.tsx               # 代码高亮展示（@pierre/diffs）
+│       │   │   ├── code-compare-view.tsx        # 代码 Diff 对比视图（@pierre/diffs）
 │       │   │   ├── image-view.tsx              # 图片预览
 │       │   │   ├── stream-markdown.tsx         # 流式 Markdown 渲染
-│       │   │   └── shiki-highlighter.ts        # Shiki 代码高亮引擎
+│       │   │   ├── pdf-view.tsx                # PDF 文档预览
+│       │   │   ├── docx-view.tsx               # DOCX 文档预览
+│       │   │   ├── xlsx-view.tsx               # Excel 文档预览
+│       │   │   ├── pptx-view.tsx               # PPTX 演示文稿预览
+│       │   │   ├── use-search-highlight.ts     # 搜索高亮 Hook
+│       │   │   └── pdf-worker-wrapper.ts       # PDF Worker 封装
 │       │   ├── content-blocks/       # 多模态消息内容渲染组件
 │       │   │   ├── content-blocks.tsx    # ContentBlock 路由器
 │       │   │   ├── text-block.tsx        # 文本块
@@ -183,7 +213,7 @@ fello/
 ### `src/backend`
 
 - 面向系统能力的底层实现：文件系统、终端 PTY
-- 负责 Agent 进程与会话生命周期管理（`acp-bridge.ts`）
+- 负责 Agent 进程与会话生命周期管理（`agent/agent-bridge.ts`）
 - Agent 进程 spawner：Stdio（child_process）和 API（in-process）
 - iLink 微信集成：连接管理、消息收发
 - Skills 系统：目录扫描、skills.sh 市场集成
@@ -194,7 +224,7 @@ fello/
 - Electron 应用生命周期与窗口管理
 - 系统菜单、Dock 集成、系统对话框、Finder 定位等原生能力
 - 注册由 `src/backend` 提供的 IPC 处理器
-- `preload.ts` 负责安全地将 IPC 能力暴露给渲染进程
+- `src/scripts/electron-preload/preload.ts` 负责安全地将 IPC 能力暴露给渲染进程
 
 ### `src/mainview`
 
@@ -210,6 +240,9 @@ fello/
 ```
 ~/.fello/
 ├── settings.json                    # 全局设置
+├── sockets/                         # Unix Domain Socket 文件（MCP 子进程 IPC）
+├── workspaces/                      # 工作区临时数据
+├── temp/                            # 临时文件目录
 ├── projects/                        # 项目数据（Stdio Agent 会话）
 │   └── <project-id>/
 │       ├── project.json
@@ -223,7 +256,7 @@ fello/
 │   └── <agent-id>/
 │       └── sessions/
 │           └── <session-id>/
-│               ├── session.json     # 会话状态（modelId, allowedToolKinds）
+│               ├── session.json     # 会话状态（modelId, allowedToolKinds, contextUsedTokens）
 │               └── history.jsonl    # 对话历史 (NDJSON ModelMessage)
 └── ilink/                           # 微信 iLink 数据
     ├── credentials.json             # 登录凭证（加密存储）
@@ -237,13 +270,15 @@ fello/
 - `mcpServers`: MCP Server 列表，支持 `StdioMcpServerInfo` 和 `HttpMcpServerInfo` 两种类型
 - `theme`: UI 主题配置（`themeMode`: `"light" | "dark" | "system"`）
 - `i18n`: 应用语言配置（`language`: `"en"` | `"zh-CN"`）
+- `fileWatcher`: 文件监听配置（`enabled`: `boolean`）
+- `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`）
 
 `project.json` 字段：
 
 - `id`: 项目 ID（cwd 的 SHA1 哈希）
 - `title`: 项目名称
 - `cwd`: 项目工作目录
-- `createdAt` / `updatedAt`: 毫秒级时间戳
+- `createdAt`: 毫秒级时间戳
 
 `session.json` 字段（API Agent 会话）：
 

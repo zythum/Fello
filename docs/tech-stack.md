@@ -58,7 +58,7 @@
 | @xterm/xterm | ^6.0.0 | Renderer 终端渲染 |
 | @xterm/addon-fit | ^0.11.0 | xterm 自适应容器尺寸 |
 | @xterm/addon-web-links | ^0.12.0 | xterm 链接识别 |
-| chokidar | ^5.0.0 | 文件系统监控 |
+| @parcel/watcher | ^2.5.6 | 文件系统监控 |
 | Fuse.js | ^7.3.0 | 文件提及模糊搜索（`searchFiles`） |
 
 ## 状态管理与数据组织
@@ -80,9 +80,18 @@
 | @streamdown/cjk | ^1.0.3 | CJK 中日韩字符优化扩展 |
 | @streamdown/math | ^1.0.2 | 数学公式扩展 |
 | @streamdown/mermaid | ^1.0.2 | Mermaid 图表扩展 |
-| react-diff-viewer-continued | ^4.2.0 | 代码 Diff 双栏/单栏对比视图 |
-| shiki | ^1.0.0 | 代码高亮底层引擎，通过 `shiki-highlighter.ts` 统一管理 |
+| @pierre/diffs | ^1.2.2 | 代码 Diff 双栏/单栏对比视图 + 代码高亮（内置 shiki） |
 | remark-breaks | ^4.0.0 | Markdown 换行支持 |
+
+## 文档预览
+
+| 技术 | 版本 | 说明 |
+| --- | --- | --- |
+| docx-preview | ^0.3.7 | DOCX 文档预览渲染 |
+| pdfjs-dist | ^5.7.284 | PDF 文档预览渲染 |
+| pptx-viewer | ^0.2.2 | PPTX 演示文稿预览 |
+| xlsx | ^0.18.5 | Excel 文件解析 |
+| xlsx-preview | ^1.0.5 | Excel 文件预览渲染 |
 
 ## 工程质量与规范执行
 

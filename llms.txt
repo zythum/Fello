@@ -2,7 +2,7 @@ Fello (Electron ACP Client)
 
 Runtime
 - Main process: src/electron/main.ts
-- Preload (contextBridge): src/electron/preload.ts
+- Preload (contextBridge): src/scripts/electron-preload/preload.ts
 - Backend Logic (Node.js): src/backend/ (IPC handlers, ACP bridge, terminal manager, WebUI server, iLink bridge, skills catalog)
 - Agent Session Logic (shared): src/agents/ (session-state, storage, OpenAI-compatible agent, MCP tools, ACP tools, permission memory, system prompts)
 - Renderer (React + Vite): src/mainview/
@@ -36,7 +36,7 @@ Sessions & Persistence
 - Routing: src/mainview/router.tsx (react-router-dom HashRouter with /settings/* and /skills/* nested routes)
 - ChatMessage polymorphic interface: src/mainview/lib/chat-message.ts (supports ContentBlocks for text, image, audio, etc.)
 - Content block rendering: src/mainview/components/content-blocks/
-- Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by react-diff-viewer-continued & shiki, ImageView, AgentTerminalOutput, StreamMarkdown)
+- Common Components: src/mainview/components/common/ (CodeView, CodeCompareView powered by @pierre/diffs, ImageView, AgentTerminalOutput, StreamMarkdown)
 - Global Error Handling: src/mainview/components/global/error-boundary.tsx
 - ACP events handling: src/mainview/lib/session-state-reducer.ts
 - Chat input attachments: src/mainview/components/session/chat/chat-input.tsx (file picker + drag-and-drop; filters by agent promptCapabilities)

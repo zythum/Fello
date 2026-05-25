@@ -7,6 +7,9 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 ```text
 ~/.fello/
 ├── settings.json                  # 全局设置（代理配置、MCP 服务器、主题、语言等）
+├── sockets/                       # Unix Domain Socket 文件（MCP 子进程 IPC）
+├── workspaces/                    # 工作区临时数据
+├── temp/                          # 临时文件目录
 ├── projects/                      # 项目工作区数据（Stdio Agent 会话）
 │   └── <project_id>/              # 每个项目一个独立文件夹，<project_id> 是项目路径 cwd 的 SHA1 哈希值
 │       ├── project.json           # 该项目的元数据
@@ -20,7 +23,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 │   └── <agent_id>/                # 每个 API Agent 一个独立文件夹
 │       └── sessions/
 │           └── <session_id>/      # 每个会话独立文件夹（UUID）
-│               ├── session.json   # 会话状态（modelId, allowedToolKinds）
+│               ├── session.json   # 会话状态（modelId, allowedToolKinds, contextUsedTokens）
 │               └── history.jsonl  # 对话历史 (NDJSON ModelMessage)
 └── ilink/                         # 微信 iLink 数据
     ├── credentials.json           # 登录凭证（权限 0o600）
@@ -65,6 +68,10 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | ↳ `theme_mode` | `"light" \| "dark" \| "system"` | UI 主题模式。 |
 | `i18n` | `Object` | 国际化设置。 |
 | ↳ `language` | `string` | 当前使用的语言代码（如 `"en"`, `"zh-CN"`）。 |
+| `fileWatcher` | `Object` | 文件监听设置。 |
+| ↳ `enabled` | `boolean` | 是否启用自动监听项目文件变更。 |
+| `ilink` | `Object` | iLink 相关设置。 |
+| ↳ `useOriginalImage` | `boolean` | 是否使用原图（默认 false，使用缩略图以节省 token）。 |
 
 ### 2. 项目元数据 (`projects/<project_id>/project.json`)
 管理用户添加的各个本地代码仓库或工作区。
@@ -75,7 +82,6 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `title` | `string` | 项目的显示名称。默认取 `cwd` 目录的 basename（如 `"fello"`）。 |
 | `cwd` | `string` | 项目的绝对路径。 |
 | `created_at` | `number` | 项目的创建时间（**毫秒级**时间戳，如 `Date.now()`）。 |
-| `updated_at` | `number` | 项目的最后更新时间（**毫秒级**时间戳）。 |
 
 ### 3. 会话元数据 (`projects/<project_id>/sessions/<session_id>/session.json`)
 记录用户在特定项目中与特定 Agent 的对话历史元数据。
@@ -107,6 +113,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | :--- | :--- | :--- |
 | `modelId` | `string \| null` | 当前选中的模型 ID。 |
 | `allowedToolKinds` | `string[]` | 被"始终允许"的工具权限种类列表。 |
+| `contextUsedTokens` | `number \| undefined` | 上下文窗口已用 Token 数（可选，持久化后恢复用）。 |
 
 ### 5. 历史会话流事件 (`messages.jsonl` / `history.jsonl`)
 

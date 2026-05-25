@@ -105,12 +105,14 @@ sendPrompt: {
 
 | 方法 | params | response | 说明 |
 |---|---|---|---|
-| `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes, isStreaming }` | 创建新会话 |
-| `loadSession` | `{ sessionId }` | `{ sessionId, initializeInfo, models, modes, isStreaming }` | 恢复已有关会话 |
-| `getSessionHistory` | `{ sessionId }` | `{ messages, isStreaming }` | 获取会话历史消息 |
-| `sendPrompt` | `{ sessionId, contents }` | `{ stopReason }` | 发送用户 Prompt |
+| `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes }` | 创建新会话 |
+| `loadSession` | `{ sessionId }` | `{ sessionId, initializeInfo, models, modes }` | 恢复已有关会话 |
+| `getSessionHistory` | `{ sessionId }` | `{ messages }` | 获取会话历史消息 |
+| `sendPrompt` | `{ sessionId, contents }` | `{ stopReason, usage? }` | 发送用户 Prompt |
 | `cancelPrompt` | `{ sessionId }` | `void` | 取消当前生成 |
-| `respondPermission` | `{ toolCallId, optionId }` | `void` | 响应权限请求 |
+| `respondAskUser` | `{ sessionId, askUserId, value, reason? }` | `void` | 响应 askUser 请求 |
+| `getPendingAskUserRequests` | `{ sessionId }` | `AskUserRequest[]` | 获取 pending 的 askUser 请求 |
+| `changeWorkDir` | `{ sessionId }` | `{ ok, cwd }` | 更改会话工作目录 |
 
 ### 模型与模式
 

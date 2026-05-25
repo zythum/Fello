@@ -65,7 +65,7 @@
 ### Main Process（`src/electron/` & `src/backend/`）
 
 - **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
-- **`src/electron/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
+- **`src/scripts/electron-preload/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、Skills/iLink IPC 注册
 - **`src/backend/agent/agent-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
 - **`src/backend/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程

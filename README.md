@@ -99,7 +99,7 @@ npm run pack:linux   # Linux
 
 `npm run dev` starts:
 
-1. **Vite dev server** on `http://localhost:5173` with HMR enabled
+1. **Vite dev server** on `http://localhost:6234` with HMR enabled
 2. **Electron** loads the renderer from the Vite dev server
 3. React components update instantly without full page reload
 
@@ -114,7 +114,7 @@ Main/preload changes typically require restarting the dev process.
 │   ├── backend/              # IPC handlers, FS, Terminal, WebUI, Skills
 │   │   ├── agents/           # Agent process spawners (stdio, API)
 │   │   └── ilink/            # WeChat iLink integration
-│   ├── electron/             # Electron main process & preload
+│   ├── electron/             # Electron main process
 │   └── mainview/             # React app (components, routing, store, i18n, styles)
 ├── docs/                     # Architecture, guides, conventions
 ├── tools/                    # Build scripts
@@ -129,8 +129,8 @@ Main/preload changes typically require restarting the dev process.
 | Routing | `src/mainview/router.tsx` |
 | i18n translations | `src/mainview/locales/*.json` |
 | Window / lifecycle | `src/electron/main.ts` |
-| Backend logic | `src/backend/backend.ts` + `src/backend/acp-bridge.ts` |
-| IPC bridge | `src/electron/preload.ts`, `src/mainview/backend.ts` |
+| Backend logic | `src/backend/backend.ts` + `src/backend/agent/agent-bridge.ts` |
+| IPC bridge | `src/scripts/electron-preload/preload.ts`, `src/mainview/backend.ts` |
 | IPC types | `src/shared/schema.ts` |
 | Agent implementations | `src/agents/` + `src/backend/agents/` |
 | Build config | `electron.vite.config.ts` |
