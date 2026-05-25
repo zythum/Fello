@@ -1073,7 +1073,8 @@ export const backendHandlers: {
     const newAgents = settings.agents;
     if (newAgents) {
       const oldAgents = storageOps.getSettings().agents;
-      const changed = oldAgents.length !== newAgents.length ||
+      const changed =
+        oldAgents.length !== newAgents.length ||
         oldAgents.some((a, i) => JSON.stringify(a) !== JSON.stringify(newAgents[i]));
       if (changed) {
         for (const [agentId, p] of bridgePool) {

@@ -367,7 +367,10 @@ export class ILinkBridge {
    * Download and decrypt an image from a WeixinMessage image_item.
    * Returns base64-encoded image data.
    */
-  async downloadImage(imageItem: ImageItem, options: { useOriginalImage?: boolean } = {}): Promise<string | null> {
+  async downloadImage(
+    imageItem: ImageItem,
+    options: { useOriginalImage?: boolean } = {},
+  ): Promise<string | null> {
     if (!this.client) return null;
 
     const useThumb = !options.useOriginalImage;

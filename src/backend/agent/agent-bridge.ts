@@ -300,9 +300,31 @@ export class ACPBridge {
         terminalManager.release(params.terminalId);
         return {};
       },
-      async extNotification(_method: string, _params: unknown): Promise<void> {
+      async extNotification(method: string, params: unknown): Promise<void> {
         if (process.env.NODE_ENV === "development") {
-          console.log(`[ACP Ext Notification] Method: ${_method}`);
+          console.log(`[ACP Ext Notification] Method: ${method}`);
+        }
+        // 兼容 kiro
+        // kiro 只给了比例，没有给具体数值。所以这边如果size = 1 时，认为只有比例正确，数值忽略处理
+        if (method === "_kiro.dev/metadata") {
+          if (
+            typeof params === "object" &&
+            params &&
+            "contextUsagePercentage" in params &&
+            typeof params.contextUsagePercentage === "number" &&
+            "sessionId" in params &&
+            typeof params.sessionId === "string"
+          ) {
+            onUpdate({
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "usage_update",
+                used: params.contextUsagePercentage / 100,
+                size: 1,
+              },
+            });
+          }
+          return;
         }
       },
     };

@@ -541,10 +541,7 @@ export class OpenaiCompatibleAgent implements Agent {
       await this.appendSessionHistory(session.id, ...response.messages);
 
       // Get per-turn usage (sum of all steps) and last-step usage for context tracking
-      const [turnUsage, lastStepUsage] = await Promise.all([
-        result.totalUsage,
-        result.usage,
-      ]);
+      const [turnUsage, lastStepUsage] = await Promise.all([result.totalUsage, result.usage]);
       session.contextUsedTokens =
         (lastStepUsage.inputTokens ?? 0) + (lastStepUsage.outputTokens ?? 0);
 

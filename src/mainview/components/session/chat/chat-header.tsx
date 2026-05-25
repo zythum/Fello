@@ -238,8 +238,7 @@ function UsageButton({ sessionId }: { sessionId: string }) {
   if (!hasData) return null;
 
   const pct = usage?.size ? (usage.used / usage.size) * 100 : 0;
-  const pctColor =
-    pct > 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-primary";
+  const pctColor = pct > 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-primary";
 
   return (
     <PopoverPrimitive.Root>
@@ -254,10 +253,14 @@ function UsageButton({ sessionId }: { sessionId: string }) {
               {usage && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-foreground/80">{t("chatHeader.contextWindow")}</span>
-                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-                      {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
+                    <span className="font-semibold text-foreground/80">
+                      {t("chatHeader.contextWindow")}
                     </span>
+                    {usage.size > 1 ? (
+                      <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                        {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
+                      </span>
+                    ) : null}
                   </div>
                   {/* Progress bar */}
                   <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -267,10 +270,14 @@ function UsageButton({ sessionId }: { sessionId: string }) {
                     />
                   </div>
                   <div className="mt-1 flex justify-between text-[11px] text-muted-foreground/60">
-                    <span>{t("chatHeader.percentUsed", { pct: pct.toFixed(1) })}</span>
-                    <span>
-                      {t("chatHeader.remaining", { count: (usage.size - usage.used).toLocaleString() })}
-                    </span>
+                    <span>{t("chatHeader.percentUsed", { pct: pct.toFixed(2) })}</span>
+                    {usage.size > 1 ? (
+                      <span>
+                        {t("chatHeader.remaining", {
+                          count: (usage.size - usage.used).toLocaleString(),
+                        })}
+                      </span>
+                    ) : null}
                   </div>
                   {/* Cost */}
                   {usage.cost && (
@@ -299,10 +306,16 @@ function UsageButton({ sessionId }: { sessionId: string }) {
                         <Row label={t("chatHeader.thought")} value={lastTurnUsage.thoughtTokens} />
                       )}
                       {lastTurnUsage.cachedReadTokens != null && (
-                        <Row label={t("chatHeader.cacheRead")} value={lastTurnUsage.cachedReadTokens} />
+                        <Row
+                          label={t("chatHeader.cacheRead")}
+                          value={lastTurnUsage.cachedReadTokens}
+                        />
                       )}
                       {lastTurnUsage.cachedWriteTokens != null && (
-                        <Row label={t("chatHeader.cacheWrite")} value={lastTurnUsage.cachedWriteTokens} />
+                        <Row
+                          label={t("chatHeader.cacheWrite")}
+                          value={lastTurnUsage.cachedWriteTokens}
+                        />
                       )}
                     </div>
                   </div>
@@ -320,7 +333,9 @@ function Row({ label, value, bold }: { label: string; value: number; bold?: bool
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
-      <span className={`font-mono tabular-nums ${bold ? "font-semibold text-foreground/90" : "text-muted-foreground"}`}>
+      <span
+        className={`font-mono tabular-nums ${bold ? "font-semibold text-foreground/90" : "text-muted-foreground"}`}
+      >
         {value.toLocaleString()}
       </span>
     </div>

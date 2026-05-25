@@ -75,8 +75,7 @@ export async function loadPersistedSessionState(params: {
           .filter((value): value is string => typeof value === "string" && value.length > 0)
           .map((value) => value as PermissionKind)
       : [];
-    contextUsedTokens =
-      typeof parsed.contextUsedTokens === "number" ? parsed.contextUsedTokens : 0;
+    contextUsedTokens = typeof parsed.contextUsedTokens === "number" ? parsed.contextUsedTokens : 0;
   } catch {
     modelId = null;
     allowedToolKinds = [];

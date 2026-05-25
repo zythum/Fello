@@ -308,10 +308,7 @@ export function SettingsILink() {
                     )}
                   </span>
                 </div>
-                <Switch
-                  checked={ilink.useOriginalImage}
-                  onCheckedChange={handleUseOriginalImage}
-                />
+                <Switch checked={ilink.useOriginalImage} onCheckedChange={handleUseOriginalImage} />
               </div>
             </div>
           )}

@@ -193,7 +193,16 @@ function readSettings(): SettingsMeta {
           })();
           const contextWindowTokens =
             typeof cfg?.contextWindowTokens === "number" ? cfg.contextWindowTokens : undefined;
-          next[id] = { type, provider, baseUrl, apiKey, headers, disabled, order, contextWindowTokens };
+          next[id] = {
+            type,
+            provider,
+            baseUrl,
+            apiKey,
+            headers,
+            disabled,
+            order,
+            contextWindowTokens,
+          };
         }
       }
       return next;

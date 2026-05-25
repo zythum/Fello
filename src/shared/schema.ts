@@ -401,7 +401,7 @@ export type FelloIPCRequests = {
       sessionId: string;
       contents: ContentBlock[];
     };
-    response: { stopReason: string, usage?: Usage | null | undefined };
+    response: { stopReason: string; usage?: Usage | null | undefined };
   };
   /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };
