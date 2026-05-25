@@ -426,16 +426,46 @@ export class OpenaiCompatibleAgent implements Agent {
       return { stopReason: "end_turn" };
     }
 
+    if (session.history.length < 15) {
+      if (this.connection) {
+        await this.connection.sessionUpdate({
+          sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: `No need to compact` },
+          },
+        });
+      }
+      return { stopReason: "end_turn" };
+    }
+
+    const oldMessages = session.history.slice(0, -10);
+    const activeMessages = session.history.slice(-10);
+
     const summaryResult = await generateText({
       model: this.provider.chatModel(session.modelId),
-      system:
-        "Compress the conversation into a structured markdown summary. Include: key decisions, code changes (with file paths), technical context, and pending tasks. Use headings and bullet points for clarity. Output only the summary.",
-      messages: session.history,
-      maxOutputTokens: 2000,
+      messages: [
+        ...oldMessages,
+        {
+          role: "user",
+          content: `Compress the conversation into a structured markdown summary.
+ Include: key decisions, code changes (with file paths),
+ technical context, and pending tasks.
+ Use headings and bullet points for clarity. Output only the summary.`
+
+        }
+      ],
+      maxOutputTokens: 5000,
     });
 
-    const summary = summaryResult.text.trim();
-    session.history = [{ role: "assistant", content: [{ type: "text", text: summary }] }];
+    const summary = summaryResult.text;
+    session.history = [
+      {
+        role: 'system',
+        content: `Summary of previous conversation: ${summary}`,
+      },
+      ...activeMessages,
+    ];
     await savePersistedSessionHistory({
       agentId: this.agentId,
       sessionId: session.id,
