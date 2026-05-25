@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -620,27 +621,39 @@ export function Sidebar() {
                 <div className="text-xs text-muted-foreground">
                   {t("sidebar.newSessionDialog.agent", { defaultValue: "Agent" })}
                 </div>
-                <Select
-                  value={newSessionAgentId}
-                  onValueChange={(v) => {
-                    if (typeof v === "string") setNewSessionAgentId(v);
-                  }}
-                >
-                  <SelectTrigger size="sm" className="w-full" disabled={enabledAgents.length <= 1}>
-                    <SelectValue
-                      placeholder={t("sidebar.newSessionDialog.selectAgent", {
-                        defaultValue: "Select an agent",
-                      })}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {enabledAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {enabledAgents.length > 1 && enabledAgents.length <= 3 ? (
+                  <Tabs value={newSessionAgentId} onValueChange={(v) => setNewSessionAgentId(v as string)}>
+                    <TabsList className="w-full h-7! border rounded-md">
+                      {enabledAgents.map((agent) => (
+                        <TabsTrigger key={agent.id} value={agent.id} className="text-xs h-5 uppercase rounded-sm">
+                          {agent.id}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                ) : (
+                  <Select
+                    value={newSessionAgentId}
+                    onValueChange={(v) => {
+                      if (typeof v === "string") setNewSessionAgentId(v);
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-full">
+                      <SelectValue
+                        placeholder={t("sidebar.newSessionDialog.selectAgent", {
+                          defaultValue: "Select an agent",
+                        })}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {enabledAgents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="flex-1 flex flex-col gap-2">
                 <div className="text-xs text-muted-foreground">
