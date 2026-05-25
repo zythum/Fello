@@ -58,7 +58,7 @@ export function SettingsAgentStdioDialog({
     setArgsRaw(initialAgent?.args?.join(" ") || "");
     setEnvRaw(
       initialAgent && Object.keys(initialAgent.env || {}).length > 0
-        ? JSON.stringify(initialAgent.env)
+        ? JSON.stringify(initialAgent.env, null, "  ")
         : "",
     );
   }, [initialAgent, open]);
@@ -140,7 +140,7 @@ export function SettingsAgentStdioDialog({
                 autoCapitalize="off"
                 value={argsRaw}
                 onChange={(e) => setArgsRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-[60px] break-all max-w-full"
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
                 rows={3}
               />
             </div>
@@ -152,7 +152,7 @@ export function SettingsAgentStdioDialog({
                 placeholder={t("settings.agents.envJson")}
                 value={envRaw}
                 onChange={(e) => setEnvRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
               />
             </div>
           </div>

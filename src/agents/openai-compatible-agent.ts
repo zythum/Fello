@@ -451,9 +451,8 @@ export class OpenaiCompatibleAgent implements Agent {
           content: `Compress the conversation into a structured markdown summary.
  Include: key decisions, code changes (with file paths),
  technical context, and pending tasks.
- Use headings and bullet points for clarity. Output only the summary.`
-
-        }
+ Use headings and bullet points for clarity. Output only the summary.`,
+        },
       ],
       maxOutputTokens: 5000,
     });
@@ -461,7 +460,7 @@ export class OpenaiCompatibleAgent implements Agent {
     const summary = summaryResult.text;
     session.history = [
       {
-        role: 'system',
+        role: "system",
         content: `Summary of previous conversation: ${summary}`,
       },
       ...activeMessages,

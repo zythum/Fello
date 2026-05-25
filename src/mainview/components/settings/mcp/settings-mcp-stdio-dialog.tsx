@@ -58,7 +58,7 @@ export function SettingsMcpStdioDialog({
     setArgsRaw(initialMcp?.args?.join(" ") || "");
     setEnvRaw(
       initialMcp && Object.keys(initialMcp.env || {}).length > 0
-        ? JSON.stringify(initialMcp.env)
+        ? JSON.stringify(initialMcp.env, null, "  ")
         : "",
     );
   }, [initialMcp, open]);
@@ -139,7 +139,7 @@ export function SettingsMcpStdioDialog({
                 autoCapitalize="off"
                 value={argsRaw}
                 onChange={(e) => setArgsRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-[60px] break-all max-w-full"
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
                 rows={3}
               />
             </div>
@@ -151,7 +151,7 @@ export function SettingsMcpStdioDialog({
                 placeholder={t("settings.mcp.envJson", "Environment Variables (JSON)")}
                 value={envRaw}
                 onChange={(e) => setEnvRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
               />
             </div>
           </div>
