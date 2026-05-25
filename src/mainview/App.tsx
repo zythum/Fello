@@ -105,7 +105,6 @@ function AppContent() {
         // Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
         pendingSessionUpdatesRef.current.delete(sid);
 
-        let nextTitle: string | null = null;
         let processedCount = 0;
 
         // Apply batch of updates securely on top of the freshest state
