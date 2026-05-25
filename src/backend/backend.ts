@@ -62,6 +62,7 @@ import {
   writeActiveSessionId,
   hasImageItems,
   extractMessageText,
+  extractVoiceText,
 } from "./ilink/ilink-bridge";
 import { deletePersistedSessionDirectory } from "../agents/storage";
 import { initWatcher, syncWatchers } from "./watcher";
@@ -425,13 +426,15 @@ function getILinkBridge(): ILinkBridge {
         }
 
         const text = extractMessageText(msg);
+        const voiceText = extractVoiceText(msg);
         const hasImages = hasImageItems(msg);
-        if (!text.trim() && !hasImages) return;
+        const combinedText = [text, voiceText].filter(Boolean).join("\n");
+        if (!combinedText.trim() && !hasImages) return;
 
         const contents: ContentBlock[] = [];
 
-        if (text.trim()) {
-          contents.push({ type: "text", text });
+        if (combinedText.trim()) {
+          contents.push({ type: "text", text: combinedText });
         }
 
         if (hasImages && ilinkBridge) {

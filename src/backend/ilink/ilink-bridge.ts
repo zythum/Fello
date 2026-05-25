@@ -111,6 +111,17 @@ export function extractMessageText(msg: WeixinMessage): string {
 }
 
 /**
+ * Extract voice-to-text from a WeixinMessage's voice items.
+ */
+export function extractVoiceText(msg: WeixinMessage): string {
+  if (!msg.item_list) return "";
+  return msg.item_list
+    .filter((item) => item.type === 3 && item.voice_item?.text)
+    .map((item) => item.voice_item!.text!)
+    .join("");
+}
+
+/**
  * Check if a WeixinMessage contains image items.
  */
 export function hasImageItems(msg: WeixinMessage): boolean {
