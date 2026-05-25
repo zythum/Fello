@@ -209,13 +209,21 @@ async function createSessionSocketServer(
     project: ProjectInfo;
   },
 ): Promise<SocketServer> {
-  let sessionSocketServer = sessionSocketServers.get(sessionId);
-  if (sessionSocketServer) return sessionSocketServer;
+  const existing = sessionSocketServers.get(sessionId);
+  // 如果已有 server 且 socketPath 匹配，直接复用
+  if (existing && existing.socketPath === options.socketPath) {
+    return existing;
+  }
+  // 如果已有 server 但 socketPath 变了，先停掉旧的（避免 MCP 进程连到错误路径）
+  if (existing) {
+    existing.stop();
+    sessionSocketServers.delete(sessionId);
+  }
 
-  sessionSocketServer = await startSocketServer(options.socketPath);
+  const server = await startSocketServer(options.socketPath);
 
   // ask-user
-  sessionSocketServer.registry("ask-user/ask", async (payload) => {
+  server.registry("ask-user/ask", async (payload) => {
     const request = askUserAskRequestSchema.parse(payload);
     const result: z.infer<typeof askUserAskRespondSchema> = await askUser({
       sessionId,
@@ -225,14 +233,14 @@ async function createSessionSocketServer(
   });
 
   // skills
-  sessionSocketServer.registry("skills/catalog", async () => {
+  server.registry("skills/catalog", async () => {
     const catalog: z.infer<typeof skillCatalogSchema> = getSkillsCatalog({
       projectRoot: options.project.cwd,
     }).map((skill) => omit(skill, ["scope", "level"]));
     return catalog;
   });
 
-  sessionSocketServer.registry("skills/detail", async (payload) => {
+  server.registry("skills/detail", async (payload) => {
     const { id } = skillDetailRequestSchema.parse(payload);
     const catalog = getSkillsCatalog({
       projectRoot: options.project.cwd,
@@ -275,8 +283,8 @@ async function createSessionSocketServer(
     } satisfies z.infer<typeof skillDetailSchema>;
   });
 
-  sessionSocketServers.set(sessionId, sessionSocketServer);
-  return sessionSocketServer;
+  sessionSocketServers.set(sessionId, server);
+  return server;
 }
 
 function stopSessionSocketServer(sessionId: string) {
