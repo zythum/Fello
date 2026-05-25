@@ -167,6 +167,11 @@ export interface SettingFileWatcherInfo {
   enabled: boolean;
 }
 
+export interface SettingILinkInfo {
+  /** 是否使用原图（默认 false，使用缩略图以节省 token） */
+  useOriginalImage: boolean;
+}
+
 /**
  * 应用的全局设置信息
  */
@@ -181,6 +186,8 @@ export interface SettingsInfo {
   i18n: SettingI18nInfo;
   /** 文件监听开关：是否自动监听项目文件变更 */
   fileWatcher: SettingFileWatcherInfo;
+  /** iLink 相关设置 */
+  ilink: SettingILinkInfo;
 }
 
 /**

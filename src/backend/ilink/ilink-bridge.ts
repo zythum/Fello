@@ -367,13 +367,26 @@ export class ILinkBridge {
    * Download and decrypt an image from a WeixinMessage image_item.
    * Returns base64-encoded image data.
    */
-  async downloadImage(imageItem: ImageItem): Promise<string | null> {
+  async downloadImage(imageItem: ImageItem, options: { useOriginalImage?: boolean } = {}): Promise<string | null> {
     if (!this.client) return null;
-    const encryptQueryParam = imageItem.media?.encrypt_query_param;
+
+    const useThumb = !options.useOriginalImage;
+    let encryptQueryParam: string | undefined;
+    let aesKeyRaw: string | undefined;
+
+    if (useThumb && imageItem.thumb_media?.encrypt_query_param) {
+      // Prefer thumb (smaller size, saves tokens)
+      encryptQueryParam = imageItem.thumb_media.encrypt_query_param;
+      aesKeyRaw = imageItem.thumb_media.aes_key;
+    } else {
+      // Fallback to full-size image
+      encryptQueryParam = imageItem.media?.encrypt_query_param;
+      aesKeyRaw = imageItem.media?.aes_key || imageItem.aeskey;
+    }
+
     if (!encryptQueryParam) return null;
 
     const encrypted = await this.client.downloadFromCdn(encryptQueryParam);
-    const aesKeyRaw = imageItem.media?.aes_key || imageItem.aeskey;
     if (!aesKeyRaw) return encrypted.toString("base64");
 
     const key =

@@ -438,10 +438,11 @@ function getILinkBridge(): ILinkBridge {
         }
 
         if (hasImages && ilinkBridge) {
+          const { useOriginalImage } = storageOps.getSettings().ilink;
           for (const item of msg.item_list ?? []) {
             if (item.type !== 2 || !item.image_item) continue;
             try {
-              const base64 = await ilinkBridge.downloadImage(item.image_item);
+              const base64 = await ilinkBridge.downloadImage(item.image_item, { useOriginalImage });
               if (base64) {
                 contents.push({ type: "image", data: base64, mimeType: "image/jpeg" });
               }

@@ -82,6 +82,7 @@ export interface AppState {
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   fileWatcher: SettingsInfo["fileWatcher"];
+  ilink: SettingsInfo["ilink"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
     connected: boolean;
@@ -139,6 +140,7 @@ export interface AppState {
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
+  setIlink: (ilink: SettingsInfo["ilink"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -178,6 +180,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
+  ilink: { useOriginalImage: false },
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
@@ -316,6 +319,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
+  setIlink: (ilink) => set({ ilink }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),

@@ -211,7 +211,9 @@
       "step2": "Scan the QR code with WeChat",
       "step3": "A \"ClawBot\" contact appears in your WeChat",
       "step4": "Chat with ClawBot — messages are routed to the active session above",
-      "step5": "Right-click any session in the sidebar to set it as active for WeChat"
+      "step5": "Right-click any session in the sidebar to set it as active for WeChat",
+      "useOriginalImage": "Use Original Image",
+      "useOriginalImageDesc": "Send full-size images to the model (uses more tokens). When off, thumbnails are used."
     }
   },
   "chat": {

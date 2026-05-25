@@ -90,6 +90,9 @@ interface SettingsMeta {
   fileWatcher: {
     enabled: boolean;
   };
+  ilink: {
+    useOriginalImage: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -101,6 +104,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   mcpServers: {},
   fileWatcher: {
     enabled: true,
+  },
+  ilink: {
+    useOriginalImage: false,
   },
 };
 
@@ -257,7 +263,12 @@ function readSettings(): SettingsMeta {
         ? { enabled: rawObj.fileWatcher.enabled }
         : DEFAULT_SETTINGS.fileWatcher;
 
-    return { agents, theme, i18n, mcpServers, fileWatcher };
+    const ilink: SettingsMeta["ilink"] =
+      rawObj && isObject(rawObj.ilink) && typeof rawObj.ilink.useOriginalImage === "boolean"
+        ? { useOriginalImage: rawObj.ilink.useOriginalImage }
+        : DEFAULT_SETTINGS.ilink;
+
+    return { agents, theme, i18n, mcpServers, fileWatcher, ilink };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -506,6 +517,9 @@ export const storageOps = {
       fileWatcher: {
         enabled: meta.fileWatcher.enabled,
       },
+      ilink: {
+        useOriginalImage: meta.ilink.useOriginalImage,
+      },
     };
   },
 
@@ -598,6 +612,14 @@ export const storageOps = {
         }
         return {
           enabled: settings.fileWatcher.enabled,
+        };
+      })(),
+      ilink: (() => {
+        if (!settings.ilink) {
+          return prevMeta.ilink;
+        }
+        return {
+          useOriginalImage: settings.ilink.useOriginalImage,
         };
       })(),
     };

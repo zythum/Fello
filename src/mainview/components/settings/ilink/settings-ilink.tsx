@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function SettingsILink() {
@@ -20,6 +21,8 @@ export function SettingsILink() {
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
   const setActiveIlinkSessionId = useAppStore((s) => s.setActiveIlinkSessionId);
   const sessions = useAppStore((s) => s.sessions);
+  const ilink = useAppStore((s) => s.ilink);
+  const setIlink = useAppStore((s) => s.setIlink);
 
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginHint, setLoginHint] = useState<string>("");
@@ -66,7 +69,13 @@ export function SettingsILink() {
         setActiveIlinkSessionId(sessionId);
       })
       .catch(() => {});
-  }, [setIlinkStatus, setActiveIlinkSessionId]);
+    request
+      .getSettings()
+      .then((settings) => {
+        if (settings.ilink) setIlink(settings.ilink);
+      })
+      .catch(() => {});
+  }, [setIlinkStatus, setActiveIlinkSessionId, setIlink]);
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -139,6 +148,15 @@ export function SettingsILink() {
       await request.setActiveIlinkSession({ sessionId: sessionId || "" });
     } catch (err) {
       console.warn("[iLink] Set active session error:", err);
+    }
+  };
+
+  const handleUseOriginalImage = async (checked: boolean) => {
+    try {
+      await request.updateSettings({ ilink: { useOriginalImage: checked } });
+      setIlink({ useOriginalImage: checked });
+    } catch (err) {
+      console.warn("[iLink] Update settings error:", err);
     }
   };
 
@@ -272,6 +290,29 @@ export function SettingsILink() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Image Settings */}
+          {ilinkStatus.connected && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium leading-none">
+                    {t("settings.ilink.useOriginalImage", "Use Original Image")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.ilink.useOriginalImageDesc",
+                      "Send full-size images to the model (uses more tokens). When off, thumbnails are used.",
+                    )}
+                  </span>
+                </div>
+                <Switch
+                  checked={ilink.useOriginalImage}
+                  onCheckedChange={handleUseOriginalImage}
+                />
+              </div>
             </div>
           )}
 
