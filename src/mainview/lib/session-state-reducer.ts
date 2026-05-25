@@ -1,5 +1,4 @@
 import type { SessionNotificationFelloExt } from "../../shared/schema";
-import i18n from "../i18n";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
 import { generateUUID } from "./utils";
@@ -188,7 +187,6 @@ export function reduceSessionUpdate(
   update: SessionNotificationFelloExt["update"],
 ): SessionState {
   let nextState: SessionState = currentState;
-
   switch (update.sessionUpdate) {
     case "user_message_chunk":
       if (update.content) {
@@ -236,6 +234,10 @@ export function reduceSessionUpdate(
     case "session_info_update":
     case "current_mode_update":
       // modes state is now updated via session-changed IPC
+      break;
+
+    case "available_commands_update":
+      nextState = { ...currentState, availableCommands: update.availableCommands ?? [] };
       break;
 
     default:

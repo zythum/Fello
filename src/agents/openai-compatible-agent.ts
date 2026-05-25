@@ -4,6 +4,7 @@ import { stepCountIs, streamText, generateText, type ModelMessage } from "ai";
 import type {
   Agent,
   AgentSideConnection,
+  AvailableCommand,
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
@@ -35,6 +36,7 @@ import {
   appendPersistedSessionHistory,
   loadPersistedSessionHistory,
   loadPersistedSessionState,
+  savePersistedSessionHistory,
   savePersistedSessionState,
 } from "./storage";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
@@ -72,6 +74,10 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
 }
 
 const AgentDescription = "Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex";
+
+const AVAILABLE_COMMANDS: AvailableCommand[] = [
+  { name: "compact", description: "Compress conversation context" },
+];
 
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
@@ -257,6 +263,17 @@ export class OpenaiCompatibleAgent implements Agent {
     }
   }
 
+  private async pushAvailableCommands(sessionId: string): Promise<void> {
+    if (!this.connection) return;
+    await this.connection.sessionUpdate({
+      sessionId,
+      update: {
+        sessionUpdate: "available_commands_update",
+        availableCommands: AVAILABLE_COMMANDS,
+      },
+    });
+  }
+
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
@@ -277,6 +294,7 @@ export class OpenaiCompatibleAgent implements Agent {
     sessionRef = session;
     this.sessions.set(sessionId, session);
     await this.persistSessionState(session);
+    await this.pushAvailableCommands(sessionId);
     return {
       sessionId,
       models: modelState.availableModels.length > 0 ? modelState : null,
@@ -351,6 +369,7 @@ export class OpenaiCompatibleAgent implements Agent {
             availableModels: modelState.availableModels,
           }
         : null;
+    await this.pushAvailableCommands(params.sessionId);
     return {
       models,
       configOptions: await this.buildConfigOptions(active.modelId),
@@ -391,6 +410,67 @@ export class OpenaiCompatibleAgent implements Agent {
     };
   }
 
+  private extractSlashCommand(params: PromptRequest): { command: string; content: string } | null {
+    const first = params.prompt[0];
+    if (first?.type === "text" && first.text.trim().startsWith("/")) {
+      const text = first.text.trim();
+      const spaceIdx = text.indexOf(" ");
+      if (spaceIdx === -1) return { command: text.slice(1), content: "" };
+      return { command: text.slice(1, spaceIdx), content: text.slice(spaceIdx + 1) };
+    }
+    return null;
+  }
+
+  private async handleCompact(session: SessionState, sessionId: string): Promise<PromptResponse> {
+    if (!session.modelId || session.history.length === 0) {
+      return { stopReason: "end_turn" };
+    }
+
+    const summaryResult = await generateText({
+      model: this.provider.chatModel(session.modelId),
+      system:
+        "Compress the conversation into a structured markdown summary. Include: key decisions, code changes (with file paths), technical context, and pending tasks. Use headings and bullet points for clarity. Output only the summary.",
+      messages: session.history,
+      maxOutputTokens: 2000,
+    });
+
+    const summary = summaryResult.text.trim();
+    session.history = [{ role: "assistant", content: [{ type: "text", text: summary }] }];
+    await savePersistedSessionHistory({
+      agentId: this.agentId,
+      sessionId: session.id,
+      messages: session.history,
+    });
+
+    if (this.connection) {
+      await this.connection.sessionUpdate({
+        sessionId,
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `Context compacted.\n\n${summary}` },
+        },
+      });
+    }
+
+    // Update context usage
+    const outputTokens = summaryResult.usage?.outputTokens ?? 0;
+    session.contextUsedTokens = outputTokens;
+
+    if (this.connection) {
+      await this.connection.sessionUpdate({
+        sessionId,
+        update: {
+          sessionUpdate: "usage_update",
+          used: session.contextUsedTokens,
+          size: this.contextWindowTokens,
+        },
+      });
+    }
+
+    await this.persistSessionState(session);
+    return { stopReason: "end_turn" };
+  }
+
   async prompt(params: PromptRequest): Promise<PromptResponse> {
     const session = this.sessions.get(params.sessionId);
     if (!session) {
@@ -398,6 +478,27 @@ export class OpenaiCompatibleAgent implements Agent {
     }
     if (session.abortController) {
       throw new Error("A prompt is already streaming for this session.");
+    }
+
+    // Slash command handling
+    const slashCommand = this.extractSlashCommand(params);
+    if (slashCommand) {
+      const { command } = slashCommand;
+      switch (command) {
+        case "compact":
+          return this.handleCompact(session, params.sessionId);
+        default:
+          if (this.connection) {
+            await this.connection.sessionUpdate({
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: { type: "text", text: `Unknown command: /${command}` },
+              },
+            });
+          }
+          return { stopReason: "end_turn" };
+      }
     }
 
     const userContent = params.prompt.map((contentBlock) => {

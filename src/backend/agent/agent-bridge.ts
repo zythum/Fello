@@ -4,6 +4,7 @@ import {
   Client,
   ClientSideConnection,
   PROTOCOL_VERSION,
+  AvailableCommand,
 } from "@agentclientprotocol/sdk";
 import type {
   SessionNotification,
@@ -304,27 +305,58 @@ export class ACPBridge {
         if (process.env.NODE_ENV === "development") {
           console.log(`[ACP Ext Notification] Method: ${method}`);
         }
-        // 兼容 kiro
-        // kiro 只给了比例，没有给具体数值。所以这边如果size = 1 时，认为只有比例正确，数值忽略处理
-        if (method === "_kiro.dev/metadata") {
-          if (
-            typeof params === "object" &&
-            params &&
-            "contextUsagePercentage" in params &&
-            typeof params.contextUsagePercentage === "number" &&
-            "sessionId" in params &&
-            typeof params.sessionId === "string"
-          ) {
-            onUpdate({
-              sessionId: params.sessionId,
-              update: {
-                sessionUpdate: "usage_update",
-                used: params.contextUsagePercentage / 100,
-                size: 1,
-              },
-            });
+        if (
+          typeof params === "object" &&
+          params &&
+          "sessionId" in params &&
+          typeof params.sessionId === "string"
+        ) {
+          // 兼容 kiro
+          // kiro 只给了比例，没有给具体数值。所以这边如果size = 1 时，认为只有比例正确，数值忽略处理
+          if (method === "_kiro.dev/metadata") {
+            if (
+              "contextUsagePercentage" in params &&
+              typeof params.contextUsagePercentage === "number"
+            ) {
+              onUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: params.contextUsagePercentage / 100,
+                  size: 1,
+                },
+              });
+            }
+            return;
           }
-          return;
+          if (method === "_kiro.dev/commands/available") {
+            if ("commands" in params && Array.isArray(params.commands)) {
+              const commands: AvailableCommand[] = [];
+              for (const item of params.commands) {
+                if (
+                  typeof item === "object" &&
+                  item &&
+                  "name" in item &&
+                  typeof item.name === "string"
+                ) {
+                  commands.push({
+                    name: item.name.replace(/^\//, ""),
+                    description: item.description ? String(item.description) : "",
+                  });
+                }
+              }
+              if (commands.length) {
+                onUpdate({
+                  sessionId: params.sessionId,
+                  update: {
+                    sessionUpdate: "available_commands_update",
+                    availableCommands: commands,
+                  },
+                });
+              }
+            }
+            return;
+          }
         }
       },
     };

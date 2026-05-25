@@ -8,7 +8,7 @@ import type {
   AskUserRequest,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
-import type { Usage, UsageUpdate } from "@agentclientprotocol/sdk";
+import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 export interface TerminalItem {
   id: string;
@@ -37,6 +37,7 @@ export interface SessionState {
   askUserRequests: AskUserRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
   pendingUpdates: SessionNotificationFelloExt["update"][];
+  availableCommands: AvailableCommand[];
 }
 
 const emptySessionState = (): SessionState => ({
@@ -48,6 +49,7 @@ const emptySessionState = (): SessionState => ({
   askUserRequests: [],
   activeToolCalls: new Map(),
   pendingUpdates: [],
+  availableCommands: [],
 });
 
 export interface AppState {

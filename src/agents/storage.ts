@@ -129,6 +129,20 @@ export async function savePersistedSessionState(params: {
   );
 }
 
+export async function savePersistedSessionHistory(params: {
+  agentId: string;
+  sessionId: string;
+  messages: ModelMessage[];
+}): Promise<void> {
+  ensureSessionDirSync(params.agentId, params.sessionId);
+  const lines = params.messages.map((message) => JSON.stringify(message)).join("\n");
+  writeFileSync(
+    historyJsonlPath(params.agentId, params.sessionId),
+    lines ? `${lines}\n` : "",
+    "utf8",
+  );
+}
+
 export async function appendPersistedSessionHistory(params: {
   agentId: string;
   sessionId: string;

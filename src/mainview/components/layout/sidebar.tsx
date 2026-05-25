@@ -622,10 +622,17 @@ export function Sidebar() {
                   {t("sidebar.newSessionDialog.agent", { defaultValue: "Agent" })}
                 </div>
                 {enabledAgents.length > 1 && enabledAgents.length <= 3 ? (
-                  <Tabs value={newSessionAgentId} onValueChange={(v) => setNewSessionAgentId(v as string)}>
+                  <Tabs
+                    value={newSessionAgentId}
+                    onValueChange={(v) => setNewSessionAgentId(v as string)}
+                  >
                     <TabsList className="w-full h-7! border rounded-md">
                       {enabledAgents.map((agent) => (
-                        <TabsTrigger key={agent.id} value={agent.id} className="text-xs h-5 uppercase rounded-sm">
+                        <TabsTrigger
+                          key={agent.id}
+                          value={agent.id}
+                          className="text-xs h-5 uppercase rounded-sm"
+                        >
                           {agent.id}
                         </TabsTrigger>
                       ))}

@@ -747,11 +747,9 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
     agentInfo,
     onSessionUpdate: (notification: SessionNotification) => {
       const sessionId = `${agentId}:${notification.sessionId}`;
-      if (restoringSessions.has(sessionId)) {
-        return; // Block agent replay during loadSession
-      }
+      const sessionUpdate = notification.update?.sessionUpdate;
 
-      if (notification.update?.sessionUpdate === "session_info_update") {
+      if (sessionUpdate === "session_info_update") {
         if (notification.update.title) {
           storageOps.updateSession(sessionId, { title: notification.update.title });
           const updated = storageOps.getSession(sessionId);
@@ -759,7 +757,7 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
         }
       }
 
-      if (notification.update?.sessionUpdate === "current_mode_update") {
+      if (sessionUpdate === "current_mode_update") {
         const session = storageOps.getSession(sessionId);
         if (session && session.modes) {
           session.modes.currentModeId = notification.update.currentModeId ?? null;
@@ -767,6 +765,14 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
           const updated = storageOps.getSession(sessionId);
           if (updated) sendEvent("session-changed", { session: updated });
         }
+      }
+
+      if (
+        restoringSessions.has(sessionId) &&
+        sessionUpdate !== "available_commands_update" &&
+        sessionUpdate !== "usage_update"
+      ) {
+        return; // Block agent replay during loadSession
       }
 
       broadcastAndSaveSessionUpdate(sessionId, notification);

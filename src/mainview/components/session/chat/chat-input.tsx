@@ -137,6 +137,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
   const initializeInfo = session.initializeInfo;
+  const { isLoading, askUserRequests, availableCommands } = useSessionState(session.id);
 
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const attachmentsRef = useRef<StagedAttachment[]>([]);
@@ -324,6 +325,24 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       }, 100);
     },
     [session],
+  );
+
+  /** Fetch slash command suggestions — only when / is at position 0 */
+  const fetchSlashCommands = useCallback(
+    (search: string, callback: (data: { id: string; display: string }[]) => void) => {
+      // Only show suggestions if input starts with "/"
+      if (!input.startsWith("/")) {
+        callback([]);
+        return;
+      }
+      const lower = search.toLowerCase();
+      const items = availableCommands
+        .filter((cmd) => !lower || cmd.name.toLowerCase().includes(lower))
+        .slice(0, 6)
+        .map((cmd) => ({ id: cmd.name, display: `/${cmd.name}` }));
+      callback(items);
+    },
+    [input, availableCommands],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -525,7 +544,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
   }, []);
 
-  const { isLoading, askUserRequests } = useSessionState(session.id);
   const hasActiveAskUser = askUserRequests.length > 0;
   const disabled = !session.id || isLoading || hasActiveAskUser;
 
@@ -664,6 +682,27 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             spellCheck={false}
             a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
+            <Mention
+              trigger="/"
+              data={fetchSlashCommands}
+              markup={MENTION_MARKUP}
+              displayTransform={(_id, display) => display}
+              style={mentionStyle}
+              appendSpaceOnAdd
+              renderSuggestion={(suggestion) => {
+                const cmd = availableCommands.find((c) => c.name === suggestion.id);
+                return (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-foreground">/{suggestion.id}</span>
+                    {cmd?.description && (
+                      <span className="ml-1 text-[10px] text-muted-foreground/50 truncate">
+                        {cmd.description}
+                      </span>
+                    )}
+                  </div>
+                );
+              }}
+            />
             <Mention
               trigger="#"
               data={fetchFileSuggestions}
