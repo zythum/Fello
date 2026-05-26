@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "ACP Client desktop app powered by Electron",
   "author": {
     "name": "Zythum",
@@ -101,6 +101,7 @@
   },
   "devDependencies": {
     "@base-ui/react": "^1.4.0",
+    "@hookform/resolvers": "^5.4.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",
@@ -136,6 +137,7 @@
     "pptxgenjs": "^4.0.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-hook-form": "^7.76.1",
     "react-i18next": "^17.0.4",
     "react-mentions": "^4.4.10",
     "react-resizable-panels": "^4.10.0",

@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Controller, useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { z } from "zod";
 import type { StdioAgentInfo } from "../../../../shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,32 +15,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessage } from "../../providers/message";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+
+function isValidStringMap(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return true;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
+    return Object.values(parsed).every((v) => typeof v === "string");
+  } catch {
+    return false;
+  }
+}
+
+function parseStringMap(raw: string): Record<string, string> {
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+  return JSON.parse(trimmed);
+}
+
+const schema = z.object({
+  id: z.string().trim().min(1, "Please enter an agent ID").regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, _ and - allowed"),
+  command: z.string().trim().min(1, "Please enter a command"),
+  argsRaw: z.string(),
+  envRaw: z.string().refine(isValidStringMap, "Must be a valid JSON object with string values"),
+});
+
+type FormValues = z.input<typeof schema>;
 
 interface SettingsAgentStdioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialAgent: StdioAgentInfo | null;
   onSave: (agent: StdioAgentInfo) => Promise<void> | void;
-}
-
-function parseStringMapJson(raw: string): Record<string, string> | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-
-  const output: Record<string, string> = {};
-  for (const [k, v] of Object.entries(parsed)) {
-    if (typeof v !== "string") return null;
-    output[k] = v;
-  }
-  return output;
 }
 
 export function SettingsAgentStdioDialog({
@@ -47,41 +58,34 @@ export function SettingsAgentStdioDialog({
   onSave,
 }: SettingsAgentStdioDialogProps) {
   const { t } = useTranslation();
-  const { toast } = useMessage();
-  const [draft, setDraft] = useState<StdioAgentInfo | null>(initialAgent);
-  const [argsRaw, setArgsRaw] = useState("");
-  const [envRaw, setEnvRaw] = useState("");
+
+  const form = useForm<FormValues>({
+    resolver: standardSchemaResolver(schema),
+    mode: "all",
+    defaultValues: { id: "", command: "", argsRaw: "", envRaw: "" },
+  });
 
   useEffect(() => {
     if (!open) return;
-    setDraft(initialAgent);
-    setArgsRaw(initialAgent?.args?.join(" ") || "");
-    setEnvRaw(
-      initialAgent && Object.keys(initialAgent.env || {}).length > 0
-        ? JSON.stringify(initialAgent.env, null, "  ")
-        : "",
-    );
-  }, [initialAgent, open]);
+    form.reset({
+      id: initialAgent?.id ?? "",
+      command: initialAgent?.command ?? "",
+      argsRaw: initialAgent?.args?.join(" ") ?? "",
+      envRaw:
+        initialAgent && Object.keys(initialAgent.env || {}).length > 0
+          ? JSON.stringify(initialAgent.env, null, "  ")
+          : "",
+    });
+  }, [initialAgent, open, form]);
 
-  const handleSave = async () => {
-    if (!draft) return;
-    if (!draft.id.trim() || !draft.command.trim()) {
-      toast.error(t("settings.agents.errorIdCommand"));
-      return;
-    }
-
-    const env = parseStringMapJson(envRaw);
-    if (!env) {
-      toast.error(t("settings.agents.errorEnvJson"));
-      return;
-    }
-
+  const onSubmit = async (data: FormValues) => {
     await onSave({
-      ...draft,
-      id: draft.id.trim(),
-      command: draft.command.trim(),
-      args: argsRaw.split(/\s+/).filter(Boolean),
-      env,
+      type: "stdio",
+      disabled: initialAgent?.disabled ?? false,
+      id: data.id.trim(),
+      command: data.command.trim(),
+      args: data.argsRaw.split(/\s+/).filter(Boolean),
+      env: parseStringMap(data.envRaw),
     });
   };
 
@@ -102,64 +106,102 @@ export function SettingsAgentStdioDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {draft && (
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.agentId")}
-              </label>
-              <Input
-                placeholder={t("settings.agents.agentId")}
-                value={draft.id}
-                onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.command")}
-              </label>
-              <Input
-                placeholder={t("settings.agents.command")}
-                value={draft.command}
-                spellCheck={false}
-                autoComplete="off"
-                autoCapitalize="off"
-                onChange={(e) => setDraft({ ...draft, command: e.target.value })}
-                className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.args")}
-              </label>
-              <Textarea
-                placeholder={t("settings.agents.args")}
-                spellCheck={false}
-                autoComplete="off"
-                autoCapitalize="off"
-                value={argsRaw}
-                onChange={(e) => setArgsRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
-                rows={3}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.agents.envVars", "Env vars")}
-              </label>
-              <Textarea
-                placeholder={t("settings.agents.envJson")}
-                value={envRaw}
-                onChange={(e) => setEnvRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
-              />
-            </div>
-          </div>
-        )}
+        <form id="form-stdio-agent" onSubmit={form.handleSubmit(onSubmit)}>
+          <FieldGroup className="py-2">
+            <Controller
+              name="id"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="stdio-id" className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.agentId")}
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="stdio-id"
+                    placeholder={t("settings.agents.agentId")}
+                    aria-invalid={fieldState.invalid}
+                    disabled={!!initialAgent?.id}
+                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="command"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel
+                    htmlFor="stdio-command"
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    {t("settings.agents.command")}
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="stdio-command"
+                    placeholder={t("settings.agents.command")}
+                    spellCheck={false}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    aria-invalid={fieldState.invalid}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="argsRaw"
+              control={form.control}
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel htmlFor="stdio-args" className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.args")}
+                  </FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="stdio-args"
+                    placeholder={t("settings.agents.args")}
+                    spellCheck={false}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
+                    rows={3}
+                  />
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="envRaw"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="stdio-env" className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.envVars", "Env vars")}
+                  </FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="stdio-env"
+                    placeholder={t("settings.agents.envJson")}
+                    aria-invalid={fieldState.invalid}
+                    className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </form>
 
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
@@ -167,7 +209,7 @@ export function SettingsAgentStdioDialog({
           >
             {t("settings.agents.cancel")}
           </Button>
-          <Button size="sm" onClick={handleSave} className="h-7 text-xs">
+          <Button type="submit" form="form-stdio-agent" size="sm" className="h-7 text-xs">
             {t("settings.agents.save")}
           </Button>
         </DialogFooter>

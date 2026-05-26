@@ -77,7 +77,7 @@ function isApiAgent(agent: AgentInfo): agent is ApiAgentInfo {
 export function SettingsAgents() {
   const { t } = useTranslation();
   const { configuredAgents, setConfiguredAgents } = useAppStore();
-  const { toast } = useMessage();
+  const { toast, confirm } = useMessage();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
 
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
@@ -177,6 +177,11 @@ export function SettingsAgents() {
   };
 
   const handleDelete = async (id: string) => {
+    const result = await confirm({
+      title: t("settings.agents.confirmDeleteTitle", "Delete Agent"),
+      content: t("settings.agents.confirmDeleteDesc", "Are you sure you want to delete this agent? This action cannot be undone."),
+    });
+    if (result === null) return;
     const updated = agents.filter((a) => a.id !== id);
     setAgents(updated);
     await handleSave(updated);

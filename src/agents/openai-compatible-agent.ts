@@ -439,19 +439,18 @@ export class OpenaiCompatibleAgent implements Agent {
       return { stopReason: "end_turn" };
     }
 
-    const oldMessages = session.history.slice(0, -10);
-    const activeMessages = session.history.slice(-10);
-
     const summaryResult = await generateText({
       model: this.provider.chatModel(session.modelId),
       messages: [
-        ...oldMessages,
+        ...session.history,
         {
           role: "user",
           content: `Compress the conversation into a structured markdown summary.
  Include: key decisions, code changes (with file paths),
  technical context, and pending tasks.
- Use headings and bullet points for clarity. Output only the summary.`,
+ Use headings and bullet points for clarity.
+ Detect the user's commonly used language from the conversation history and respond in that language.
+ Output only the summary.`,
         },
       ],
       maxOutputTokens: 5000,
@@ -463,7 +462,6 @@ export class OpenaiCompatibleAgent implements Agent {
         role: "system",
         content: `Summary of previous conversation: ${summary}`,
       },
-      ...activeMessages,
     ];
     await savePersistedSessionHistory({
       agentId: this.agentId,
@@ -476,7 +474,7 @@ export class OpenaiCompatibleAgent implements Agent {
         sessionId,
         update: {
           sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: `Context compacted.\n\n${summary}` },
+          content: { type: "text", text: summary },
         },
       });
     }

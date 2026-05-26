@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Controller, useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { z } from "zod";
 import type { HttpMcpServerInfo } from "../../../../shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,32 +15,45 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessage } from "../../providers/message";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+
+function isValidStringMap(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return true;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
+    return Object.values(parsed).every((v) => typeof v === "string");
+  } catch {
+    return false;
+  }
+}
+
+function parseStringMap(raw: string): Record<string, string> {
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+  return JSON.parse(trimmed);
+}
+
+const schema = z.object({
+  id: z
+    .string()
+    .trim()
+    .min(1, "Please enter a server ID")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, _ and - allowed"),
+  url: z.string().trim().min(1, "Please enter a URL"),
+  headersRaw: z
+    .string()
+    .refine(isValidStringMap, "Must be a valid JSON object with string values"),
+});
+
+type FormValues = z.input<typeof schema>;
 
 interface SettingsMcpHttpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialMcp: HttpMcpServerInfo | null;
   onSave: (mcp: HttpMcpServerInfo) => Promise<void> | void;
-}
-
-function parseStringMapJson(raw: string): Record<string, string> | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-
-  const output: Record<string, string> = {};
-  for (const [k, v] of Object.entries(parsed)) {
-    if (typeof v !== "string") return null;
-    output[k] = v;
-  }
-  return output;
 }
 
 export function SettingsMcpHttpDialog({
@@ -47,41 +63,32 @@ export function SettingsMcpHttpDialog({
   onSave,
 }: SettingsMcpHttpDialogProps) {
   const { t } = useTranslation();
-  const { toast } = useMessage();
-  const [draft, setDraft] = useState<HttpMcpServerInfo | null>(initialMcp);
-  const [headersRaw, setHeadersRaw] = useState("");
+
+  const form = useForm<FormValues>({
+    resolver: standardSchemaResolver(schema),
+    mode: "onTouched",
+    defaultValues: { id: "", url: "", headersRaw: "" },
+  });
 
   useEffect(() => {
     if (!open) return;
-    setDraft(initialMcp);
-    setHeadersRaw(
-      initialMcp && Object.keys(initialMcp.headers || {}).length > 0
-        ? JSON.stringify(initialMcp.headers)
-        : "",
-    );
-  }, [initialMcp, open]);
+    form.reset({
+      id: initialMcp?.id ?? "",
+      url: initialMcp?.url ?? "",
+      headersRaw:
+        initialMcp && Object.keys(initialMcp.headers || {}).length > 0
+          ? JSON.stringify(initialMcp.headers)
+          : "",
+    });
+  }, [initialMcp, open, form]);
 
-  const handleSave = async () => {
-    if (!draft) return;
-    if (!draft.id.trim()) {
-      toast.error(t("settings.mcp.errorIdRequired", "ID is required."));
-      return;
-    }
-    if (!draft.url.trim()) {
-      toast.error(t("settings.mcp.errorUrlRequired", "URL is required."));
-      return;
-    }
-    const headers = parseStringMapJson(headersRaw);
-    if (!headers) {
-      toast.error(t("settings.mcp.errorHeadersJson", "Headers must be a valid JSON object."));
-      return;
-    }
-
+  const onSubmit = async (data: FormValues) => {
     await onSave({
-      ...draft,
-      id: draft.id.trim(),
-      url: draft.url.trim(),
-      headers,
+      type: "http",
+      disabled: initialMcp?.disabled ?? false,
+      id: data.id.trim(),
+      url: data.url.trim(),
+      headers: parseStringMap(data.headersRaw),
     });
   };
 
@@ -102,46 +109,77 @@ export function SettingsMcpHttpDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {draft && (
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.mcp.mcpId", "MCP Server ID")}
-              </label>
-              <Input
-                placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
-                value={draft.id}
-                onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.mcp.url", "URL")}
-              </label>
-              <Input
-                placeholder={t("settings.mcp.url", "URL")}
-                value={draft.url}
-                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-                className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">
-                {t("settings.mcp.headers", "Headers (JSON)")}
-              </label>
-              <Textarea
-                placeholder={t("settings.mcp.headersJson", "Headers (JSON)")}
-                value={headersRaw}
-                onChange={(e) => setHeadersRaw(e.target.value)}
-                className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-              />
-            </div>
-          </div>
-        )}
+        <form id="form-mcp-http" onSubmit={form.handleSubmit(onSubmit)}>
+          <FieldGroup className="py-2">
+            <Controller
+              name="id"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="mcp-http-id" className="text-[11px] text-muted-foreground">
+                    {t("settings.mcp.mcpId", "MCP Server ID")}
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="mcp-http-id"
+                    placeholder={t("settings.mcp.mcpId", "MCP Server ID")}
+                    aria-invalid={fieldState.invalid}
+                    disabled={!!initialMcp?.id}
+                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="url"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="mcp-http-url" className="text-[11px] text-muted-foreground">
+                    {t("settings.mcp.url", "URL")}
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="mcp-http-url"
+                    placeholder={t("settings.mcp.url", "URL")}
+                    aria-invalid={fieldState.invalid}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="headersRaw"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel
+                    htmlFor="mcp-http-headers"
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    {t("settings.mcp.headers", "Headers (JSON)")}
+                  </FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="mcp-http-headers"
+                    placeholder='{ "name": "value" }'
+                    aria-invalid={fieldState.invalid}
+                    className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </form>
 
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
@@ -149,7 +187,7 @@ export function SettingsMcpHttpDialog({
           >
             {t("settings.mcp.cancel", "Cancel")}
           </Button>
-          <Button size="sm" onClick={handleSave} className="h-7 text-xs">
+          <Button type="submit" form="form-mcp-http" size="sm" className="h-7 text-xs">
             {t("settings.mcp.save", "Save")}
           </Button>
         </DialogFooter>

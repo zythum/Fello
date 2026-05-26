@@ -87,7 +87,7 @@ function isHttpMcp(mcp: McpServerInfo): mcp is HttpMcpServerInfo {
 export function SettingsMcp() {
   const { t } = useTranslation();
   const { configuredMcpServers, setConfiguredMcpServers } = useAppStore();
-  const { toast } = useMessage();
+  const { toast, confirm } = useMessage();
   const [mcpServers, setMcpServers] = useState<McpServerInfo[]>([]);
 
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
@@ -201,6 +201,14 @@ export function SettingsMcp() {
   };
 
   const handleDelete = async (id: string) => {
+    const result = await confirm({
+      title: t("settings.mcp.confirmDeleteTitle", "Delete MCP Server"),
+      content: t(
+        "settings.mcp.confirmDeleteDesc",
+        "Are you sure you want to delete this MCP server? This action cannot be undone.",
+      ),
+    });
+    if (result === null) return;
     const updated = mcpServers.filter((a) => a.id !== id);
     setMcpServers(updated);
     await handleSave(updated);
