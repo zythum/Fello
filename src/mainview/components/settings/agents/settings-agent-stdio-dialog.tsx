@@ -36,10 +36,10 @@ function parseStringMap(raw: string): Record<string, string> {
 }
 
 const schema = z.object({
-  id: z.string().trim().min(1, "Please enter an agent ID").regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, _ and - allowed"),
-  command: z.string().trim().min(1, "Please enter a command"),
+  id: z.string().trim().min(1, "settings.agents.validation.enterId").regex(/^[a-zA-Z0-9_-]+$/, "settings.agents.validation.idFormat"),
+  command: z.string().trim().min(1, "settings.agents.validation.enterCommand"),
   argsRaw: z.string(),
-  envRaw: z.string().refine(isValidStringMap, "Must be a valid JSON object with string values"),
+  envRaw: z.string().refine(isValidStringMap, "settings.agents.validation.jsonObject"),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -124,7 +124,7 @@ export function SettingsAgentStdioDialog({
                     disabled={!!initialAgent?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -150,7 +150,7 @@ export function SettingsAgentStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -192,7 +192,7 @@ export function SettingsAgentStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />

@@ -47,6 +47,7 @@ import { SettingsMcpStdioDialog } from "./settings-mcp-stdio-dialog";
 import { SettingsMcpHttpDialog } from "./settings-mcp-http-dialog";
 
 function McpSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -66,7 +67,7 @@ function McpSortableItem({ id, children }: { id: string; children: React.ReactNo
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
-          title="Drag to reorder"
+          title={t("settings.mcp.dragToReorder", "Drag to reorder")}
         >
           <GripVertical className="size-3.5 -ml-1" />
         </button>
@@ -208,7 +209,7 @@ export function SettingsMcp() {
         "Are you sure you want to delete this MCP server? This action cannot be undone.",
       ),
     });
-    if (result === null) return;
+    if (result === 'cancel') return;
     const updated = mcpServers.filter((a) => a.id !== id);
     setMcpServers(updated);
     await handleSave(updated);
@@ -343,12 +344,12 @@ export function SettingsMcp() {
                       <ContextMenuContent className="w-32">
                         <ContextMenuItem onClick={() => openEditDialog(mcp)}>
                           <Pencil className="size-3" />
-                          {t("common.edit", "Edit")}
+                          {t("settings.mcp.edit", "Edit")}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem variant="destructive" onClick={() => handleDelete(mcp.id)}>
                           <Trash2 className="size-3" />
-                          {t("common.delete", "Delete")}
+                          {t("settings.mcp.delete", "Delete")}
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>

@@ -37,6 +37,7 @@ import { SettingsAgentStdioDialog } from "./settings-agent-stdio-dialog";
 import { SettingsAgentApiDialog } from "./settings-agent-api-dialog";
 
 function AgentSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -56,7 +57,7 @@ function AgentSortableItem({ id, children }: { id: string; children: React.React
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
-          title="Drag to reorder"
+          title={t("settings.agents.dragToReorder", "Drag to reorder")}
         >
           <GripVertical className="size-3.5 -ml-1" />
         </button>
@@ -181,7 +182,7 @@ export function SettingsAgents() {
       title: t("settings.agents.confirmDeleteTitle", "Delete Agent"),
       content: t("settings.agents.confirmDeleteDesc", "Are you sure you want to delete this agent? This action cannot be undone."),
     });
-    if (result === null) return;
+    if (result === 'cancel') return;
     const updated = agents.filter((a) => a.id !== id);
     setAgents(updated);
     await handleSave(updated);
@@ -298,7 +299,7 @@ export function SettingsAgents() {
                       <ContextMenuContent className="w-32">
                         <ContextMenuItem onClick={() => openEditDialog(agent)}>
                           <Pencil className="size-3" />
-                          {t("common.edit", "Edit")}
+                          {t("settings.agents.edit", "Edit")}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem
@@ -306,7 +307,7 @@ export function SettingsAgents() {
                           onClick={() => handleDelete(agent.id)}
                         >
                           <Trash2 className="size-3" />
-                          {t("common.delete", "Delete")}
+                          {t("settings.agents.delete", "Delete")}
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>

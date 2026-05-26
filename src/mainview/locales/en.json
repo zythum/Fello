@@ -86,10 +86,6 @@
     "paste": "Paste",
     "selectAll": "Select All"
   },
-  "common": {
-    "edit": "Edit",
-    "delete": "Delete"
-  },
   "settings": {
     "themeDesc": "Customize the appearance of the application",
     "languageDesc": "Select the display language",
@@ -120,6 +116,8 @@
       "addStdioAgent": "Add Stdio Agent",
       "addApiAgent": "Add API Agent",
       "editAgent": "Edit Agent",
+      "dialogDesc": "Configure the agent ID, command, arguments and environment variables.",
+      "apiDialogDesc": "Configure provider, endpoint and authentication for API agent.",
       "agentId": "Agent ID (Name)",
       "apiProvider": "Provider",
       "apiBaseUrl": "Base URL",
@@ -132,12 +130,27 @@
       "envJson": "Environment Variables (JSON)",
       "cancel": "Cancel",
       "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "dragToReorder": "Drag to reorder",
       "noAgents": "No agents configured",
       "errorIdCommand": "ID and Command are required.",
       "errorDuplicateId": "An agent with this ID already exists.",
       "errorEnvJson": "Env must be a valid JSON object.",
       "errorContextWindowTokens": "Context Window must be a positive integer.",
-      "updateFailed": "Failed to update configuration."
+      "updateFailed": "Failed to update configuration.",
+      "confirmDeleteTitle": "Delete Agent",
+      "confirmDeleteDesc": "Are you sure you want to delete this agent? This action cannot be undone.",
+      "validation": {
+        "enterId": "Please enter an agent ID.",
+        "idFormat": "Only letters, numbers, _ and - allowed.",
+        "selectProvider": "Please select a provider.",
+        "enterBaseUrl": "Please enter a base URL.",
+        "enterApiKey": "Please enter an API key.",
+        "enterCommand": "Please enter a command.",
+        "jsonObject": "Must be a valid JSON object with string values.",
+        "positiveInteger": "Must be a positive integer."
+      }
     },
     "mcp": {
       "desc": "Manage MCP server configurations and startup commands.",
@@ -153,6 +166,7 @@
         }
       },
       "editMcp": "Edit MCP Server",
+      "dialogDesc": "Configure the MCP server ID, command, arguments and environment variables.",
       "mcpId": "MCP Server ID (Name)",
       "command": "Command",
       "args": "Arguments",
@@ -164,6 +178,9 @@
       "httpDialogDesc": "Configure the MCP server ID, HTTP URL and request headers.",
       "cancel": "Cancel",
       "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "dragToReorder": "Drag to reorder",
       "noMcpServers": "No MCP servers configured",
       "errorIdRequired": "ID is required.",
       "errorUrlRequired": "URL is required.",
@@ -171,7 +188,16 @@
       "errorDuplicateId": "An MCP server with this ID already exists.",
       "errorHeadersJson": "Headers must be a valid JSON object.",
       "errorEnvJson": "Env must be a valid JSON object.",
-      "updateFailed": "Failed to update configuration."
+      "updateFailed": "Failed to update configuration.",
+      "confirmDeleteTitle": "Delete MCP Server",
+      "confirmDeleteDesc": "Are you sure you want to delete this MCP server? This action cannot be undone.",
+      "validation": {
+        "enterId": "Please enter a server ID.",
+        "idFormat": "Only letters, numbers, _ and - allowed.",
+        "enterCommand": "Please enter a command.",
+        "enterUrl": "Please enter a URL.",
+        "jsonObject": "Must be a valid JSON object with string values."
+      }
     },
     "webui": {
       "desc": "Configure remote access to the Fello interface.",

@@ -86,10 +86,6 @@
     "paste": "粘贴",
     "selectAll": "全选"
   },
-  "common": {
-    "edit": "编辑",
-    "delete": "删除"
-  },
   "settings": {
     "themeDesc": "自定义应用的外观",
     "languageDesc": "选择应用显示的语言",
@@ -120,6 +116,8 @@
       "addStdioAgent": "添加 Stdio Agent",
       "addApiAgent": "添加 API Agent",
       "editAgent": "编辑智能体",
+      "dialogDesc": "配置智能体 ID、命令、参数和环境变量。",
+      "apiDialogDesc": "配置 API 智能体的提供商、端点和认证信息。",
       "agentId": "智能体 ID (名称)",
       "apiProvider": "提供商",
       "apiBaseUrl": "Base URL",
@@ -132,12 +130,27 @@
       "envJson": "环境变量 (JSON)",
       "cancel": "取消",
       "save": "保存",
+      "edit": "编辑",
+      "delete": "删除",
+      "dragToReorder": "拖拽排序",
       "noAgents": "未配置任何智能体",
       "errorIdCommand": "ID 和命令不能为空。",
       "errorDuplicateId": "已存在具有该 ID 的智能体。",
       "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
       "errorContextWindowTokens": "上下文窗口必须为正整数。",
-      "updateFailed": "更新配置失败。"
+      "updateFailed": "更新配置失败。",
+      "confirmDeleteTitle": "删除智能体",
+      "confirmDeleteDesc": "确定要删除此智能体吗？此操作无法撤销。",
+      "validation": {
+        "enterId": "请输入智能体 ID。",
+        "idFormat": "只允许字母、数字、_ 和 -。",
+        "selectProvider": "请选择提供商。",
+        "enterBaseUrl": "请输入 Base URL。",
+        "enterApiKey": "请输入 API Key。",
+        "enterCommand": "请输入命令。",
+        "jsonObject": "必须是有效的 JSON 对象（值为字符串）。",
+        "positiveInteger": "必须为正整数。"
+      }
     },
     "mcp": {
       "desc": "管理 MCP 服务器的配置和启动命令。",
@@ -153,6 +166,7 @@
         }
       },
       "editMcp": "编辑 MCP 服务器",
+      "dialogDesc": "配置 MCP 服务器 ID、命令、参数和环境变量。",
       "mcpId": "MCP 服务器 ID (名称)",
       "command": "命令",
       "args": "参数",
@@ -164,6 +178,9 @@
       "httpDialogDesc": "配置 MCP 服务器 ID、HTTP URL 和请求头。",
       "cancel": "取消",
       "save": "保存",
+      "edit": "编辑",
+      "delete": "删除",
+      "dragToReorder": "拖拽排序",
       "noMcpServers": "未配置任何 MCP 服务器",
       "errorIdRequired": "ID 不能为空。",
       "errorUrlRequired": "URL 不能为空。",
@@ -171,7 +188,16 @@
       "errorDuplicateId": "已存在具有该 ID 的 MCP 服务器。",
       "errorHeadersJson": "请求头必须是有效的 JSON 对象。",
       "errorEnvJson": "环境变量必须是有效的 JSON 对象。",
-      "updateFailed": "更新配置失败。"
+      "updateFailed": "更新配置失败。",
+      "confirmDeleteTitle": "删除 MCP 服务器",
+      "confirmDeleteDesc": "确定要删除此 MCP 服务器吗？此操作无法撤销。",
+      "validation": {
+        "enterId": "请输入服务器 ID。",
+        "idFormat": "只允许字母、数字、_ 和 -。",
+        "enterCommand": "请输入命令。",
+        "enterUrl": "请输入 URL。",
+        "jsonObject": "必须是有效的 JSON 对象（值为字符串）。"
+      }
     },
     "webui": {
       "desc": "配置对 Fello 界面的远程访问。",

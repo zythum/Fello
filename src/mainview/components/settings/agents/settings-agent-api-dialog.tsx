@@ -49,12 +49,12 @@ function isValidContextWindow(raw: string): boolean {
 }
 
 const schema = z.object({
-  id: z.string().trim().min(1, "Please enter an agent ID").regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, _ and - allowed"),
-  provider: z.string().min(1, "Please select a provider"),
-  baseUrl: z.string().trim().min(1, "Please enter a base URL"),
-  apiKey: z.string().trim().min(1, "Please enter an API key"),
-  headersRaw: z.string().refine(isValidStringMap, "Must be a valid JSON object with string values"),
-  contextWindowTokens: z.string().refine(isValidContextWindow, "Must be a positive integer"),
+  id: z.string().trim().min(1, "settings.agents.validation.enterId").regex(/^[a-zA-Z0-9_-]+$/, "settings.agents.validation.idFormat"),
+  provider: z.string().min(1, "settings.agents.validation.selectProvider"),
+  baseUrl: z.string().trim().min(1, "settings.agents.validation.enterBaseUrl"),
+  apiKey: z.string().trim().min(1, "settings.agents.validation.enterApiKey"),
+  headersRaw: z.string().refine(isValidStringMap, "settings.agents.validation.jsonObject"),
+  contextWindowTokens: z.string().refine(isValidContextWindow, "settings.agents.validation.positiveInteger"),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -152,7 +152,7 @@ export function SettingsAgentApiDialog({
                     disabled={!!initialAgent?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -184,7 +184,7 @@ export function SettingsAgentApiDialog({
                       <SelectItem value="openai-compatible">openai-compatible</SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -206,7 +206,7 @@ export function SettingsAgentApiDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -227,7 +227,7 @@ export function SettingsAgentApiDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -250,7 +250,7 @@ export function SettingsAgentApiDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
@@ -272,7 +272,7 @@ export function SettingsAgentApiDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
                 </Field>
               )}
             />
