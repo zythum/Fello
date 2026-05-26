@@ -350,7 +350,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
   return (
     <div className="w-full relative min-h-0 flex flex-1 overflow-hidden">
-      <div className="shrink-0 w-6 -mr-6 relative z-1">
+      <div className="shrink-0 w-6 -mr-6 relative z-1 pointer-events-none">
         <ChatTimeline
           items={timelineItems}
           activeDisplayId={activeUserMessageId}

@@ -86,7 +86,7 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
   if (visibleItems.length < 2) return null;
 
   return (
-    <div ref={setContainer} className="h-full flex flex-col items-center overflow-hidden">
+    <div ref={setContainer} className="h-full flex flex-col items-center overflow-hidden pointer-events-none">
       <div className="min-h-full flex flex-col items-center justify-center gap-0.5">
         {visibleItems.map((item) => {
           const isActive = activeDisplayId === item.displayId;
@@ -100,7 +100,7 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
               <TooltipTrigger
                 type="button"
                 onClick={() => handleSelect(item.displayId)}
-                className="p-1 group"
+                className="p-1 group pointer-events-auto"
                 aria-label={ariaLabel}
               >
                 <div

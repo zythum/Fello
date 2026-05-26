@@ -4,11 +4,13 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "@/lib/utils"
 
 type ScrollAreaProps = ScrollAreaPrimitive.Root.Props & {
+  viewportClassName?: string;
   hideScrollBar?: boolean
 }
 
 function ScrollArea({
   className,
+  viewportClassName,
   children,
   hideScrollBar,
   ...props
@@ -21,7 +23,7 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:outline-1"
+        className={cn("size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:outline-1", viewportClassName)}
         style={{ overflowAnchor: "auto" }}
       >
         {children}

@@ -3,6 +3,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Check,
@@ -116,8 +117,14 @@ export function ToolItem({ session, message }: ToolItemProps) {
           message.content.map((content, index) => {
             if (content.type === "content") {
               return (
-                <div key={index} className="px-2 text-muted-foreground">
-                  <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
+                <div key={index} className="px-2 text-foreground/80">
+                  {content.content.type === 'text' ? (
+                    <ScrollArea className="-mx-2" viewportClassName="max-h-[70vh]">
+                      <pre className="m-0 p-2 text-[11px]"><code>{content.content.text}</code></pre>
+                    </ScrollArea>
+                  ): (
+                    <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
+                  )}
                 </div>
               );
             } else if (content.type === "diff") {
@@ -154,11 +161,15 @@ export function ToolItem({ session, message }: ToolItemProps) {
           <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId} />
         )}
         {(!message.content || message.content.length === 0) && message.rawInput != null && (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all p-2 text-[10px] leading-relaxed text-muted-foreground">
-            {typeof message.rawInput === "string"
-              ? message.rawInput
-              : toYamlString(message.rawInput)}
-          </pre>
+          <ScrollArea viewportClassName="max-h-[70vh]">
+            <pre className="p-2 m-0 text-[11px] leading-relaxed text-foreground/80">
+              <code>
+                {typeof message.rawInput === "string"
+                  ? message.rawInput
+                  : toYamlString(message.rawInput)}
+              </code>
+            </pre>
+          </ScrollArea>
         )}
       </CollapsibleContent>
     </Collapsible>
