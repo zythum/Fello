@@ -74,7 +74,7 @@ export function SkillsInstalled() {
       title: t("skills.installed.uninstallTitle"),
       content: t("skills.installed.uninstallConfirm", { name: skill.name }),
       buttons: [
-        { text: t("skills.installed.cancel"), value: "cancel", variant: "outline" },
+        { text: t("skills.installed.cancel"), value: null, variant: "outline" },
         { text: t("skills.installed.uninstall"), value: "uninstall", variant: "destructive" },
       ],
     });

@@ -137,7 +137,7 @@ export function Sidebar() {
           validate: (val) =>
             val.trim() ? undefined : t("sidebar.pathCannotBeEmpty", "Path cannot be empty"),
         });
-        if (!p || p === "cancel") return;
+        if (!p) return;
         selectedPath = p.trim();
       } else {
         const p = await electron.showOpenDialog();
@@ -229,7 +229,7 @@ export function Sidebar() {
       title: t("sidebar.deleteChat"),
       content: t("sidebar.deleteChatConfirm", { title: displayTitle }),
       buttons: [
-        { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
+        { text: t("sidebar.cancel"), value: null, variant: "outline" },
         {
           text: t("sidebar.delete"),
           variant: "destructive",
@@ -258,7 +258,7 @@ export function Sidebar() {
         val.trim() ? undefined : t("sidebar.projectNameEmpty", "Project name cannot be empty"),
     });
 
-    if (newName && newName !== "cancel") {
+    if (newName) {
       await request.renameProject({ projectId: project.id, title: newName.trim() });
       await refreshData();
     }
@@ -274,7 +274,7 @@ export function Sidebar() {
         val.trim() ? undefined : t("sidebar.chatNameEmpty", "Chat name cannot be empty"),
     });
 
-    if (newName && newName !== "cancel") {
+    if (newName) {
       await request.updateSession({ sessionId: session.id, title: newName.trim() });
       await refreshData();
     }
@@ -285,7 +285,7 @@ export function Sidebar() {
       title: t("sidebar.deleteProject"),
       content: t("sidebar.deleteProjectConfirm", { title: project.title }),
       buttons: [
-        { text: t("sidebar.cancel"), value: "cancel", variant: "outline" },
+        { text: t("sidebar.cancel"), value: null, variant: "outline" },
         {
           text: t("sidebar.delete"),
           value: async () => {

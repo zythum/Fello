@@ -823,7 +823,7 @@ export const FilePanel = memo(function FilePanel({
           ? t("filePanel.deleteConfirmSingle", { name: ids[0].split("/").pop() })
           : t("filePanel.deleteConfirmMultiple", { count: ids.length }),
       buttons: [
-        { text: t("filePanel.cancel"), value: "cancel", variant: "outline" },
+        { text: t("filePanel.cancel"), value: null, variant: "outline" },
         {
           text: trashLabel,
           variant: "outline",

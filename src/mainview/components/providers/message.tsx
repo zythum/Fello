@@ -33,7 +33,7 @@ export type ButtonConfig = {
   text: React.ReactNode;
   variant?: ButtonVariant;
   hidden?: boolean;
-  value: string | ((context: MessageContextValue) => Promise<string>);
+  value: string | null | ((context: MessageContextValue) => Promise<string | null>);
 };
 
 export type DialogOptions = {
@@ -79,7 +79,7 @@ const DialogButton = ({
 }: {
   btn: ButtonConfig;
   context: MessageContextValue;
-  onResolve: (val: string) => void;
+  onResolve: (val: string | null) => void;
   validate?: (val: string) => string | boolean | undefined | Promise<string | boolean | undefined>;
 }) => {
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,7 @@ const DialogButton = ({
   }, []);
 
   const handleClick = async () => {
-    const isCancel = btn.value === "cancel";
+    const isCancel = btn.value === null;
 
     // Manage delayed loading state
     const startLoading = () => {
@@ -252,7 +252,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
             type: "confirm",
             ...options,
             buttons: options.buttons || [
-              { text: t("message.cancel", "Cancel"), value: "cancel", variant: "outline" },
+              { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
               { text: t("message.confirm", "Confirm"), value: "confirm", variant: "default" },
             ],
             resolve,
@@ -272,7 +272,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
             type: "prompt",
             ...options,
             buttons: options.buttons || [
-              { text: t("message.cancel", "Cancel"), value: "cancel", variant: "outline" },
+              { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
               {
                 text: t("message.confirm", "Confirm"),
                 value: (ctx) => Promise.resolve(ctx.inputValue || ""),
