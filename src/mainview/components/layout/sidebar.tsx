@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
@@ -65,6 +65,14 @@ export function Sidebar() {
   useEffect(() => {
     setOptimisticPath(null);
   }, [location.pathname]);
+
+  // Listen for add-project event from Welcome page
+  const handleAddProjectRef = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => {
+    const handler = () => handleAddProjectRef.current?.();
+    window.addEventListener("fello:add-project", handler);
+    return () => window.removeEventListener("fello:add-project", handler);
+  }, []);
 
   const handleNavigate = (path: string) => {
     setOptimisticPath(path);
@@ -148,6 +156,8 @@ export function Sidebar() {
       toast.error(message);
     }
   };
+
+  handleAddProjectRef.current = handleAddProject;
 
   const handleNewChat = async (
     projectId: string,
@@ -578,9 +588,39 @@ export function Sidebar() {
             );
           })}
           {projects.length === 0 && (
-            <p className="mt-4 text-center text-xs text-muted-foreground select-none">
-              {t("sidebar.noProjects")}
-            </p>
+            <div className="mt-4 flex flex-col items-center gap-2 px-2">
+              {enabledAgents.length === 0 ? (
+                <>
+                  <p className="text-center text-xs text-muted-foreground select-none">
+                    {t("sidebar.noAgentsHint")}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-full"
+                    onClick={() => handleNavigate("/settings/agents")}
+                  >
+                    <Settings className="size-3 mr-1" />
+                    {t("sidebar.configureAgent")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-center text-xs text-muted-foreground select-none">
+                    {t("sidebar.noProjectsHint")}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-full"
+                    onClick={handleAddProject}
+                  >
+                    <FolderPlus className="size-3 mr-1" />
+                    {t("sidebar.addProject")}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </ScrollArea>

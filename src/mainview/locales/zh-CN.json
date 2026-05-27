@@ -4,6 +4,10 @@
     "skills": "技能",
     "projects": "项目",
     "noProjects": "暂无项目",
+    "noProjectsHint": "添加一个项目文件夹开始",
+    "addProject": "添加项目",
+    "noAgentsHint": "请先配置 Agent",
+    "configureAgent": "配置 Agent",
     "revealInFinder": "在访达中显示",
     "rename": "重命名",
     "delete": "删除",
@@ -439,7 +443,17 @@
   "welcome": {
     "title": "Fello",
     "desc": "又一个基于 ACP 协议的 Agent 客户端，连接智能体并开始协作。",
-    "hint": "从左侧边栏新建会话开始"
+    "hint": "从左侧边栏新建会话开始",
+    "getStarted": "开始使用",
+    "stepAgent": "配置 Agent",
+    "stepAgentDesc": "添加一个 AI 智能体（本地 Stdio 或 API）来驱动对话",
+    "stepAgentDone": "已配置 {{count}} 个 Agent",
+    "stepProject": "添加项目",
+    "stepProjectDesc": "选择一个本地项目文件夹作为工作区",
+    "stepProjectDone": "已添加 {{count}} 个项目",
+    "stepChat": "开始会话",
+    "stepChatDesc": "在项目中创建一个新的 AI 对话",
+    "allDone": "一切就绪！从左侧边栏开始新会话吧"
   },
   "askUser": {
     "title": "请求",

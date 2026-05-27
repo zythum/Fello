@@ -1,6 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageSquare, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { MessageSquare, ArrowLeft, Bot, FolderPlus, MessageCirclePlus, Check } from "lucide-react";
+import { useAppStore } from "../../store";
 import { ParticleBackground } from "./particle-background";
 import "./welcome.css";
 
@@ -25,8 +27,17 @@ function AnimatedTitle({ text }: { text: string }) {
 
 export function Welcome() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  const agents = useAppStore((s) => s.configuredAgents);
+  const projects = useAppStore((s) => s.projects);
+
+  const enabledAgentCount = useMemo(() => agents.filter((a) => !a.disabled).length, [agents]);
+  const hasAgents = enabledAgentCount > 0;
+  const hasProjects = projects.length > 0;
+  const allDone = hasAgents && hasProjects;
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -65,7 +76,7 @@ export function Welcome() {
           style={{ animationDelay: "0.6s" }}
         />
         <div
-          className="absolute inset-0 -m-20 rounded-full bg-primary/[0.015] animate-pulse-glow"
+          className="absolute inset-0 -m-20 rounded-full bg-primary/1.5 animate-pulse-glow"
           style={{ animationDelay: "1.2s" }}
         />
 
@@ -96,14 +107,104 @@ export function Welcome() {
         </p>
       </div>
 
-      {/* Hint */}
-      <div
-        className="flex items-center gap-2 text-xs text-muted-foreground/50 relative z-10 animate-text-fade-in pointer-events-none"
-        style={{ animationDelay: "1s", animationFillMode: "both" }}
-      >
-        <ArrowLeft className="size-3 animate-bounce-horizontal" />
-        <span>{t("welcome.hint")}</span>
-      </div>
+      {/* Getting Started Steps */}
+      {!allDone ? (
+        <div
+          className="relative z-10 flex flex-col gap-3 w-full max-w-xs animate-text-fade-in"
+          style={{ animationDelay: "0.8s", animationFillMode: "both" }}
+        >
+          <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide text-center">
+            {t("welcome.getStarted")}
+          </p>
+
+          {/* Step 1: Configure Agent */}
+          <button
+            type="button"
+            onClick={() => !hasAgents && navigate("/settings/agents")}
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              hasAgents
+                ? "border-green-500/30 bg-green-500/5 cursor-default"
+                : "border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+            }`}
+          >
+            <div
+              className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
+                hasAgents ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
+              }`}
+            >
+              {hasAgents ? <Check className="size-3.5" /> : <Bot className="size-3.5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium">
+                {hasAgents ? t("welcome.stepAgentDone", { count: enabledAgentCount }) : t("welcome.stepAgent")}
+              </div>
+              {!hasAgents && (
+                <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepAgentDesc")}</div>
+              )}
+            </div>
+          </button>
+
+          {/* Step 2: Add Project */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!hasProjects) {
+                // Dispatch custom event that sidebar listens to for adding project
+                window.dispatchEvent(new CustomEvent("fello:add-project"));
+              }
+            }}
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              hasProjects
+                ? "border-green-500/30 bg-green-500/5 cursor-default"
+                : !hasAgents
+                  ? "border-border/50 opacity-50 cursor-not-allowed"
+                  : "border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+            }`}
+            disabled={!hasAgents}
+          >
+            <div
+              className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
+                hasProjects ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
+              }`}
+            >
+              {hasProjects ? <Check className="size-3.5" /> : <FolderPlus className="size-3.5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium">
+                {hasProjects ? t("welcome.stepProjectDone", { count: projects.length }) : t("welcome.stepProject")}
+              </div>
+              {!hasProjects && (
+                <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepProjectDesc")}</div>
+              )}
+            </div>
+          </button>
+
+          {/* Step 3: Start Chat */}
+          <div
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${
+              !hasAgents || !hasProjects
+                ? "border-border/50 opacity-50"
+                : "border-border"
+            }`}
+          >
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <MessageCirclePlus className="size-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium">{t("welcome.stepChat")}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepChatDesc")}</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex items-center gap-2 text-xs text-muted-foreground/50 relative z-10 animate-text-fade-in pointer-events-none"
+          style={{ animationDelay: "1s", animationFillMode: "both" }}
+        >
+          <ArrowLeft className="size-3 animate-bounce-horizontal" />
+          <span>{t("welcome.allDone")}</span>
+        </div>
+      )}
     </div>
   );
 }
