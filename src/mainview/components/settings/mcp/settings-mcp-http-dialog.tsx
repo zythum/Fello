@@ -42,9 +42,7 @@ const schema = z.object({
     .min(1, "settings.mcp.validation.enterId")
     .regex(/^[a-zA-Z0-9_-]+$/, "settings.mcp.validation.idFormat"),
   url: z.string().trim().min(1, "settings.mcp.validation.enterUrl"),
-  headersRaw: z
-    .string()
-    .refine(isValidStringMap, "settings.mcp.validation.jsonObject"),
+  headersRaw: z.string().refine(isValidStringMap, "settings.mcp.validation.jsonObject"),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -127,7 +125,18 @@ export function SettingsMcpHttpDialog({
                     disabled={!!initialMcp?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -147,7 +156,18 @@ export function SettingsMcpHttpDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -170,7 +190,18 @@ export function SettingsMcpHttpDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />

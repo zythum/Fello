@@ -118,11 +118,20 @@ export function ToolItem({ session, message }: ToolItemProps) {
             if (content.type === "content") {
               return (
                 <div key={index} className="px-2 text-foreground/80">
-                  {content.content.type === 'text' ? (
+                  {content.content.type === "text" ? (
                     <ScrollArea className="-mx-2" viewportClassName="max-h-[70vh]">
-                      <pre className="m-0 p-2 text-[11px]"><code>{content.content.text}</code></pre>
+                      <pre className="m-0 p-2 text-[11px]">
+                        <code>
+                          {
+                            // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
+                            content.content.text
+                              .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
+                              .replace(/\[[0-9;]*[0-9]m/g, "")
+                          }
+                        </code>
+                      </pre>
                     </ScrollArea>
-                  ): (
+                  ) : (
                     <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
                   )}
                 </div>

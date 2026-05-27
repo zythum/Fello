@@ -86,7 +86,10 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
   if (visibleItems.length < 2) return null;
 
   return (
-    <div ref={setContainer} className="h-full flex flex-col items-center overflow-hidden pointer-events-none">
+    <div
+      ref={setContainer}
+      className="h-full flex flex-col items-center overflow-hidden pointer-events-none"
+    >
       <div className="min-h-full flex flex-col items-center justify-center gap-0.5">
         {visibleItems.map((item) => {
           const isActive = activeDisplayId === item.displayId;

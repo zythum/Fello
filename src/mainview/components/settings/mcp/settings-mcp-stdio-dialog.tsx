@@ -128,7 +128,18 @@ export function SettingsMcpStdioDialog({
                     disabled={!!initialMcp?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -154,7 +165,18 @@ export function SettingsMcpStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -189,10 +211,7 @@ export function SettingsMcpStdioDialog({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel
-                    htmlFor="mcp-stdio-env"
-                    className="text-[11px] text-muted-foreground"
-                  >
+                  <FieldLabel htmlFor="mcp-stdio-env" className="text-[11px] text-muted-foreground">
                     {t("settings.mcp.envVars", "Environment Variables (JSON)")}
                   </FieldLabel>
                   <Textarea
@@ -202,7 +221,18 @@ export function SettingsMcpStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />

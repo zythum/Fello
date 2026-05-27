@@ -36,7 +36,11 @@ function parseStringMap(raw: string): Record<string, string> {
 }
 
 const schema = z.object({
-  id: z.string().trim().min(1, "settings.agents.validation.enterId").regex(/^[a-zA-Z0-9_-]+$/, "settings.agents.validation.idFormat"),
+  id: z
+    .string()
+    .trim()
+    .min(1, "settings.agents.validation.enterId")
+    .regex(/^[a-zA-Z0-9_-]+$/, "settings.agents.validation.idFormat"),
   command: z.string().trim().min(1, "settings.agents.validation.enterCommand"),
   argsRaw: z.string(),
   envRaw: z.string().refine(isValidStringMap, "settings.agents.validation.jsonObject"),
@@ -124,7 +128,18 @@ export function SettingsAgentStdioDialog({
                     disabled={!!initialAgent?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -134,10 +149,7 @@ export function SettingsAgentStdioDialog({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel
-                    htmlFor="stdio-command"
-                    className="text-[11px] text-muted-foreground"
-                  >
+                  <FieldLabel htmlFor="stdio-command" className="text-[11px] text-muted-foreground">
                     {t("settings.agents.command")}
                   </FieldLabel>
                   <Input
@@ -150,7 +162,18 @@ export function SettingsAgentStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />
@@ -192,7 +215,18 @@ export function SettingsAgentStdioDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-15 break-all max-w-full"
                   />
-                  {fieldState.invalid && <FieldError errors={[{ message: t(fieldState.error?.message ?? "", fieldState.error?.message ?? "") }]} />}
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Field>
               )}
             />

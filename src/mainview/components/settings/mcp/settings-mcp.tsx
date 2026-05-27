@@ -209,7 +209,7 @@ export function SettingsMcp() {
         "Are you sure you want to delete this MCP server? This action cannot be undone.",
       ),
     });
-    if (result === 'cancel') return;
+    if (result === "cancel") return;
     const updated = mcpServers.filter((a) => a.id !== id);
     setMcpServers(updated);
     await handleSave(updated);
