@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useCallback, useState } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { parseDiffFromFile } from "@pierre/diffs";
@@ -28,7 +28,7 @@ export interface CodeCompareViewProps {
   diffStyle?: "split" | "unified" | undefined;
 }
 
-export const CodeCompareView = memo(function CodeCompareView({
+export function CodeCompareView({
   className,
   oldContent,
   newContent,
@@ -38,9 +38,11 @@ export const CodeCompareView = memo(function CodeCompareView({
 }: CodeCompareViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const [ headerEl, setHeaderEl ] = useState<HTMLDivElement | null>(null);
-  const [ fallbackDiffStyle, setFallbackDiffStyle ] = useState<"split" | "unified">(diffStyle ?? "unified");
-  const [highlighterReady, setHighlighterReady] = useState(isShikiReady());
+  const [headerEl, setHeaderEl] = useState<HTMLDivElement | null>(null);
+  const [fallbackDiffStyle, setFallbackDiffStyle] = useState<"split" | "unified">(
+    diffStyle ?? "unified",
+  );
+  const [highlighterReady, setHighlighterReady] = useState(() => isShikiReady());
   const readyRef = useRef(highlighterReady);
 
   // Ensure Shiki is fully initialized before rendering FileDiff.
@@ -63,13 +65,13 @@ export const CodeCompareView = memo(function CodeCompareView({
     if (!headerEl) return;
 
     const callback = () => {
-      setFallbackDiffStyle(headerEl.offsetWidth > 800 ? 'split' : 'unified');
-    }
+      setFallbackDiffStyle(headerEl.offsetWidth > 800 ? "split" : "unified");
+    };
     callback();
     const observer = new ResizeObserver(callback);
     observer.observe(headerEl);
     return () => observer.disconnect();
-  }, [headerEl])
+  }, [headerEl]);
 
   const diff = useMemo(
     () =>
@@ -127,4 +129,4 @@ export const CodeCompareView = memo(function CodeCompareView({
       }}
     />
   );
-});
+}

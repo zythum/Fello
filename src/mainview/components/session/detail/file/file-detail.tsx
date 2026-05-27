@@ -28,7 +28,7 @@ import { SearchBar } from "./search-bar";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
-  const fileName = file?.split("/").pop() ?? "";
+  const fileName = file ?? undefined;
 
   const [codeViewContainer, setCodeViewContainer] = useState<HTMLDivElement | null>(null);
   // ── file loading & type detection ──

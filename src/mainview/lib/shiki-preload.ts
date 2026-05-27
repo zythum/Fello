@@ -30,6 +30,17 @@ export const shikiPreloadPromise = preloadHighlighter({
     "dockerfile",
     "sh",
     "diff",
+    // Common aliases used in markdown code fences — must be preloaded
+    // separately because @pierre/diffs tracks attached languages by the
+    // exact name passed to getSharedHighlighter, not by shiki's internal
+    // canonical name.
+    "js",
+    "ts",
+    "py",
+    "yml",
+    "md",
+    "rb",
+    "rs",
   ],
   preferredHighlighter: "shiki-js",
 });

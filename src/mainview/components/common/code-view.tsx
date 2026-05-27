@@ -1,8 +1,8 @@
-import { memo, useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { File } from "@pierre/diffs/react";
-import type { SelectedLineRange } from "@pierre/diffs";
+import type { SelectedLineRange, SupportedLanguages } from "@pierre/diffs";
 import { shikiPreloadPromise, isShikiReady } from "@/lib/shiki-preload";
 
 const unsafeCSS = `
@@ -22,18 +22,20 @@ export interface CodeViewProps {
   className?: string;
   content: string;
   filename?: string;
+  lang?: SupportedLanguages;
   addLineToChat?: boolean;
 }
 
-export const CodeView = memo(function CodeView({
+export function CodeView({
   className,
   content,
   filename,
+  lang,
   addLineToChat,
 }: CodeViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const [highlighterReady, setHighlighterReady] = useState(isShikiReady());
+  const [highlighterReady, setHighlighterReady] = useState(() => isShikiReady());
   const readyRef = useRef(highlighterReady);
 
   // Ensure Shiki is fully initialized before rendering File.
@@ -84,7 +86,11 @@ export const CodeView = memo(function CodeView({
   return (
     <File
       className={className}
-      file={{ name: filename ?? "file", contents: content || "" }}
+      file={{
+        name: filename ?? "",
+        contents: content || "",
+        lang: lang,
+      }}
       options={{
         theme: isDark ? "github-dark" : "github-light",
         themeType: isDark ? "dark" : "light",
@@ -96,4 +102,4 @@ export const CodeView = memo(function CodeView({
       }}
     />
   );
-});
+}

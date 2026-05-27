@@ -899,8 +899,9 @@ const icons: Record<IconToken, () => React.ReactNode> = {
 };
 
 export function FileIcon({ name, className }: { name: string; className?: string }) {
-  const token = resolveFileIconToken(name);
-  const render = icons[token] ?? icons.default;
+  const render =
+    (name in icons ? icons[name as IconToken] : icons[resolveFileIconToken(`text.${name}`)]) ??
+    icons.default;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

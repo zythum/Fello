@@ -136,10 +136,14 @@ export function Welcome() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium">
-                {hasAgents ? t("welcome.stepAgentDone", { count: enabledAgentCount }) : t("welcome.stepAgent")}
+                {hasAgents
+                  ? t("welcome.stepAgentDone", { count: enabledAgentCount })
+                  : t("welcome.stepAgent")}
               </div>
               {!hasAgents && (
-                <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepAgentDesc")}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {t("welcome.stepAgentDesc")}
+                </div>
               )}
             </div>
           </button>
@@ -171,10 +175,14 @@ export function Welcome() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium">
-                {hasProjects ? t("welcome.stepProjectDone", { count: projects.length }) : t("welcome.stepProject")}
+                {hasProjects
+                  ? t("welcome.stepProjectDone", { count: projects.length })
+                  : t("welcome.stepProject")}
               </div>
               {!hasProjects && (
-                <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepProjectDesc")}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {t("welcome.stepProjectDesc")}
+                </div>
               )}
             </div>
           </button>
@@ -182,9 +190,7 @@ export function Welcome() {
           {/* Step 3: Start Chat */}
           <div
             className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${
-              !hasAgents || !hasProjects
-                ? "border-border/50 opacity-50"
-                : "border-border"
+              !hasAgents || !hasProjects ? "border-border/50 opacity-50" : "border-border"
             }`}
           >
             <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -192,7 +198,9 @@ export function Welcome() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium">{t("welcome.stepChat")}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">{t("welcome.stepChatDesc")}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {t("welcome.stepChatDesc")}
+              </div>
             </div>
           </div>
         </div>
