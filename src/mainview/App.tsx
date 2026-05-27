@@ -332,6 +332,9 @@ function AppContent() {
               version,
             }),
             duration: Infinity,
+            classNames: {
+              content: "flex-1",
+            },
             action: {
               label: t("updater.restart", "Restart"),
               onClick: () => {
