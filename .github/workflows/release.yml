@@ -123,7 +123,7 @@ jobs:
             echo "version: $VERSION"
             echo "files:"
             for asset in $ASSETS; do
-              SHA512=$(shasum -a 512 "/tmp/mac-zips/$asset" | awk '{print $1}' | xxd -r -p | base64)
+              SHA512=$(shasum -a 512 "/tmp/mac-zips/$asset" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
               SIZE=$(stat -f%z "/tmp/mac-zips/$asset" 2>/dev/null || stat -c%s "/tmp/mac-zips/$asset")
               echo "  - url: $asset"
               echo "    sha512: $SHA512"
