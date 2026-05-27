@@ -151,19 +151,21 @@ export function ToolItem({ session, message }: ToolItemProps) {
                         : content.path}
                     </span>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    {content.oldText == null ? (
-                      <CodeView
-                        content={content.newText}
-                        filename={content.path.split("/").pop()}
-                      />
-                    ) : (
-                      <CodeCompareView
-                        oldContent={content.oldText}
-                        newContent={content.newText}
-                        filename={content.path.split("/").pop()}
-                      />
-                    )}
+                  <div className="flex-1 min-h-0 overflow-hidden w-full">
+                    <ScrollArea className="w-full" viewportClassName="max-h-[70vh]">
+                      {content.oldText == null || content.oldText === content.newText ? (
+                        <CodeView
+                          content={content.newText}
+                          filename={content.path.split("/").pop()}
+                        />
+                      ) : (
+                        <CodeCompareView
+                          oldContent={content.oldText}
+                          newContent={content.newText}
+                          filename={content.path.split("/").pop()}
+                        />
+                      )}
+                    </ScrollArea>
                   </div>
                 </div>
               );
