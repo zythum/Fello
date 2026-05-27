@@ -140,6 +140,7 @@ function AskUserOptions({
   const showOther = request.allowCustomInput !== false;
   const [mode, setMode] = useState<"options" | "input">(hasOptions ? "options" : "input");
   const [inputValue, setInputValue] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
   const handleSelectOption = (value: string) => {
     backend.request
@@ -151,6 +152,27 @@ function AskUserOptions({
       .catch(() => {})
       .then(() => onResolved());
   };
+
+  // 数字键快捷键选择选项（仅在选项模式且无输入框聚焦时触发）
+  useEffect(() => {
+    if (mode !== "options" || !hasOptions) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable)
+        return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= request.options.length) {
+        e.preventDefault();
+        setHighlightedIndex(num - 1);
+        setTimeout(() => {
+          setHighlightedIndex(null);
+          handleSelectOption(request.options[num - 1].value);
+        }, 200);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [mode, hasOptions, request.options]);
 
   // 否则作为自定义回复
   const handleSubmitInput = () => {
@@ -184,9 +206,11 @@ function AskUserOptions({
               role="button"
               tabIndex={0}
               className={`relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px ${
-                option.danger
-                  ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
-                  : "bg-secondary/50 hover:bg-secondary hover:text-foreground"
+                highlightedIndex === index
+                  ? "ring-1 ring-sky-500 bg-sky-500/10 border-sky-500/30"
+                  : option.danger
+                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
+                    : "bg-secondary/50 hover:bg-secondary hover:text-foreground"
               }`}
               onClick={() => handleSelectOption(option.value)}
               onKeyDown={(e) => {

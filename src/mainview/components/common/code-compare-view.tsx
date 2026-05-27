@@ -38,6 +38,8 @@ export const CodeCompareView = memo(function CodeCompareView({
 }: CodeCompareViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [ headerEl, setHeaderEl ] = useState<HTMLDivElement | null>(null);
+  const [ fallbackDiffStyle, setFallbackDiffStyle ] = useState<"split" | "unified">(diffStyle ?? "unified");
   const [highlighterReady, setHighlighterReady] = useState(isShikiReady());
   const readyRef = useRef(highlighterReady);
 
@@ -56,6 +58,18 @@ export const CodeCompareView = memo(function CodeCompareView({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!headerEl) return;
+
+    const callback = () => {
+      setFallbackDiffStyle(headerEl.offsetWidth > 800 ? 'split' : 'unified');
+    }
+    callback();
+    const observer = new ResizeObserver(callback);
+    observer.observe(headerEl);
+    return () => observer.disconnect();
+  }, [headerEl])
 
   const diff = useMemo(
     () =>
@@ -101,12 +115,12 @@ export const CodeCompareView = memo(function CodeCompareView({
     <FileDiff
       fileDiff={diff}
       className={className}
+      renderCustomHeader={() => <div ref={setHeaderEl} className="h-2"></div>}
       options={{
         theme: isDark ? "github-dark" : "github-light",
         themeType: isDark ? "dark" : "light",
-        diffStyle,
+        diffStyle: diffStyle ?? fallbackDiffStyle,
         unsafeCSS,
-        disableFileHeader: true,
         enableLineSelection: addLineToChat,
         enableGutterUtility: addLineToChat,
         onGutterUtilityClick,
