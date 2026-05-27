@@ -16,7 +16,8 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { File, MessageSquarePlus, Copy, FolderOpen, RefreshCw, X } from "lucide-react";
+import { MessageSquarePlus, Copy, FolderOpen, RefreshCw, X } from "lucide-react";
+import { FileIcon } from "../../../common/file-icon";
 import { request, isWebUI, subscribe } from "../../../../backend";
 import { electron } from "../../../../electron";
 import type { FileDetailProps } from "./file-types";
@@ -162,7 +163,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       >
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
-            <File className="size-4 shrink-0 text-muted-foreground/80" />
+            <FileIcon name={file ?? ""} className="size-4 shrink-0 text-muted-foreground/80" />
             <div className="flex flex-col min-w-0">
               <span className="text-xs truncate leading-tight text-foreground/60">{file}</span>
             </div>

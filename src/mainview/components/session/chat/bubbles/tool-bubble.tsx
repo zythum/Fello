@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { FileIcon } from "lucide-react";
+import { FileIcon as FileTypeIcon } from "../../../common/file-icon";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -103,7 +103,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                     );
                   }}
                 >
-                  <FileText className="size-2.5" />
+                  <FileTypeIcon name={fileName} className="size-2.5" />
                   <span className="max-w-40 truncate">{label}</span>
                 </Button>
               );
@@ -125,6 +125,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                           {
                             // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
                             content.content.text
+                              // eslint-disable-next-line no-control-regex
                               .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
                               .replace(/\[[0-9;]*[0-9]m/g, "")
                           }
@@ -140,7 +141,10 @@ export function ToolItem({ session, message }: ToolItemProps) {
               return (
                 <div key={index} className="border-b border-border last:border-b-0 flex flex-col">
                   <div className="px-2 py-2 bg-muted/50 border-b border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
-                    <FileIcon className="size-3.5" />
+                    <FileTypeIcon
+                      name={content.path.split("/").pop() ?? content.path}
+                      className="size-3.5"
+                    />
                     <span>
                       {content.path.startsWith(session.cwd)
                         ? content.path.slice(session.cwd.length + 1)

@@ -70,7 +70,7 @@ export function AskUserDialog({ sessionId }: Props) {
             : "translate-y-0 opacity-100"
       }`}
     >
-      <div className="w-full max-w-5xl px-6 pb-4">
+      <div className="w-full max-w-6xl px-6 pb-4 mx-auto">
         {/*
           使用 CSS Grid 布局替代 flex 来解决高度链问题。
           grid-rows-[auto_1fr_auto] 的三行结构：

@@ -25,7 +25,6 @@ import {
   RefreshCw,
   ChevronRight,
   Folder,
-  File,
   Loader2,
   ChevronsDownUp,
   Pencil,
@@ -37,6 +36,7 @@ import {
   Folders,
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
+import { FileIcon } from "../../../common/file-icon";
 
 interface TreeNode {
   id: string;
@@ -220,7 +220,7 @@ function TreeItem({
           {node.isFolder ? (
             <Folder className="size-4 shrink-0 text-muted-foreground/90" />
           ) : (
-            <File className="size-4 shrink-0 text-muted-foreground/90" />
+            <FileIcon name={node.name} className="size-4 shrink-0 text-muted-foreground/90" />
           )}
           {isEditing ? (
             <input
