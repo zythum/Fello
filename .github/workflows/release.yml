@@ -74,3 +74,63 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           ${{ matrix.script }}
+
+  merge-mac-yml:
+    name: Merge latest-mac.yml
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Merge mac update yml files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+
+          # Wait for release assets to be available
+          sleep 10
+
+          # Download current latest-mac.yml from the release
+          gh release download "$TAG" -p "latest-mac.yml" -D /tmp/update-yml || true
+
+          if [ ! -f /tmp/update-yml/latest-mac.yml ]; then
+            echo "latest-mac.yml not found in release, skipping merge"
+            exit 0
+          fi
+
+          # Check if it already contains both architectures
+          if grep -q "arm64" /tmp/update-yml/latest-mac.yml && grep -q "x64\|x86_64" /tmp/update-yml/latest-mac.yml; then
+            echo "latest-mac.yml already contains both architectures"
+            exit 0
+          fi
+
+          # Find all mac zip files in the release to build a complete files list
+          ASSETS=$(gh release view "$TAG" --json assets -q '.assets[].name' | grep -E '\.zip$' | grep -i mac)
+
+          # Download all mac zip assets to compute sha512
+          mkdir -p /tmp/mac-zips
+          for asset in $ASSETS; do
+            gh release download "$TAG" -p "$asset" -D /tmp/mac-zips
+          done
+
+          # Rebuild latest-mac.yml with all mac zip files
+          VERSION=$(grep "^version:" /tmp/update-yml/latest-mac.yml | awk '{print $2}')
+          RELEASE_DATE=$(grep "^releaseDate:" /tmp/update-yml/latest-mac.yml | cut -d' ' -f2-)
+
+          {
+            echo "version: $VERSION"
+            echo "files:"
+            for asset in $ASSETS; do
+              SHA512=$(shasum -a 512 "/tmp/mac-zips/$asset" | awk '{print $1}' | xxd -r -p | base64)
+              SIZE=$(stat -f%z "/tmp/mac-zips/$asset" 2>/dev/null || stat -c%s "/tmp/mac-zips/$asset")
+              echo "  - url: $asset"
+              echo "    sha512: $SHA512"
+              echo "    size: $SIZE"
+            done
+            echo "releaseDate: $RELEASE_DATE"
+          } > /tmp/update-yml/latest-mac.yml
+
+          # Upload the merged yml back to the release
+          gh release upload "$TAG" /tmp/update-yml/latest-mac.yml --clobber
