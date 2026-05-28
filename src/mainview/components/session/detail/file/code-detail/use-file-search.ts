@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from "react";
-import { useSearchHighlight } from "../../../common/use-search-highlight";
+import { useSearchHighlight } from "../../../../common/use-search-highlight";
 
 export interface UseFileSearchResult {
   searchOpen: boolean;
@@ -51,7 +51,6 @@ export function useFileSearch(
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
         if (searchOpen) {
-          // Re-mount the SearchBar to refocus input
           setSearchOpen(false);
           requestAnimationFrame(() => setSearchOpen(true));
         } else {

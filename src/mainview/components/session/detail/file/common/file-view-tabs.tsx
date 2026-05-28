@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ViewMode } from "./file-types";
+
+export type ViewMode = "preview" | "code" | "compare";
 
 interface FileViewTabsProps {
   viewMode: ViewMode;
