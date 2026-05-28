@@ -26,13 +26,7 @@ export interface CodeViewProps {
   addLineToChat?: boolean;
 }
 
-export function CodeView({
-  className,
-  content,
-  filename,
-  lang,
-  addLineToChat,
-}: CodeViewProps) {
+export function CodeView({ className, content, filename, lang, addLineToChat }: CodeViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const [highlighterReady, setHighlighterReady] = useState(() => isShikiReady());

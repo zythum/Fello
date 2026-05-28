@@ -1,7 +1,7 @@
 {
   "name": "fello",
-  "version": "0.1.19",
-  "description": "ACP Client desktop app powered by Electron",
+  "version": "0.1.20",
+  "description": "Yet another Agent client based on the ACP protocol",
   "author": {
     "name": "Zythum",
     "email": "zythum02@gmail.com"

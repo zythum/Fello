@@ -9,6 +9,14 @@ import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CodeView } from "./code-view";
 import { FileIcon } from "./file-icon";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 function CodeBlock({ language, codeText }: { language: string; codeText: string }) {
   const [hasCopied, setHasCopied] = useState(false);
@@ -74,7 +82,7 @@ const typographyClasses = cn(
   "prose-li:marker:text-muted-foreground prose-li:my-0 prose-li:text-[13px]",
   "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
   "prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:text-[13px]",
-  "prose-th:border-border prose-td:border-border",
+  "prose-table:my-2 prose-th:border-border prose-td:border-border",
 );
 
 // Override the <code> element to render block code blocks with CodeView.
@@ -82,7 +90,7 @@ const typographyClasses = cn(
 // which triggers a React reconciliation — on the second render pass, the "data-block"
 // prop is present, allowing us to distinguish block code from inline code.
 const components: Components = {
-  code: ({ className, children, node, ...props }) => {
+  code: ({ className, children, node: _node, ...props }) => {
     if (!("data-block" in props)) {
       // Inline code — render as a styled <code> element
       return (
@@ -109,6 +117,36 @@ const components: Components = {
 
     return <CodeBlock language={language} codeText={codeText} />;
   },
+  table: ({ className, children, node: _node, ...props }) => (
+    <Table {...props} className={cn(className, "text-xs")}>
+      {children}
+    </Table>
+  ),
+  thead: ({ className, children, node: _node, ...props }) => (
+    <TableHeader {...props} className={cn(className, "border-border")}>
+      {children}
+    </TableHeader>
+  ),
+  tbody: ({ className, children, node: _node, ...props }) => (
+    <TableBody {...props} className={className}>
+      {children}
+    </TableBody>
+  ),
+  tr: ({ className, children, node: _node, ...props }) => (
+    <TableRow {...props} className={cn(className, "border-border")}>
+      {children}
+    </TableRow>
+  ),
+  th: ({ className, children, node: _node, ...props }) => (
+    <TableHead {...props} className={cn(className, "py-2")}>
+      {children}
+    </TableHead>
+  ),
+  td: ({ className, children, node: _node, ...props }) => (
+    <TableCell {...props} className={className}>
+      {children}
+    </TableCell>
+  ),
 };
 
 export function StreamMarkdown({

@@ -27,6 +27,7 @@ const typographyClasses: Record<string, string> = {
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
     "prose-li:marker:text-muted-foreground/50 prose-li:text-[11px] prose-li:text-muted-foreground/60 prose-li:py-[px]",
     "prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-ul:pl-1 prose-ol:pl-1",
+    "prose-table:my-2 prose-th:border-border prose-td:border-border",
     "prose-blockquote:border-l-border prose-blockquote:text-muted-foreground/60 prose-blockquote:text-[11px]",
   ),
   user_message: cn(
@@ -41,6 +42,7 @@ const typographyClasses: Record<string, string> = {
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
     "prose-li:my-0 prose-li:text-[13px]",
     "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
+    "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
   agent_message: cn(
     baseClasses,
@@ -55,7 +57,7 @@ const typographyClasses: Record<string, string> = {
     "prose-li:marker:text-muted-foreground prose-li:my-0 prose-li:text-[13px]",
     "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
     "prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:text-[13px]",
-    "prose-th:border-border prose-td:border-border",
+    "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
   fallback: cn(
     baseClasses,
@@ -69,6 +71,7 @@ const typographyClasses: Record<string, string> = {
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
     "prose-li:my-0 prose-li:text-[13px]",
     "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
+    "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
 };
 

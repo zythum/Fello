@@ -45,10 +45,7 @@ export function AgentTerminalOutput({
 
   return (
     <ScrollArea className="bg-secondary/50 text-foreground/80" viewportClassName="max-h-[70vh]">
-      <pre
-        ref={containerRef}
-        className="p-2 whitespace-pre-wrap font-mono text-[11px] leading-3.5"
-      >
+      <pre ref={containerRef} className="p-2 whitespace-pre-wrap font-mono text-[11px] leading-3.5">
         <code>{cleanLog ?? t("readonlyTerminal.noOutput")}</code>
       </pre>
     </ScrollArea>
