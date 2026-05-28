@@ -459,7 +459,7 @@
     "title": "请求",
     "other": "其他...",
     "back": "返回",
-    "inputPlaceholder": "输入你的回复...",
+    "inputPlaceholder": "输入你的回复...（回车发送）",
     "submit": "提交"
   }
 }

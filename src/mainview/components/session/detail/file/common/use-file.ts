@@ -62,7 +62,11 @@ export function useFile(
         }
 
         const promises: Promise<unknown>[] = [
-          request.readFile({ projectId, relativePath: file, encoding: encoding === "base64" ? "base64" : undefined }),
+          request.readFile({
+            projectId,
+            relativePath: file,
+            encoding: encoding === "base64" ? "base64" : undefined,
+          }),
         ];
         if (gitHead) {
           promises.push(request.readGitHeadFile({ projectId, relativePath: file }));
@@ -82,7 +86,9 @@ export function useFile(
     }
 
     load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [projectId, file, encoding, gitHead, t]);
 
   const arrayBuffer = useMemo(

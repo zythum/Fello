@@ -13,5 +13,9 @@ export function DocxDetail({ projectId, file }: DocxDetailProps) {
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
-  return <div className="h-full"><DocxView data={arrayBuffer} filename={file} /></div>;
+  return (
+    <div className="h-full">
+      <DocxView data={arrayBuffer} filename={file} />
+    </div>
+  );
 }

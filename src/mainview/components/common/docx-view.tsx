@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { renderAsync } from "docx-preview";
 import { useTranslation } from "react-i18next";
+import { ScrollArea } from "../ui/scroll-area";
 
 export interface DocxViewProps {
   data: ArrayBuffer;
@@ -44,12 +45,13 @@ export function DocxView({ data }: DocxViewProps) {
   }, [data, t]);
 
   return (
-    <div className="w-full h-full overflow-auto bg-white dark:bg-[#1e1e1e]">
+    <ScrollArea className="w-full h-full bg-muted">
+      <style>{`.docx-preview-wrapper { background: var(--muted)!important; padding: 16px!important; }`}</style>
       <div
         ref={containerRef}
-        className="docx-preview-wrapper min-h-full w-max"
-        style={{ padding: "20px 40px" }}
+        className="min-h-full min-w-full w-max p-0"
+        style={{ padding: "0" }}
       />
-    </div>
+    </ScrollArea>
   );
 }

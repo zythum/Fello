@@ -30,9 +30,8 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
-  const viewModes: ViewMode[] = gitContent != null
-    ? ["preview", "code", "compare"]
-    : ["preview", "code"];
+  const viewModes: ViewMode[] =
+    gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     if (open) setContextSelectedText(window.getSelection()?.toString() ?? "");
@@ -118,7 +117,12 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger className="h-full">
-              <CodeView className="min-h-full" content={content} filename={file} addLineToChat={true} />
+              <CodeView
+                className="min-h-full"
+                content={content}
+                filename={file}
+                addLineToChat={true}
+              />
             </ContextMenuTrigger>
             {contextMenuItems}
           </ContextMenu>

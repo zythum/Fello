@@ -3,6 +3,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import PdfWorkerConstructor from "./pdf-worker-wrapper?worker";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface PdfViewProps {
   data: ArrayBuffer;
@@ -31,6 +32,7 @@ export function PdfView({ data }: PdfViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null);
 
   const renderPage = useCallback(async (pdf: pdfjs.PDFDocumentProxy, num: number, s: number) => {
     const canvas = canvasRef.current;
@@ -39,12 +41,15 @@ export function PdfView({ data }: PdfViewProps) {
     try {
       const page = await pdf.getPage(num);
       const viewport = page.getViewport({ scale: s });
+      const dpr = window.devicePixelRatio || 1;
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      canvas.width = viewport.width * dpr;
+      canvas.height = viewport.height * dpr;
+      setCanvasSize({ w: viewport.width, h: viewport.height });
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      ctx.scale(dpr, dpr);
 
       await page.render({ canvas, canvasContext: ctx, viewport }).promise;
     } catch (err) {
@@ -109,7 +114,7 @@ export function PdfView({ data }: PdfViewProps) {
   return (
     <div className="flex flex-col items-center w-full h-full min-h-0">
       {numPages > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
           <button
             type="button"
             onClick={zoomOut}
@@ -153,13 +158,19 @@ export function PdfView({ data }: PdfViewProps) {
           </button>
         </div>
       )}
-      <div className="flex-1 overflow-auto w-full flex justify-center p-4 bg-[#80808020]">
-        {loading ? (
-          <div className="text-sm text-muted-foreground mt-10">{t("fileDetail.loading")}</div>
-        ) : (
-          <canvas ref={canvasRef} className="shadow-lg bg-white" />
-        )}
-      </div>
+      <ScrollArea className="flex-1 w-full min-h-0 overflow-hidden bg-muted">
+        <div className="p-4">
+          {loading ? (
+            <div className="text-sm text-muted-foreground mt-10">{t("fileDetail.loading")}</div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              className="shadow-lg bg-white m-auto"
+              style={canvasSize ? { width: canvasSize.w, height: canvasSize.h } : undefined}
+            />
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

@@ -13,5 +13,9 @@ export function XlsxDetail({ projectId, file }: XlsxDetailProps) {
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
-  return <div className="h-full"><XlsxView data={arrayBuffer} filename={file} /></div>;
+  return (
+    <div className="h-full">
+      <XlsxView data={arrayBuffer} filename={file} />
+    </div>
+  );
 }

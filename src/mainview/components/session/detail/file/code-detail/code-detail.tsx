@@ -34,8 +34,14 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
 
   // Search
   const {
-    searchOpen, searchTerm, setSearchTerm,
-    matchCount, currentMatch, goToNext, goToPrev, closeSearch,
+    searchOpen,
+    searchTerm,
+    setSearchTerm,
+    matchCount,
+    currentMatch,
+    goToNext,
+    goToPrev,
+    closeSearch,
   } = useFileSearch(projectId, file, viewMode, codeViewContainer?.children[0]?.shadowRoot ?? null);
 
   const viewModes: ViewMode[] = gitContent != null ? ["code", "compare"] : ["code"];
@@ -113,7 +119,12 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger render={<div className="h-full" ref={setCodeViewContainer} />}>
-              <CodeView className="min-h-full" content={content} filename={file} addLineToChat={true} />
+              <CodeView
+                className="min-h-full"
+                content={content}
+                filename={file}
+                addLineToChat={true}
+              />
             </ContextMenuTrigger>
             {contextMenuItems}
           </ContextMenu>

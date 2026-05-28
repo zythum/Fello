@@ -459,7 +459,7 @@
     "title": "Request",
     "other": "Other...",
     "back": "Back",
-    "inputPlaceholder": "Type your response...",
+    "inputPlaceholder": "Type your response... (Enter to send)",
     "submit": "Submit"
   }
 }

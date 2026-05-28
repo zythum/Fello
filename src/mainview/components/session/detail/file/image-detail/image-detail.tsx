@@ -64,7 +64,13 @@ export function ImageDetail({ projectId, file }: ImageDetailProps) {
         <Controls />
         <TransformComponent
           wrapperStyle={{ width: "100%", height: "100%" }}
-          contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+          contentStyle={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
           <img
             src={src}

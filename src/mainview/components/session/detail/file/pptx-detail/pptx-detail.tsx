@@ -13,5 +13,9 @@ export function PptxDetail({ projectId, file }: PptxDetailProps) {
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
-  return <div className="h-full"><PptxView data={arrayBuffer} filename={file} /></div>;
+  return (
+    <div className="h-full">
+      <PptxView data={arrayBuffer} filename={file} />
+    </div>
+  );
 }

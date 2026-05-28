@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionState } from "../../../store";
 import * as backend from "../../../backend";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HelpCircle, ArrowLeft } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
@@ -260,18 +260,20 @@ function AskUserOptions({
               {t("askUser.back", "Back")}
             </Button>
           )}
-          <div className="flex gap-2">
-            <Input
+          <div className="rounded-lg border border-input bg-card focus-within:border-ring focus-within:ring-ring relative">
+            <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t("askUser.inputPlaceholder", "Type your response...")}
-              className="h-8 text-xs"
+              placeholder={t("askUser.inputPlaceholder", "Type your response... (Enter to send)")}
+              className="min-h-19 max-h-50 block resize-none border-none shadow-none focus-visible:ring-0 leading-relaxed p-2 pb-8 text-foreground/80 placeholder:text-muted-foreground/50 break-all"
               autoFocus
             />
-            <Button size="sm" className="h-8 text-xs shrink-0" onClick={handleSubmitInput}>
-              {t("askUser.submit", "Submit")}
-            </Button>
+            <div className="absolute bottom-1.5 right-1.5">
+              <Button size="sm" className="h-7 text-xs shrink-0" onClick={handleSubmitInput}>
+                {t("askUser.submit", "Submit")}
+              </Button>
+            </div>
           </div>
         </div>
       )}

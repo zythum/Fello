@@ -35,7 +35,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       }
     };
     subscribe.on("fs-changed", handler);
-    return () => { subscribe.off("fs-changed", handler); };
+    return () => {
+      subscribe.off("fs-changed", handler);
+    };
   }, [projectId, file]);
 
   const handleRefresh = useCallback(() => {
@@ -88,14 +90,23 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             </div>
           )}
 
-          {fileKind === "text" ? <CodeDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "markdown" ? <MarkdownDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "image" ? <ImageDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "pdf" ? <PdfDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "docx" ? <DocxDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "pptx" ? <PptxDetail key={refreshKey} projectId={projectId} file={file} /> :
-           fileKind === "xlsx" ? <XlsxDetail key={refreshKey} projectId={projectId} file={file} /> :
-           <FallbackDetail projectId={projectId} file={file} />}
+          {fileKind === "text" ? (
+            <CodeDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "markdown" ? (
+            <MarkdownDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "image" ? (
+            <ImageDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "pdf" ? (
+            <PdfDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "docx" ? (
+            <DocxDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "pptx" ? (
+            <PptxDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "xlsx" ? (
+            <XlsxDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : (
+            <FallbackDetail projectId={projectId} file={file} />
+          )}
         </div>
       )}
     </div>

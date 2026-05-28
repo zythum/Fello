@@ -94,7 +94,7 @@ export function PptxView({ data }: PptxViewProps) {
   return (
     <div className="flex flex-col items-center w-full h-full min-h-0">
       {slideCount > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+        <div className="flex h-10 items-center gap-3 px-4 py-2 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
           <button
             type="button"
             onClick={goToPrev}

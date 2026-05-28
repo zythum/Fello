@@ -3,9 +3,7 @@ import { useTranslation } from "react-i18next";
 export function LoadingState() {
   const { t } = useTranslation();
   return (
-    <div className="text-sm text-muted-foreground text-center mt-10">
-      {t("fileDetail.loading")}
-    </div>
+    <div className="text-sm text-muted-foreground text-center mt-10">{t("fileDetail.loading")}</div>
   );
 }
 

@@ -13,5 +13,9 @@ export function PdfDetail({ projectId, file }: PdfDetailProps) {
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
-  return <div className="h-full"><PdfView data={arrayBuffer} filename={file} /></div>;
+  return (
+    <div className="h-full">
+      <PdfView data={arrayBuffer} filename={file} />
+    </div>
+  );
 }

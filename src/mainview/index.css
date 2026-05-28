@@ -207,3 +207,38 @@ input[type="number"] {
   background-color: #f59e0b;
   color: #000;
 }
+
+/* XLSX table styles */
+.xlsx-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: max-content;
+  min-width: 100%;
+}
+.xlsx-table th,
+.xlsx-table td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+.xlsx-table th {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.xlsx-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+.xlsx-table tbody tr:hover {
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.xlsx-table .xlsx-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

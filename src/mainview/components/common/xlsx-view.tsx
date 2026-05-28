@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { useTranslation } from "react-i18next";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface XlsxViewProps {
   data: ArrayBuffer;
@@ -35,7 +36,7 @@ function sheetToHtml(ws: XLSX.WorkSheet, _sheetName: string): string {
     };
   }
 
-  let html = '<table class="xlsx-table" style="border-collapse: collapse; width: 100%;">';
+  let html = '<table class="xlsx-table">';
 
   // 如果有列宽信息，设置 colgroup
   const cols = ws["!cols"];
@@ -197,19 +198,15 @@ export function XlsxView({ data }: XlsxViewProps) {
           ))}
         </div>
       )}
-      <div className="flex-1 overflow-auto w-full">
+      <ScrollArea className="flex-1 w-full min-h-0 overflow-hidden">
         {loading ? (
           <div className="text-sm text-muted-foreground text-center mt-10">
             {t("fileDetail.loading")}
           </div>
         ) : (
-          <div
-            ref={containerRef}
-            className="xlsx-preview"
-            style={{ fontSize: "13px", padding: "8px" }}
-          />
+          <div ref={containerRef} className="xlsx-preview p-2" />
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
