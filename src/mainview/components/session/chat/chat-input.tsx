@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useSessionState } from "../../../store";
 import type { ChatMessage } from "../../../lib/chat-message";
-import { request } from "../../../backend";
+import { request, isWebUI } from "../../../backend";
+import { electron } from "../../../electron";
 import { reduceFlushStreaming } from "../../../lib/session-state-reducer";
 import { Button } from "@/components/ui/button";
 import {
@@ -474,30 +475,39 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
       const supportsEmbedded =
         initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
-      const supportsFiles = supportsImage || supportsEmbedded;
-
       // Handle files drop
-      if (supportsFiles && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const files = Array.from(e.dataTransfer.files).filter((file) => {
-          const isImage = file.type.startsWith("image/");
-          if (isImage) return supportsImage;
-          return supportsEmbedded;
-        });
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const newAttachments: StagedAttachment[] = [];
+        const paths: string[] = [];
 
-        if (files.length > 0) {
-          const newAttachments = files.map((file) => {
-            const isImage = file.type.startsWith("image/");
-            const type = isImage && supportsImage ? "image" : "file";
-            return {
+        for (const file of Array.from(e.dataTransfer.files)) {
+          const isImage = file.type.startsWith("image/");
+          if (isImage && supportsImage) {
+            newAttachments.push({
               id: generateUUID(),
               file,
-              type,
-              previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
-            } satisfies StagedAttachment;
-          });
-          setAttachments((prev) => [...prev, ...newAttachments]);
-          return;
+              type: "image",
+              previewUrl: URL.createObjectURL(file),
+            });
+          } else if (supportsEmbedded) {
+            newAttachments.push({ id: generateUUID(), file, type: "file" });
+          } else if (!isWebUI) {
+            const p = electron.getPathForFile(file);
+            if (p) paths.push(p);
+          }
         }
+
+        if (newAttachments.length > 0) {
+          setAttachments((prev) => [...prev, ...newAttachments]);
+        }
+        if (paths.length > 0) {
+          const joined = paths.join(" ");
+          setInput((prev) => (prev ? `${prev} ${joined}` : joined));
+        }
+        requestAnimationFrame(() => {
+          containerRef.current?.querySelector("textarea")?.focus();
+        });
+        return;
       }
 
       // Handle tree nodes drop
@@ -512,7 +522,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           .join(" ");
         setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
-        // Focus the textarea after drop
+        // Focus the textarea after paste
         requestAnimationFrame(() => {
           containerRef.current?.querySelector("textarea")?.focus();
         });
@@ -525,14 +535,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
-      const supportsFiles =
-        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-        initializeInfo?.agentCapabilities?.promptCapabilities?.image;
-
       // Must always preventDefault on dragover to allow drop
       if (
         e.dataTransfer.types.includes("application/x-fello-tree-nodes") ||
-        (supportsFiles && e.dataTransfer.types.includes("Files"))
+        e.dataTransfer.types.includes("Files")
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -560,61 +566,105 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const text = e.clipboardData.getData("text/plain");
-      if (!text || !session) return;
+      const files = e.clipboardData.files;
+      if (!session) return;
 
-      const trimmed = text.trim();
-      if (trimmed.includes("\n") || trimmed.length > 1024) return;
+      if (files.length > 0 && !isWebUI) {
+        const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
+        const supportsEmbedded =
+          initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
+        // Handle files
+        const newAttachments: StagedAttachment[] = [];
+        const paths: string[] = [];
 
-      const target = e.target as HTMLElement;
-      if (target.tagName !== "TEXTAREA") return;
-      const textarea = target as HTMLTextAreaElement;
-
-      const isLikelyPath = trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes(".");
-      if (!isLikelyPath) return;
-
-      // We only want to intercept if it might be a path.
-      // To avoid blocking the UI, we prevent default and stop propagation, then do async check.
-      e.preventDefault();
-      e.stopPropagation();
-
-      (async () => {
-        let insertText = text;
-        try {
-          // Attempt to resolve as absolute or relative path
-          const isAbsolutePath = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
-          const absPath = isAbsolutePath
-            ? trimmed
-            : await request.getSystemFilePath({
-                projectId: session.projectId,
-                path: trimmed,
-                isAbsolute: true,
-              });
-
-          const relPath = await request.getSystemFilePath({
-            projectId: session.projectId,
-            path: trimmed,
-            isAbsolute: false,
-          });
-          const info = await request.getFileInfo({
-            projectId: session.projectId,
-            relativePath: relPath,
-          });
-          if (info) {
-            const isFolder = !info.isFile;
-            const displayPath = relPath.replace(/\\/g, "/");
-            const prefix = isFolder ? "#folder:" : "#file:";
-            insertText = `@[${prefix}${displayPath}](${absPath}) `;
+        for (const file of Array.from(files)) {
+          const isImage = file.type.startsWith("image/");
+          if (isImage && supportsImage) {
+            newAttachments.push({
+              id: generateUUID(),
+              file,
+              type: "image",
+              previewUrl: URL.createObjectURL(file),
+            });
+          } else if (supportsEmbedded) {
+            newAttachments.push({ id: generateUUID(), file, type: "file" });
+          } else if (!isWebUI) {
+            const p = electron.getPathForFile(file);
+            if (p) paths.push(p);
           }
-        } catch {
-          // ignore
         }
 
-        // Restore focus and insert text natively so MentionsInput catches the onChange
-        textarea.focus();
-        document.execCommand("insertText", false, insertText);
-      })();
+        if (newAttachments.length > 0) {
+          setAttachments((prev) => [...prev, ...newAttachments]);
+        }
+        if (paths.length > 0) {
+          const joined = paths.join(" ");
+          setInput((prev) => (prev ? `${prev} ${joined}` : joined));
+        }
+        // Focus the textarea after drop
+        requestAnimationFrame(() => {
+          containerRef.current?.querySelector("textarea")?.focus();
+        });
+        e.preventDefault();
+        return;
+      }
+
+      if (text) {
+        const trimmed = text.trim();
+        if (trimmed.includes("\n") || trimmed.length > 1024) return;
+
+        const target = e.target as HTMLElement;
+        if (target.tagName !== "TEXTAREA") return;
+        const textarea = target as HTMLTextAreaElement;
+
+        const isLikelyPath =
+          trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes(".");
+        if (!isLikelyPath) return;
+
+        // We only want to intercept if it might be a path.
+        // To avoid blocking the UI, we prevent default and stop propagation, then do async check.
+        e.preventDefault();
+        e.stopPropagation();
+
+        (async () => {
+          let insertText = text;
+          try {
+            // Attempt to resolve as absolute or relative path
+            const isAbsolutePath = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
+            const absPath = isAbsolutePath
+              ? trimmed
+              : await request.getSystemFilePath({
+                  projectId: session.projectId,
+                  path: trimmed,
+                  isAbsolute: true,
+                });
+
+            const relPath = await request.getSystemFilePath({
+              projectId: session.projectId,
+              path: trimmed,
+              isAbsolute: false,
+            });
+            const info = await request.getFileInfo({
+              projectId: session.projectId,
+              relativePath: relPath,
+            });
+            if (info) {
+              const isFolder = !info.isFile;
+              const displayPath = relPath.replace(/\\/g, "/");
+              const prefix = isFolder ? "#folder:" : "#file:";
+              insertText = `@[${prefix}${displayPath}](${absPath}) `;
+            }
+          } catch {
+            // ignore
+          }
+
+          // Restore focus and insert text natively so MentionsInput catches the onChange
+          textarea.focus();
+          document.execCommand("insertText", false, insertText);
+        })();
+      }
     },
-    [session],
+    [session, initializeInfo?.agentCapabilities?.promptCapabilities],
   );
 
   return (
@@ -852,7 +902,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       className="hidden"
                       onChange={handleFileSelect}
                       accept={[
-                        initializeInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
+                        initializeInfo?.agentCapabilities?.promptCapabilities?.image
+                          ? "image/*"
+                          : "",
                         initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
                           ? "*/*"
                           : "",

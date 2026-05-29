@@ -4,6 +4,10 @@ import type { UpdaterEvent } from "../electron/updater";
 export { type UpdaterEvent };
 
 export const electron = {
+  getPathForFile: (file: File): string => {
+    if (isWebUI) return "";
+    return window.fello!.getPathForFile(file);
+  },
   showOpenDialog: async (): Promise<string | null> => {
     if (isWebUI) {
       console.warn(

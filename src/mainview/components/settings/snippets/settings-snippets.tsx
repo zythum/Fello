@@ -32,8 +32,7 @@ export function SettingsSnippets() {
       await request.updateSettings({ snippets: updated });
     } catch (err) {
       toast.error(
-        extractErrorMessage(err) ||
-          t("settings.snippets.saveFailed", "Failed to save snippets."),
+        extractErrorMessage(err) || t("settings.snippets.saveFailed", "Failed to save snippets."),
       );
     }
   };

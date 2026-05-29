@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { FelloIPCSchema } from "../../shared/schema";
 import type { UpdaterEvent } from "../../electron/updater";
 
@@ -26,6 +26,7 @@ const wrappedListeners = new Map<
 
 contextBridge.exposeInMainWorld("fello", {
   isMacApp: process.platform === "darwin",
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
     const handler = (_event: unknown, isFullScreen: boolean) => callback(isFullScreen);
     ipcRenderer.on("electron:mac-fullscreen", handler);

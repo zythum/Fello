@@ -2,6 +2,8 @@ import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { FileIcon as FileTypeIcon } from "../../../common/file-icon";
+import { isWebUI } from "../../../../backend";
+import { electron } from "../../../../electron";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -96,6 +98,12 @@ export function ToolItem({ session, message }: ToolItemProps) {
                     e.preventDefault();
                     e.stopPropagation();
                     if (!activeProjectId) return;
+                    if (loc.path[0] === "/" || /^[a-zA-Z]:/.test(loc.path)) {
+                      if (!isWebUI) {
+                        electron.revealInFinder(loc.path);
+                      }
+                      return;
+                    }
                     document.dispatchEvent(
                       new CustomEvent("fello-preview-file", {
                         detail: { projectId: activeProjectId, relativePath: loc.path },

@@ -18,6 +18,7 @@ declare global {
   interface Window {
     fello?: {
       isMacApp: boolean;
+      getPathForFile: (file: File) => string;
       onMacFullScreen: (callback: (isFullScreen: boolean) => void) => () => void;
       onUpdater: (callback: (updaterEvent: UpdaterEvent) => void) => () => void;
 
