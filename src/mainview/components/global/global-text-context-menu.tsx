@@ -93,18 +93,6 @@ export function GlobalTextContextMenu() {
             {isEditable && (
               <DropdownMenuItem
                 onClick={() => {
-                  document.execCommand("selectAll");
-                  setOpen(false);
-                }}
-              >
-                <Type />
-                {t("contextMenu.selectAll", "Select All")}
-              </DropdownMenuItem>
-            )}
-            {isEditable && <DropdownMenuSeparator />}
-            {isEditable && (
-              <DropdownMenuItem
-                onClick={() => {
                   document.execCommand("cut");
                   setOpen(false);
                 }}
@@ -138,6 +126,18 @@ export function GlobalTextContextMenu() {
               >
                 <ClipboardPaste />
                 {t("contextMenu.paste", "Paste")}
+              </DropdownMenuItem>
+            )}
+            {isEditable && <DropdownMenuSeparator />}
+            {isEditable && (
+              <DropdownMenuItem
+                onClick={() => {
+                  document.execCommand("selectAll");
+                  setOpen(false);
+                }}
+              >
+                <Type />
+                {t("contextMenu.selectAll", "Select All")}
               </DropdownMenuItem>
             )}
           </MenuPrimitive.Popup>
