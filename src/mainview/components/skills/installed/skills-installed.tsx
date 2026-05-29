@@ -4,11 +4,19 @@ import { electron } from "../../../electron";
 import { useTranslation } from "react-i18next";
 import { useMessage } from "../../providers/message";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StreamMarkdown } from "../../common/stream-markdown";
 import { FolderOpen, Trash2, FileText, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Item,
+  ItemGroup,
+  ItemSeparator,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+} from "@/components/ui/item";
 import type { SkillInfo } from "../../../../shared/schema";
 
 export function SkillsInstalled() {
@@ -115,72 +123,73 @@ export function SkillsInstalled() {
           {Object.entries(groups).map(([groupName, groupSkills]) => {
             if (groupSkills.length === 0) return null;
             return (
-              <div key={groupName} className="space-y-4">
+              <div key={groupName} className="space-y-3">
                 <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                   {groupName}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 xxl:grid-cols-3 gap-4">
-                  {groupSkills.map((skill) => {
+                <ItemGroup className="gap-0">
+                  {groupSkills.map((skill, index) => {
                     const isFello = skill.scope === "fello";
                     return (
-                      <Card key={`${skill.scope}:${skill.id}`} className="flex flex-col">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base truncate" title={skill.name}>
-                            {skill.name}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                          <div className="line-clamp-2 text-xs">
-                            {skill.description || t("skills.installed.noDescription")}
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => handleViewSkill(skill)}
-                            title={t("skills.installed.viewSkill")}
-                          >
-                            <FileText className="size-3.5" />
-                          </Button>
-                          {!isWebUI && (
+                      <div key={`${skill.scope}:${skill.id}`}>
+                        <Item size="sm">
+                          <ItemContent>
+                            <ItemTitle className="truncate" title={skill.name}>
+                              {skill.name}
+                            </ItemTitle>
+                            <ItemDescription className="line-clamp-1 text-xs">
+                              {skill.description || t("skills.installed.noDescription")}
+                            </ItemDescription>
+                          </ItemContent>
+                          <ItemActions className="gap-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
-                              onClick={() => handleReveal(skill)}
-                              title={t("skills.installed.revealInFinder")}
+                              className="size-7"
+                              onClick={() => handleViewSkill(skill)}
+                              title={t("skills.installed.viewSkill")}
                             >
-                              <FolderOpen className="size-3.5" />
+                              <FileText className="size-3.5" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={
-                              isFello
-                                ? "size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                : "size-8 opacity-50 cursor-not-allowed"
-                            }
-                            disabled={!isFello}
-                            onClick={() => handleUninstall(skill)}
-                            title={t("skills.installed.uninstall")}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </CardFooter>
-                      </Card>
+                            {!isWebUI && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                onClick={() => handleReveal(skill)}
+                                title={t("skills.installed.revealInFinder")}
+                              >
+                                <FolderOpen className="size-3.5" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={
+                                isFello
+                                  ? "size-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  : "size-7 opacity-50 cursor-not-allowed"
+                              }
+                              disabled={!isFello}
+                              onClick={() => handleUninstall(skill)}
+                              title={t("skills.installed.uninstall")}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </ItemActions>
+                        </Item>
+                        {index < groupSkills.length - 1 && <ItemSeparator />}
+                      </div>
                     );
                   })}
-                </div>
+                </ItemGroup>
               </div>
             );
           })}
         </div>
       </ScrollArea>
       {skills.length === 0 && (
-        <div className="text-center text-muted-foreground text-smp-8 mt-2">
+        <div className="text-center text-muted-foreground text-sm py-8">
           {t("skills.installed.noSkills")}
         </div>
       )}

@@ -3,10 +3,18 @@ import { useTranslation } from "react-i18next";
 import { PackageSearch, Search, Download, Loader2 } from "lucide-react";
 import { request } from "../../../backend";
 import { Input } from "../../ui/input";
-import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { toast } from "sonner";
 import { ScrollArea } from "../../ui/scroll-area";
+import {
+  Item,
+  ItemGroup,
+  ItemSeparator,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+} from "@/components/ui/item";
 import type { SkillInfo } from "../../../../shared/schema";
 
 type SearchResult = {
@@ -117,59 +125,61 @@ export function SkillsSh() {
               </p>
             </div>
           ) : results.length > 0 ? (
-            <div className="grid pb-6">
+            <ItemGroup className="px-2 pb-6 gap-0">
               {results.map((item, index) => {
                 const installed = isInstalled(item.skillId);
                 const isInstalling = installingId === item.skillId;
 
                 return (
-                  <Card
-                    key={index}
-                    className="flex p-4 flex-row items-center bg-transparent justify-between gap-4 border-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium truncate text-foreground/90">{item.name}</h3>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                        <span className="truncate">
-                          {t("skills.skillsSh.authorPrefix")}
-                          {item.source}
-                        </span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          <Download className="size-3" />
-                          {t("skills.skillsSh.installs", { count: item.installs.toLocaleString() })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="shrink-0">
-                      {installed ? (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled
-                          className="w-16 text-xs font-normal"
-                        >
-                          {t("skills.skillsSh.installedStatus")}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-16 text-xs font-normal text-accent-foreground"
-                          onClick={() => handleInstall(item)}
-                          disabled={isInstalling || installingId !== null}
-                        >
-                          {isInstalling ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            t("skills.skillsSh.install")
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
+                  <div key={index}>
+                    <Item size="xs">
+                      <ItemContent>
+                        <ItemTitle className="text-foreground/90 truncate">
+                          {item.name}
+                        </ItemTitle>
+                        <ItemDescription className="flex items-center gap-3 text-xs">
+                          <span className="truncate">
+                            {t("skills.skillsSh.authorPrefix")}
+                            {item.source}
+                          </span>
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Download className="size-3" />
+                            {t("skills.skillsSh.installs", { count: item.installs.toLocaleString() })}
+                          </span>
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions className="gap-0">
+                        {installed ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled
+                            className="w-16 text-xs font-normal"
+                          >
+                            {t("skills.skillsSh.installedStatus")}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-16 text-xs font-normal text-accent-foreground"
+                            onClick={() => handleInstall(item)}
+                            disabled={isInstalling || installingId !== null}
+                          >
+                            {isInstalling ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              t("skills.skillsSh.install")
+                            )}
+                          </Button>
+                        )}
+                      </ItemActions>
+                    </Item>
+                    {index < results.length - 1 && <ItemSeparator />}
+                  </div>
                 );
               })}
-            </div>
+            </ItemGroup>
           ) : !isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <p className="text-sm text-muted-foreground">{t("skills.skillsSh.noResults")}</p>
