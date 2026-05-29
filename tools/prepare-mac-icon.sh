@@ -8,9 +8,9 @@ SCALED_PNG="$ROOT_DIR/icons/fello.scaled.png"
 PADDED_PNG="$ROOT_DIR/icons/fello.padded.png"
 OUT_ICNS="$ROOT_DIR/icons/fello.icns"
 
-# Keep extra transparent margin so the icon size is closer to the original .icon source.
-# You can tune this from workflow/local shell: MAC_ICON_CONTENT_SIZE=840 npm run prepare:icon:mac
-CONTENT_SIZE="${MAC_ICON_CONTENT_SIZE:-840}"
+# The source icon already includes its intended safe area.
+# You can tune this from workflow/local shell: MAC_ICON_CONTENT_SIZE=960 npm run prepare:icon:mac
+CONTENT_SIZE="${MAC_ICON_CONTENT_SIZE:-1024}"
 
 if [[ ! -f "$SRC_PNG" ]]; then
   echo "Missing source icon: $SRC_PNG" >&2
