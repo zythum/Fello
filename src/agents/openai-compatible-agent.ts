@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto";
+import { readFileSync, statSync } from "fs";
+import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { stepCountIs, streamText, generateText, type ModelMessage } from "ai";
 import type {
@@ -60,7 +62,22 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
       ? ` Additional workspace roots: ${additionalDirectories.join(", ")}.`
       : "";
   const workspacePrompt = `Current session working directory (cwd): ${cwd}.${extras} Use this as the default base path for relative paths.`;
-  return `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}`;
+  let prompt = `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}`;
+
+  // Load project-level AGENTS.md if present (skip if > 50 KB)
+  try {
+    const agentsMdPath = join(cwd, "AGENTS.md");
+    if (statSync(agentsMdPath).size <= 50 * 1024) {
+      const agentsMd = readFileSync(agentsMdPath, "utf-8").trim();
+      if (agentsMd) {
+        prompt += `\n\n<project_conventions>\n${agentsMd}\n</project_conventions>`;
+      }
+    }
+  } catch {
+    // File doesn't exist or unreadable — skip silently
+  }
+
+  return prompt;
 }
 
 type OpenAICompatibleModelsResponse = {
