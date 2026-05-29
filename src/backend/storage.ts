@@ -14,6 +14,7 @@ import type {
   ProjectInfo,
   SessionInfo,
   SettingsInfo,
+  SnippetInfo,
   SessionNotificationFelloExt,
   Feature,
 } from "../shared/schema";
@@ -93,6 +94,7 @@ interface SettingsMeta {
   ilink: {
     useOriginalImage: boolean;
   };
+  snippets?: SnippetInfo[];
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -277,7 +279,17 @@ function readSettings(): SettingsMeta {
         ? { useOriginalImage: rawObj.ilink.useOriginalImage }
         : DEFAULT_SETTINGS.ilink;
 
-    return { agents, theme, i18n, mcpServers, fileWatcher, ilink };
+    const snippets: SnippetInfo[] = Array.isArray(rawObj?.snippets)
+      ? (rawObj.snippets as unknown[]).filter(
+          (s): s is SnippetInfo =>
+            isObject(s) &&
+            typeof s.id === "string" &&
+            typeof s.title === "string" &&
+            typeof s.content === "string",
+        )
+      : [];
+
+    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, snippets };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -529,6 +541,7 @@ export const storageOps = {
       ilink: {
         useOriginalImage: meta.ilink.useOriginalImage,
       },
+      snippets: meta.snippets ?? [],
     };
   },
 
@@ -631,6 +644,7 @@ export const storageOps = {
           useOriginalImage: settings.ilink.useOriginalImage,
         };
       })(),
+      snippets: settings.snippets ?? prevMeta.snippets,
     };
     writeSettings(meta);
   },

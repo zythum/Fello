@@ -244,6 +244,29 @@
       "step5": "Right-click any session in the sidebar to set it as active for WeChat",
       "useOriginalImage": "Use Original Image",
       "useOriginalImageDesc": "Send full-size images to the model (uses more tokens). When off, thumbnails are used."
+    },
+    "snippets": {
+      "title": "Snippets",
+      "desc": "Manage reusable text snippets for quick insertion.",
+      "description": "Configure Snippets",
+      "add": "Add Snippet",
+      "edit": "Edit Snippet",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "empty": "No snippets configured",
+      "saveFailed": "Failed to save snippets.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Title",
+      "contentLabel": "Content",
+      "contentPlaceholder": "Content",
+      "dialogDesc": "Configure the snippet title and content.",
+      "confirmDeleteTitle": "Delete Snippet",
+      "confirmDeleteDesc": "Are you sure you want to delete this snippet? This action cannot be undone.",
+      "validation": {
+        "enterTitle": "Please enter a title.",
+        "enterContent": "Please enter content."
+      }
     }
   },
   "chat": {
@@ -299,6 +322,8 @@
     "tokensTotal": "{{total}}k tokens",
     "generationFailed": "Generation failed.",
     "attach": "Attach file",
+    "snippets": "Snippets",
+    "snippetsEmpty": "No snippets. Click to add in Settings.",
     "selectModel": "Select model"
   },
   "filePanel": {

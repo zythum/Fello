@@ -244,6 +244,29 @@
       "step5": "在侧边栏右键任意会话即可设为微信活跃会话",
       "useOriginalImage": "使用原图",
       "useOriginalImageDesc": "向模型发送原始大小的图片（消耗更多 token）。关闭时使用缩略图。"
+    },
+    "snippets": {
+      "title": "快捷短语",
+      "desc": "管理可复用的文本片段，快速插入到对话中。",
+      "description": "配置快捷短语",
+      "add": "添加短语",
+      "edit": "编辑短语",
+      "delete": "删除",
+      "save": "保存",
+      "cancel": "取消",
+      "empty": "暂无快捷短语",
+      "saveFailed": "保存快捷短语失败。",
+      "titleLabel": "标题",
+      "titlePlaceholder": "标题",
+      "contentLabel": "内容",
+      "contentPlaceholder": "内容",
+      "dialogDesc": "配置短语的标题和内容。",
+      "confirmDeleteTitle": "删除短语",
+      "confirmDeleteDesc": "确定要删除此短语吗？此操作无法撤销。",
+      "validation": {
+        "enterTitle": "请输入标题。",
+        "enterContent": "请输入内容。"
+      }
     }
   },
   "chat": {
@@ -299,6 +322,8 @@
     "tokensTotal": "{{total}}k tokens",
     "generationFailed": "生成失败。",
     "attach": "附加文件",
+    "snippets": "快捷短语",
+    "snippetsEmpty": "暂无短语，点击前往设置添加。",
     "selectModel": "选择模型"
   },
   "filePanel": {

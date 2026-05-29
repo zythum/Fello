@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
 import { useAppStore, useSessionState } from "../../../store";
 import type { ChatMessage } from "../../../lib/chat-message";
@@ -23,8 +24,15 @@ import {
   Folder,
   Library,
   Wrench,
+  Clipboard,
 } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
@@ -125,12 +133,14 @@ function resolveMentions(value: string): string {
 
 export function ChatInput({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { toast } = useMessage();
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addMessage, updateSession } = useAppStore();
+  const snippets = useAppStore((s) => s.snippets);
   const isStreaming = session.isStreaming;
   const availableModels = session.models?.availableModels ?? [];
   const currentModelId = session.models?.currentModelId ?? null;
@@ -831,40 +841,80 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </Select>
                 </>
               )}
-              {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-              initializeInfo?.agentCapabilities?.promptCapabilities?.image ? (
-                <>
-                  <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    accept={[
-                      initializeInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
-                      initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
-                        ? "*/*"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(",")}
+              <div className="flex items-center">
+                {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
+                initializeInfo?.agentCapabilities?.promptCapabilities?.image ? (
+                  <>
+                    <input
+                      type="file"
+                      multiple
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={handleFileSelect}
+                      accept={[
+                        initializeInfo?.agentCapabilities?.promptCapabilities?.image ? "image/*" : "",
+                        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
+                          ? "*/*"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(",")}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-lg text-muted-foreground"
+                      onClick={() => fileInputRef.current?.click()}
+                      aria-label={t("chatInput.attach", "Attach file")}
+                      disabled={disabled}
+                    >
+                      {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
+                        <Paperclip className="size-3.5" />
+                      ) : (
+                        <ImageIcon className="size-3.5" />
+                      )}
+                    </Button>
+                  </>
+                ) : null}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-lg text-muted-foreground"
+                        disabled={disabled}
+                        aria-label={t("chatInput.snippets", "Snippets")}
+                      >
+                        <Clipboard className="size-3.5" />
+                      </Button>
+                    }
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 rounded-lg text-muted-foreground"
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label={t("chatInput.attach", "Attach file")}
-                    disabled={disabled}
-                  >
-                    {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
-                      <Paperclip className="size-3.5" />
+                  <DropdownMenuContent side="top" align="start" className="w-60">
+                    {snippets.length > 0 ? (
+                      snippets.map((s) => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          onClick={() => setInput((prev) => prev + s.content)}
+                        >
+                          <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
+                            <span className="text-xs">{s.title}</span>
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
+                              {s.content}
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
                     ) : (
-                      <ImageIcon className="size-3.5" />
+                      <DropdownMenuItem onClick={() => navigate("/settings/snippets")}>
+                        <span className="text-xs text-muted-foreground">
+                          {t("chatInput.snippetsEmpty", "No snippets. Click to add in Settings.")}
+                        </span>
+                      </DropdownMenuItem>
                     )}
-                  </Button>
-                </>
-              ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {availableModels.length > 0 ? (

@@ -173,6 +173,18 @@ export interface SettingILinkInfo {
 }
 
 /**
+ * Snippet 配置信息
+ */
+export interface SnippetInfo {
+  /** Snippet 唯一标识符 */
+  id: string;
+  /** Snippet 标题 */
+  title: string;
+  /** Snippet 内容 */
+  content: string;
+}
+
+/**
  * 应用的全局设置信息
  */
 export interface SettingsInfo {
@@ -188,6 +200,8 @@ export interface SettingsInfo {
   fileWatcher: SettingFileWatcherInfo;
   /** iLink 相关设置 */
   ilink: SettingILinkInfo;
+  /** Snippets 列表 */
+  snippets: SnippetInfo[];
 }
 
 /**
