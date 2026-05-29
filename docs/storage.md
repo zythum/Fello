@@ -72,6 +72,10 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | ↳ `enabled` | `boolean` | 是否启用自动监听项目文件变更。 |
 | `ilink` | `Object` | iLink 相关设置。 |
 | ↳ `useOriginalImage` | `boolean` | 是否使用原图（默认 false，使用缩略图以节省 token）。 |
+| `snippets` | `Array` | 用户自定义的文本片段列表。 |
+| ↳ `id` | `string` | Snippet 的唯一标识符。 |
+| ↳ `title` | `string` | Snippet 的显示标题。 |
+| ↳ `content` | `string` | Snippet 的文本内容。 |
 
 ### 2. 项目元数据 (`projects/<project_id>/project.json`)
 管理用户添加的各个本地代码仓库或工作区。

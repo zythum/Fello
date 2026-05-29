@@ -101,12 +101,30 @@ fello/
 │       │   │   └── detail/           # 详情视图 (嵌入左侧聊天区域)
 │       │   │       ├── detail.tsx         # 详情视图容器 (根据类型分发)
 │       │   │       ├── file/
-│       │   │       │   ├── file-detail.tsx    # 文件内容与图片预览 (带关闭按钮)
-│       │   │       │   ├── search-bar.tsx     # 文件搜索条
-│       │   │       │   ├── file-view-tabs.tsx # 文件视图标签切换
+│       │   │       │   ├── file-detail.tsx    # 文件详情入口 (根据文件类型分发到子目录)
 │       │   │       │   ├── file-types.ts      # 文件类型判断工具
-│       │   │       │   ├── use-file-loading.ts # 文件加载 Hook
-│       │   │       │   └── use-file-search.ts  # 文件搜索 Hook
+│       │   │       │   ├── common/            # 共享组件与 Hook
+│       │   │       │   │   ├── use-file.ts        # 文件加载 Hook
+│       │   │       │   │   ├── loading-state.tsx  # 加载状态组件
+│       │   │       │   │   └── file-view-tabs.tsx # 文件视图标签切换
+│       │   │       │   ├── code-detail/       # 代码文件预览
+│       │   │       │   │   ├── code-detail.tsx    # 代码高亮展示
+│       │   │       │   │   ├── search-bar.tsx     # 文件搜索条
+│       │   │       │   │   └── use-file-search.ts # 文件搜索 Hook
+│       │   │       │   ├── image-detail/      # 图片预览
+│       │   │       │   │   └── image-detail.tsx
+│       │   │       │   ├── markdown-detail/   # Markdown 富文本预览
+│       │   │       │   │   └── markdown-detail.tsx
+│       │   │       │   ├── pdf-detail/        # PDF 文档预览
+│       │   │       │   │   └── pdf-detail.tsx
+│       │   │       │   ├── docx-detail/       # DOCX 文档预览
+│       │   │       │   │   └── docx-detail.tsx
+│       │   │       │   ├── xlsx-detail/       # Excel 文档预览
+│       │   │       │   │   └── xlsx-detail.tsx
+│       │   │       │   ├── pptx-detail/       # PPTX 演示文稿预览
+│       │   │       │   │   └── pptx-detail.tsx
+│       │   │       │   └── fallback-detail/   # 不支持类型的降级展示
+│       │   │       │       └── fallback-detail.tsx
 │       │   │       └── terminal/
 │       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件
@@ -125,8 +143,11 @@ fello/
 │       │   │   │   └── settings-mcp-http-dialog.tsx     # HTTP MCP 配置弹窗
 │       │   │   ├── webui/
 │       │   │   │   └── settings-webui.tsx           # WebUI 配置页面
-│       │   │   └── ilink/
-│       │   │       └── settings-ilink.tsx           # 微信 iLink 配置页面
+│       │   │   ├── ilink/
+│       │   │   │   └── settings-ilink.tsx           # 微信 iLink 配置页面
+│       │   │   └── snippets/
+│       │   │       ├── settings-snippets.tsx        # Snippets 管理页面
+│       │   │       └── settings-snippet-dialog.tsx  # Snippet 编辑弹窗
 │       │   ├── skills/               # Skills 管理页面
 │       │   │   ├── skills-layout.tsx     # Skills 页侧边导航布局
 │       │   │   ├── installed/
@@ -135,8 +156,7 @@ fello/
 │       │   │       └── skills-skills-sh.tsx   # skills.sh 市场浏览与安装
 │       │   ├── global/               # 全局浮层与菜单
 │       │   │   ├── error-boundary.tsx           # 全局错误边界与异常提示
-│       │   │   ├── global-text-context-menu.tsx # 文本选中全局右键菜单
-│       │   │   └── permission-dialog.tsx        # 权限确认弹层（含"始终允许"）
+│       │   │   └── global-text-context-menu.tsx # 文本选中全局右键菜单
 │       │   ├── providers/            # 全局上下文 Provider
 │       │   │   ├── message.tsx       # 全局消息/Toast 提示管理
 │       │   │   └── theme.tsx         # 基于 next-themes 的主题控制
@@ -148,6 +168,7 @@ fello/
 │       │   │   ├── agent-terminal-output.tsx    # Agent 终端输出渲染
 │       │   │   ├── code-view.tsx               # 代码高亮展示（@pierre/diffs）
 │       │   │   ├── code-compare-view.tsx        # 代码 Diff 对比视图（@pierre/diffs）
+│       │   │   ├── file-icon.tsx               # 文件图标组件（按扩展名匹配图标）
 │       │   │   ├── image-view.tsx              # 图片预览
 │       │   │   ├── stream-markdown.tsx         # 流式 Markdown 渲染
 │       │   │   ├── pdf-view.tsx                # PDF 文档预览
@@ -272,6 +293,7 @@ fello/
 - `i18n`: 应用语言配置（`language`: `"en"` | `"zh-CN"`）
 - `fileWatcher`: 文件监听配置（`enabled`: `boolean`）
 - `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`）
+- `snippets`: Snippets 列表，每项包含 `id`、`title`、`content` 字段
 
 `project.json` 字段：
 

@@ -115,9 +115,9 @@
   - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
-  - `session/detail/file/file-detail.tsx`：文件内容与图片预览（支持关闭按钮），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
+  - `session/detail/file/file-detail.tsx`：文件详情入口，根据文件类型分发到子目录（code-detail/、image-detail/、markdown-detail/、pdf-detail/、docx-detail/、xlsx-detail/、pptx-detail/、fallback-detail/），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
-  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink）
+  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink、snippets）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
 ### MCP 子进程
@@ -196,6 +196,7 @@ ACP sessionUpdate
 - `configuredMcpServers`：用户在设置中自定义的可用 MCP 服务器配置
 - `theme`：UI 主题配置（深色、浅色、跟随系统）
 - `i18n`：应用语言配置（英语、简体中文）
+- `snippets`：用户自定义的 Snippets 列表
 - `webUIStatus`：WebUI 服务状态
 - `ilinkStatus`：微信 iLink 连接状态
 - `activeIlinkSessionId`：当前 iLink 活跃会话 ID

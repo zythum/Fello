@@ -82,6 +82,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器（Stdio 和 HTTP 两种类型），并在会话菜单中随时启停，为 Agent 动态扩展能力
 - Skills 系统：浏览和安装来自 skills.sh 市场的 Skills，支持用户级和项目级作用域（fello/agents/claude 三个 scope）
 - 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）
+- Snippets：支持在设置中管理自定义文本片段（Snippets），可在聊天输入中快速引用
 - 从 Agent 读取可用模型列表，这些配置被持久化并隔离在每个独立会话（Session）的元数据中，切换会话时 UI 无缝更新
 - 支持在下拉菜单中显示模型信息
 - 支持在会话运行中随时切换模型，并通过 `session-changed` 事件进行细粒度的原子级 UI 更新

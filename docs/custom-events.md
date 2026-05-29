@@ -8,7 +8,7 @@
 
 ## 1. `fello-preview-file`
 
-- **用途**：请求在侧边（或覆盖层）的文件预览面板（`FilePreviewSheet`）中打开并预览指定的代码或图片文件。
+- **用途**：请求在详情视图（Detail View）中打开并预览指定的代码或图片文件。
 - **Payload (`detail`)**：
   ```ts
   {
@@ -17,10 +17,10 @@
   }
   ```
 - **分发方 (Dispatchers)**：
-  - `file-panel.tsx`：双击文件树节点，或者在 Git 变更列表（Summary）中点击文件时触发。
+  - `file-panel.tsx`：双击文件树节点时触发。
   - `tool-bubble.tsx`：在 Tool Call 气泡的 `summary` 区域中，点击 `locations` 标签按钮时触发。
 - **监听方 (Listeners)**：
-  - `session.tsx`：统一捕获事件，更新内部状态 `previewFile` 并打开 `FilePreviewSheet` 组件。
+  - `session.tsx`：统一捕获事件，校验 `projectId` 匹配后调用 `handlePreviewFile` 更新内部状态（`detailType` / `detailFile`），在左侧嵌入式详情视图中展示文件预览。
 
 ## 2. `fello-add-to-chat`
 
