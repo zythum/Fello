@@ -5,7 +5,7 @@ import * as backend from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { HelpCircle, ArrowLeft } from "lucide-react";
+import { HelpCircle, ArrowLeft, ArrowUp } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
 import type { AskUserRequest } from "../../../../shared/schema";
 
@@ -270,8 +270,13 @@ function AskUserOptions({
               autoFocus
             />
             <div className="absolute bottom-1.5 right-1.5">
-              <Button size="sm" className="h-7 text-xs shrink-0" onClick={handleSubmitInput}>
-                {t("askUser.submit", "Submit")}
+              <Button
+                size="icon"
+                className="size-7 rounded-lg"
+                onClick={handleSubmitInput}
+                aria-label={t("askUser.submit", "Submit")}
+              >
+                <ArrowUp className="size-3.5" />
               </Button>
             </div>
           </div>
