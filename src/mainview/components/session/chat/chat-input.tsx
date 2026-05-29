@@ -2,7 +2,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
-import { useAppStore, useSessionState } from "../../../store";
+import {
+  useAppStore,
+  useSessionState,
+  type StagedAttachmentInfo,
+  type SessionState,
+} from "../../../store";
 import type { ChatMessage } from "../../../lib/chat-message";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
@@ -40,14 +45,6 @@ import { useMessage } from "../../providers/message";
 import type { SessionInfo, SkillInfo, McpServerInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 
-// Define an interface for the staged file
-interface StagedAttachment {
-  id: string;
-  file: File;
-  type: "image" | "file";
-  previewUrl?: string; // object URL for images
-}
-
 interface SearchFileItem {
   id: string;
   filename: string;
@@ -80,44 +77,47 @@ function searchFileItemToSuggestItem(f: SearchFileItem): SuggestItem {
   };
 }
 
-async function processAttachments(staged: StagedAttachment[]): Promise<ContentBlock[]> {
-  const blocks: ContentBlock[] = [];
-  for (const att of staged) {
+/** 将 File 读取为 base64（不含 data: URL 前缀） */
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** 将 File 读取为纯文本 */
+function readFileAsText(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+/** 将暂存的附件信息构建成 ContentBlock 列表 */
+function buildAttachmentBlocks(attachments: StagedAttachmentInfo[]): ContentBlock[] {
+  return attachments.map((att) => {
     if (att.type === "image") {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Format: data:image/png;base64,...
-          const b64 = result.split(",")[1];
-          resolve(b64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(att.file);
-      });
-      blocks.push({
+      return {
         type: "image",
-        mimeType: att.file.type,
-        data: base64,
-      });
-    } else {
-      // For text files, read as text and send as embedded resource
-      const text = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsText(att.file);
-      });
-      blocks.push({
-        type: "resource",
-        resource: {
-          uri: `file://${att.file.name}`,
-          text,
-        },
-      });
+        mimeType: att.mimeType,
+        data: att.data,
+      } satisfies ContentBlock;
     }
-  }
-  return blocks;
+    return {
+      type: "resource",
+      resource: {
+        uri: `file://${att.filename}`,
+        text: att.data,
+      },
+    } satisfies ContentBlock;
+  });
 }
 
 /** Max suggestions shown for skills / MCP in the @ mention autocomplete */
@@ -136,7 +136,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useMessage();
-  const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,10 +147,50 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
   const initializeInfo = session.initializeInfo;
-  const { isLoading, askUserRequests, availableCommands } = useSessionState(session.id);
+  const { isLoading, askUserRequests, availableCommands, draftInput, draftAttachments } =
+    useSessionState(session.id);
 
-  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
-  const attachmentsRef = useRef<StagedAttachment[]>([]);
+  /** session state 更新器（自动绑定当前 session.id） */
+  const updateSessionState = useCallback(
+    (updater: (s: SessionState) => Partial<SessionState>) => {
+      useAppStore.getState().updateSessionState(session.id, updater);
+    },
+    [session.id],
+  );
+
+  // ---- 本地输入状态（轻量，不经过 store，保证打字流畅） ----
+  const [localInput, setLocalInput] = useState(draftInput);
+  const prevSessionIdRef = useRef(session.id);
+  // 当前 session 切换时：存旧的，读新的
+  useEffect(() => {
+    const prevId = prevSessionIdRef.current;
+    if (prevId !== session.id) {
+      // 保存旧 session 的暂存
+      if (prevId) {
+        useAppStore
+          .getState()
+          .updateSessionState(prevId, () => ({ draftInput: localInput }));
+      }
+      prevSessionIdRef.current = session.id;
+    }
+    // 加载新 session 的暂存
+    setLocalInput(draftInput);
+    // 组件卸载时也保存当前输入
+    return () => {
+      if (session.id) {
+        useAppStore
+          .getState()
+          .updateSessionState(session.id, () => ({ draftInput: localInput }));
+      }
+    };
+  }, [session.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 注意：draftInput 只在 session.id 变化时读取，不作为常规依赖
+
+  // blur 时写回 store（确保跨 session 持久化）
+  const handleBlur = useCallback(() => {
+    updateSessionState(() => ({ draftInput: localInput }));
+  }, [localInput, updateSessionState]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const skillsCacheRef = useRef<SkillInfo[]>([]);
@@ -162,20 +201,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const searchFileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchFileRequestIdRef = useRef<number>(0);
 
-  // Sync attachments to ref for cleanup
-  useEffect(() => {
-    attachmentsRef.current = attachments;
-  }, [attachments]);
-
-  // Cleanup object URLs to avoid memory leaks when component unmounts
-  useEffect(() => {
-    return () => {
-      attachmentsRef.current.forEach((att) => {
-        if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
-      });
-    };
-  }, []);
-
   // Handle external add-to-chat events from file-panel
   useEffect(() => {
     const handleAddToChat = (e: Event) => {
@@ -185,7 +210,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const mentions = nodes
         .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
         .join(" ");
-      setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+      setLocalInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
       // Focus the textarea
       requestAnimationFrame(() => {
         containerRef.current?.querySelector("textarea")?.focus();
@@ -194,36 +219,44 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
     document.addEventListener("fello-add-to-chat", handleAddToChat);
     return () => document.removeEventListener("fello-add-to-chat", handleAddToChat);
-  }, []);
+  }, [session.id]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newAttachments = files.map((file) => {
+
+    const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
+    const supportsEmbedded =
+      initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
+
+    for (const file of files) {
       const isImage = file.type.startsWith("image/");
+      const type: "image" | "file" =
+        isImage && supportsImage ? "image" : supportsEmbedded ? "file" : "file";
 
-      let type: "image" | "file" = "file";
-      if (isImage && initializeInfo?.agentCapabilities?.promptCapabilities?.image) {
-        type = "image";
-      }
+      const data = type === "image" ? await readFileAsBase64(file) : await readFileAsText(file);
 
-      return {
-        id: generateUUID(),
-        file,
-        type,
-        previewUrl: type === "image" ? URL.createObjectURL(file) : undefined,
-      } satisfies StagedAttachment;
-    });
-    setAttachments((prev) => [...prev, ...newAttachments]);
+      updateSessionState((s) => ({
+        draftAttachments: [
+          ...s.draftAttachments,
+          {
+            id: generateUUID(),
+            filename: file.name,
+            mimeType: file.type,
+            type,
+            data,
+          },
+        ],
+      }));
+    }
+
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments((prev) => {
-      const target = prev.find((a) => a.id === id);
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      return prev.filter((a) => a.id !== id);
-    });
+    updateSessionState((s) => ({
+      draftAttachments: s.draftAttachments.filter((a) => a.id !== id),
+    }));
   };
 
   /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
@@ -342,7 +375,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const fetchSlashCommands = useCallback(
     (search: string, callback: (data: { id: string; display: string }[]) => void) => {
       // Only show suggestions if input starts with "/"
-      if (!input.startsWith("/")) {
+      if (!localInput.startsWith("/")) {
         callback([]);
         return;
       }
@@ -353,24 +386,19 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         .map((cmd) => ({ id: cmd.name, display: `/${cmd.name}` }));
       callback(items);
     },
-    [input, availableCommands],
+    [localInput, availableCommands],
   );
 
   const handleSubmit = useCallback(async () => {
-    const displayId = generateUUID();
-    const resolved = resolveMentions(input).trim();
-    if ((!resolved && attachments.length === 0) || !session.id || isStreaming) return;
+    const state = useAppStore.getState().getSessionState(session.id);
+    const currentAttachments = state.draftAttachments;
 
-    // Process attachments before sending
-    let attachmentBlocks: ContentBlock[] = [];
-    if (attachments.length > 0) {
-      try {
-        attachmentBlocks = await processAttachments(attachments);
-      } catch (err) {
-        console.error("Failed to process attachments", err);
-        return; // Handle error appropriately
-      }
-    }
+    const displayId = generateUUID();
+    const resolved = resolveMentions(localInput).trim();
+    if ((!resolved && currentAttachments.length === 0) || !session.id || isStreaming) return;
+
+    // Build ContentBlocks from stored attachments directly
+    const attachmentBlocks = buildAttachmentBlocks(currentAttachments);
 
     const contents: ContentBlock[] = [];
     if (resolved) {
@@ -404,15 +432,12 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       receivedAt: Date.now(),
     } satisfies ChatMessage;
 
-    // 1. Optimistic Update: clear input and add message to screen instantly
-    setInput("");
-    setAttachments((current) => {
-      // Clean up URLs for submitted attachments
-      current.forEach((att) => {
-        if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
-      });
-      return [];
-    });
+    // 1. Optimistic Update: clear input + attachments, add message to screen instantly
+    setLocalInput("");
+    updateSessionState(() => ({
+      draftInput: "",
+      draftAttachments: [],
+    }));
     addMessage(session.id, userMessage);
     updateSession({ ...session, isStreaming: true });
     document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
@@ -455,7 +480,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       updateSession({ ...session, isStreaming: false });
     }
-  }, [input, attachments, session, isStreaming, addMessage]);
+  }, [session, isStreaming, addMessage, localInput]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -477,32 +502,33 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
       // Handle files drop
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const newAttachments: StagedAttachment[] = [];
         const paths: string[] = [];
 
         for (const file of Array.from(e.dataTransfer.files)) {
           const isImage = file.type.startsWith("image/");
-          if (isImage && supportsImage) {
-            newAttachments.push({
-              id: generateUUID(),
-              file,
-              type: "image",
-              previewUrl: URL.createObjectURL(file),
-            });
-          } else if (supportsEmbedded) {
-            newAttachments.push({ id: generateUUID(), file, type: "file" });
+          const canEmbed = isImage && supportsImage;
+          const canReadText = supportsEmbedded;
+
+          if (canEmbed || canReadText) {
+            // Read inline and store immediately
+            (async () => {
+              const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
+              const type: "image" | "file" = isImage ? "image" : "file";
+              updateSessionState((s) => ({
+                draftAttachments: [
+                  ...s.draftAttachments,
+                  { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
+                ],
+              }));
+            })();
           } else if (!isWebUI) {
             const p = electron.getPathForFile(file);
             if (p) paths.push(p);
           }
         }
-
-        if (newAttachments.length > 0) {
-          setAttachments((prev) => [...prev, ...newAttachments]);
-        }
         if (paths.length > 0) {
           const joined = paths.join(" ");
-          setInput((prev) => (prev ? `${prev} ${joined}` : joined));
+          setLocalInput((prev) => (prev ? `${prev} ${joined}` : joined));
         }
         requestAnimationFrame(() => {
           containerRef.current?.querySelector("textarea")?.focus();
@@ -520,7 +546,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         const mentions = nodes
           .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
           .join(" ");
-        setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+        setLocalInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
 
         // Focus the textarea after paste
         requestAnimationFrame(() => {
@@ -574,32 +600,34 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         const supportsEmbedded =
           initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
         // Handle files
-        const newAttachments: StagedAttachment[] = [];
         const paths: string[] = [];
 
         for (const file of Array.from(files)) {
           const isImage = file.type.startsWith("image/");
-          if (isImage && supportsImage) {
-            newAttachments.push({
-              id: generateUUID(),
-              file,
-              type: "image",
-              previewUrl: URL.createObjectURL(file),
-            });
-          } else if (supportsEmbedded) {
-            newAttachments.push({ id: generateUUID(), file, type: "file" });
+          const canEmbed = isImage && supportsImage;
+          const canReadText = supportsEmbedded;
+
+          if (canEmbed || canReadText) {
+            // Read inline and store immediately
+            (async () => {
+              const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
+              const type: "image" | "file" = isImage ? "image" : "file";
+              updateSessionState((s) => ({
+                draftAttachments: [
+                  ...s.draftAttachments,
+                  { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
+                ],
+              }));
+            })();
           } else if (!isWebUI) {
             const p = electron.getPathForFile(file);
             if (p) paths.push(p);
           }
         }
 
-        if (newAttachments.length > 0) {
-          setAttachments((prev) => [...prev, ...newAttachments]);
-        }
         if (paths.length > 0) {
           const joined = paths.join(" ");
-          setInput((prev) => (prev ? `${prev} ${joined}` : joined));
+          setLocalInput((prev) => (prev ? `${prev} ${joined}` : joined));
         }
         // Focus the textarea after drop
         requestAnimationFrame(() => {
@@ -683,9 +711,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           onPasteCapture={handlePaste}
         >
           {/* Top Preview Area */}
-          {attachments.length > 0 && (
+          {draftAttachments.length > 0 && (
             <div className="flex flex-wrap gap-2 p-3 pb-0">
-              {attachments.map((att) => (
+              {draftAttachments.map((att) => (
                 <div
                   key={att.id}
                   className="relative flex items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 text-xs"
@@ -696,14 +724,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                         render={
                           <div className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground">
                             <ImageIcon className="size-3.5" />
-                            <span className="max-w-25 truncate">{att.file.name}</span>
+                            <span className="max-w-25 truncate">{att.filename}</span>
                           </div>
                         }
                       />
                       <HoverCardContent className="w-auto p-1" side="top">
                         <img
-                          src={att.previewUrl}
-                          alt={att.file.name}
+                          src={`data:${att.mimeType};base64,${att.data}`}
+                          alt={att.filename}
                           className="max-h-50 max-w-50 rounded object-contain"
                         />
                       </HoverCardContent>
@@ -711,7 +739,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   ) : (
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <FileText className="size-3.5" />
-                      <span className="max-w-25 truncate">{att.file.name}</span>
+                      <span className="max-w-25 truncate">{att.filename}</span>
                     </div>
                   )}
                   <button
@@ -727,8 +755,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
           {/* MentionsInput */}
           <MentionsInput
-            value={input}
-            onChange={(_e, newValue) => setInput(newValue)}
+            value={localInput}
+            onChange={(_e, newValue) => setLocalInput(newValue)}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder={
               disabled ? t("chatInput.placeholderDisabled") : t("chatInput.placeholderActive")
@@ -947,7 +976,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       snippets.map((s) => (
                         <DropdownMenuItem
                           key={s.id}
-                          onClick={() => setInput((prev) => prev + s.content)}
+                          onClick={() =>
+                            setLocalInput((prev) => prev + s.content)
+                          }
                         >
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span className="text-xs">{s.title}</span>
@@ -1029,7 +1060,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     size="icon"
                     className="size-7 rounded-lg"
                     onClick={handleSubmit}
-                    disabled={disabled || (!input.trim() && attachments.length === 0)}
+                    disabled={disabled || (!localInput.trim() && draftAttachments.length === 0)}
                     aria-label={t("chatInput.send", "Send")}
                   >
                     <ArrowUp className="size-3.5" />

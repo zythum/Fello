@@ -27,6 +27,16 @@ const emptyProjectState = (): ProjectState => ({
   activeTerminalId: null,
 });
 
+/** 暂存的附件信息（base64 编码，可序列化） */
+export interface StagedAttachmentInfo {
+  id: string;
+  filename: string;
+  mimeType: string;
+  type: "image" | "file";
+  /** base64 编码的文件内容（不含 data: URL 前缀） */
+  data: string;
+}
+
 // Per-session state bucket
 export interface SessionState {
   messages: ChatMessage[];
@@ -38,6 +48,10 @@ export interface SessionState {
   activeToolCalls: Map<string, ToolCallMessage>;
   pendingUpdates: SessionNotificationFelloExt["update"][];
   availableCommands: AvailableCommand[];
+  /** 暂存的输入框内容，用于 session 切换时恢复 */
+  draftInput: string;
+  /** 暂存的附件列表（base64 编码），与 draftInput 一同跨 session 保持 */
+  draftAttachments: StagedAttachmentInfo[];
 }
 
 const emptySessionState = (): SessionState => ({
@@ -50,6 +64,8 @@ const emptySessionState = (): SessionState => ({
   activeToolCalls: new Map(),
   pendingUpdates: [],
   availableCommands: [],
+  draftInput: "",
+  draftAttachments: [],
 });
 
 export interface AppState {
