@@ -286,6 +286,9 @@ function AppContent() {
             id: UPDATE_TOAST_ID,
             description: event.info.releaseName || version,
             duration: Infinity,
+            classNames: {
+              content: "flex-1",
+            },
             action: {
               label: t("updater.updateNow", "Update now"),
               onClick: () => {
