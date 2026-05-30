@@ -61,36 +61,37 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             </div>
           </div>
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
-            style={{ WebkitAppRegion: "no-drag" }}
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* content */}
-      {projectId && file && (
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          {/* file modified toast */}
+        <div className="flex items-center gap-2 shrink-0">
           {fileModified && (
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-3 px-3 py-2 rounded-lg shadow-md bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-200">
-              <span>{t("fileDetail.fileModifiedNotice", "文件已被修改，请刷新")}</span>
+            <div className="flex items-center gap-2 px-2 py-1 rounded bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-200">
+              <span className="whitespace-nowrap">{t("fileDetail.fileModifiedNotice", "文件已被修改，请刷新")}</span>
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-sky-200/60 hover:bg-sky-300/60 dark:bg-sky-800/50 dark:hover:bg-sky-700/50 transition-colors shrink-0"
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-200/60 hover:bg-sky-300/60 dark:bg-sky-800/50 dark:hover:bg-sky-700/50 transition-colors shrink-0"
+                style={{ WebkitAppRegion: "no-drag" }}
               >
                 <RefreshCw className="size-3" />
                 {t("filePanel.refresh", "刷新")}
               </button>
             </div>
           )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+              style={{ WebkitAppRegion: "no-drag" }}
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
 
+      {/* content */}
+      {projectId && file && (
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           {fileKind === "text" ? (
             <CodeDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "markdown" ? (

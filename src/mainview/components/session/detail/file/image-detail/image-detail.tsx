@@ -1,5 +1,5 @@
 import { TransformWrapper, TransformComponent, useControls } from "react-zoom-pan-pinch";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { ZoomIn, ZoomOut, Undo2 } from "lucide-react";
 import { LoadingState, ErrorState } from "../common/loading-state";
 import { useFile } from "../common/use-file";
 
@@ -26,7 +26,7 @@ function Controls() {
         className="flex size-7 items-center justify-center rounded hover:bg-muted transition-colors"
         aria-label="Reset"
       >
-        <RotateCcw className="size-3.5" />
+        <Undo2 className="size-3.5" />
       </button>
       <button
         type="button"
