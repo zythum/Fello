@@ -36,6 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessage } from "../providers/message";
 import { extractErrorMessage } from "@/lib/utils";
 import {
+  Check,
   FolderClosed,
   FolderOpen,
   FolderPlus,
@@ -100,6 +101,30 @@ export function Sidebar() {
     ilinkStatus,
     activeIlinkSessionId,
   } = useAppStore();
+
+  // Auto-clear completedAt after 3 seconds for the active session
+  const completedAtTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    const state = useAppStore.getState().sessionStates.get(activeSessionId);
+    if (state?.completedAt) {
+      if (completedAtTimerRef.current) {
+        clearTimeout(completedAtTimerRef.current);
+      }
+      completedAtTimerRef.current = setTimeout(() => {
+        useAppStore.getState().updateSessionState(activeSessionId, () => ({ completedAt: null }));
+        completedAtTimerRef.current = null;
+      }, 3000);
+    }
+
+    return () => {
+      if (completedAtTimerRef.current) {
+        clearTimeout(completedAtTimerRef.current);
+        completedAtTimerRef.current = null;
+      }
+    };
+  }, [activeSessionId, sessionStates]);
 
   const enabledAgents = useMemo(
     () => configuredAgents.filter((a) => !a.disabled),
@@ -220,6 +245,11 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
+    // Clear completedAt when user navigates to a completed session
+    const state = useAppStore.getState().sessionStates.get(session.id);
+    if (state?.completedAt) {
+      useAppStore.getState().updateSessionState(session.id, () => ({ completedAt: null }));
+    }
     handleNavigate(`/session-view/${session.id}`);
   };
 
@@ -513,11 +543,15 @@ export function Sidebar() {
                             const state = sessionStates.get(session.id);
                             const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
                             const isStreaming = session.isStreaming;
+                            const isCompleted = state?.completedAt != null;
                             if (hasAskUser) {
                               return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
                             }
                             if (isStreaming) {
                               return <LoaderCircle className="size-3 animate-spin shrink-0" />;
+                            }
+                            if (isCompleted) {
+                              return <Check className="size-3 shrink-0 text-green-500" />;
                             }
                             return <div className="size-3 shrink-0" />;
                           })()}

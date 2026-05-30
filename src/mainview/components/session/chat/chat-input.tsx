@@ -12,6 +12,7 @@ import type { ChatMessage } from "../../../lib/chat-message";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
 import { reduceFlushStreaming } from "../../../lib/session-state-reducer";
+import * as tiks from "@rexa-developer/tiks";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -167,9 +168,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     if (prevId !== session.id) {
       // 保存旧 session 的暂存
       if (prevId) {
-        useAppStore
-          .getState()
-          .updateSessionState(prevId, () => ({ draftInput: localInput }));
+        useAppStore.getState().updateSessionState(prevId, () => ({ draftInput: localInput }));
       }
       prevSessionIdRef.current = session.id;
     }
@@ -178,9 +177,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     // 组件卸载时也保存当前输入
     return () => {
       if (session.id) {
-        useAppStore
-          .getState()
-          .updateSessionState(session.id, () => ({ draftInput: localInput }));
+        useAppStore.getState().updateSessionState(session.id, () => ({ draftInput: localInput }));
       }
     };
   }, [session.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -225,8 +222,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     const files = Array.from(e.target.files || []);
 
     const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
-    const supportsEmbedded =
-      initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
+    const supportsEmbedded = initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
 
     for (const file of files) {
       const isImage = file.type.startsWith("image/");
@@ -390,6 +386,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   );
 
   const handleSubmit = useCallback(async () => {
+    tiks.click();
     const state = useAppStore.getState().getSessionState(session.id);
     const currentAttachments = state.draftAttachments;
 
@@ -454,6 +451,22 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         useAppStore.getState().updateSessionState(session.id, () => ({
           lastTurnUsage: promptResponse.usage,
         }));
+      }
+
+      // 4. Show warning if not end_turn
+      if (promptResponse.stopReason && promptResponse.stopReason !== "end_turn") {
+        const stopReasonLabels: Record<string, string> = {
+          max_tokens: t("chatInput.stopReasonMaxTokens", "Reached maximum token limit"),
+          max_turn_requests: t("chatInput.stopReasonMaxTurnRequests", "Reached maximum turn limit"),
+          refusal: t("chatInput.stopReasonRefusal", "Model refused to respond"),
+          cancelled: t("chatInput.stopReasonCancelled", "Generation was cancelled"),
+        };
+        const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
+        if (promptResponse.stopReason === "cancelled") {
+          toast.info(label);
+        } else {
+          toast.error(label);
+        }
       }
     } catch (err) {
       // 4. Rollback on Network Failure
@@ -976,9 +989,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       snippets.map((s) => (
                         <DropdownMenuItem
                           key={s.id}
-                          onClick={() =>
-                            setLocalInput((prev) => prev + s.content)
-                          }
+                          onClick={() => setLocalInput((prev) => prev + s.content)}
                         >
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span className="text-xs">{s.title}</span>

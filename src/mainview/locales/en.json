@@ -110,7 +110,17 @@
       "groupProject": "Project",
       "autoWatchFiles": "Auto Watch Files",
       "autoWatchFilesDesc": "Automatically watch project file changes",
-      "saveFileWatcherFailed": "Failed to save file watcher setting."
+      "saveFileWatcherFailed": "Failed to save file watcher setting.",
+      "groupSound": "Sound",
+      "soundEnabled": "Sound Effects",
+      "soundEnabledDesc": "Play sound effects for notifications",
+      "soundVolume": "Volume",
+      "soundVolumeDesc": "Adjust notification volume",
+      "soundTheme": "Sound Style",
+      "soundThemeDesc": "Select the sound effect style",
+      "soundSoft": "Soft",
+      "soundCrisp": "Crisp",
+      "saveSoundFailed": "Failed to save sound setting."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",
@@ -324,7 +334,11 @@
     "attach": "Attach file",
     "snippets": "Snippets",
     "snippetsEmpty": "No snippets. Click to add in Settings.",
-    "selectModel": "Select model"
+    "selectModel": "Select model",
+    "stopReasonMaxTokens": "Reached maximum token limit",
+    "stopReasonMaxTurnRequests": "Reached maximum turn limit",
+    "stopReasonRefusal": "Model refused to respond",
+    "stopReasonCancelled": "Generation was cancelled"
   },
   "filePanel": {
     "title": "Files",

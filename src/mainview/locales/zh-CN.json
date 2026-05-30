@@ -110,7 +110,17 @@
       "groupProject": "项目",
       "autoWatchFiles": "自动监听文件",
       "autoWatchFilesDesc": "自动监听项目文件变更",
-      "saveFileWatcherFailed": "保存文件监听设置失败。"
+      "saveFileWatcherFailed": "保存文件监听设置失败。",
+      "groupSound": "音效",
+      "soundEnabled": "音效",
+      "soundEnabledDesc": "播放通知音效",
+      "soundVolume": "音量",
+      "soundVolumeDesc": "调整通知音量",
+      "soundTheme": "音效风格",
+      "soundThemeDesc": "选择音效风格",
+      "soundSoft": "柔和",
+      "soundCrisp": "清脆",
+      "saveSoundFailed": "保存音效设置失败。"
     },
     "agents": {
       "desc": "管理智能体的配置和启动命令。",
@@ -324,7 +334,11 @@
     "attach": "附加文件",
     "snippets": "快捷短语",
     "snippetsEmpty": "暂无短语，点击前往设置添加。",
-    "selectModel": "选择模型"
+    "selectModel": "选择模型",
+    "stopReasonMaxTokens": "已达到最大 token 限制",
+    "stopReasonMaxTurnRequests": "已达到最大轮次限制",
+    "stopReasonRefusal": "模型拒绝回答",
+    "stopReasonCancelled": "生成已取消"
   },
   "filePanel": {
     "title": "文件",

@@ -94,6 +94,11 @@ interface SettingsMeta {
   ilink: {
     useOriginalImage: boolean;
   };
+  sound: {
+    volume: number;
+    muted: boolean;
+    theme: "soft" | "crisp";
+  };
   snippets?: SnippetInfo[];
 }
 
@@ -109,6 +114,11 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   ilink: {
     useOriginalImage: false,
+  },
+  sound: {
+    volume: 50,
+    muted: false,
+    theme: "soft",
   },
 };
 
@@ -279,6 +289,20 @@ function readSettings(): SettingsMeta {
         ? { useOriginalImage: rawObj.ilink.useOriginalImage }
         : DEFAULT_SETTINGS.ilink;
 
+    const sound: SettingsMeta["sound"] = (() => {
+      const raw = rawObj && isObject(rawObj.sound) ? rawObj.sound : null;
+      if (!raw) return DEFAULT_SETTINGS.sound;
+      return {
+        volume:
+          typeof raw.volume === "number" && raw.volume >= 0 && raw.volume <= 100
+            ? raw.volume
+            : DEFAULT_SETTINGS.sound.volume,
+        muted: typeof raw.muted === "boolean" ? raw.muted : DEFAULT_SETTINGS.sound.muted,
+        theme:
+          raw.theme === "soft" || raw.theme === "crisp" ? raw.theme : DEFAULT_SETTINGS.sound.theme,
+      };
+    })();
+
     const snippets: SnippetInfo[] = Array.isArray(rawObj?.snippets)
       ? (rawObj.snippets as unknown[]).filter(
           (s): s is SnippetInfo =>
@@ -289,7 +313,7 @@ function readSettings(): SettingsMeta {
         )
       : [];
 
-    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, snippets };
+    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, sound, snippets };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -541,6 +565,11 @@ export const storageOps = {
       ilink: {
         useOriginalImage: meta.ilink.useOriginalImage,
       },
+      sound: {
+        volume: meta.sound.volume,
+        muted: meta.sound.muted,
+        theme: meta.sound.theme,
+      },
       snippets: meta.snippets ?? [],
     };
   },
@@ -642,6 +671,25 @@ export const storageOps = {
         }
         return {
           useOriginalImage: settings.ilink.useOriginalImage,
+        };
+      })(),
+      sound: (() => {
+        if (!settings.sound) {
+          return prevMeta.sound;
+        }
+        return {
+          volume:
+            typeof settings.sound.volume === "number" &&
+            settings.sound.volume >= 0 &&
+            settings.sound.volume <= 100
+              ? settings.sound.volume
+              : prevMeta.sound.volume,
+          muted:
+            typeof settings.sound.muted === "boolean" ? settings.sound.muted : prevMeta.sound.muted,
+          theme:
+            settings.sound.theme === "soft" || settings.sound.theme === "crisp"
+              ? settings.sound.theme
+              : prevMeta.sound.theme,
         };
       })(),
       snippets: settings.snippets ?? prevMeta.snippets,

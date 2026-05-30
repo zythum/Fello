@@ -64,7 +64,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
         <div className="flex items-center gap-2 shrink-0">
           {fileModified && (
             <div className="flex items-center gap-2 px-2 py-1 rounded bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-200">
-              <span className="whitespace-nowrap">{t("fileDetail.fileModifiedNotice", "文件已被修改，请刷新")}</span>
+              <span className="whitespace-nowrap">
+                {t("fileDetail.fileModifiedNotice", "文件已被修改，请刷新")}
+              </span>
               <button
                 type="button"
                 onClick={handleRefresh}

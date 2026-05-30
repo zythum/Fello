@@ -1390,6 +1390,7 @@ export const backendHandlers: {
     storageOps.updateSession(sessionId, { isStreaming: true });
     const updated = storageOps.getSession(sessionId);
     if (updated) sendEvent("session-changed", { session: updated });
+    sendEvent("prompt-start", { sessionId });
     if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
       const userId = ilinkBridge.userId;
       if (userId) {
@@ -1410,27 +1411,54 @@ export const backendHandlers: {
     }
 
     let promptResponse: PromptResponse | undefined;
+    let promptError: string | undefined;
     try {
       promptResponse = await b.sendPrompt({
         sessionId: session.resumeId,
         prompt: contents,
       });
       return promptResponse;
+    } catch (err) {
+      promptError = err instanceof Error ? err.message : String(err);
+      throw err;
     } finally {
+      sendEvent("prompt-end", {
+        sessionId,
+        stopReason: promptResponse?.stopReason,
+        error: promptError,
+      });
       storageOps.updateSession(sessionId, { isStreaming: false });
       const updated = storageOps.getSession(sessionId);
       if (updated) sendEvent("session-changed", { session: updated });
       if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
         const userId = ilinkBridge.userId;
         if (userId) {
-          ilinkBridge.sendTyping(userId, false).catch(() => {});
-          // Flush buffered reply
-          if (ilinkReplyBuffer) {
-            const text = ilinkReplyBuffer;
-            ilinkReplyBuffer = "";
-            ilinkBridge.sendTextReply(userId, text).catch((err) => {
-              console.warn("[iLink] Failed to forward reply to WeChat:", err);
-            });
+          const bridge = ilinkBridge;
+          bridge.sendTyping(userId, false).catch(() => {});
+          // Flush buffered reply synchronously, then send notification
+          const bufferedText = ilinkReplyBuffer;
+          ilinkReplyBuffer = "";
+          const flushPromise = bufferedText
+            ? bridge.sendTextReply(userId, bufferedText).catch((err) => {
+                console.warn("[iLink] Failed to forward reply to WeChat:", err);
+              })
+            : Promise.resolve();
+          // Notify iLink user of errors or non-end_turn completion (after flush)
+          if (promptError) {
+            flushPromise.then(() =>
+              bridge
+                .sendTextReply(userId, t("ilink.promptError", { error: promptError }))
+                .catch(() => {}),
+            );
+          } else if (promptResponse?.stopReason && promptResponse.stopReason !== "end_turn") {
+            const stopReasonLabels: Record<string, string> = {
+              max_tokens: t("ilink.promptMaxTokens"),
+              max_turn_requests: t("ilink.promptMaxTurnRequests"),
+              refusal: t("ilink.promptRefusal"),
+              cancelled: t("ilink.promptCancelled"),
+            };
+            const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
+            flushPromise.then(() => bridge.sendTextReply(userId, label).catch(() => {}));
           }
         }
       }

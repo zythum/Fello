@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
 import { electron, UpdaterEvent } from "./electron";
+import * as tiks from "@rexa-developer/tiks";
 
 const UPDATE_TOAST_ID = "fello-app-update";
 
@@ -82,6 +83,14 @@ function AppContent() {
         }
       }
 
+      tiks.init();
+      if (settings.sound.muted) {
+        tiks.mute();
+      } else {
+        tiks.unmute();
+      }
+      tiks.setVolume(settings.sound.volume / 100);
+      tiks.setTheme(settings.sound.theme);
       setIsReady(true);
     }
     void loadData();
@@ -178,6 +187,7 @@ function AppContent() {
       const sid = detail.sessionId;
       if (!sid) return;
       useAppStore.getState().addAskUserRequest(sid, detail);
+      tiks.pop();
     };
 
     const handleAskUserResponse = (detail: BackendEvents["ask-user-response"]) => {
@@ -200,6 +210,17 @@ function AppContent() {
 
     const handleSessionChanged = (detail: BackendEvents["session-changed"]) => {
       useAppStore.getState().updateSession(detail.session);
+    };
+
+    const handlePromptEnd = (detail: BackendEvents["prompt-end"]) => {
+      useAppStore.getState().updateSessionState(detail.sessionId, () => ({
+        completedAt: detail.error ? null : Date.now(),
+      }));
+      if (detail.stopReason === "end_turn") {
+        tiks.success();
+      } else {
+        tiks.error();
+      }
     };
 
     let currentProjectsFetchId = 0;
@@ -261,6 +282,7 @@ function AppContent() {
     subscribe.on("projects-changed", handleProjectsChanged);
     subscribe.on("sessions-changed", handleSessionsChanged);
     subscribe.on("session-changed", handleSessionChanged);
+    subscribe.on("prompt-end", handlePromptEnd);
     subscribe.on("ilink-status-changed", handleIlinkStatusChanged);
     subscribe.on("ilink-active-session-changed", handleIlinkActiveSessionChanged);
 
@@ -390,6 +412,7 @@ function AppContent() {
       subscribe.off("projects-changed", handleProjectsChanged);
       subscribe.off("sessions-changed", handleSessionsChanged);
       subscribe.off("session-changed", handleSessionChanged);
+      subscribe.off("prompt-end", handlePromptEnd);
       subscribe.off("ilink-status-changed", handleIlinkStatusChanged);
       subscribe.off("ilink-active-session-changed", handleIlinkActiveSessionChanged);
 

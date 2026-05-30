@@ -9,12 +9,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessage } from "../../providers/message";
+import * as tiks from "@rexa-developer/tiks";
 
 export function SettingsGeneral() {
   const { t, i18n: _i18n } = useTranslation();
-  const { theme, setTheme, i18n, setI18n, fileWatcher, setFileWatcher } = useAppStore();
+  const { theme, setTheme, i18n, setI18n, fileWatcher, setFileWatcher, sound, setSound } =
+    useAppStore();
   const { toast } = useMessage();
 
   const handleThemeChange = async (mode: string | null) => {
@@ -167,6 +170,127 @@ export function SettingsGeneral() {
                     </span>
                   </div>
                   <Switch checked={fileWatcher.enabled} onCheckedChange={handleFileWatcherChange} />
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-border"></div>
+            {/* ── Sound ── */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">
+                {t("settings.general.groupSound", "Sound")}
+              </h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.soundEnabled", "Sound Effects")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t(
+                        "settings.general.soundEnabledDesc",
+                        "Play sound effects for notifications",
+                      )}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={!sound.muted}
+                    onCheckedChange={async (checked) => {
+                      const newSound = { ...sound, muted: !checked };
+                      setSound(newSound);
+                      if (newSound.muted) {
+                        tiks.mute();
+                      } else {
+                        tiks.unmute();
+                      }
+                      try {
+                        await request.updateSettings({ sound: newSound });
+                      } catch {
+                        toast.error(
+                          t("settings.general.saveSoundFailed", "Failed to save sound setting."),
+                        );
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.soundVolume", "Volume")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t("settings.general.soundVolumeDesc", "Adjust notification volume")}
+                    </span>
+                  </div>
+                  <div className="w-35">
+                    <Slider
+                      value={[sound.volume]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={async (val) => {
+                        const vol = Array.isArray(val) ? val[0] : val;
+                        const newSound = { ...sound, volume: vol };
+                        setSound(newSound);
+                        tiks.setVolume(vol / 100);
+                        try {
+                          await request.updateSettings({ sound: newSound });
+                        } catch {
+                          toast.error(
+                            t("settings.general.saveSoundFailed", "Failed to save sound setting."),
+                          );
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.soundTheme", "Sound Style")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t("settings.general.soundThemeDesc", "Select the sound effect style")}
+                    </span>
+                  </div>
+                  {(() => {
+                    const themeItems = [
+                      { value: "soft", label: t("settings.general.soundSoft", "Soft") },
+                      { value: "crisp", label: t("settings.general.soundCrisp", "Crisp") },
+                    ];
+                    return (
+                      <Select
+                        items={themeItems}
+                        value={sound.theme}
+                        onValueChange={async (val: string | null) => {
+                          if (!val) return;
+                          const newSound = { ...sound, theme: val as "soft" | "crisp" };
+                          setSound(newSound);
+                          tiks.setTheme(newSound.theme);
+                          try {
+                            await request.updateSettings({ sound: newSound });
+                          } catch {
+                            toast.error(
+                              t(
+                                "settings.general.saveSoundFailed",
+                                "Failed to save sound setting.",
+                              ),
+                            );
+                          }
+                        }}
+                      >
+                        <SelectTrigger size="sm" className="w-35">
+                          <SelectValue placeholder="Theme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {themeItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

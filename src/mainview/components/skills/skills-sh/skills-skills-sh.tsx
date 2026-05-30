@@ -134,9 +134,7 @@ export function SkillsSh() {
                   <div key={index}>
                     <Item size="xs">
                       <ItemContent>
-                        <ItemTitle className="text-foreground/90 truncate">
-                          {item.name}
-                        </ItemTitle>
+                        <ItemTitle className="text-foreground/90 truncate">{item.name}</ItemTitle>
                         <ItemDescription className="flex items-center gap-3 text-xs">
                           <span className="truncate">
                             {t("skills.skillsSh.authorPrefix")}
@@ -144,7 +142,9 @@ export function SkillsSh() {
                           </span>
                           <span className="flex items-center gap-1 shrink-0">
                             <Download className="size-3" />
-                            {t("skills.skillsSh.installs", { count: item.installs.toLocaleString() })}
+                            {t("skills.skillsSh.installs", {
+                              count: item.installs.toLocaleString(),
+                            })}
                           </span>
                         </ItemDescription>
                       </ItemContent>

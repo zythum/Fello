@@ -132,7 +132,8 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   }, []);
 
   // Available view modes
-  const viewModes: ViewMode[] = gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
+  const viewModes: ViewMode[] =
+    gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
 
   // ── Context menu handlers ──
   const handleMenuOpenChange = useCallback((open: boolean) => {
@@ -277,28 +278,26 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
             </ContextMenu>
           </ScrollArea>
         )
+      ) : /* compare */
+      fileLoading ? (
+        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+          {t("fileDetail.loading", "Loading...")}
+        </div>
       ) : (
-        /* compare */
-        fileLoading ? (
-          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-            {t("fileDetail.loading", "Loading...")}
-          </div>
-        ) : (
-          <ScrollArea className="w-full h-full">
-            <ContextMenu onOpenChange={handleMenuOpenChange}>
-              <ContextMenuTrigger className="h-full">
-                <CodeCompareView
-                  className="min-h-full"
-                  oldContent={gitContent ?? ""}
-                  newContent={content}
-                  filename={file}
-                  addLineToChat={true}
-                />
-              </ContextMenuTrigger>
-              {contextMenuItems}
-            </ContextMenu>
-          </ScrollArea>
-        )
+        <ScrollArea className="w-full h-full">
+          <ContextMenu onOpenChange={handleMenuOpenChange}>
+            <ContextMenuTrigger className="h-full">
+              <CodeCompareView
+                className="min-h-full"
+                oldContent={gitContent ?? ""}
+                newContent={content}
+                filename={file}
+                addLineToChat={true}
+              />
+            </ContextMenuTrigger>
+            {contextMenuItems}
+          </ContextMenu>
+        </ScrollArea>
       )}
 
       {/* bottom tabs */}

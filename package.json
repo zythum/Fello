@@ -78,6 +78,7 @@
     "@ast-grep/napi": "^0.42.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@parcel/watcher": "^2.5.6",
+    "@rexa-developer/tiks": "^0.2.0",
     "ai": "^6.0.176",
     "electron-updater": "^6.8.3",
     "es-toolkit": "^1.46.1",

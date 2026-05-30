@@ -9,6 +9,11 @@
     "askUserCustomReply": "Or type something else as custom reply.",
     "noInput": "No input",
     "errorProcessing": "Sorry, something went wrong. Please try again.",
-    "permissionRequest": "Permission Request"
+    "permissionRequest": "Permission Request",
+    "promptError": "❌ Error: {{error}}",
+    "promptMaxTokens": "⚠️ Reached maximum token limit",
+    "promptMaxTurnRequests": "⚠️ Reached maximum turn limit",
+    "promptRefusal": "⚠️ Model refused to respond",
+    "promptCancelled": "⚠️ Generation was cancelled"
   }
 }

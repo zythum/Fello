@@ -173,6 +173,18 @@ export interface SettingILinkInfo {
 }
 
 /**
+ * 音效配置信息
+ */
+export interface SettingSoundInfo {
+  /** 音量 0-100 */
+  volume: number;
+  /** 是否静音 */
+  muted: boolean;
+  /** 音效风格 */
+  theme: "soft" | "crisp";
+}
+
+/**
  * Snippet 配置信息
  */
 export interface SnippetInfo {
@@ -200,6 +212,8 @@ export interface SettingsInfo {
   fileWatcher: SettingFileWatcherInfo;
   /** iLink 相关设置 */
   ilink: SettingILinkInfo;
+  /** 音效设置 */
+  sound: SettingSoundInfo;
   /** Snippets 列表 */
   snippets: SnippetInfo[];
 }
@@ -304,6 +318,9 @@ export interface ILinkStatus {
 
 /** iLink 二维码状态机 */
 export type IlinkQrcodeState = "wait" | "scaned" | "confirmed" | "expired";
+
+/** Prompt 结束原因 */
+export type StopReason = "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled";
 
 /**
  * Skill 的基本信息
@@ -654,6 +671,10 @@ export type FelloIPCEvents = {
    * 载荷中的 `changes` 列表，在从后端发送到前端前，已被统一转换为 POSIX 风格的相对路径。
    */
   "fs-changed": { projectId: string; changes: string[] };
+  /** Prompt 开始处理 */
+  "prompt-start": { sessionId: string };
+  /** Prompt 处理结束 */
+  "prompt-end": { sessionId: string; stopReason?: StopReason; error?: string };
 };
 
 /**

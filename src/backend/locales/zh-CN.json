@@ -9,6 +9,11 @@
     "askUserCustomReply": "或输入其他内容作为自定义回复。",
     "noInput": "无输入",
     "errorProcessing": "抱歉，处理消息时出错了，请稍后再试。",
-    "permissionRequest": "权限请求"
+    "permissionRequest": "权限请求",
+    "promptError": "❌ 错误：{{error}}",
+    "promptMaxTokens": "⚠️ 已达到最大 token 限制",
+    "promptMaxTurnRequests": "⚠️ 已达到最大轮次限制",
+    "promptRefusal": "⚠️ 模型拒绝回答",
+    "promptCancelled": "⚠️ 生成已取消"
   }
 }

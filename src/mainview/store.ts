@@ -4,6 +4,7 @@ import type {
   SessionInfo,
   ProjectInfo,
   SettingsInfo,
+  SettingSoundInfo,
   SessionNotificationFelloExt,
   AskUserRequest,
 } from "../shared/schema";
@@ -52,6 +53,11 @@ export interface SessionState {
   draftInput: string;
   /** 暂存的附件列表（base64 编码），与 draftInput 一同跨 session 保持 */
   draftAttachments: StagedAttachmentInfo[];
+  /**
+   * 会话完成的时间戳（毫秒），用于在 sidebar 显示绿色对勾。
+   * 当前会话：3秒后自动清除；非当前会话：在用户切到此会话时清除。
+   */
+  completedAt: number | null;
 }
 
 const emptySessionState = (): SessionState => ({
@@ -66,6 +72,7 @@ const emptySessionState = (): SessionState => ({
   availableCommands: [],
   draftInput: "",
   draftAttachments: [],
+  completedAt: null,
 });
 
 export interface AppState {
@@ -101,6 +108,7 @@ export interface AppState {
   i18n: SettingsInfo["i18n"];
   fileWatcher: SettingsInfo["fileWatcher"];
   ilink: SettingsInfo["ilink"];
+  sound: SettingSoundInfo;
   snippets: SettingsInfo["snippets"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
@@ -160,6 +168,7 @@ export interface AppState {
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
+  setSound: (sound: SettingSoundInfo) => void;
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
@@ -201,6 +210,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
   ilink: { useOriginalImage: false },
+  sound: { volume: 50, muted: false, theme: "soft" },
   snippets: [],
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
@@ -341,6 +351,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setI18n: (i18n) => set({ i18n }),
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setIlink: (ilink) => set({ ilink }),
+  setSound: (sound) => set({ sound }),
   setSnippets: (snippets) => set({ snippets }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),

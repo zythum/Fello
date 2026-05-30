@@ -123,6 +123,8 @@ bridge.on("ilink-status-changed", (payload) => emit("ilink-status-changed", payl
 bridge.on("ilink-active-session-changed", (payload) =>
   emit("ilink-active-session-changed", payload),
 );
+bridge.on("prompt-start", (payload) => emit("prompt-start", payload));
+bridge.on("prompt-end", (payload) => emit("prompt-end", payload));
 
 // Register client identity
 void invokeIPC("registerClient", { clientId }).catch(() => {});
