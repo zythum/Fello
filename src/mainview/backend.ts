@@ -51,10 +51,10 @@ const wsCallbacks = new Map<number, { resolve: (val: any) => void; reject: (err:
 if (isWebUI) {
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
-  const wsPort = urlParams.get("wsPort") || window.location.port;
+  const port = urlParams.get("port") || window.location.port;
 
   if (token) {
-    const wsUrl = `ws://${window.location.hostname}:${wsPort}/?token=${token}`;
+    const wsUrl = `ws://${window.location.hostname}:${port}/?token=${token}`;
     ws = new WebSocket(wsUrl);
 
     wsReadyPromise = new Promise((resolve, reject) => {

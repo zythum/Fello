@@ -5,6 +5,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  protocol,
   shell,
   nativeTheme,
   MenuItemConstructorOptions,
@@ -21,6 +22,7 @@ import {
 } from "../backend/backend";
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
+import { serveProjectFile } from "../backend/serve-project-file";
 import {
   createAutoUpdateCheckGate,
   createUpdaterEvent,
@@ -37,6 +39,20 @@ if (isDev) {
   app.commandLine.appendSwitch("no-sandbox");
   // app.disableHardwareAcceleration();
 }
+
+// Register the custom `web://` scheme as privileged before app is ready.
+// This enables standard URL parsing, fetch support, and CORS in iframes.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "web",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+]);
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -471,6 +487,45 @@ app.on("before-quit", (event) => {
 });
 
 app.whenReady().then(() => {
+  // Register custom web:// protocol handler for serving project files.
+  // URL format: web://project/<projectId>/<relative-path>
+  // Allows HTML files to reference relative paths (images, CSS, JS) naturally.
+  protocol.handle("web", async (request) => {
+    const url = new URL(request.url);
+
+    // Only handle web://project/... URLs
+    if (url.host !== "project") {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    // Parse path: /<projectId>/<relative-path>
+    const pathParts = url.pathname.split("/");
+    const projectId = pathParts[1] || "";
+    const relativePath = decodeURIComponent(pathParts.slice(2).join("/") || "");
+
+    if (!projectId || !relativePath) {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    const project = storageOps.getProject(projectId);
+    if (!project) {
+      return new Response("Project Not Found", { status: 404 });
+    }
+
+    const result = await serveProjectFile(project.cwd, relativePath);
+
+    // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const blob = new Blob([result.body as any], { type: result.mimeType });
+    return new Response(blob, {
+      status: result.status,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+      },
+    });
+  });
+
   setupMenu();
   createMainWindow();
   setupAutoUpdater();

@@ -1,4 +1,4 @@
-export type FileKind = "image" | "markdown" | "text" | "pdf" | "docx" | "pptx" | "xlsx";
+export type FileKind = "image" | "markdown" | "text" | "pdf" | "docx" | "pptx" | "xlsx" | "html";
 
 export interface FileDetailProps {
   projectId: string | null;
@@ -14,6 +14,8 @@ const FILE_EXT_MAP: Record<string, FileKind> = {
   pptx: "pptx",
   xlsx: "xlsx",
   xls: "xlsx",
+  html: "html",
+  htm: "html",
 };
 
 /** 根据文件扩展名判断 fileKind */

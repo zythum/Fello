@@ -12,6 +12,7 @@ import { PdfDetail } from "./pdf-detail/pdf-detail";
 import { DocxDetail } from "./docx-detail/docx-detail";
 import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
+import { HtmlDetail } from "./html-detail/html-detail";
 import { FallbackDetail } from "./fallback-detail/fallback-detail";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
@@ -104,6 +105,8 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             <PptxDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "xlsx" ? (
             <XlsxDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "html" ? (
+            <HtmlDetail key={refreshKey} projectId={projectId} file={file} />
           ) : (
             <FallbackDetail projectId={projectId} file={file} />
           )}

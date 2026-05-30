@@ -465,6 +465,16 @@
     "previousSlide": "上一张",
     "nextSlide": "下一张"
   },
+  "htmlDetail": {
+    "fileNotFound": "文件不存在或无法访问",
+    "errorLoading": "加载失败",
+    "loadFailed": "页面加载失败",
+    "retry": "重试",
+    "openInBrowser": "在浏览器中打开",
+    "webuiNotEnabled": "请先启用 WebUI 才能在浏览器中打开",
+    "open": "打开",
+    "refresh": "刷新"
+  },
   "welcome": {
     "title": "Fello",
     "desc": "又一个基于 ACP 协议的 Agent 客户端，连接智能体并开始协作。",

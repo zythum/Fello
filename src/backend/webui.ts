@@ -7,6 +7,8 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
+import { storageOps } from "./storage";
+import { serveProjectFile } from "./serve-project-file";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
 import * as mimeTypes from "mime-types";
@@ -75,6 +77,35 @@ export async function startWebUI(options?: {
     }
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+    // ── Project file serving route: /project/<projectId>/<relative-path> ──
+    // Used by the WebDetail component to load HTML files with relative asset references.
+    // Authentication is inherited from the WebUI session — no separate token needed.
+    if (url.pathname.startsWith("/project/")) {
+      // Parse path: /project/<projectId>/<relative-path>
+      const pathParts = url.pathname.split("/");
+      // pathParts[0] = '', pathParts[1] = 'project', pathParts[2] = projectId
+      const projectId = pathParts[2] || "";
+      const relativePath = decodeURIComponent(pathParts.slice(3).join("/") || "");
+
+      if (!projectId || !relativePath) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Bad Request");
+        return;
+      }
+
+      const project = storageOps.getProject(projectId);
+      if (!project) {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Project Not Found");
+        return;
+      }
+
+      const result = await serveProjectFile(project.cwd, relativePath);
+      res.writeHead(result.status, { "Content-Type": result.mimeType });
+      res.end(result.body);
+      return;
+    }
 
     // In dev, the Vite server serves the files, so this node server is just for WS
     if (process.env.ELECTRON_RENDERER_URL) {
@@ -209,7 +240,7 @@ function getWebUIUrl(addressInfo: string | AddressInfo | null) {
   if (isDev) {
     const renderUrl = new URL(process.env.ELECTRON_RENDERER_URL!);
     renderUrl.searchParams.set("token", currentToken!);
-    renderUrl.searchParams.set("wsPort", addressInfo.port.toString());
+    renderUrl.searchParams.set("port", addressInfo.port.toString());
     return renderUrl.toString();
   } else {
     // In production, the WebUI is just the frontend built files,

@@ -465,6 +465,16 @@
     "previousSlide": "Previous slide",
     "nextSlide": "Next slide"
   },
+  "htmlDetail": {
+    "fileNotFound": "File not found or inaccessible",
+    "errorLoading": "Failed to load",
+    "loadFailed": "Page load failed",
+    "retry": "Retry",
+    "openInBrowser": "Open in browser",
+    "webuiNotEnabled": "Enable WebUI first to open in browser",
+    "open": "Open",
+    "refresh": "Refresh"
+  },
   "welcome": {
     "title": "Fello",
     "desc": "Yet another Agent client based on the ACP protocol. Connect with the agent and begin collaborating.",
