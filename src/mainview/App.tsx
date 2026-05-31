@@ -213,10 +213,12 @@ function AppContent() {
     };
 
     const handlePromptEnd = (detail: BackendEvents["prompt-end"]) => {
+      const isSuccess = !detail.error && detail.stopReason === "end_turn";
       useAppStore.getState().updateSessionState(detail.sessionId, () => ({
         completedAt: detail.error ? null : Date.now(),
+        completedStatus: detail.error ? null : isSuccess ? "success" : "error",
       }));
-      if (detail.stopReason === "end_turn") {
+      if (isSuccess) {
         tiks.success();
       } else {
         tiks.error();

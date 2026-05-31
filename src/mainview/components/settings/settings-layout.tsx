@@ -31,6 +31,12 @@ export function SettingsLayout() {
       label: t("settings.mcp.title", "MCP Servers"),
     },
     {
+      id: "snippets",
+      href: "/settings/snippets",
+      icon: <Clipboard className="size-4" />,
+      label: t("settings.snippets.title", "Snippets"),
+    },
+    {
       id: "webui",
       href: "/settings/webui",
       icon: <Globe className="size-4" />,
@@ -41,12 +47,6 @@ export function SettingsLayout() {
       href: "/settings/ilink",
       icon: <MessageCircle className="size-4" />,
       label: t("settings.ilink.title", "WeChat iLink"),
-    },
-    {
-      id: "snippets",
-      href: "/settings/snippets",
-      icon: <Clipboard className="size-4" />,
-      label: t("settings.snippets.title", "Snippets"),
     },
   ];
 

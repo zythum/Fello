@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -291,6 +292,24 @@ export function SettingsGeneral() {
                       </Select>
                     );
                   })()}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.soundTest", "Test")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t("settings.general.soundTestDesc", "Preview the current sound effect")}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-35"
+                    onClick={() => tiks.success()}
+                  >
+                    {t("settings.general.soundTestPlay", "Play")}
+                  </Button>
                 </div>
               </div>
             </div>

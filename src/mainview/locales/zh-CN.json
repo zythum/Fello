@@ -120,6 +120,9 @@
       "soundThemeDesc": "选择音效风格",
       "soundSoft": "柔和",
       "soundCrisp": "清脆",
+      "soundTest": "试听",
+      "soundTestDesc": "预览当前音效效果",
+      "soundTestPlay": "播放",
       "saveSoundFailed": "保存音效设置失败。"
     },
     "agents": {

@@ -120,6 +120,9 @@
       "soundThemeDesc": "Select the sound effect style",
       "soundSoft": "Soft",
       "soundCrisp": "Crisp",
+      "soundTest": "Test",
+      "soundTestDesc": "Preview the current sound effect",
+      "soundTestPlay": "Play",
       "saveSoundFailed": "Failed to save sound setting."
     },
     "agents": {

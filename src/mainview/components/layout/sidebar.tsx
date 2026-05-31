@@ -50,6 +50,7 @@ import {
   Pencil,
   Settings,
   Trash2,
+  TriangleAlert,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -113,7 +114,10 @@ export function Sidebar() {
         clearTimeout(completedAtTimerRef.current);
       }
       completedAtTimerRef.current = setTimeout(() => {
-        useAppStore.getState().updateSessionState(activeSessionId, () => ({ completedAt: null }));
+        useAppStore.getState().updateSessionState(activeSessionId, () => ({
+          completedAt: null,
+          completedStatus: null,
+        }));
         completedAtTimerRef.current = null;
       }, 3000);
     }
@@ -245,10 +249,13 @@ export function Sidebar() {
   };
 
   const handleSelectSession = async (session: SessionInfo) => {
-    // Clear completedAt when user navigates to a completed session
+    // Clear completed state when user navigates to a completed session
     const state = useAppStore.getState().sessionStates.get(session.id);
     if (state?.completedAt) {
-      useAppStore.getState().updateSessionState(session.id, () => ({ completedAt: null }));
+      useAppStore.getState().updateSessionState(session.id, () => ({
+        completedAt: null,
+        completedStatus: null,
+      }));
     }
     handleNavigate(`/session-view/${session.id}`);
   };
@@ -543,15 +550,21 @@ export function Sidebar() {
                             const state = sessionStates.get(session.id);
                             const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
                             const isStreaming = session.isStreaming;
-                            const isCompleted = state?.completedAt != null;
+                            const completedStatus = state?.completedStatus;
                             if (hasAskUser) {
                               return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
                             }
                             if (isStreaming) {
                               return <LoaderCircle className="size-3 animate-spin shrink-0" />;
                             }
-                            if (isCompleted) {
+                            if (
+                              completedStatus === "success" ||
+                              (state?.completedAt && !completedStatus)
+                            ) {
                               return <Check className="size-3 shrink-0 text-green-500" />;
+                            }
+                            if (completedStatus === "error") {
+                              return <TriangleAlert className="size-3 shrink-0 text-yellow-500" />;
                             }
                             return <div className="size-3 shrink-0" />;
                           })()}

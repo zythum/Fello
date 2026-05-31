@@ -11,12 +11,59 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import type { SnippetInfo } from "../../../../shared/schema";
 import { SettingsSnippetDialog } from "./settings-snippet-dialog";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SnippetSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : "auto",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-center gap-1 w-full">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
+          title={t("settings.snippets.dragToReorder", "Drag to reorder")}
+        >
+          <GripVertical className="size-3.5 -ml-1" />
+        </button>
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsSnippets() {
   const { t } = useTranslation();
@@ -69,6 +116,31 @@ export function SettingsSnippets() {
     await handleSave(snippets.filter((s) => s.id !== id));
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = snippets.findIndex((s) => s.id === active.id);
+      const newIndex = snippets.findIndex((s) => s.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const updated = [...snippets];
+        const [moved] = updated.splice(oldIndex, 1);
+        updated.splice(newIndex, 0, moved);
+        await handleSave(updated);
+      }
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="px-5 py-4 w-full max-w-4xl mx-auto">
@@ -99,31 +171,44 @@ export function SettingsSnippets() {
       <ScrollArea className="flex-1 w-full overflow-hidden">
         <div className="w-full max-w-4xl mx-auto">
           <div className="space-y-3 m-5 pb-6">
-            {snippets.map((s) => (
-              <ContextMenu key={s.id}>
-                <ContextMenuTrigger>
-                  <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
-                    <span className="font-bold text-xs ml-1 truncate shrink-0 max-w-32 select-none">
-                      {s.title}
-                    </span>
-                    <span className="text-[10px] flex-1 w-0 text-muted-foreground font-mono truncate">
-                      {s.content}
-                    </span>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-32">
-                  <ContextMenuItem onClick={() => openEditDialog(s)}>
-                    <Pencil className="size-3" />
-                    {t("settings.snippets.edit", "Edit")}
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem variant="destructive" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="size-3" />
-                    {t("settings.snippets.delete", "Delete")}
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={snippets.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {snippets.map((s) => (
+                  <SnippetSortableItem key={s.id} id={s.id}>
+                    <ContextMenu>
+                      <ContextMenuTrigger>
+                        <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
+                          <span className="font-bold text-xs ml-1 truncate shrink-0 max-w-32 select-none">
+                            {s.title}
+                          </span>
+                          <span className="text-[10px] flex-1 w-0 text-muted-foreground font-mono truncate">
+                            {s.content}
+                          </span>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-32">
+                        <ContextMenuItem onClick={() => openEditDialog(s)}>
+                          <Pencil className="size-3" />
+                          {t("settings.snippets.edit", "Edit")}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem variant="destructive" onClick={() => handleDelete(s.id)}>
+                          <Trash2 className="size-3" />
+                          {t("settings.snippets.delete", "Delete")}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  </SnippetSortableItem>
+                ))}
+              </SortableContext>
+            </DndContext>
             {snippets.length === 0 && (
               <div className="py-8 text-center text-sm text-muted-foreground">
                 {t("settings.snippets.empty", "No snippets configured")}

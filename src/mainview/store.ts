@@ -54,10 +54,14 @@ export interface SessionState {
   /** 暂存的附件列表（base64 编码），与 draftInput 一同跨 session 保持 */
   draftAttachments: StagedAttachmentInfo[];
   /**
-   * 会话完成的时间戳（毫秒），用于在 sidebar 显示绿色对勾。
+   * 会话完成的时间戳（毫秒），用于在 sidebar 显示状态图标。
    * 当前会话：3秒后自动清除；非当前会话：在用户切到此会话时清除。
    */
   completedAt: number | null;
+  /**
+   * 完成状态：success（end_turn）或 error（其他），与 completedAt 配合使用。
+   */
+  completedStatus: "success" | "error" | null;
 }
 
 const emptySessionState = (): SessionState => ({
@@ -73,6 +77,7 @@ const emptySessionState = (): SessionState => ({
   draftInput: "",
   draftAttachments: [],
   completedAt: null,
+  completedStatus: null,
 });
 
 export interface AppState {
