@@ -1613,7 +1613,13 @@ export const backendHandlers: {
     if (!project) throw new Error("Project does not exist");
     const b = await ensureBridge(session.agentId);
 
-    const socketPath = generateSessionSocketPath(randomUUID());
+    // Reuse existing socket server path if one is already running for this session,
+    // so that hasSessionConfigChanged won't detect a false positive config change
+    // (which would trigger closeSession and cancel any in-progress streaming).
+    const existingSocketServer = sessionSocketServers.get(session.id);
+    const socketPath = existingSocketServer
+      ? existingSocketServer.socketPath
+      : generateSessionSocketPath(randomUUID());
     const activeMcpServers = buildMcpServersConfig(session.mcpServers, {
       project,
       socketPath,
