@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore, useSessionState } from "../../../store";
 import { Settings2, ReceiptTurkishLira } from "lucide-react";
@@ -28,23 +28,6 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   // Local state: only used while the popover is open, synced from session on open
   const [localMcpServers, setLocalMcpServers] = useState<string[]>([]);
   const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
-
-  // Check whether the local selection differs from what the session currently has
-  const hasLocalChanges = useMemo(() => {
-    const local = new Set(localMcpServers);
-    const sessionIds = new Set(session.mcpServers);
-    if (local.size !== sessionIds.size) return true;
-    for (const id of local) {
-      if (!sessionIds.has(id)) return true;
-    }
-    const localFeat = new Set(localFeatures);
-    const sessionFeat = new Set(session.features);
-    if (localFeat.size !== sessionFeat.size) return true;
-    for (const f of localFeat) {
-      if (!sessionFeat.has(f)) return true;
-    }
-    return false;
-  }, [localMcpServers, session.mcpServers, localFeatures, session.features]);
 
   const handleToggle = useCallback((mcpId: string) => {
     setLocalMcpServers((prev) =>
@@ -212,14 +195,13 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                   </>
                 )}
 
-                {/* Refresh — only enabled when local state differs from session */}
+                {/* 重启会话：始终可点，清空 store 缓存并从 backend 重新拉取 */}
                 <Button
                   size="xs"
-                  disabled={!hasLocalChanges}
                   className="flex w-full items-center gap-2 h-7 mt-1 text-xs font-normal"
-                  onClick={hasLocalChanges ? handleSyncAndRefresh : undefined}
+                  onClick={handleSyncAndRefresh}
                 >
-                  <span>{t("chatHeader.refresh", "Refresh")}</span>
+                  <span>{t("chatHeader.refresh", "Restart Session")}</span>
                 </Button>
               </PopoverPrimitive.Popup>
             </PopoverPrimitive.Positioner>

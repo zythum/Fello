@@ -308,7 +308,7 @@
     }
   },
   "chatHeader": {
-    "refresh": "Refresh",
+    "refresh": "Restart Session",
     "contextWindow": "Context Window",
     "used": "Used",
     "size": "Size",
