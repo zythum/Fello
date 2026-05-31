@@ -30,7 +30,7 @@
     "noSessions": "No sessions available.",
     "switchSessionHint": "Reply with a number to switch session",
     "switchSessionGuide": "💡 Send !s to switch session",
-    "invalidSessionNumber": "Invalid number, please enter a number between {{min}}-{{max}}",
+    "invalidSessionNumber": "Invalid number, please enter a number between {{min}}-{{max}}. Send a command to retry.",
     "switchedToSession": "Switched to 「{{label}}」",
     "newSession": "New Chat",
     "newSessionTitle": "New Session",
@@ -38,6 +38,18 @@
     "createSessionHint": "Reply with a number to create a new session (send other content to cancel)",
     "createSessionGuide": "💡 Send !n to create a new session",
     "noAgent": "No available agent. Please configure one in settings.",
-    "createdAndSwitched": "✅ Switched to new session in project「{{project}}」"
+    "createdAndSwitched": "✅ Switched to new session in project「{{project}}」",
+    "modelGuide": "💡 Send !m to switch model",
+    "modelList": "Select Model",
+    "modelListDesc": "Please choose a model:",
+    "noModels": "No models available for the current session.",
+    "switchModelHint": "Reply with a number to switch model",
+    "switchedToModel": "✅ Switched to model「{{model}}」",
+    "snippetGuide": "💡 Send !q for quick phrases",
+    "snippetList": "Quick Phrases",
+    "snippetListDesc": "Please choose a quick phrase:",
+    "noSnippets": "No quick phrases available. Please add some in settings.",
+    "selectSnippetHint": "Reply with a number to send the quick phrase",
+    "snippetSent": "✅ Quick phrase「{{title}}」has been sent"
   }
 }

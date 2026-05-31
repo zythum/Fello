@@ -434,6 +434,14 @@ function getILinkBridge(): ILinkBridge {
         }
 
         if (trimmed[0] === "!" || trimmed[0] === "！") {
+
+          const session = ilinkActiveSessionId ? storageOps.getSession(ilinkActiveSessionId) : null;
+          if (session && session.isStreaming) {
+            backendHandlers.cancelPrompt({ sessionId: session.id }).catch((err) => {
+              console.warn("[iLink] Failed to cancel prompt:", err);
+            });
+          }
+
           const [command, ..._args] = trimmed.slice(1).split(/\s+/);
           if (command.toLowerCase() === "s") {
             // !s: 列出所有会话，等待用户选择序号切换
@@ -597,6 +605,160 @@ function getILinkBridge(): ILinkBridge {
                   }
                 });
             };
+          } else if (command.toLowerCase() === "m") {
+            // !m: 列出当前会话的可用模型，等待用户选择序号切换
+            const sessionId = ilinkActiveSessionId ?? "";
+            if (!sessionId) {
+              if (msg.from_user_id) {
+                const noSessionMsg = [
+                  `📋 **${t("ilink.noActiveSession")}**`,
+                  "",
+                  t("ilink.switchSessionGuide"),
+                  t("ilink.createSessionGuide"),
+                ];
+                await ilinkBridge?.sendTextReply(msg.from_user_id, noSessionMsg.join("\n"));
+              }
+              return;
+            }
+
+            const modelState = await backendHandlers.getModels({ sessionId });
+            if (!modelState || !modelState.availableModels || modelState.availableModels.length === 0) {
+              if (msg.from_user_id) {
+                await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noModels"));
+              }
+              return;
+            }
+
+            const lines: string[] = [];
+            lines.push(`🧠 **${t("ilink.modelList")}**`);
+            lines.push(t("ilink.modelListDesc"));
+            const modelEntries: Array<{ modelId: string; label: string }> = [];
+            modelState.availableModels.forEach((m, i) => {
+              const marker = m.modelId === modelState.currentModelId ? " 👈" : "";
+              const label = m.name || m.modelId;
+              lines.push(`  ${i + 1}. ${label}${marker}`);
+              modelEntries.push({ modelId: m.modelId, label });
+            });
+
+            lines.push("", "---", t("ilink.switchModelHint"));
+
+            if (msg.from_user_id) {
+              await ilinkBridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+            }
+
+            // 设置回调，等待用户输入序号
+            iLinkCommandPending = (input: string) => {
+              const num = parseInt(input, 10);
+              if (isNaN(num) || num < 1 || num > modelEntries.length) {
+                const errMsg = t("ilink.invalidSessionNumber", {
+                  min: "1",
+                  max: String(modelEntries.length),
+                });
+                if (msg.from_user_id) {
+                  ilinkBridge?.sendTextReply(msg.from_user_id, errMsg);
+                }
+                return;
+              }
+              const entry = modelEntries[num - 1];
+              backendHandlers
+                .setModel({ sessionId, modelId: entry.modelId })
+                .then(() => {
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(
+                      msg.from_user_id,
+                      t("ilink.switchedToModel", { model: entry.label }),
+                    );
+                  }
+                })
+                .catch((err) => {
+                  console.error("[iLink] Failed to set model:", err);
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+                  }
+                });
+            };
+          } else if (command.toLowerCase() === "q") {
+            // !q: 列出所有快捷短语（snippets），等待用户选择序号发送
+            const settings = storageOps.getSettings();
+            const snippets = settings.snippets ?? [];
+            if (snippets.length === 0) {
+              if (msg.from_user_id) {
+                await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noSnippets"));
+              }
+              return;
+            }
+
+            const lines: string[] = [];
+            lines.push(`📝 **${t("ilink.snippetList")}**`);
+            lines.push(t("ilink.snippetListDesc"));
+            const snippetEntries: Array<{
+              snippetId: string;
+              title: string;
+              content: string;
+            }> = [];
+            snippets.forEach((s, i) => {
+              const preview = s.content.length > 50
+                ? s.content.substring(0, 50) + "..."
+                : s.content;
+              lines.push(`  ${i + 1}. **${s.title}** — ${preview}`);
+              snippetEntries.push({ snippetId: s.id, title: s.title, content: s.content });
+            });
+
+            lines.push("", "---", t("ilink.selectSnippetHint"));
+
+            if (msg.from_user_id) {
+              await ilinkBridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+            }
+
+            // 设置回调，等待用户输入序号
+            iLinkCommandPending = (input: string) => {
+              const num = parseInt(input, 10);
+              if (isNaN(num) || num < 1 || num > snippetEntries.length) {
+                const errMsg = t("ilink.invalidSessionNumber", {
+                  min: "1",
+                  max: String(snippetEntries.length),
+                });
+                if (msg.from_user_id) {
+                  ilinkBridge?.sendTextReply(msg.from_user_id, errMsg);
+                }
+                return;
+              }
+              const entry = snippetEntries[num - 1];
+              const sessionId = ilinkActiveSessionId ?? "";
+              if (!sessionId) {
+                if (msg.from_user_id) {
+                  const noSessionMsg = [
+                    `📋 **${t("ilink.noActiveSession")}**`,
+                    "",
+                    t("ilink.switchSessionGuide"),
+                    t("ilink.createSessionGuide"),
+                  ];
+                  ilinkBridge?.sendTextReply(msg.from_user_id, noSessionMsg.join("\n"));
+                }
+                return;
+              }
+
+              // 将快捷短语内容发送给当前活跃 session
+              backendHandlers
+                .sendPrompt({
+                  sessionId,
+                  contents: [{ type: "text", text: entry.content }],
+                })
+                .then(() => {
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(
+                      msg.from_user_id,
+                      t("ilink.snippetSent", { title: entry.title }),
+                    );
+                  }
+                })
+                .catch((err) => {
+                  console.error("[iLink] Failed to send snippet:", err);
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+                  }
+                });
+            };
           } else {
             // 显示当前微信活跃 session 的信息
             const currentSession = ilinkActiveSessionId
@@ -644,7 +806,7 @@ function getILinkBridge(): ILinkBridge {
                 lines.push(`**${t("ilink.mcpServers")}**: —`);
               }
 
-              lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"));
+              lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"), t("ilink.modelGuide"), t("ilink.snippetGuide"));
               return lines.join("\n");
             })();
             if (msg.from_user_id) {

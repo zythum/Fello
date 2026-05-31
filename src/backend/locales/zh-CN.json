@@ -30,7 +30,7 @@
     "noSessions": "当前没有可用会话。",
     "switchSessionHint": "请回复序号切换会话",
     "switchSessionGuide": "💡 发送 !s 切换会话",
-    "invalidSessionNumber": "无效序号，请输入 {{min}}-{{max}} 之间的数字",
+    "invalidSessionNumber": "无效序号，请输入 {{min}}-{{max}} 之间的数字。请发送指令重新设置。",
     "switchedToSession": "已切换到「{{label}}」",
     "newSession": "新会话",
     "newSessionTitle": "新建会话",
@@ -38,6 +38,18 @@
     "createSessionHint": "请回复序号创建新会话（发送其他内容取消）",
     "createSessionGuide": "💡 发送 !n 新建会话",
     "noAgent": "没有可用的 Agent，请先在设置中配置。",
-    "createdAndSwitched": "✅ 已切换到项目「{{project}}」的新会话"
+    "createdAndSwitched": "✅ 已切换到项目「{{project}}」的新会话",
+    "modelGuide": "💡 发送 !m 切换模型",
+    "modelList": "选择模型",
+    "modelListDesc": "请在下列模型中选择：",
+    "noModels": "当前会话没有可用模型。",
+    "switchModelHint": "请回复序号切换模型",
+    "switchedToModel": "✅ 已切换到模型「{{model}}」",
+    "snippetGuide": "💡 发送 !q 选择快捷短语",
+    "snippetList": "快捷短语",
+    "snippetListDesc": "请在下列快捷短语中选择：",
+    "noSnippets": "当前没有快捷短语，请先在设置中添加。",
+    "selectSnippetHint": "请回复序号发送快捷短语",
+    "snippetSent": "✅ 快捷短语「{{title}}」已发送"
   }
 }

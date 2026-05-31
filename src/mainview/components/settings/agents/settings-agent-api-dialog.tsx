@@ -311,15 +311,35 @@ export function SettingsAgentApiDialog({
                   <FieldLabel htmlFor="api-ctx" className="text-[11px] text-muted-foreground">
                     {t("settings.agents.contextWindowTokens", "Context Window (tokens)")}
                   </FieldLabel>
-                  <Input
-                    {...field}
-                    id="api-ctx"
-                    type="number"
-                    min={1}
-                    placeholder="128000"
-                    aria-invalid={fieldState.invalid}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      {...field}
+                      id="api-ctx"
+                      type="number"
+                      min={1}
+                      placeholder="128000"
+                      aria-invalid={fieldState.invalid}
+                      className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-[11px] font-mono text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => field.onChange("1000000")}
+                    >
+                      1m
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-[11px] font-mono text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => field.onChange("128000")}
+                    >
+                      128k
+                    </Button>
+                  </div>
                   {fieldState.invalid && (
                     <FieldError
                       errors={[
