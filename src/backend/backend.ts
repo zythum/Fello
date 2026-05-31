@@ -368,7 +368,7 @@ export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
   const sent = sendEvent("ask-user-request", request);
 
   // 如果是活跃 WeChat session，转发给微信用户
-  if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+  if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
     const userId = ilinkBridge.userId;
     if (userId) {
       const weChatText = formatAskUserForWeChat(request);
@@ -407,8 +407,9 @@ export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
 // ── iLink State ─────────────────────────────────────────────────────
 
 let ilinkBridge: ILinkBridge | null = null;
-let activeIlinkSessionId: string | null = null;
+let ilinkActiveSessionId: string | null = null;
 let ilinkReplyBuffer = "";
+let iLinkCommandPending: ((input: string) => void) | null = null;
 
 function getILinkBridge(): ILinkBridge {
   if (!ilinkBridge) {
@@ -418,18 +419,255 @@ function getILinkBridge(): ILinkBridge {
         broadcastWebUIEvent("ilink-status-changed", { status });
       },
       onMessage: async (msg) => {
-        // Route incoming WeChat message to active session
-        const sessionId = activeIlinkSessionId;
-        if (!sessionId) {
-          console.warn("[iLink] No active session, ignoring message");
-          return;
-        }
-
         const text = extractMessageText(msg);
         const voiceText = extractVoiceText(msg);
         const hasImages = hasImageItems(msg);
         const combinedText = [text, voiceText].filter(Boolean).join("\n");
         if (!combinedText.trim() && !hasImages) return;
+
+        const trimmed = text.trim();
+
+        if (iLinkCommandPending) {
+          iLinkCommandPending(trimmed);
+          iLinkCommandPending = null;
+          return;
+        }
+
+        if (trimmed[0] === "!" || trimmed[0] === "！") {
+          const [command, ..._args] = trimmed.slice(1).split(/\s+/);
+          if (command.toLowerCase() === "s") {
+            // !s: 列出所有会话，等待用户选择序号切换
+            const allSessions = storageOps.listSessions();
+            if (allSessions.length === 0) {
+              if (msg.from_user_id) {
+                await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noSessions"));
+              }
+              return;
+            }
+
+            // 按项目分组
+            const projects = storageOps.listProjects();
+            const projectMap = new Map(projects.map((p) => [p.id, p]));
+
+            const lines: string[] = [];
+            lines.push(`📋 **${t("ilink.sessionList")}**`);
+            lines.push(t("ilink.sessionListDesc"));
+            let index = 1;
+            let isFirstGroup = true;
+            const sessionEntries: Array<{ sessionId: string; label: string }> = [];
+
+            // 按项目分组
+            const grouped = new Map<string, typeof allSessions>();
+            for (const s of allSessions) {
+              const project = projectMap.get(s.projectId);
+              const key = project?.title ?? s.cwd;
+              if (!grouped.has(key)) grouped.set(key, []);
+              grouped.get(key)!.push(s);
+            }
+
+            const sortedProjectNames = [...grouped.keys()].sort((a, b) => a.localeCompare(b));
+            for (const projectName of sortedProjectNames) {
+              const sessions = grouped.get(projectName)!;
+              if (!isFirstGroup) {
+                lines.push(`\n---`);
+              }
+              isFirstGroup = false;
+              lines.push(`\n**${projectName}**`);
+              for (const s of sessions) {
+                const marker = s.id === ilinkActiveSessionId ? " 👈" : "";
+                const label = s.title || t("ilink.newSession");
+                lines.push(`  ${index}. ${label}${marker}`);
+                sessionEntries.push({ sessionId: s.id, label });
+                index++;
+              }
+            }
+
+            lines.push("", "---", t("ilink.switchSessionHint"));
+
+            if (msg.from_user_id) {
+              await ilinkBridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+            }
+
+            // 设置回调，等待用户输入序号
+            iLinkCommandPending = (input: string) => {
+              const num = parseInt(input, 10);
+              if (isNaN(num) || num < 1 || num > sessionEntries.length) {
+                const errMsg = t("ilink.invalidSessionNumber", {
+                  min: "1",
+                  max: String(sessionEntries.length),
+                });
+                if (msg.from_user_id) {
+                  ilinkBridge?.sendTextReply(msg.from_user_id, errMsg);
+                }
+                return;
+              }
+              const entry = sessionEntries[num - 1];
+              // 切换到选中的会话
+              ilinkActiveSessionId = entry.sessionId;
+              ilinkReplyBuffer = "";
+              writeActiveSessionId(entry.sessionId).catch(() => {});
+              sendEvent("ilink-active-session-changed", { sessionId: entry.sessionId });
+              if (msg.from_user_id) {
+                ilinkBridge?.sendTextReply(
+                  msg.from_user_id,
+                  t("ilink.switchedToSession", { label: entry.label }),
+                );
+              }
+            };
+          } else if (command.toLowerCase() === "n") {
+            // !n: 列出项目，等待用户选择序号以创建新会话
+            const allProjects = storageOps.listProjects();
+            if (allProjects.length === 0) {
+              if (msg.from_user_id) {
+                await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noProjects"));
+              }
+              return;
+            }
+
+            const sortedProjects = [...allProjects].sort((a, b) => a.title.localeCompare(b.title));
+
+            const lines: string[] = [];
+            lines.push(`📋 **${t("ilink.newSessionTitle")}**`);
+            lines.push(t("ilink.newSessionDesc"));
+            const projectEntries: Array<{ projectId: string; title: string }> = [];
+            sortedProjects.forEach((p, i) => {
+              lines.push(`  ${i + 1}. ${p.title}`);
+              projectEntries.push({ projectId: p.id, title: p.title });
+            });
+            lines.push("", "---", t("ilink.createSessionHint"));
+
+            if (msg.from_user_id) {
+              await ilinkBridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+            }
+
+            // 设置回调，等待用户输入序号
+            iLinkCommandPending = (input: string) => {
+              const num = parseInt(input, 10);
+              if (isNaN(num) || num < 1 || num > projectEntries.length) {
+                const errMsg = t("ilink.invalidSessionNumber", {
+                  min: "1",
+                  max: String(projectEntries.length),
+                });
+                if (msg.from_user_id) {
+                  ilinkBridge?.sendTextReply(msg.from_user_id, errMsg);
+                }
+                return;
+              }
+              const entry = projectEntries[num - 1];
+              // 获取第一个可用的 agent
+              const settings = storageOps.getSettings();
+              const agent = settings.agents.find((a) => !a.disabled);
+              if (!agent) {
+                if (msg.from_user_id) {
+                  ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noAgent"));
+                }
+                return;
+              }
+              // 创建新会话，参数与 sidebar 对话框默认值一致
+              const globalSettings = storageOps.getSettings();
+              const defaultMcpIds = (globalSettings.mcpServers || [])
+                .filter((s) => !s.disabled)
+                .map((s) => s.id);
+              backendHandlers
+                .newSession({
+                  projectId: entry.projectId,
+                  agentId: agent.id,
+                  mcpServers: defaultMcpIds,
+                  features: ALL_FEATURES,
+                  permissionMode: "allow-all",
+                })
+                .then((result) => {
+                  const newSessionId = result.sessionId;
+                  // 切换到新会话
+                  ilinkActiveSessionId = newSessionId;
+                  ilinkReplyBuffer = "";
+                  writeActiveSessionId(newSessionId).catch(() => {});
+                  sendEvent("ilink-active-session-changed", { sessionId: newSessionId });
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(
+                      msg.from_user_id,
+                      t("ilink.createdAndSwitched", { project: entry.title }),
+                    );
+                  }
+                })
+                .catch((err) => {
+                  console.error("[iLink] Failed to create new session:", err);
+                  if (msg.from_user_id) {
+                    ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+                  }
+                });
+            };
+          } else {
+            // 显示当前微信活跃 session 的信息
+            const currentSession = ilinkActiveSessionId
+              ? storageOps.getSession(ilinkActiveSessionId)
+              : null;
+            const message = (() => {
+              const lines: string[] = [];
+              lines.push(`📋 **${t("ilink.sessionInfo")}**`);
+
+              if (!currentSession) {
+                lines.push(t("ilink.noActiveSession"));
+                lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"));
+                return lines.join("\n");
+              }
+
+              const projects = storageOps.listProjects();
+              const project = projects.find((p) => p.id === currentSession.projectId);
+              lines.push(
+                `**${t("ilink.title")}**: ${currentSession.title || t("ilink.newSession")}`,
+              );
+              if (project) {
+                lines.push(`**${t("ilink.project")}**: ${project.title}`);
+              }
+              lines.push(`**${t("ilink.projectDir")}**: \`${currentSession.cwd}\``);
+              lines.push(`**${t("ilink.agent")}**: \`${currentSession.agentId}\``);
+
+              // Features
+              const enabledFeatures = new Set(currentSession.features ?? []);
+              lines.push(`**${t("ilink.features")}**:`);
+              for (const f of ALL_FEATURES) {
+                lines.push(`  - ${enabledFeatures.has(f) ? "✓" : "✗"} ${f}`);
+              }
+
+              // MCP servers
+              const globalSettings = storageOps.getSettings();
+              const sessionMcpIds = new Set(currentSession.mcpServers ?? []);
+              const allMcpServers = globalSettings.mcpServers ?? [];
+              if (allMcpServers.length > 0) {
+                lines.push(`**${t("ilink.mcpServers")}**:`);
+                for (const srv of allMcpServers) {
+                  const enabled = sessionMcpIds.has(srv.id) && !srv.disabled;
+                  lines.push(`  - ${enabled ? "✓" : "✗"} \`${srv.id}\``);
+                }
+              } else {
+                lines.push(`**${t("ilink.mcpServers")}**: —`);
+              }
+
+              lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"));
+              return lines.join("\n");
+            })();
+            if (msg.from_user_id) {
+              await ilinkBridge?.sendTextReply(msg.from_user_id, message);
+            }
+          }
+          return;
+        }
+
+        const sessionId = ilinkActiveSessionId ?? "";
+        if (!sessionId) {
+          console.warn("[iLink] No active session, ignoring message");
+          if (msg.from_user_id) {
+            const lines = [
+              `📋 **${t("ilink.noActiveSession")}**`,
+              "",
+              t("ilink.switchSessionGuide"),
+              t("ilink.createSessionGuide"),
+            ];
+            await ilinkBridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+          }
+          return;
+        }
 
         const contents: ContentBlock[] = [];
 
@@ -460,7 +698,6 @@ function getILinkBridge(): ILinkBridge {
         );
         if (pendingEntry) {
           const [askUserId, pendingReq] = pendingEntry;
-          const trimmed = text.trim();
           const options = pendingReq.request.options;
 
           // 纯数字 → 匹配选项序号（1-based）
@@ -572,7 +809,7 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
   const sessionUpdate = enrichedNotification.update.sessionUpdate;
 
   // ── iLink forwarding: agent response → WeChat ─────────────────
-  if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+  if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
     const userId = ilinkBridge.userId;
     if (userId) {
       if (sessionUpdate === "agent_message_chunk") {
@@ -590,7 +827,7 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
   if (
     sessionUpdate === "tool_call" &&
     ilinkBridge?.isConnected &&
-    sessionId === activeIlinkSessionId
+    sessionId === ilinkActiveSessionId
   ) {
     const userId = ilinkBridge.userId;
     if (userId && ilinkReplyBuffer) {
@@ -696,7 +933,7 @@ export function initBackend(
         // Restore persisted active session
         const savedId = await readActiveSessionId();
         if (savedId && storageOps.getSession(savedId)) {
-          activeIlinkSessionId = savedId;
+          ilinkActiveSessionId = savedId;
           sendEvent("ilink-active-session-changed", { sessionId: savedId });
         }
       }
@@ -1391,7 +1628,7 @@ export const backendHandlers: {
     const updated = storageOps.getSession(sessionId);
     if (updated) sendEvent("session-changed", { session: updated });
     sendEvent("prompt-start", { sessionId });
-    if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+    if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
       const userId = ilinkBridge.userId;
       if (userId) {
         ilinkBridge.sendTyping(userId, true).catch(() => {});
@@ -1430,7 +1667,7 @@ export const backendHandlers: {
       storageOps.updateSession(sessionId, { isStreaming: false });
       const updated = storageOps.getSession(sessionId);
       if (updated) sendEvent("session-changed", { session: updated });
-      if (ilinkBridge?.isConnected && sessionId === activeIlinkSessionId) {
+      if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
         const userId = ilinkBridge.userId;
         if (userId) {
           const bridge = ilinkBridge;
@@ -1551,8 +1788,8 @@ export const backendHandlers: {
 
     stopSessionSocketServer(sessionId);
 
-    if (activeIlinkSessionId === sessionId) {
-      activeIlinkSessionId = null;
+    if (ilinkActiveSessionId === sessionId) {
+      ilinkActiveSessionId = null;
       ilinkReplyBuffer = "";
       try {
         await writeActiveSessionId(null);
@@ -2088,7 +2325,7 @@ export const backendHandlers: {
       await ilinkBridge.stop();
       ilinkBridge = null;
     }
-    activeIlinkSessionId = null;
+    ilinkActiveSessionId = null;
     ilinkReplyBuffer = "";
     await writeActiveSessionId(null);
     sendEvent("ilink-active-session-changed", { sessionId: null });
@@ -2097,7 +2334,7 @@ export const backendHandlers: {
   async setActiveIlinkSession({ sessionId }) {
     if (!sessionId) {
       // Clear active session
-      activeIlinkSessionId = null;
+      ilinkActiveSessionId = null;
       ilinkReplyBuffer = "";
       await writeActiveSessionId(null);
       sendEvent("ilink-active-session-changed", { sessionId: null });
@@ -2105,21 +2342,21 @@ export const backendHandlers: {
     }
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    activeIlinkSessionId = sessionId;
+    ilinkActiveSessionId = sessionId;
     ilinkReplyBuffer = "";
     await writeActiveSessionId(sessionId);
     sendEvent("ilink-active-session-changed", { sessionId });
   },
 
   async getActiveIlinkSession() {
-    if (activeIlinkSessionId) {
-      return { sessionId: activeIlinkSessionId };
+    if (ilinkActiveSessionId) {
+      return { sessionId: ilinkActiveSessionId };
     }
     // tryRestore() may not have completed yet — read persisted file directly as fallback
     try {
       const savedId = await readActiveSessionId();
       if (savedId && storageOps.getSession(savedId)) {
-        activeIlinkSessionId = savedId;
+        ilinkActiveSessionId = savedId;
         return { sessionId: savedId };
       }
     } catch {}

@@ -54,7 +54,7 @@ export function SearchBar({
         autoComplete="off"
         autoCapitalize="off"
         spellCheck={false}
-        className="h-6 w-44 border-none bg-transparent px-1 text-xs focus-visible:ring-0"
+        className="h-6 w-44 border-none bg-transparent px-1 text-[11px]! rounded-sm! focus-visible:ring-0"
         placeholder="Find..."
       />
       <span className="text-xs text-muted-foreground tabular-nums shrink-0 select-none min-w-10 text-right">
