@@ -292,7 +292,7 @@ fello/
 - `theme`: UI 主题配置（`themeMode`: `"light" | "dark" | "system"`）
 - `i18n`: 应用语言配置（`language`: `"en"` | `"zh-CN"`）
 - `fileWatcher`: 文件监听配置（`enabled`: `boolean`）
-- `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`）
+- `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`, `keepaliveMaxCount`: `number`）
 - `snippets`: Snippets 列表，每项包含 `id`、`title`、`content` 字段
 
 `project.json` 字段：

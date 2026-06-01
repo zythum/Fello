@@ -153,8 +153,18 @@ export function SettingsILink() {
 
   const handleUseOriginalImage = async (checked: boolean) => {
     try {
-      await request.updateSettings({ ilink: { useOriginalImage: checked } });
-      setIlink({ useOriginalImage: checked });
+      await request.updateSettings({ ilink: { useOriginalImage: checked, keepaliveMaxCount: ilink.keepaliveMaxCount } });
+      setIlink({ useOriginalImage: checked, keepaliveMaxCount: ilink.keepaliveMaxCount });
+    } catch (err) {
+      console.warn("[iLink] Update settings error:", err);
+    }
+  };
+
+  const handleKeepaliveMaxCount = async (value: number) => {
+    const clamped = Math.max(0, Math.min(10, value));
+    try {
+      await request.updateSettings({ ilink: { useOriginalImage: ilink.useOriginalImage, keepaliveMaxCount: clamped } });
+      setIlink({ useOriginalImage: ilink.useOriginalImage, keepaliveMaxCount: clamped });
     } catch (err) {
       console.warn("[iLink] Update settings error:", err);
     }
@@ -309,6 +319,44 @@ export function SettingsILink() {
                   </span>
                 </div>
                 <Switch checked={ilink.useOriginalImage} onCheckedChange={handleUseOriginalImage} />
+              </div>
+            </div>
+          )}
+
+          {/* Keepalive Settings */}
+          {ilinkStatus.connected && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium leading-none">
+                    {t("settings.ilink.keepaliveMaxCount", "Keepalive Messages")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.ilink.keepaliveMaxCountDesc",
+                      "Max consecutive keepalive messages while thinking. 0 = unlimited. Default: 2.",
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleKeepaliveMaxCount(ilink.keepaliveMaxCount - 1)}
+                    disabled={ilink.keepaliveMaxCount <= 0}
+                    className="inline-flex items-center justify-center size-7 rounded-md border border-border hover:bg-accent transition-colors disabled:opacity-30"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center text-sm font-medium tabular-nums">
+                    {ilink.keepaliveMaxCount}
+                  </span>
+                  <button
+                    onClick={() => handleKeepaliveMaxCount(ilink.keepaliveMaxCount + 1)}
+                    disabled={ilink.keepaliveMaxCount >= 10}
+                    className="inline-flex items-center justify-center size-7 rounded-md border border-border hover:bg-accent transition-colors disabled:opacity-30"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           )}

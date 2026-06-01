@@ -72,6 +72,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | ↳ `enabled` | `boolean` | 是否启用自动监听项目文件变更。 |
 | `ilink` | `Object` | iLink 相关设置。 |
 | ↳ `useOriginalImage` | `boolean` | 是否使用原图（默认 false，使用缩略图以节省 token）。 |
+| ↳ `keepaliveMaxCount` | `number` | 每次流式生成中，连续保活消息的最大次数。0 表示不发送保活消息。默认 2。 |
 | `snippets` | `Array` | 用户自定义的文本片段列表。 |
 | ↳ `id` | `string` | Snippet 的唯一标识符。 |
 | ↳ `title` | `string` | Snippet 的显示标题。 |

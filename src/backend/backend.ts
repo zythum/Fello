@@ -371,6 +371,8 @@ export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
   if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
     const userId = ilinkBridge.userId;
     if (userId) {
+      // Stop keepalive — we're waiting for user input, not thinking
+      ilinkBridge.sendTyping(userId, false).catch(() => {});
       const weChatText = formatAskUserForWeChat(request);
       ilinkBridge.sendTextReply(userId, weChatText).catch((err) => {
         console.warn("[iLink] Failed to forward askUser to WeChat:", err);
@@ -862,27 +864,41 @@ function getILinkBridge(): ILinkBridge {
           const [askUserId, pendingReq] = pendingEntry;
           const options = pendingReq.request.options;
 
+          let respondedValue: string | null = null;
+
           // 纯数字 → 匹配选项序号（1-based）
           if (/^\d+$/.test(trimmed)) {
             const index = parseInt(trimmed, 10) - 1;
             const option = options[index];
             if (option) {
-              await backendHandlers.respondAskUser({
-                sessionId,
-                askUserId,
-                value: option.value,
-              });
-              return;
+              respondedValue = option.value;
             }
           }
 
-          // 否则作为自定义回复
-          await backendHandlers.respondAskUser({
-            sessionId,
-            askUserId,
-            value: null,
-            reason: trimmed || t("ilink.noInput"),
-          });
+          if (respondedValue !== null) {
+            await backendHandlers.respondAskUser({
+              sessionId,
+              askUserId,
+              value: respondedValue,
+            });
+          } else {
+            // 否则作为自定义回复
+            await backendHandlers.respondAskUser({
+              sessionId,
+              askUserId,
+              value: null,
+              reason: trimmed || t("ilink.noInput"),
+            });
+          }
+
+          // 用户已回复 askUser，agent 将继续生成 → 重启保活心跳
+          if (ilinkBridge?.isConnected && ilinkActiveSessionId === sessionId) {
+            const userId = ilinkBridge.userId;
+            if (userId) {
+              ilinkBridge.sendTyping(userId, true).catch(() => {});
+            }
+          }
+
           return; // 已拦截，不调用 sendPrompt
         }
 
@@ -897,6 +913,11 @@ function getILinkBridge(): ILinkBridge {
         }
       },
     });
+
+    // Apply keepalive max count from settings
+    try {
+      ilinkBridge.keepaliveMaxCount = storageOps.getSettings().ilink.keepaliveMaxCount;
+    } catch {}
   }
   return ilinkBridge;
 }
@@ -1495,6 +1516,11 @@ export const backendHandlers: {
     // Re-sync file watchers; syncWatchers() internally checks the persisted
     // fileWatcher.enabled setting and starts/stops watchers accordingly.
     await syncWatchers();
+
+    // Sync keepalive max count to bridge in real-time
+    if (settings.ilink?.keepaliveMaxCount !== undefined && ilinkBridge) {
+      ilinkBridge.keepaliveMaxCount = settings.ilink.keepaliveMaxCount;
+    }
   },
 
   async listSessions() {

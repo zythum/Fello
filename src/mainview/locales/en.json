@@ -256,7 +256,9 @@
       "step4": "Chat with ClawBot — messages are routed to the active session above",
       "step5": "Right-click any session in the sidebar to set it as active for WeChat",
       "useOriginalImage": "Use Original Image",
-      "useOriginalImageDesc": "Send full-size images to the model (uses more tokens). When off, thumbnails are used."
+      "useOriginalImageDesc": "Send full-size images to the model (uses more tokens). When off, thumbnails are used.",
+      "keepaliveMaxCount": "Keepalive Messages",
+      "keepaliveMaxCountDesc": "Max consecutive keepalive messages while thinking."
     },
     "snippets": {
       "title": "Snippets",

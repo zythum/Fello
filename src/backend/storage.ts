@@ -93,6 +93,7 @@ interface SettingsMeta {
   };
   ilink: {
     useOriginalImage: boolean;
+    keepaliveMaxCount: number;
   };
   sound: {
     volume: number;
@@ -114,6 +115,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   ilink: {
     useOriginalImage: false,
+    keepaliveMaxCount: 2,
   },
   sound: {
     volume: 50,
@@ -285,8 +287,17 @@ function readSettings(): SettingsMeta {
         : DEFAULT_SETTINGS.fileWatcher;
 
     const ilink: SettingsMeta["ilink"] =
-      rawObj && isObject(rawObj.ilink) && typeof rawObj.ilink.useOriginalImage === "boolean"
-        ? { useOriginalImage: rawObj.ilink.useOriginalImage }
+      rawObj && isObject(rawObj.ilink)
+        ? {
+            useOriginalImage:
+              typeof rawObj.ilink.useOriginalImage === "boolean"
+                ? rawObj.ilink.useOriginalImage
+                : DEFAULT_SETTINGS.ilink.useOriginalImage,
+            keepaliveMaxCount:
+              typeof rawObj.ilink.keepaliveMaxCount === "number" && rawObj.ilink.keepaliveMaxCount >= 0
+                ? rawObj.ilink.keepaliveMaxCount
+                : DEFAULT_SETTINGS.ilink.keepaliveMaxCount,
+          }
         : DEFAULT_SETTINGS.ilink;
 
     const sound: SettingsMeta["sound"] = (() => {
@@ -564,6 +575,7 @@ export const storageOps = {
       },
       ilink: {
         useOriginalImage: meta.ilink.useOriginalImage,
+        keepaliveMaxCount: meta.ilink.keepaliveMaxCount,
       },
       sound: {
         volume: meta.sound.volume,
@@ -671,6 +683,10 @@ export const storageOps = {
         }
         return {
           useOriginalImage: settings.ilink.useOriginalImage,
+          keepaliveMaxCount:
+            typeof settings.ilink.keepaliveMaxCount === "number" && settings.ilink.keepaliveMaxCount >= 0
+              ? settings.ilink.keepaliveMaxCount
+              : prevMeta.ilink.keepaliveMaxCount,
         };
       })(),
       sound: (() => {

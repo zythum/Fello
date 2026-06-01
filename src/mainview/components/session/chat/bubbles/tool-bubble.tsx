@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
-import * as React from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 import { FileIcon as FileTypeIcon } from "../../../common/file-icon";
 import { isWebUI } from "../../../../backend";
 import { electron } from "../../../../electron";
@@ -55,14 +55,18 @@ const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
 interface ToolItemProps {
   session: SessionInfo;
   message: ToolCallMessage;
+  defaultOpen?: boolean;
 }
 
-export function ToolItem({ session, message }: ToolItemProps) {
+export function ToolItem({ session, message, defaultOpen = false }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    setOpen(defaultOpen);
+  }, [defaultOpen]);
   return (
     <Collapsible
       className="text-xs min-w-0 overflow-hidden group"
@@ -209,6 +213,16 @@ export function ToolBubble({
   const isGroupedWithPrev = prevBubbleRole === "tool_call";
   const isGroupedWithNext = nextBubbleRole === "tool_call";
   const hasPrevBubble = prevBubbleRole != null;
+  const [delayedOpen, setDelayedOpen] = useState(false);
+  useEffect(() => {
+    if (!nextBubbleRole && message.kind === "execute" && message.status === "in_progress") {
+      const timer = setTimeout(() => setDelayedOpen(true), 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setDelayedOpen(false);
+    }
+  }, [nextBubbleRole, message.kind, message.status]);
+  const defaultOpen = delayedOpen;
 
   return (
     <div
@@ -220,7 +234,7 @@ export function ToolBubble({
         !isGroupedWithNext && "rounded-b-md",
       )}
     >
-      <ToolItem session={session} message={message} />
+      <ToolItem session={session} message={message} defaultOpen={defaultOpen} />
     </div>
   );
 }

@@ -256,7 +256,9 @@
       "step4": "与 ClawBot 聊天 — 消息将路由到上方选择的活跃会话",
       "step5": "在侧边栏右键任意会话即可设为微信活跃会话",
       "useOriginalImage": "使用原图",
-      "useOriginalImageDesc": "向模型发送原始大小的图片（消耗更多 token）。关闭时使用缩略图。"
+      "useOriginalImageDesc": "向模型发送原始大小的图片（消耗更多 token）。关闭时使用缩略图。",
+      "keepaliveMaxCount": "保活消息",
+      "keepaliveMaxCountDesc": "AI 思考时最大连续保活消息数。"
     },
     "snippets": {
       "title": "快捷短语",

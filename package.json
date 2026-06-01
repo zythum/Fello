@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "Yet another Agent client based on the ACP protocol",
   "author": {
     "name": "Zythum",
@@ -78,7 +78,6 @@
     "@ast-grep/napi": "^0.42.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@parcel/watcher": "^2.5.6",
-    "@rexa-developer/tiks": "^0.2.0",
     "ai": "^6.0.176",
     "electron-updater": "^6.8.3",
     "es-toolkit": "^1.46.1",
@@ -97,6 +96,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
     "@pierre/diffs": "^1.2.2",
+    "@rexa-developer/tiks": "^0.2.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",

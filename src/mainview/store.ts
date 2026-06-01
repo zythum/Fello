@@ -214,7 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
-  ilink: { useOriginalImage: false },
+  ilink: { useOriginalImage: false, keepaliveMaxCount: 2 },
   sound: { volume: 50, muted: false, theme: "soft" },
   snippets: [],
   webUIStatus: { enabled: false, url: null },
