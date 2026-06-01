@@ -18,7 +18,15 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-function CodeBlock({ language, codeText }: { language: string; codeText: string }) {
+function CodeBlock({
+  language,
+  highlightLang,
+  codeText,
+}: {
+  language: string;
+  highlightLang: string;
+  codeText: string;
+}) {
   const [hasCopied, setHasCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -52,7 +60,7 @@ function CodeBlock({ language, codeText }: { language: string; codeText: string 
             )}
           </Button>
         </div>
-        <CodeView content={codeText} lang={language} className="pt-8 -mt-8" />
+        <CodeView content={codeText} lang={highlightLang} className="pt-8 -mt-8" />
       </div>
     </div>
   );
@@ -105,6 +113,9 @@ const components: Components = {
 
     // Block code — extract raw source text and language, then render via CodeView
     const language = className?.match(/language-(\S+)/)?.[1] || "text";
+    // Use "text" for highlighting if the language isn't supported by shiki,
+    // while keeping the original language label for display in CodeBlock
+    const highlightLang = language.startsWith("git") ? "text" : language;
     let codeText = "";
     if (typeof children === "string") {
       codeText = children;
@@ -115,7 +126,7 @@ const components: Components = {
       }
     }
 
-    return <CodeBlock language={language} codeText={codeText} />;
+    return <CodeBlock language={language} highlightLang={highlightLang} codeText={codeText} />;
   },
   table: ({ className, children, node: _node, ...props }) => (
     <Table {...props} className={cn(className, "text-xs")}>

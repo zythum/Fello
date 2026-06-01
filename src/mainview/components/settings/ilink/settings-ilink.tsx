@@ -153,7 +153,9 @@ export function SettingsILink() {
 
   const handleUseOriginalImage = async (checked: boolean) => {
     try {
-      await request.updateSettings({ ilink: { useOriginalImage: checked, keepaliveMaxCount: ilink.keepaliveMaxCount } });
+      await request.updateSettings({
+        ilink: { useOriginalImage: checked, keepaliveMaxCount: ilink.keepaliveMaxCount },
+      });
       setIlink({ useOriginalImage: checked, keepaliveMaxCount: ilink.keepaliveMaxCount });
     } catch (err) {
       console.warn("[iLink] Update settings error:", err);
@@ -163,7 +165,9 @@ export function SettingsILink() {
   const handleKeepaliveMaxCount = async (value: number) => {
     const clamped = Math.max(0, Math.min(10, value));
     try {
-      await request.updateSettings({ ilink: { useOriginalImage: ilink.useOriginalImage, keepaliveMaxCount: clamped } });
+      await request.updateSettings({
+        ilink: { useOriginalImage: ilink.useOriginalImage, keepaliveMaxCount: clamped },
+      });
       setIlink({ useOriginalImage: ilink.useOriginalImage, keepaliveMaxCount: clamped });
     } catch (err) {
       console.warn("[iLink] Update settings error:", err);

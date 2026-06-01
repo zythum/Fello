@@ -294,7 +294,8 @@ function readSettings(): SettingsMeta {
                 ? rawObj.ilink.useOriginalImage
                 : DEFAULT_SETTINGS.ilink.useOriginalImage,
             keepaliveMaxCount:
-              typeof rawObj.ilink.keepaliveMaxCount === "number" && rawObj.ilink.keepaliveMaxCount >= 0
+              typeof rawObj.ilink.keepaliveMaxCount === "number" &&
+              rawObj.ilink.keepaliveMaxCount >= 0
                 ? rawObj.ilink.keepaliveMaxCount
                 : DEFAULT_SETTINGS.ilink.keepaliveMaxCount,
           }
@@ -684,7 +685,8 @@ export const storageOps = {
         return {
           useOriginalImage: settings.ilink.useOriginalImage,
           keepaliveMaxCount:
-            typeof settings.ilink.keepaliveMaxCount === "number" && settings.ilink.keepaliveMaxCount >= 0
+            typeof settings.ilink.keepaliveMaxCount === "number" &&
+            settings.ilink.keepaliveMaxCount >= 0
               ? settings.ilink.keepaliveMaxCount
               : prevMeta.ilink.keepaliveMaxCount,
         };

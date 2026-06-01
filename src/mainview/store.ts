@@ -21,11 +21,14 @@ export interface TerminalItem {
 export interface ProjectState {
   terminals: TerminalItem[];
   activeTerminalId: string | null;
+  /** 文件面板中已展开的文件夹 ID（相对路径）集合 */
+  openFolders: string[];
 }
 
 const emptyProjectState = (): ProjectState => ({
   terminals: [],
   activeTerminalId: null,
+  openFolders: [],
 });
 
 /** 暂存的附件信息（base64 编码，可序列化） */

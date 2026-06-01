@@ -436,7 +436,6 @@ function getILinkBridge(): ILinkBridge {
         }
 
         if (trimmed[0] === "!" || trimmed[0] === "！") {
-
           const session = ilinkActiveSessionId ? storageOps.getSession(ilinkActiveSessionId) : null;
           if (session && session.isStreaming) {
             backendHandlers.cancelPrompt({ sessionId: session.id }).catch((err) => {
@@ -624,7 +623,11 @@ function getILinkBridge(): ILinkBridge {
             }
 
             const modelState = await backendHandlers.getModels({ sessionId });
-            if (!modelState || !modelState.availableModels || modelState.availableModels.length === 0) {
+            if (
+              !modelState ||
+              !modelState.availableModels ||
+              modelState.availableModels.length === 0
+            ) {
               if (msg.from_user_id) {
                 await ilinkBridge?.sendTextReply(msg.from_user_id, t("ilink.noModels"));
               }
@@ -699,9 +702,8 @@ function getILinkBridge(): ILinkBridge {
               content: string;
             }> = [];
             snippets.forEach((s, i) => {
-              const preview = s.content.length > 50
-                ? s.content.substring(0, 50) + "..."
-                : s.content;
+              const preview =
+                s.content.length > 50 ? s.content.substring(0, 50) + "..." : s.content;
               lines.push(`  ${i + 1}. **${s.title}** — ${preview}`);
               snippetEntries.push({ snippetId: s.id, title: s.title, content: s.content });
             });
@@ -808,7 +810,14 @@ function getILinkBridge(): ILinkBridge {
                 lines.push(`**${t("ilink.mcpServers")}**: —`);
               }
 
-              lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"), t("ilink.modelGuide"), t("ilink.snippetGuide"));
+              lines.push(
+                "",
+                "---",
+                t("ilink.switchSessionGuide"),
+                t("ilink.createSessionGuide"),
+                t("ilink.modelGuide"),
+                t("ilink.snippetGuide"),
+              );
               return lines.join("\n");
             })();
             if (msg.from_user_id) {

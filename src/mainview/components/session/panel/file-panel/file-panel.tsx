@@ -381,7 +381,10 @@ export const FilePanel = memo(function FilePanel({
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [openFolders, setOpenFolders] = useState<Set<string>>(() => {
+    const ps = useAppStore.getState().projectStates.get(projectId);
+    return new Set(ps?.openFolders ?? []);
+  });
   const openFoldersRef = useRef<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -403,13 +406,21 @@ export const FilePanel = memo(function FilePanel({
   useEffect(() => {
     refreshSeqRef.current += 1;
     setSelectedIds(new Set());
-    setOpenFolders(new Set());
-    openFoldersRef.current = new Set();
     setLastSelectedId(null);
     setEditingId(null);
     setGitStatus(null);
     setData([]);
   }, [cwd]);
+
+  // When switching to a different project, restore openFolders from the store
+  // instead of clearing them, so per-project expansion state is preserved
+  // across session switches.
+  useEffect(() => {
+    const ps = useAppStore.getState().projectStates.get(projectId);
+    const restored = new Set(ps?.openFolders ?? []);
+    setOpenFolders(restored);
+    openFoldersRef.current = restored;
+  }, [projectId]);
 
   useEffect(() => {
     openFoldersRef.current = openFolders;
@@ -615,6 +626,14 @@ export const FilePanel = memo(function FilePanel({
     },
     [openFolders],
   );
+
+  // Sync openFolders to ProjectState whenever it changes, so folder expansion
+  // state persists across session switches within the same project.
+  useEffect(() => {
+    useAppStore.getState().updateProjectState(projectId, () => ({
+      openFolders: Array.from(openFolders),
+    }));
+  }, [openFolders, projectId]);
 
   const toggle = useCallback(
     (node: TreeNode) => {
