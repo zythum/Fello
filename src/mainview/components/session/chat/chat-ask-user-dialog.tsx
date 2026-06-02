@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionState } from "../../../store";
+import { useSessionAskUserRequests } from "../../../lib/session-selectors";
 import * as backend from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,13 +15,13 @@ interface Props {
 
 export function AskUserDialog({ sessionId }: Props) {
   const { t } = useTranslation();
-  const { askUserRequests } = useSessionState(sessionId);
+  const askUserRequests = useSessionAskUserRequests(sessionId);
   const [activeIndex, setActiveIndex] = useState(0);
   const [animState, setAnimState] = useState<"enter" | "idle" | "exit" | "hidden">("hidden");
 
   // 当 askUserRequests 变化时，管理排队和动画
   useEffect(() => {
-    if (askUserRequests.length === 0) {
+    if (!askUserRequests || askUserRequests.length === 0) {
       // 全部处理完 → 隐藏
       setAnimState("hidden");
       setActiveIndex(0);
@@ -44,9 +44,9 @@ export function AskUserDialog({ sessionId }: Props) {
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [askUserRequests, askUserRequests.length, activeIndex]);
+  }, [askUserRequests, askUserRequests?.length, activeIndex]);
 
-  const currentRequest = askUserRequests[activeIndex];
+  const currentRequest = askUserRequests ? askUserRequests[activeIndex] : null;
 
   // 当前请求被 resolve 后，进入下一个
   const handleResolved = () => {

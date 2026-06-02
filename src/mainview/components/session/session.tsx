@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
@@ -87,16 +87,17 @@ export function Session({ session }: { session: SessionInfo }) {
   }, [currentProjectId, handlePreviewFile]);
 
   // Auto load session if not loaded
+  const fetchingRef = useRef<string | null>(null);
   useEffect(() => {
     if (!sessionId) return;
     const sessionState = useAppStore.getState().getSessionState(sessionId);
     if (sessionState.messages.length > 0 || isCreatingSession) {
       return;
     }
+    if (fetchingRef.current === sessionId) return;
+    fetchingRef.current = sessionId;
 
-    let isCurrent = true;
-
-    const fetchHistory = async () => {
+    async function fetchHistory() {
       useAppStore.getState().updateSessionState(sessionId, (prev) => ({
         ...reduceFlushStreaming(prev),
         isLoading: true,
@@ -104,25 +105,19 @@ export function Session({ session }: { session: SessionInfo }) {
 
       try {
         const result = await request.getSessionHistory({ sessionId });
-
-        if (!isCurrent) {
-          useAppStore
-            .getState()
-            .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
-          return;
-        }
-
         let state = useAppStore.getState().getSessionState(sessionId);
         state = { ...state, messages: [], activeToolCalls: new Map() };
 
+        const displayIds = new Set<string>();
         for (const notification of result.messages) {
+          const displayId = notification?.update?._meta?.fello?.displayId;
+          if (displayId) {
+            displayIds.add(displayId);
+          }
           if (!notification?.update) continue;
           state = reduceSessionUpdate(state, notification.update);
         }
 
-        const displayIds = new Set(
-          result.messages.map((m) => m?.update?._meta?.fello?.displayId).filter(Boolean),
-        );
         for (const update of state.pendingUpdates) {
           const did = update._meta?.fello?.displayId;
           if (did && displayIds.has(did)) {
@@ -139,22 +134,15 @@ export function Session({ session }: { session: SessionInfo }) {
         request.loadSession({ sessionId }).catch(console.error);
       } catch (err) {
         console.error("Failed to fetch session history", err);
-        if (isCurrent) {
-          useAppStore
-            .getState()
-            .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
-        }
+        useAppStore
+          .getState()
+          .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
+      } finally {
+        fetchingRef.current = null;
       }
-    };
+    }
 
     void fetchHistory();
-
-    return () => {
-      isCurrent = false;
-      useAppStore
-        .getState()
-        .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
-    };
   }, [sessionId, isCreatingSession]);
 
   return (

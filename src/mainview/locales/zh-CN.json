@@ -408,7 +408,8 @@
     "scrollToBottom": "滚动到底部",
     "copyGroup": "复制",
     "copiedGroup": "已复制",
-    "duration": "用时 {{duration}}"
+    "duration": "用时 {{duration}}",
+    "loadMore": "加载更早的消息"
   },
   "chatTimeline": {
     "userMessageIndex": "第 {{index}} 条用户消息",

@@ -1419,6 +1419,74 @@ async function createTerminalProcess(cwd: string, initialSize?: { cols?: number;
   return terminalId;
 }
 
+/**
+ * 合并连续的同类型 notifications，减少前端需要处理的消息数量。
+ * - 连续的 agent_message_chunk / agent_thought_chunk：合并文本块
+ * - 同一 toolCallId 的 tool_call + tool_call_update：合并为一条
+ */
+function mergeNotifications(
+  notifications: SessionNotificationFelloExt[],
+): SessionNotificationFelloExt[] {
+  const result: SessionNotificationFelloExt[] = [];
+
+  for (const notification of notifications) {
+    const update = notification.update;
+    if (!update) {
+      result.push(notification);
+      continue;
+    }
+
+    const type = update.sessionUpdate;
+
+    if (type === "agent_message_chunk" || type === "agent_thought_chunk") {
+      const prev = result.length > 0 ? result[result.length - 1] : undefined;
+      if (
+        prev?.update?.sessionUpdate === type &&
+        prev.update.content?.type === "text" &&
+        update.content?.type === "text"
+      ) {
+        result[result.length - 1] = {
+          ...prev,
+          update: {
+            ...prev.update,
+            content: {
+              ...prev.update.content,
+              text: prev.update.content.text + update.content.text,
+            },
+          },
+        };
+        continue;
+      }
+    }
+
+    if (type === "tool_call" || type === "tool_call_update") {
+      const toolCallId = update.toolCallId;
+      const idx = result.findIndex(
+        (n) =>
+          (n.update?.sessionUpdate === "tool_call" ||
+            n.update?.sessionUpdate === "tool_call_update") &&
+          (n.update as { toolCallId?: string }).toolCallId === toolCallId,
+      );
+      if (idx !== -1) {
+        const prev = result[idx];
+        result[idx] = {
+          ...prev,
+          update: {
+            ...prev.update,
+            ...update,
+            sessionUpdate: "tool_call",
+          },
+        } as SessionNotificationFelloExt;
+        continue;
+      }
+    }
+
+    result.push(notification);
+  }
+
+  return result;
+}
+
 export const backendHandlers: {
   [K in keyof FelloIPCSchema["requests"]]: (
     params: FelloIPCSchema["requests"][K]["params"],
@@ -1646,6 +1714,14 @@ export const backendHandlers: {
     if (!session) throw new Error("Session does not exist");
     const project = storageOps.getProject(session.projectId);
     if (!project) throw new Error("Project does not exist");
+
+    // Clear stale isStreaming flag (e.g. from agent crash or interrupted generation)
+    if (session.isStreaming) {
+      storageOps.updateSession(sessionId, { isStreaming: false });
+      session.isStreaming = false;
+      sendEvent("session-changed", { session });
+    }
+
     const b = await ensureBridge(session.agentId);
 
     // Reuse existing socket server path if one is already running for this session,
@@ -1753,7 +1829,7 @@ export const backendHandlers: {
   async getSessionHistory({ sessionId }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const messages = storageOps.readSessionMessages(sessionId);
+    const messages = mergeNotifications(storageOps.readSessionMessages(sessionId));
     return {
       messages,
     };

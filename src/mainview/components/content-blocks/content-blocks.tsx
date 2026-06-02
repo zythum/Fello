@@ -23,12 +23,19 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
       {blocks.map((block, index) => {
         const isLast = index === blocks.length - 1;
         const blockIsStreaming = isLast && isStreaming;
+        // 优先使用 _meta.display_id（消息级稳定 ID）+ index 后缀得到唯一 key；
+        // 流式追加时同一 block 的 display_id + index 组合保持不变。
+        // 没有 _meta 时回退到 index。
+        const blockKey =
+          typeof block._meta?.display_id === "string"
+            ? `${block._meta.display_id}-${index}`
+            : index;
 
         switch (block.type) {
           case "text":
             return (
               <TextBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}
@@ -39,7 +46,7 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
           case "image":
             return (
               <ImageBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}
@@ -50,7 +57,7 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
           case "audio":
             return (
               <AudioBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}
@@ -61,7 +68,7 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
           case "resource":
             return (
               <ResourceBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}
@@ -72,7 +79,7 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
           case "resource_link":
             return (
               <ResourceLinkBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}
@@ -84,7 +91,7 @@ export function ContentBlocks({ blocks, role, session, isStreaming }: Props) {
             // 其他未知类型
             return (
               <UnsupportedBlock
-                key={index}
+                key={blockKey}
                 block={block}
                 role={role}
                 session={session}

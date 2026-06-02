@@ -107,6 +107,7 @@ export function Sidebar() {
   const completedAtTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    if (!sessions.some((s) => s.id === activeSessionId)) return; // Session deleted
 
     const state = useAppStore.getState().sessionStates.get(activeSessionId);
     if (state?.completedAt) {
@@ -271,14 +272,17 @@ export function Sidebar() {
           text: t("sidebar.delete"),
           variant: "destructive",
           value: async () => {
-            await request.deleteSession(session.id);
-            const map = new Map(useAppStore.getState().sessionStates);
+            // Remove from store immediately to prevent render loops
+            const store = useAppStore.getState();
+            setSessions(store.sessions.filter((s) => s.id !== session.id));
+            const map = new Map(store.sessionStates);
             map.delete(session.id);
             useAppStore.setState({ sessionStates: map });
-            await refreshData();
             if (activeSessionId === session.id) {
               handleNavigate("/");
             }
+            await request.deleteSession(session.id);
+            await refreshData();
             return "deleted";
           },
         },

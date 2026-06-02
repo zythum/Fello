@@ -408,7 +408,8 @@
     "scrollToBottom": "Scroll to bottom",
     "copyGroup": "Copy",
     "copiedGroup": "Copied",
-    "duration": "Took {{duration}}"
+    "duration": "Took {{duration}}",
+    "loadMore": "Load earlier messages"
   },
   "chatTimeline": {
     "userMessageIndex": "User message {{index}}",

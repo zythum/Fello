@@ -1,4 +1,5 @@
-import { useParams, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/layout/sidebar";
 import { useAppStore } from "./store";
@@ -22,9 +23,16 @@ import { SkillsSh } from "./components/skills/skills-sh/skills-skills-sh";
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const sessionInfo = useAppStore((s) => s.sessions.find((x) => x.id === sessionId));
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!sessionId || !sessionInfo) {
+      navigate("/", { replace: true });
+    }
+  }, [sessionId, sessionInfo, navigate]);
 
   if (!sessionId || !sessionInfo) {
-    return <Navigate to="/" replace />;
+    return null;
   }
 
   return <Session session={sessionInfo} />;

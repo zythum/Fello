@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionState } from "../../../store";
+import { useSessionMessages, useSessionActiveToolCalls } from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
 import { MessageBubble } from "./bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
@@ -26,7 +26,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
-  const { messages, activeToolCalls } = useSessionState(sessionId);
+  const messages = useSessionMessages(sessionId);
+  const activeToolCalls = useSessionActiveToolCalls(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,9 +199,16 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     return () => observer.disconnect();
   }, [getViewport]);
 
-  const renderedMessages = useMemo(() => messages.filter(isValidMessageToDisplay), [messages]);
+  const renderedMessages = useMemo(() => {
+    if (!messages) {
+      return [];
+    }
+    return messages.filter(isValidMessageToDisplay);
+  }, [messages]);
 
-  const messageGroups = useMemo(() => {
+  const PAGE_SIZE = 20;
+
+  const allMessageGroups = useMemo(() => {
     const groups: {
       key: string;
       userMessage?: UserMessage;
@@ -230,16 +238,42 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     return groups;
   }, [renderedMessages]);
 
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset visibleCount when session changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [sessionId]);
+
+  const hasMore = allMessageGroups.length > visibleCount;
+  const messageGroups = useMemo(
+    () =>
+      hasMore ? allMessageGroups.slice(allMessageGroups.length - visibleCount) : allMessageGroups,
+    [allMessageGroups, visibleCount, hasMore],
+  );
+
+  const handleLoadMore = useCallback(() => {
+    const viewport = getViewport();
+    const prevScrollHeight = viewport?.scrollHeight ?? 0;
+    setVisibleCount((prev) => prev + PAGE_SIZE);
+    // After render, restore scroll position
+    requestAnimationFrame(() => {
+      if (!viewport) return;
+      const newScrollHeight = viewport.scrollHeight;
+      viewport.scrollTop += newScrollHeight - prevScrollHeight;
+    });
+  }, [getViewport]);
+
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
-      renderedMessages
-        .filter((msg) => msg.role === "user_message")
-        .map((msg, index) => ({
-          displayId: msg.displayId,
+      messageGroups
+        .filter((g) => g.userMessage)
+        .map((g, index) => ({
+          displayId: g.userMessage!.displayId,
           index: index + 1,
-          content: msg.contents.find((content) => content.type === "text")?.text ?? "",
+          content: g.userMessage!.contents.find((content) => content.type === "text")?.text ?? "",
         })),
-    [renderedMessages],
+    [messageGroups],
   );
   const timelineDisplayIds = useMemo(() => timelineItems.map((x) => x.displayId), [timelineItems]);
   const firstTimelineDisplayId = timelineDisplayIds[0] ?? null;
@@ -268,7 +302,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     if (!userHasScrolledUpRef.current && (isAtBottom || isStreaming)) {
       scrollToBottomAuto();
     }
-  }, [messages, activeToolCalls.size, isAtBottom, isStreaming, scrollToBottomAuto]);
+  }, [messages, activeToolCalls?.size, isAtBottom, isStreaming, scrollToBottomAuto]);
 
   const setUserMessageElement = useCallback((displayId: string, el: HTMLElement | null) => {
     if (!el) {
@@ -359,6 +393,20 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       </div>
 
       <ScrollArea ref={scrollAreaRef} className="flex-1 w-full transform-gpu">
+        {hasMore && (
+          <div className="flex items-center gap-3 px-10 py-3 max-w-5xl mx-auto">
+            <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground/60 hover:text-muted-foreground"
+              onClick={handleLoadMore}
+            >
+              {t("chatArea.loadMore", "Load earlier messages")}
+            </Button>
+            <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
+          </div>
+        )}
         {messageGroups.map((group, groupIndex) => {
           const isFirstGroup = groupIndex === 0;
           const isLastGroup = groupIndex === messageGroups.length - 1;

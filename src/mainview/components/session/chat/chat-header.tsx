@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore, useSessionState } from "../../../store";
+import { useSessionUsage } from "../../../lib/session-selectors";
+import { useAppStore } from "../../../store";
 import { Settings2, ReceiptTurkishLira } from "lucide-react";
 import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request } from "../../../backend";
@@ -214,7 +215,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
 function UsageButton({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
-  const { lastTurnUsage, usage } = useSessionState(sessionId);
+  const { lastTurnUsage, usage } = useSessionUsage(sessionId);
   const hasData = usage || lastTurnUsage;
 
   if (!hasData) return null;

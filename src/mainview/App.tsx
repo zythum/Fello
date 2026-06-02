@@ -213,8 +213,10 @@ function AppContent() {
     };
 
     const handlePromptEnd = (detail: BackendEvents["prompt-end"]) => {
+      const store = useAppStore.getState();
+      if (!store.sessionStates.has(detail.sessionId)) return; // Session deleted, skip
       const isSuccess = !detail.error && detail.stopReason === "end_turn";
-      useAppStore.getState().updateSessionState(detail.sessionId, () => ({
+      store.updateSessionState(detail.sessionId, () => ({
         completedAt: detail.error ? null : Date.now(),
         completedStatus: detail.error ? null : isSuccess ? "success" : "error",
       }));
@@ -245,10 +247,22 @@ function AppContent() {
       store.setSessions(nextSessions);
 
       const sessionIds = new Set(nextSessions.map((s) => s.id));
-      const nextStates = new Map(
-        Array.from(store.sessionStates.entries()).filter(([sid]) => sessionIds.has(sid)),
-      );
-      useAppStore.setState({ sessionStates: nextStates });
+
+      // Only update sessionStates if entries were actually removed
+      const currentStates = store.sessionStates;
+      let hasStale = false;
+      for (const sid of currentStates.keys()) {
+        if (!sessionIds.has(sid)) {
+          hasStale = true;
+          break;
+        }
+      }
+      if (hasStale) {
+        const nextStates = new Map(
+          Array.from(currentStates.entries()).filter(([sid]) => sessionIds.has(sid)),
+        );
+        useAppStore.setState({ sessionStates: nextStates });
+      }
 
       // 同步清理 pendingSessionUpdatesRef 中已删除的会话
       for (const sid of pendingSessionUpdatesRef.current.keys()) {

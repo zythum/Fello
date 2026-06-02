@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
 import {
-  useAppStore,
-  useSessionState,
-  type StagedAttachmentInfo,
-  type SessionState,
-} from "../../../store";
+  useSessionIsLoading,
+  useSessionAskUserRequests,
+  useSessionDraftInput,
+  useSessionDraftAttachments,
+  useSessionAvailableCommands,
+} from "../../../lib/session-selectors";
+import { useAppStore, type StagedAttachmentInfo, type SessionState } from "../../../store";
 import type { ChatMessage } from "../../../lib/chat-message";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
@@ -148,8 +150,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
   const initializeInfo = session.initializeInfo;
-  const { isLoading, askUserRequests, availableCommands, draftInput, draftAttachments } =
-    useSessionState(session.id);
+  const isLoading = useSessionIsLoading(session.id);
+  const askUserRequests = useSessionAskUserRequests(session.id);
+  const availableCommands = useSessionAvailableCommands(session.id);
+  const draftInput = useSessionDraftInput(session.id);
+  const draftAttachments = useSessionDraftAttachments(session.id);
 
   /** session state 更新器（自动绑定当前 session.id） */
   const updateSessionState = useCallback(
@@ -599,7 +604,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
   }, []);
 
-  const hasActiveAskUser = askUserRequests.length > 0;
+  const hasActiveAskUser = askUserRequests ? askUserRequests.length > 0 : false;
   const disabled = !session.id || isLoading || hasActiveAskUser;
 
   const handlePaste = useCallback(

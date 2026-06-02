@@ -249,9 +249,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   updateSessionState: (id, updater) => {
     set((state) => {
+      const current = state.sessionStates.get(id);
+      if (!current && !state.sessions.some((s) => s.id === id)) return state; // Deleted session, skip
       const map = new Map(state.sessionStates);
-      const current = map.get(id) ?? emptySessionState();
-      map.set(id, { ...current, ...updater(current) });
+      const base = current ?? emptySessionState();
+      map.set(id, { ...base, ...updater(base) });
       return { sessionStates: map };
     });
   },

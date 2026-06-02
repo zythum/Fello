@@ -195,6 +195,8 @@ export class ACPBridge {
   }
 
   async connect(): Promise<InitializeResponse> {
+    const ACP_VERBOSE_LOG = false; // Set to true to enable ACP message logging
+
     const acpId = this.id;
     const proc =
       this.options.agentInfo.type === "stdio"
@@ -209,7 +211,7 @@ export class ACPBridge {
     const rawStream = ndJsonStream(proc.input, proc.output);
     let stream: { readable: ReadableStream; writable: WritableStream };
 
-    if (process.env.NODE_ENV === "development") {
+    if (ACP_VERBOSE_LOG && process.env.NODE_ENV === "development") {
       const logReadable = rawStream.readable.pipeThrough(
         new TransformStream({
           transform(msg, controller) {
@@ -302,7 +304,7 @@ export class ACPBridge {
         return {};
       },
       async extNotification(method: string, params: unknown): Promise<void> {
-        if (process.env.NODE_ENV === "development") {
+        if (ACP_VERBOSE_LOG && process.env.NODE_ENV === "development") {
           console.log(`[ACP Ext Notification] Method: ${method}`);
         }
         if (
