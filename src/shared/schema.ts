@@ -170,8 +170,6 @@ export interface SettingFileWatcherInfo {
 export interface SettingILinkInfo {
   /** 是否使用原图（默认 false，使用缩略图以节省 token） */
   useOriginalImage: boolean;
-  /** 每次流式生成中，连续保活消息的最大次数。0 表示不发送保活消息。默认 2。 */
-  keepaliveMaxCount: number;
 }
 
 /**

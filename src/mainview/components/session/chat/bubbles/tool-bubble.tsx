@@ -102,15 +102,21 @@ export function ToolItem({ session, message, defaultOpen = false }: ToolItemProp
                     e.preventDefault();
                     e.stopPropagation();
                     if (!activeProjectId) return;
-                    if (loc.path[0] === "/" || /^[a-zA-Z]:/.test(loc.path)) {
+
+                    // 这里有可能给绝对路径，也可能给相对路径
+                    let filePath = loc.path;
+                    if (loc.path === session.cwd || loc.path.startsWith(session.cwd + "/")) {
+                      filePath = loc.path.slice(session.cwd.length + 1);
+                    }
+                    if (filePath[0] === "/" || /^[a-zA-Z]:/.test(filePath)) {
                       if (!isWebUI) {
-                        electron.revealInFinder(loc.path);
+                        electron.revealInFinder(filePath);
                       }
                       return;
                     }
                     document.dispatchEvent(
                       new CustomEvent("fello-preview-file", {
-                        detail: { projectId: activeProjectId, relativePath: loc.path },
+                        detail: { projectId: activeProjectId, relativePath: filePath },
                       }),
                     );
                   }}

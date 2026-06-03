@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Yet another Agent client based on the ACP protocol",
   "author": {
     "name": "Zythum",

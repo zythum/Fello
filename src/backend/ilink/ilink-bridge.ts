@@ -175,20 +175,8 @@ export class ILinkBridge {
   private typingTicket: string | null = null;
   private contextTokenCache = new Map<string, string>();
 
-  /** Timestamp of the last successful sendTextReply, used for keepalive heartbeat. */
-  private lastSendTime = 0;
   /** Interval timer handle for keepalive heartbeat. */
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
-  /** The user ID to send keepalive messages to. */
-  private keepaliveUserId: string | null = null;
-  /** Number of consecutive keepalive messages sent in the current streaming session. */
-  private keepaliveCount = 0;
-
-  /**
-   * Maximum consecutive keepalive messages allowed per streaming session.
-   * 0 means unlimited. Defaults to 2. Can be overridden from settings.
-   */
-  keepaliveMaxCount = 2;
 
   private onStatusChange: ILinkStatusCallback;
   private onMessage: ILinkMessageCallback;
@@ -377,11 +365,6 @@ export class ILinkBridge {
         base_info: { channel_version: "0.1.0" },
       });
     }
-
-    // Update last send time for keepalive heartbeat tracking,
-    // and reset consecutive keepalive counter (a real message was sent)
-    this.lastSendTime = Date.now();
-    this.keepaliveCount = 0;
   }
 
   /**
@@ -423,10 +406,8 @@ export class ILinkBridge {
 
   // ── Keepalive constants ──────────────────────────────────────────
 
-  /** Idle threshold (ms) before sending a keepalive heartbeat. Must be < 30000 (iLink timeout). */
-  private static readonly KEEPALIVE_INTERVAL_MS = 25000;
-  /** How often to check if a keepalive is needed. */
-  private static readonly KEEPALIVE_CHECK_MS = 10000;
+  /** Keepalive interval: re-send typing every 5s to prevent iLink timeout. */
+  private static readonly KEEPALIVE_INTERVAL_MS = 5000;
 
   // ── Public API ───────────────────────────────────────────────────
 
@@ -482,36 +463,38 @@ export class ILinkBridge {
   // ── Private ──────────────────────────────────────────────────────
 
   /**
-   * Start a keepalive heartbeat that sends a periodic message to the user
-   * if no other message has been sent within the specified interval.
+   * Start a keepalive heartbeat that periodically re-sends typing indicator.
    * Automatically called by sendTyping(start=true).
    */
   private startKeepalive(userId: string): void {
     this.stopKeepalive();
 
-    // 0 means keepalive is disabled entirely
-    if (this.keepaliveMaxCount === 0) return;
-
-    this.lastSendTime = Date.now();
-    this.keepaliveUserId = userId;
-    this.keepaliveCount = 0;
-
-    this.keepaliveTimer = setInterval(() => {
-      if (Date.now() - this.lastSendTime >= ILinkBridge.KEEPALIVE_INTERVAL_MS) {
-        // Check if we've hit the consecutive limit
-        if (this.keepaliveMaxCount > 0 && this.keepaliveCount >= this.keepaliveMaxCount) {
-          // Max consecutive keepalive messages reached, stop sending
-          this.stopKeepalive();
-          return;
+    this.keepaliveTimer = setInterval(async () => {
+      if (!this.client) return;
+      try {
+        if (!this.typingTicket) {
+          const contextToken = this.contextTokenCache.get(userId);
+          const config = await this.client.getConfig({
+            ilink_user_id: userId,
+            context_token: contextToken,
+            base_info: { channel_version: "0.1.0" },
+          });
+          if (config.typing_ticket) {
+            this.typingTicket = config.typing_ticket;
+          }
         }
-
-        this.sendTextReply(userId, "🤔 努力思考中，请稍候……").catch((err) => {
-          console.warn("[iLink] Keepalive send failed:", err);
-        });
-        this.keepaliveCount++;
-        this.lastSendTime = Date.now();
+        if (this.typingTicket) {
+          await this.client.sendTyping({
+            ilink_user_id: userId,
+            typing_ticket: this.typingTicket,
+            status: 1,
+            base_info: { channel_version: "0.1.0" },
+          });
+        }
+      } catch {
+        this.typingTicket = null;
       }
-    }, ILinkBridge.KEEPALIVE_CHECK_MS);
+    }, ILinkBridge.KEEPALIVE_INTERVAL_MS);
   }
 
   /**
@@ -523,7 +506,6 @@ export class ILinkBridge {
       clearInterval(this.keepaliveTimer);
       this.keepaliveTimer = null;
     }
-    this.keepaliveUserId = null;
   }
 
   private startPollLoop() {

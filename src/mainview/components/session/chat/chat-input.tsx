@@ -166,6 +166,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   // ---- 本地输入状态（轻量，不经过 store，保证打字流畅） ----
   const [localInput, setLocalInput] = useState(draftInput);
+  const localInputRef = useRef(localInput);
+  localInputRef.current = localInput;
   const prevSessionIdRef = useRef(session.id);
   // 当前 session 切换时：存旧的，读新的
   useEffect(() => {
@@ -173,16 +175,16 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     if (prevId !== session.id) {
       // 保存旧 session 的暂存
       if (prevId) {
-        useAppStore.getState().updateSessionState(prevId, () => ({ draftInput: localInput }));
+        useAppStore.getState().updateSessionState(prevId, () => ({ draftInput: localInputRef.current }));
       }
       prevSessionIdRef.current = session.id;
     }
     // 加载新 session 的暂存
     setLocalInput(draftInput);
-    // 组件卸载时也保存当前输入
+    // 组件卸载时也保存当前输入（使用 ref 避免闭包捕获旧值）
     return () => {
       if (session.id) {
-        useAppStore.getState().updateSessionState(session.id, () => ({ draftInput: localInput }));
+        useAppStore.getState().updateSessionState(session.id, () => ({ draftInput: localInputRef.current }));
       }
     };
   }, [session.id]); // eslint-disable-line react-hooks/exhaustive-deps

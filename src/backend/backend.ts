@@ -923,10 +923,6 @@ function getILinkBridge(): ILinkBridge {
       },
     });
 
-    // Apply keepalive max count from settings
-    try {
-      ilinkBridge.keepaliveMaxCount = storageOps.getSettings().ilink.keepaliveMaxCount;
-    } catch {}
   }
   return ilinkBridge;
 }
@@ -1593,11 +1589,6 @@ export const backendHandlers: {
     // Re-sync file watchers; syncWatchers() internally checks the persisted
     // fileWatcher.enabled setting and starts/stops watchers accordingly.
     await syncWatchers();
-
-    // Sync keepalive max count to bridge in real-time
-    if (settings.ilink?.keepaliveMaxCount !== undefined && ilinkBridge) {
-      ilinkBridge.keepaliveMaxCount = settings.ilink.keepaliveMaxCount;
-    }
   },
 
   async listSessions() {

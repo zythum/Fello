@@ -54,8 +54,9 @@ export function ChatHeader({ session }: ChatHeaderProps) {
     }
 
     // Refresh session history
-    const { resetSessionState, updateSessionState } = useAppStore.getState();
+    const { resetSessionState, updateSessionState, updateSession } = useAppStore.getState();
     try {
+      updateSession({ ...session, isStreaming: false });
       updateSessionState(session.id, (prev) => reduceFlushStreaming(prev));
       resetSessionState(session.id);
       updateSessionState(session.id, () => ({ isLoading: true }));

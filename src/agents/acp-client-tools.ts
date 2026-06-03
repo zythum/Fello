@@ -424,7 +424,9 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
             params.permissionMemory,
           );
 
-          const timeoutMs = Math.max(1, Math.floor((timeoutSeconds ?? 120) * 1000));
+          const timeoutMs = timeoutSeconds
+            ? Math.max(1000, Math.floor(timeoutSeconds * 1000))
+            : null;
           const terminal = await connection.createTerminal({
             sessionId: params.sessionId,
             command,
@@ -456,13 +458,17 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
           } | null = null;
           try {
             const waitPromise = terminal.waitForExit();
-            const timeoutPromise = new Promise<null>((resolve) => {
-              setTimeout(() => resolve(null), timeoutMs);
-            });
-            const waitResult = await Promise.race([waitPromise, timeoutPromise]);
-            if (waitResult === null) {
-              timedOut = true;
-              await terminal.kill();
+            if (timeoutMs) {
+              const timeoutPromise = new Promise<null>((resolve) => {
+                setTimeout(() => resolve(null), timeoutMs);
+              });
+              const waitResult = await Promise.race([waitPromise, timeoutPromise]);
+              if (waitResult === null) {
+                timedOut = true;
+                await terminal.kill();
+              }
+            } else {
+              await waitPromise;
             }
           } finally {
             output = await terminal.currentOutput();
