@@ -344,8 +344,19 @@ function projectSessionsDir(projectId: string) {
   return join(projectDir(projectId), "sessions");
 }
 
+function safeSessionDirName(sessionId: string): string {
+  return sessionId.replace(/[\\/:<>"|?*]/g, "_");
+}
+
 function sessionDir(projectId: string, sessionId: string) {
-  return join(projectSessionsDir(projectId), sessionId);
+  const safe = safeSessionDirName(sessionId);
+  const safeDir = join(projectSessionsDir(projectId), safe);
+  if (safe !== sessionId && !existsSync(safeDir)) {
+    // Backward compat: if safe dir doesn't exist but legacy (colon) dir does, use legacy
+    const legacyDir = join(projectSessionsDir(projectId), sessionId);
+    if (existsSync(legacyDir)) return legacyDir;
+  }
+  return safeDir;
 }
 
 function sessionMetaPath(projectId: string, sessionId: string) {

@@ -20,7 +20,7 @@ type PersistedSessionState = {
 function toSafePathSegment(value: string): string {
   const normalized = value.trim();
   if (!normalized) return "unknown";
-  return normalized.replace(/[\\/]/g, "_");
+  return normalized.replace(/[\\/:<>"|?*]/g, "_");
 }
 
 function apiAgentSessionDir(agentId: string, sessionId: string): string {
