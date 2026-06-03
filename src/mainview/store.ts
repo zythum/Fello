@@ -65,6 +65,8 @@ export interface SessionState {
    * 完成状态：success（end_turn）或 error（其他），与 completedAt 配合使用。
    */
   completedStatus: "success" | "error" | null;
+  /** 会话历史加载完成的时间戳（毫秒） */
+  loadedAt: number | null;
 }
 
 const emptySessionState = (): SessionState => ({
@@ -81,6 +83,7 @@ const emptySessionState = (): SessionState => ({
   draftAttachments: [],
   completedAt: null,
   completedStatus: null,
+  loadedAt: null,
 });
 
 export interface AppState {

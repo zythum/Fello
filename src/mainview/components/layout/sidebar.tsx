@@ -204,6 +204,7 @@ export function Sidebar() {
         features: params?.features,
         permissionMode: params?.permissionMode,
       });
+      useAppStore.getState().updateSessionState(result.sessionId, () => ({ loadedAt: Date.now() }));
       await refreshData();
       handleNavigate(`/session-view/${result.sessionId}`);
       return true;

@@ -84,7 +84,12 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
       updateSessionState(session.id, () => state);
 
-      request.loadSession({ sessionId: session.id }).catch(console.error);
+      request.loadSession({ sessionId: session.id }).catch((err) => {
+        console.error("Failed to load session:", err);
+        toast.error(
+          extractErrorMessage(err) || t("chat.failedToLoadSession", "Failed to load session."),
+        );
+      });
     } catch (err) {
       console.error("Failed to load session:", err);
       const message =

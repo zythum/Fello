@@ -9,11 +9,13 @@ import { Loader2 } from "lucide-react";
 import { request } from "../../backend";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import type { SessionInfo } from "../../../shared/schema";
+import { useMessage } from "../providers/message";
 
 export { type PanelTab } from "./panel/panel";
 
 export function Session({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
+  const { toast } = useMessage();
   const sessionId = session.id;
   const isCreatingSession = useAppStore((s) => s.isCreatingSession);
   const isLoading = useAppStore((s) =>
@@ -91,11 +93,15 @@ export function Session({ session }: { session: SessionInfo }) {
   useEffect(() => {
     if (!sessionId) return;
     const sessionState = useAppStore.getState().getSessionState(sessionId);
-    if (sessionState.messages.length > 0 || isCreatingSession) {
+    if (sessionState.messages.length > 0 || isCreatingSession || sessionState.loadedAt !== null) {
       return;
     }
     if (fetchingRef.current === sessionId) return;
     fetchingRef.current = sessionId;
+
+    request.loadSession({ sessionId }).catch((err) => {
+      toast.error(err instanceof Error ? err.message : String(err));
+    });
 
     async function fetchHistory() {
       useAppStore.getState().updateSessionState(sessionId, (prev) => ({
@@ -128,10 +134,9 @@ export function Session({ session }: { session: SessionInfo }) {
 
         state.isLoading = false;
         state.pendingUpdates = [];
+        state.loadedAt = Date.now();
 
         useAppStore.getState().updateSessionState(sessionId, () => state);
-
-        request.loadSession({ sessionId }).catch(console.error);
       } catch (err) {
         console.error("Failed to fetch session history", err);
         useAppStore

@@ -70,11 +70,15 @@ export function extractErrorMessage(error: unknown): string {
     if ("message" in error) {
       messages.push(error.message);
     }
-    if ("data" in error && typeof error.data === "object" && error.data) {
-      for (const name in error.data) {
-        const value = (error.data as any)[name];
-        if (typeof value === "string" || typeof value === "number") {
-          messages.push(`${name}:${value}`);
+    if ("data" in error && error.data) {
+      if (typeof error.data === "string") {
+        messages.push(error.data);
+      } else if (typeof error.data === "object") {
+        for (const name in error.data) {
+          const value = (error.data as any)[name];
+          if (typeof value === "string" || typeof value === "number") {
+            messages.push(`${name}:${value}`);
+          }
         }
       }
     }

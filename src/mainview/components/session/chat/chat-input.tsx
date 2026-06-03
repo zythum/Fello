@@ -175,7 +175,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     if (prevId !== session.id) {
       // 保存旧 session 的暂存
       if (prevId) {
-        useAppStore.getState().updateSessionState(prevId, () => ({ draftInput: localInputRef.current }));
+        useAppStore
+          .getState()
+          .updateSessionState(prevId, () => ({ draftInput: localInputRef.current }));
       }
       prevSessionIdRef.current = session.id;
     }
@@ -184,7 +186,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     // 组件卸载时也保存当前输入（使用 ref 避免闭包捕获旧值）
     return () => {
       if (session.id) {
-        useAppStore.getState().updateSessionState(session.id, () => ({ draftInput: localInputRef.current }));
+        useAppStore
+          .getState()
+          .updateSessionState(session.id, () => ({ draftInput: localInputRef.current }));
       }
     };
   }, [session.id]); // eslint-disable-line react-hooks/exhaustive-deps

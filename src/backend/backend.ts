@@ -922,7 +922,6 @@ function getILinkBridge(): ILinkBridge {
         }
       },
     });
-
   }
   return ilinkBridge;
 }
