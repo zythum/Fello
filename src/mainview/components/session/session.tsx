@@ -92,16 +92,18 @@ export function Session({ session }: { session: SessionInfo }) {
   const fetchingRef = useRef<string | null>(null);
   useEffect(() => {
     if (!sessionId) return;
+
+    // Always call loadSession to ensure backend bridge state is synced (fast-path if already loaded)
+    request.loadSession({ sessionId }).catch((err) => {
+      toast.error(err instanceof Error ? err.message : String(err));
+    });
+
     const sessionState = useAppStore.getState().getSessionState(sessionId);
     if (sessionState.messages.length > 0 || isCreatingSession || sessionState.loadedAt !== null) {
       return;
     }
     if (fetchingRef.current === sessionId) return;
     fetchingRef.current = sessionId;
-
-    request.loadSession({ sessionId }).catch((err) => {
-      toast.error(err instanceof Error ? err.message : String(err));
-    });
 
     async function fetchHistory() {
       useAppStore.getState().updateSessionState(sessionId, (prev) => ({

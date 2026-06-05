@@ -87,7 +87,6 @@ export class ACPBridge {
   private _modeStates = new Map<string, SessionModeState>();
   private _loadedSessions = new Set<string>();
   private _sessionsCwdMap = new Map<string, string>();
-  private _sessionsMcpServerConfigs = new Map<string, McpServer[]>();
   private _configOptions = new Map<string, SessionConfigOption[]>();
 
   public terminalManager: AgentTerminalManager;
@@ -387,7 +386,6 @@ export class ACPBridge {
     this.applyConfigOptions(result.sessionId, result.configOptions);
     this._loadedSessions.add(result.sessionId);
     this._sessionsCwdMap.set(result.sessionId, params.cwd);
-    this._sessionsMcpServerConfigs.set(result.sessionId, params.mcpServers);
     return result;
   }
 
@@ -418,21 +416,6 @@ export class ACPBridge {
   }
 
   /**
-   * Compare current session config with the cached config to check if reload is needed.
-   */
-  hasSessionConfigChanged(sessionId: string, cwd: string, mcpServers: McpServer[]): boolean {
-    const oldCwd = this._sessionsCwdMap.get(sessionId);
-    if (oldCwd !== cwd) return true;
-
-    const oldMcpConfigs = this._sessionsMcpServerConfigs.get(sessionId);
-    if (!oldMcpConfigs) return true;
-
-    if (oldMcpConfigs.length !== mcpServers.length) return true;
-
-    return JSON.stringify(oldMcpConfigs) !== JSON.stringify(mcpServers);
-  }
-
-  /**
    * Close a session in the agent and clean up bridge cache.
    */
   async closeSession(sessionId: string): Promise<void> {
@@ -446,7 +429,6 @@ export class ACPBridge {
     this._configOptions.delete(sessionId);
     this._loadedSessions.delete(sessionId);
     this._sessionsCwdMap.delete(sessionId);
-    this._sessionsMcpServerConfigs.delete(sessionId);
   }
 
   async loadSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
@@ -477,7 +459,6 @@ export class ACPBridge {
     this.applyConfigOptions(params.sessionId, result.configOptions);
     this._loadedSessions.add(params.sessionId);
     this._sessionsCwdMap.set(params.sessionId, params.cwd);
-    this._sessionsMcpServerConfigs.set(params.sessionId, params.mcpServers ?? []);
     return result;
   }
 
@@ -533,7 +514,6 @@ export class ACPBridge {
     this._configOptions.clear();
     this._loadedSessions.clear();
     this._sessionsCwdMap.clear();
-    this._sessionsMcpServerConfigs.clear();
     this.connection = null;
 
     if (this.process) {

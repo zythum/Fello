@@ -407,7 +407,7 @@ export type FelloIPCRequests = {
   };
   /** 加载已有会话 */
   loadSession: {
-    params: { sessionId: string };
+    params: { sessionId: string; force?: boolean };
     response: {
       /** Fello 侧的会话唯一标识 */
       sessionId: string;

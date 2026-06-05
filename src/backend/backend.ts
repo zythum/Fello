@@ -1696,11 +1696,23 @@ export const backendHandlers: {
     };
   },
 
-  async loadSession({ sessionId }) {
+  async loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
     const session = storageOps.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const project = storageOps.getProject(session.projectId);
     if (!project) throw new Error("Project does not exist");
+
+    const b = await ensureBridge(session.agentId);
+
+    // If already loaded and not forced, return cached state (e.g. page reload reconnect)
+    if (b.isSessionLoaded(session.resumeId) && !force) {
+      return {
+        sessionId: session.id,
+        initializeInfo: b.initializeInfo,
+        models: b.getModelState(session.resumeId) ?? session.models,
+        modes: b.getModeState(session.resumeId) ?? session.modes,
+      };
+    }
 
     // Clear stale isStreaming flag (e.g. from agent crash or interrupted generation)
     if (session.isStreaming) {
@@ -1709,11 +1721,7 @@ export const backendHandlers: {
       sendEvent("session-changed", { session });
     }
 
-    const b = await ensureBridge(session.agentId);
-
-    // Reuse existing socket server path if one is already running for this session,
-    // so that hasSessionConfigChanged won't detect a false positive config change
-    // (which would trigger closeSession and cancel any in-progress streaming).
+    // Reuse existing socket server path if one is already running for this session
     const existingSocketServer = sessionSocketServers.get(session.id);
     const socketPath = existingSocketServer
       ? existingSocketServer.socketPath
@@ -1724,34 +1732,22 @@ export const backendHandlers: {
       features: session.features,
     });
 
+    if (b.isSessionLoaded(session.resumeId)) {
+      // force reload → close and re-load with fresh config
+      console.log(`[Fello] Session ${session.resumeId} force reloading...`);
+      await b.closeSession(session.resumeId);
+      await stopSessionSocketServer(session.id);
+    }
+
     restoringSessions.add(session.id);
     let loadResult;
     try {
-      // If the session is already active in the agent (e.g., just created via newSession),
-      // check if configuration (cwd, mcpServers) has changed. If so, close and reload.
-      if (b.isSessionLoaded(session.resumeId)) {
-        if (b.hasSessionConfigChanged(session.resumeId, session.cwd, activeMcpServers)) {
-          console.log(
-            `[Fello] Session ${session.resumeId} config changed, closing and reloading...`,
-          );
-          await b.closeSession(session.resumeId);
-          await stopSessionSocketServer(session.id);
-          loadResult = await b.loadSession({
-            sessionId: session.resumeId,
-            cwd: session.cwd,
-            mcpServers: activeMcpServers,
-          });
-          await createSessionSocketServer(session.id, { socketPath, project });
-        }
-        // else: config unchanged, skip reload and use cached state
-      } else {
-        loadResult = await b.loadSession({
-          sessionId: session.resumeId,
-          cwd: session.cwd,
-          mcpServers: activeMcpServers,
-        });
-        await createSessionSocketServer(session.id, { socketPath, project });
-      }
+      loadResult = await b.loadSession({
+        sessionId: session.resumeId,
+        cwd: session.cwd,
+        mcpServers: activeMcpServers,
+      });
+      await createSessionSocketServer(session.id, { socketPath, project });
     } finally {
       restoringSessions.delete(session.id);
     }
