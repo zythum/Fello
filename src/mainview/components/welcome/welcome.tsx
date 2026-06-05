@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, ArrowLeft, Bot, FolderPlus, MessageCirclePlus, Check } from "lucide-react";
 import { useAppStore } from "../../store";
+import { request } from "../../backend";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParticleBackground } from "./particle-background";
 import "./welcome.css";
 
@@ -26,13 +28,14 @@ function AnimatedTitle({ text }: { text: string }) {
 }
 
 export function Welcome() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   const agents = useAppStore((s) => s.configuredAgents);
   const projects = useAppStore((s) => s.projects);
+  const setI18n = useAppStore((s) => s.setI18n);
 
   const enabledAgentCount = useMemo(() => agents.filter((a) => !a.disabled).length, [agents]);
   const hasAgents = enabledAgentCount > 0;
@@ -121,6 +124,23 @@ export function Welcome() {
           <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide text-center">
             {t("welcome.getStarted")}
           </p>
+
+          {/* Language Tabs */}
+          <Tabs
+            value={i18n.language}
+            onValueChange={(lang) => {
+              if (!lang) return;
+              setI18n({ language: lang });
+              i18n.changeLanguage(lang);
+              request.updateSettings({ i18n: { language: lang } }).catch(() => {});
+            }}
+            className="self-center w-full"
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="en" className="flex-1 text-xs">{t("settings.general.english")}</TabsTrigger>
+              <TabsTrigger value="zh-CN" className="flex-1 text-xs">{t("settings.general.chinese")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Step 1: Configure Agent */}
           <button
