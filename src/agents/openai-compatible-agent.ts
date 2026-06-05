@@ -191,9 +191,13 @@ export class OpenaiCompatibleAgent implements Agent {
       : {};
     const entries = Array.isArray(payload.data) ? payload.data : [];
     const models: ModelInfo[] = entries
-      .map((item) => {
+      .map((item: { id?: string; owned_by?: string }) => {
         if (typeof item?.id !== "string" || item.id.trim().length === 0) return null;
-        return { modelId: item.id, name: item.id };
+        const modelId =
+          item.id.includes("/") || !item.owned_by
+            ? item.id
+            : `${item.owned_by}/${item.id}`;
+        return { modelId, name: modelId };
       })
       .filter((item): item is ModelInfo => item !== null);
     return this.toSessionModelState(models);
