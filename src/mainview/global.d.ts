@@ -15,6 +15,7 @@ export type ElectronIPCRequests = {
 export type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
 
 declare global {
+  const __APP_VERSION__: string;
   interface Window {
     fello?: {
       isMacApp: boolean;

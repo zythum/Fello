@@ -58,6 +58,11 @@ export function Welcome() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
+      {/* Version */}
+      <span className="absolute bottom-3 right-4 text-[11px] text-muted-foreground/40 z-10 pointer-events-none">
+        v{__APP_VERSION__}
+      </span>
+
       {/* macOS traffic light drag region */}
       <div
         className="absolute left-0 top-0 right-0 h-12 z-10"
