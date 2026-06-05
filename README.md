@@ -81,9 +81,53 @@ npm run build
 npm run pack:mac     # macOS
 npm run pack:win     # Windows
 npm run pack:linux   # Linux
+
+# Package as npm package (headless server)
+# 打包为 npm 包（无头服务器）
+npm run pack:npm     # → npm-package/
 ```
 
 > **Download the latest release** → [Releases](https://github.com/Zythum/fello/releases)
+
+---
+
+### 🖥️ Headless Server (npm package)
+
+Run Fello as a pure Node.js server — no Electron, no display required. Perfect for Linux servers or CI environments.
+
+```bash
+# Via npx (no install needed)
+npx @zythum02/fello-server --port 9090 --token mysecret
+
+# Or install globally
+npm install -g @zythum02/fello-server
+fello-server -p 9090 -t mysecret
+
+# Package locally
+npm run pack:npm
+cd npm-package
+npm publish --access public
+```
+
+The server serves the same WEBUI frontend over HTTP/WebSocket, with full session/agent/file/terminal support.
+
+#### WEBUI Authentication
+
+When accessing the WEBUI in a browser:
+
+1. Visit the provided URL with `?token=xxx` (e.g. `http://192.168.1.100:9090/?token=abc123`)
+2. The server validates the token and sets a **session cookie** (`fello_token`)
+3. Subsequent requests (JS, CSS, WebSocket, project files) authenticate via cookie
+4. Page requests (`/`) always require `?token=` in the URL — cookie alone is not accepted for initial page loads
+5. The cookie is a session cookie (no `Max-Age`), cleared when the browser closes
+
+This means each browser session needs the token URL once; refreshing the page works as long as the browser is open.
+
+#### Clipboard in HTTP
+
+`navigator.clipboard` requires a secure context (HTTPS). When accessing WEBUI over plain HTTP, the app automatically falls back to `document.execCommand("copy")` for copy operations. Paste requires `navigator.clipboard.readText()` which has no HTTP fallback — the paste button is hidden when the API is unavailable.
+
+---
 
 ### Tech Stack
 
@@ -144,6 +188,12 @@ npm run preview      # Preview built app
 npm run lint         # Lint with oxlint
 npm run typecheck    # TypeScript checking
 npm run format       # Format with oxfmt
+
+# Package
+npm run pack:npm     # Build npm package → npm-package/
+npm run pack:mac     # macOS .dmg
+npm run pack:win     # Windows .exe
+npm run pack:linux   # Linux .AppImage
 ```
 
 ### 📖 Guide

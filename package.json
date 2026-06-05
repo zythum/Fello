@@ -6,13 +6,24 @@
     "name": "Zythum",
     "email": "zythum02@gmail.com"
   },
+  "private": true,
   "license": "GPL-3.0-or-later",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zythum/fello.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Zythum/fello/issues"
+  },
+  "homepage": "https://github.com/Zythum/fello",
   "main": "out/electron/main.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && npm run build:server",
+    "build:server": "esbuild src/server/main.ts --bundle --platform=node --target=node20 --format=esm --outfile=out/server/main.js --packages=external --banner:js='#!/usr/bin/env node'",
     "prepare:icon:mac": "bash tools/prepare-mac-icon.sh",
+    "pack:npm": "npm run build && node tools/prepare-npm-package.mjs",
     "pack:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac",
     "pack:win": "electron-vite build && electron-builder --win",
     "pack:linux": "electron-vite build && electron-builder --linux",

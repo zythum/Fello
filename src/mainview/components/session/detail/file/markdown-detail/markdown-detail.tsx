@@ -11,6 +11,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import { copyText } from "@/lib/clipboard";
 import { MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
 import { request, isWebUI } from "../../../../../backend";
 import { electron } from "../../../../../electron";
@@ -39,11 +40,11 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   }, []);
 
   const handleCopySelected = useCallback(() => {
-    if (contextSelectedText) navigator.clipboard.writeText(contextSelectedText);
+    if (contextSelectedText) copyText(contextSelectedText);
   }, [contextSelectedText]);
 
   const handleCopyFileContent = useCallback(() => {
-    if (content) navigator.clipboard.writeText(content);
+    if (content) copyText(content);
   }, [content]);
 
   const handleAddFileToChat = useCallback(() => {
@@ -54,12 +55,12 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
 
   const handleCopyPath = useCallback(async () => {
     const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
-    navigator.clipboard.writeText(text);
+    await copyText(text);
   }, [projectId, file]);
 
   const handleCopyRelativePath = useCallback(async () => {
     const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: false });
-    navigator.clipboard.writeText(text);
+    await copyText(text);
   }, [projectId, file]);
 
   const handleRevealInFinder = useCallback(async () => {

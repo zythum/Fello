@@ -105,7 +105,7 @@ function buildMcpServersConfig(
 
     servers.push({
       name: "skills",
-      command: process.argv0,
+      command: process.execPath,
       args: [
         join(__dirname, "../scripts/mcp-skills/server.mjs"),
         "--project-dir",
@@ -128,7 +128,7 @@ function buildMcpServersConfig(
   if (socketPath && features.includes("ask_user")) {
     servers.push({
       name: "ask-user",
-      command: process.argv0,
+      command: process.execPath,
       args: [
         join(__dirname, "../scripts/mcp-ask-user/server.mjs"),
         "--project-dir",
@@ -365,7 +365,7 @@ export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
   const askUserId = randomUUID();
   const request: AskUserRequest = { ...options, askUserId };
 
-  const sent = sendEvent("ask-user-request", request);
+  sendEvent("ask-user-request", request);
 
   // 如果是活跃 WeChat session，转发给微信用户
   if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
@@ -378,10 +378,6 @@ export async function askUser(options: AskUserOptions): Promise<AskUserResult> {
         console.warn("[iLink] Failed to forward askUser to WeChat:", err);
       });
     }
-  }
-
-  if (!sent) {
-    return { value: null, reason: "no_client" };
   }
 
   return new Promise<AskUserResult>((resolve) => {
@@ -1107,8 +1103,9 @@ export function initBackend(
       markProjectFsDirty((payload as FelloIPCSchema["events"]["fs-changed"]).projectId);
     }
 
-    broadcastWebUIEvent(channel, payload);
-    return emitter(channel, payload);
+    const sentWebUI = broadcastWebUIEvent(channel, payload);
+    const sentNative = emitter(channel, payload);
+    return sentWebUI || sentNative;
   };
   initWatcher(sendEvent);
 

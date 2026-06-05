@@ -5,6 +5,7 @@ import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
 import remarkBreaks from "remark-breaks";
 import { cn } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CodeView } from "./code-view";
@@ -30,12 +31,10 @@ function CodeBlock({
   const [hasCopied, setHasCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(codeText);
+    const ok = await copyText(codeText);
+    if (ok) {
       setHasCopied(true);
       setTimeout(() => setHasCopied(false), 2000);
-    } catch (e) {
-      console.error("Failed to copy code", e);
     }
   }, [codeText]);
 

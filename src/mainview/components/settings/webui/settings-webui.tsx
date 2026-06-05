@@ -4,6 +4,7 @@ import { useAppStore } from "../../../store";
 import { request, isWebUI } from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { copyText } from "@/lib/clipboard";
 import { Check, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,9 +40,9 @@ export function SettingsWebUI() {
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (webUIStatus.url) {
-      navigator.clipboard.writeText(webUIStatus.url);
+      await copyText(webUIStatus.url);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     }

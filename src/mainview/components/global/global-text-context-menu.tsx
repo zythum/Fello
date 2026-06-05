@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "@/lib/utils";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { isClipboardApiAvailable, readText, copyText } from "@/lib/clipboard";
 import { Copy, Scissors, ClipboardPaste, Type } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -115,8 +116,9 @@ export function GlobalTextContextMenu() {
             )}
             {(hasSelection || isEditable) && (
               <DropdownMenuItem
-                onClick={() => {
-                  document.execCommand("copy");
+                onClick={async () => {
+                  const selection = window.getSelection()?.toString() || "";
+                  await copyText(selection);
                   setOpen(false);
                 }}
               >
@@ -124,14 +126,12 @@ export function GlobalTextContextMenu() {
                 {t("contextMenu.copy", "Copy")}
               </DropdownMenuItem>
             )}
-            {isEditable && (
+            {isEditable && isClipboardApiAvailable() && (
               <DropdownMenuItem
                 onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
+                  const text = await readText();
+                  if (text != null) {
                     document.execCommand("insertText", false, text);
-                  } catch (e) {
-                    console.error("Failed to read clipboard contents: ", e);
                   }
                   setOpen(false);
                 }}

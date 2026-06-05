@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "@/lib/clipboard";
 import { ExternalLink, RotateCcw, MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { request, isWebUI } from "../../../../../backend";
@@ -142,11 +143,11 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   }, []);
 
   const handleCopySelected = useCallback(() => {
-    if (contextSelectedText) navigator.clipboard.writeText(contextSelectedText);
+    if (contextSelectedText) copyText(contextSelectedText);
   }, [contextSelectedText]);
 
   const handleCopyFileContent = useCallback(() => {
-    if (content) navigator.clipboard.writeText(content);
+    if (content) copyText(content);
   }, [content]);
 
   const handleAddFileToChat = useCallback(() => {
@@ -157,12 +158,12 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
 
   const handleCopyPath = useCallback(async () => {
     const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
-    navigator.clipboard.writeText(text);
+    await copyText(text);
   }, [projectId, file]);
 
   const handleCopyRelativePath = useCallback(async () => {
     const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: false });
-    navigator.clipboard.writeText(text);
+    await copyText(text);
   }, [projectId, file]);
 
   const handleRevealInFinder = useCallback(async () => {

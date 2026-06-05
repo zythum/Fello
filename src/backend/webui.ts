@@ -24,6 +24,31 @@ let isEnabled = false;
 const connectedClients = new Set<WebSocket>();
 const clientIdsBySocket = new WeakMap<WebSocket, string>();
 
+const COOKIE_NAME = "fello_token";
+
+/** Extract token from Cookie header. */
+function getTokenFromCookie(req: { headers: Record<string, string | string[] | undefined> }): string | null {
+  const cookieHeader = req.headers["cookie"];
+  if (!cookieHeader) return null;
+  const cookies = (Array.isArray(cookieHeader) ? cookieHeader.join("; ") : cookieHeader).split(";");
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.trim().split("=");
+    if (name === COOKIE_NAME) {
+      return rest.join("=") || null;
+    }
+  }
+  return null;
+}
+
+/** Check whether the request carries a valid token (via cookie or query param). */
+function isAuthenticated(req: { headers: Record<string, string | string[] | undefined> }, url: URL): boolean {
+  const fromCookie = getTokenFromCookie(req);
+  if (fromCookie && fromCookie === currentToken) return true;
+  const fromQuery = url.searchParams.get("token");
+  if (fromQuery && fromQuery === currentToken) return true;
+  return false;
+}
+
 function getLocalIP() {
   const nets = networkInterfaces();
   for (const name of Object.keys(nets)) {
@@ -39,14 +64,25 @@ function getLocalIP() {
 export function broadcastWebUIEvent<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
   payload: FelloIPCSchema["events"][K],
-) {
-  if (!isEnabled || !wss) return;
+): boolean {
+  if (!isEnabled || !wss) return false;
+  // Fast check: does any authenticated WS client exist?
+  let hasClients = false;
+  for (const client of connectedClients) {
+    if (client.readyState === 1 /* OPEN */) {
+      hasClients = true;
+      break;
+    }
+  }
+  if (!hasClients) return false;
+
   const message = JSON.stringify({ type: "event", channel, payload });
   for (const client of connectedClients) {
     if (client.readyState === 1 /* OPEN */) {
       client.send(message);
     }
   }
+  return true;
 }
 
 export async function startWebUI(options?: {
@@ -65,7 +101,7 @@ export async function startWebUI(options?: {
       : randomBytes(16).toString("hex");
 
   httpServer = createServer(async (req, res) => {
-    // Basic CORS for dev environment
+    // CORS for dev environment
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -78,13 +114,47 @@ export async function startWebUI(options?: {
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
+    // ── Helper: write a 401 response ──────────────────────────────
+    const unauthorized = () => {
+      res.writeHead(401, { "Content-Type": "text/plain" });
+      res.end("Unauthorized");
+    };
+
+    // ── Dev mode: Vite serves the page, this server is WS-only ──
+    if (process.env.ELECTRON_RENDERER_URL) {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Fello WebUI WebSocket Server is running.");
+      return;
+    }
+
+    // ── Authenticate all requests ─────────────────────────────────
+    // Page requests (SPA routes served via index.html) must carry a valid
+    // `?token=` in the URL — if valid, a session cookie is set so subsequent
+    // asset requests (JS, CSS, project files, WebSocket) can authenticate via cookie.
+    //
+    // All non-page requests authenticate via cookie (or ?token= as fallback).
+    const isPageRequest = url.pathname === "/";
+
+    const fromQuery = url.searchParams.get("token");
+
+    if (isPageRequest) {
+      // Page request: must have a valid ?token= in the URL (cookie is NOT accepted)
+      if (!fromQuery || fromQuery !== currentToken) {
+        unauthorized();
+        return;
+      }
+      // Valid token → set session cookie for subsequent requests
+      res.setHeader("Set-Cookie", `${COOKIE_NAME}=${fromQuery}; Path=/; HttpOnly; SameSite=Lax`);
+    } else if (!isAuthenticated(req, url)) {
+      // Non-page request (assets, project files): authenticate via cookie or ?token=
+      unauthorized();
+      return;
+    }
+
     // ── Project file serving route: /project/<projectId>/<relative-path> ──
     // Used by the WebDetail component to load HTML files with relative asset references.
-    // Authentication is inherited from the WebUI session — no separate token needed.
     if (url.pathname.startsWith("/project/")) {
-      // Parse path: /project/<projectId>/<relative-path>
       const pathParts = url.pathname.split("/");
-      // pathParts[0] = '', pathParts[1] = 'project', pathParts[2] = projectId
       const projectId = pathParts[2] || "";
       const relativePath = decodeURIComponent(pathParts.slice(3).join("/") || "");
 
@@ -107,13 +177,6 @@ export async function startWebUI(options?: {
       return;
     }
 
-    // In dev, the Vite server serves the files, so this node server is just for WS
-    if (process.env.ELECTRON_RENDERER_URL) {
-      res.writeHead(200, { "Content-Type": "text/plain" });
-      res.end("Fello WebUI WebSocket Server is running.");
-      return;
-    }
-
     // In prod, serve the static files from the renderer directory
     try {
       const isFile = url.pathname !== "/" && !url.pathname.endsWith("/");
@@ -122,8 +185,6 @@ export async function startWebUI(options?: {
         reqPath = "/index.html";
       }
 
-      // We need to resolve __dirname because this file will be compiled into `dist/main`
-      // So the renderer is at `../renderer` relative to `dist/main`
       const baseDir = join(__dirname, "../renderer");
       let filePath = join(baseDir, reqPath);
 
@@ -149,8 +210,9 @@ export async function startWebUI(options?: {
   wss = new WebSocketServer({ server: httpServer });
 
   wss.on("connection", (ws, req) => {
+    // Authenticate via cookie (browser sends it automatically) or ?token= fallback
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-    const token = url.searchParams.get("token");
+    const token = url.searchParams.get("token") || getTokenFromCookie(req);
 
     if (token !== currentToken) {
       ws.close(4001, "Unauthorized");

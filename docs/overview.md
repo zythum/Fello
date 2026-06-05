@@ -94,6 +94,16 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 允许在局域网内的浏览器中远程访问和使用 Fello 的完整功能
 - 远程环境通过 WebSocket 与桌面端的主进程进行 IPC 交互
 - Web 端支持所有桌面端功能，包括文件操作、终端交互、新建项目和会话
+- **认证机制**：首次访问需在 URL 中携带 `?token=xxx`，服务器校验通过后设置 session cookie，后续请求通过 cookie 鉴权。页面请求（`/`）不接受 cookie，必须带 `?token`。cookie 为 session cookie，浏览器关闭即失效
+- **剪贴板兼容**：HTTP 下 `navigator.clipboard` 不可用时，复制操作自动降级为 `execCommand("copy")`；粘贴操作仅在 HTTPS/localhost 下可用
+
+### 无头服务器（Headless Server）
+
+- 支持作为纯 Node.js 服务器运行，无需 Electron 和桌面环境
+- 通过 `npm run pack:npm` 打包为 npm 包 `@zythum02/fello-server`
+- 使用方式：`npx @zythum02/fello-server --port 9090 --token mysecret`
+- 完全支持 WEBUI 所有功能：Agent 会话、文件操作、终端交互、MCP 服务器、Skills
+- 适合部署在 Linux 服务器、CI/CD 环境，或需要远程持续访问的场景
 
 ### 微信 iLink 集成
 

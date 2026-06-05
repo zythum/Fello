@@ -1,6 +1,7 @@
 import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
+import { copyText } from "@/lib/clipboard";
 import { ChevronsUpDown, ChevronsDownUp, Copy, Check, ArrowUpToLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -58,12 +59,10 @@ export const UserBubble = memo(function UserBubble({
       const textBlocks = message.contents.filter((c) => c.type === "text");
       const text = textBlocks.map((c) => (c.type === "text" ? c.text : "")).join("\n");
       if (text) {
-        try {
-          await navigator.clipboard.writeText(text);
+        const ok = await copyText(text);
+        if (ok) {
           setHasCopied(true);
           setTimeout(() => setHasCopied(false), 2000);
-        } catch (e) {
-          console.error("Failed to copy text", e);
         }
       }
     },

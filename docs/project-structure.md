@@ -5,6 +5,8 @@
 ```
 fello/
 ├── src/
+│   ├── server/                       # 独立 Node.js 服务器入口
+│   │   └── main.ts                   # 无 Electron 版本，纯 Node 启动 backend + WEBUI
 │   ├── agents/                       # Agent 会话逻辑（框架无关，主进程使用）
 │   │   ├── openai-compatible-agent.ts    # OpenAI 兼容 API Agent 实现（ACP Agent 接口）
 │   │   ├── session-state.ts              # 会话状态创建（ACP tools + MCP tools + 权限记忆）
@@ -75,6 +77,7 @@ fello/
 │       │   └── zh-CN.json
 │       │
 │       ├── lib/
+│       │   ├── clipboard.ts              # 剪贴板工具（HTTP fallback + 粘贴检测）
 │       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
 │       │   ├── shiki-preload.ts      # Shiki 代码高亮预加载（@pierre/diffs 内置）
 │       │   ├── chat-message.ts       # 多态消息类型定义与 ContentBlock 鉴别器
@@ -210,7 +213,8 @@ fello/
 │   ├── icon.iconset/                 # macOS 多分辨率 iconset
 │   └── fello_icon.png
 ├── tools/                            # 构建辅助脚本
-│   └── prepare-mac-icon.sh           # macOS 图标生成脚本
+│   ├── prepare-mac-icon.sh           # macOS 图标生成脚本
+│   └── prepare-npm-package.mjs       # npm 包打包脚本（生成 npm-package/ 目录）
 ├── docs/                             # 项目文档
 ├── .github/                          # GitHub CI/CD 配置
 ├── components.json                   # shadcn 生成配置

@@ -35,6 +35,7 @@ import {
   MessageSquarePlus,
   Folders,
 } from "lucide-react";
+import { copyText } from "@/lib/clipboard";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { FileIcon } from "../../../common/file-icon";
 
@@ -1146,7 +1147,7 @@ export const FilePanel = memo(function FilePanel({
         path: id,
         isAbsolute,
       });
-      navigator.clipboard.writeText(text);
+      await copyText(text);
     },
     addToChat: (id: string) => {
       const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];

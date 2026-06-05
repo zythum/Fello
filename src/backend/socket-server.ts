@@ -89,7 +89,7 @@ export async function startSocketServer(socketPath: string): Promise<SocketServe
 
   return new Promise<SocketServer>((resolve, reject) => {
     server.listen(socketPath, () => {
-      console.log(`[socket-server] Listening on ${socketPath}`);
+      // console.log(`[socket-server] Listening on ${socketPath}`);
 
       const serverRef: SocketServer = {
         stop: () => {
