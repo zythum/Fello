@@ -67,6 +67,12 @@ export interface ApiAgentInfo extends BaseAgentInfo {
    * 如果留空，则使用默认值 128000。
    */
   contextWindowTokens?: number;
+  /**
+   * 自定义模型 ID 模版，使用 {} 引用 API 返回的字段。
+   * 例如："{owned_by}/{id}" 会生成 "openai/gpt-4"。
+   * 如果设置且非空，则使用模版拼接 modelId；否则直接使用 API 返回的 id。
+   */
+  modelIdTemplate?: string;
 }
 
 /** 代理配置联合类型：本地 stdio / 远程 api */

@@ -81,13 +81,25 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
 }
 
 type OpenAICompatibleModelsResponse = {
-  data?: Array<{ id?: string }>;
+  data?: Array<Record<string, unknown>>;
 };
 function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompatibleModelsResponse {
   if (!value || typeof value !== "object") return false;
   const maybe = value as { data?: unknown };
   if (maybe.data === undefined) return true;
   return Array.isArray(maybe.data);
+}
+
+/** 将模版字符串中的 {fieldName} 替换为 modelItem 中对应字段的值 */
+function applyModelIdTemplate(
+  template: string,
+  modelItem: Record<string, unknown>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_match, fieldName) => {
+    const value = modelItem[fieldName];
+    if (value === undefined || value === null) return _match;
+    return String(value);
+  });
 }
 
 const AgentDescription = "Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex";
@@ -105,6 +117,7 @@ export class OpenaiCompatibleAgent implements Agent {
   private apiKey: string;
   private headers: Record<string, string>;
   private contextWindowTokens: number;
+  private modelIdTemplate: string | undefined;
   private modelsCache: SessionModelState | null = null;
   private modelsFetchedAt = 0;
   private modelsPending: Promise<SessionModelState> | null = null;
@@ -119,6 +132,7 @@ export class OpenaiCompatibleAgent implements Agent {
     this.agentId = options.id;
     this.headers = options.headers || {};
     this.contextWindowTokens = options.contextWindowTokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
+    this.modelIdTemplate = options.modelIdTemplate;
     this.provider = createOpenAICompatible({
       name: "openai-compatible",
       baseURL: this.baseUrl,
@@ -193,7 +207,12 @@ export class OpenaiCompatibleAgent implements Agent {
     const models: ModelInfo[] = entries
       .map((item) => {
         if (typeof item?.id !== "string" || item.id.trim().length === 0) return null;
-        return { modelId: item.id, name: item.id };
+        const rawId = item.id.trim();
+        const modelId = this.modelIdTemplate
+          ? applyModelIdTemplate(this.modelIdTemplate, item)
+          : rawId;
+        if (!modelId.trim()) return null;
+        return { modelId, name: modelId };
       })
       .filter((item): item is ModelInfo => item !== null);
     return this.toSessionModelState(models);

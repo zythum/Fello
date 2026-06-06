@@ -141,6 +141,7 @@
       "apiKey": "API Key",
       "apiHeaders": "Headers (JSON)",
       "contextWindowTokens": "Context Window (tokens)",
+      "modelIdTemplate": "Model Id Template",
       "command": "Command",
       "args": "Arguments",
       "envVars": "Environment Variables (JSON)",

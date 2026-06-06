@@ -61,6 +61,7 @@ const schema = z.object({
   contextWindowTokens: z
     .string()
     .refine(isValidContextWindow, "settings.agents.validation.positiveInteger"),
+  modelIdTemplate: z.string(),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -90,6 +91,7 @@ export function SettingsAgentApiDialog({
       apiKey: "",
       headersRaw: "",
       contextWindowTokens: "",
+      modelIdTemplate: "",
     },
   });
 
@@ -105,6 +107,7 @@ export function SettingsAgentApiDialog({
           ? JSON.stringify(initialAgent.headers)
           : "",
       contextWindowTokens: initialAgent?.contextWindowTokens?.toString() ?? "",
+      modelIdTemplate: initialAgent?.modelIdTemplate ?? "",
     });
   }, [initialAgent, open, form]);
 
@@ -120,6 +123,7 @@ export function SettingsAgentApiDialog({
       contextWindowTokens: data.contextWindowTokens.trim()
         ? Number(data.contextWindowTokens)
         : undefined,
+      modelIdTemplate: data.modelIdTemplate.trim() || undefined,
     });
   };
 
@@ -142,73 +146,75 @@ export function SettingsAgentApiDialog({
 
         <form id="form-api-agent" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup className="py-2">
-            <Controller
-              name="id"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="api-id" className="text-[11px] text-muted-foreground">
-                    {t("settings.agents.agentId")}
-                  </FieldLabel>
-                  <Input
-                    {...field}
-                    id="api-id"
-                    placeholder={t("settings.agents.agentId")}
-                    aria-invalid={fieldState.invalid}
-                    disabled={!!initialAgent?.id}
-                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                  />
-                  {fieldState.invalid && (
-                    <FieldError
-                      errors={[
-                        {
-                          message: t(
-                            fieldState.error?.message ?? "",
-                            fieldState.error?.message ?? "",
-                          ),
-                        },
-                      ]}
-                    />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="provider"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="api-provider" className="text-[11px] text-muted-foreground">
-                    {t("settings.agents.apiProvider", "Provider")}
-                  </FieldLabel>
-                  <Select name={field.name} value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="api-provider"
+            <div className="grid grid-cols-2 gap-3">
+              <Controller
+                name="id"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="api-id" className="text-[11px] text-muted-foreground">
+                      {t("settings.agents.agentId")}
+                    </FieldLabel>
+                    <Input
+                      {...field}
+                      id="api-id"
+                      placeholder={t("settings.agents.agentId")}
                       aria-invalid={fieldState.invalid}
-                      className="w-full text-[11px]! font-mono"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openai-compatible">openai-compatible</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldState.invalid && (
-                    <FieldError
-                      errors={[
-                        {
-                          message: t(
-                            fieldState.error?.message ?? "",
-                            fieldState.error?.message ?? "",
-                          ),
-                        },
-                      ]}
+                      disabled={!!initialAgent?.id}
+                      className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                     />
-                  )}
-                </Field>
-              )}
-            />
+                    {fieldState.invalid && (
+                      <FieldError
+                        errors={[
+                          {
+                            message: t(
+                              fieldState.error?.message ?? "",
+                              fieldState.error?.message ?? "",
+                            ),
+                          },
+                        ]}
+                      />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="provider"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="api-provider" className="text-[11px] text-muted-foreground">
+                      {t("settings.agents.apiProvider", "Provider")}
+                    </FieldLabel>
+                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger
+                        id="api-provider"
+                        aria-invalid={fieldState.invalid}
+                        className="w-full text-[11px]! font-mono"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai-compatible">openai-compatible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && (
+                      <FieldError
+                        errors={[
+                          {
+                            message: t(
+                              fieldState.error?.message ?? "",
+                              fieldState.error?.message ?? "",
+                            ),
+                          },
+                        ]}
+                      />
+                    )}
+                  </Field>
+                )}
+              />
+            </div>
 
             <Controller
               name="baseUrl"
@@ -285,7 +291,7 @@ export function SettingsAgentApiDialog({
                     id="api-headers"
                     placeholder='{ "name": "value" }'
                     aria-invalid={fieldState.invalid}
-                    className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                    className="text-[11px]! min-h-14 font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
                   {fieldState.invalid && (
                     <FieldError
@@ -340,6 +346,37 @@ export function SettingsAgentApiDialog({
                       128k
                     </Button>
                   </div>
+                  {fieldState.invalid && (
+                    <FieldError
+                      errors={[
+                        {
+                          message: t(
+                            fieldState.error?.message ?? "",
+                            fieldState.error?.message ?? "",
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="modelIdTemplate"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="api-model-template" className="text-[11px] text-muted-foreground">
+                    {t("settings.agents.modelIdTemplate", "Model Id Template")}
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="api-model-template"
+                    placeholder="{id}"
+                    aria-invalid={fieldState.invalid}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
                   {fieldState.invalid && (
                     <FieldError
                       errors={[
