@@ -125,6 +125,7 @@ bridge.on("ilink-active-session-changed", (payload) =>
 );
 bridge.on("prompt-start", (payload) => emit("prompt-start", payload));
 bridge.on("prompt-end", (payload) => emit("prompt-end", payload));
-
+bridge.on("schedules-changed", (payload) => emit("schedules-changed", payload));
+bridge.on("task-update", (payload) => emit("task-update", payload));
 // Register client identity
 void invokeIPC("registerClient", { clientId }).catch(() => {});

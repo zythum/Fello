@@ -1,0 +1,238 @@
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { request, subscribe } from "../../backend";
+import type { Schedule } from "../../../shared/schema";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Item,
+  ItemGroup,
+  ItemSeparator,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+} from "@/components/ui/item";
+import { SettingDialog } from "./common/setting-dialog";
+import {
+  Play,
+  Settings2,
+  Trash2,
+  LoaderCircle,
+  Plus,
+} from "lucide-react";
+import { useMessage } from "../providers/message";
+
+export function Automation() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { confirm, toast } = useMessage();
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [editSchedule, setEditSchedule] = useState<Schedule | null>(null);
+  const [timezone, setTimezone] = useState("");
+
+  useEffect(() => { request.getServerTimezone().then(setTimezone).catch(() => {}); }, []);
+
+  const loadSchedules = useCallback(async () => {
+    try {
+      const list = await request.listSchedules();
+      setSchedules(list ?? []);
+    } catch (err) {
+      console.error("Failed to load schedules:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSchedules();
+  }, [loadSchedules]);
+
+  useEffect(() => {
+    const handleChanged = () => void loadSchedules();
+    subscribe.on("schedules-changed", handleChanged);
+    return () => subscribe.off("schedules-changed", handleChanged);
+  }, [loadSchedules]);
+
+  const handleTrigger = async (scheduleId: string) => {
+    try {
+      const task = await request.triggerSchedule({ scheduleId });
+      navigate(`/automation/schedule/${scheduleId}/task/${task.id}`);
+    } catch (err) {
+      toast.error(String(err));
+    }
+  };
+
+  const handleDelete = async (schedule: Schedule) => {
+    await confirm({
+      title: t("automation.deleteTitle", "Delete Schedule"),
+      content: t("automation.deleteConfirm", 'Delete "{{name}}" permanently?', { name: schedule.name }),
+      buttons: [
+        { text: t("automation.cancel", "Cancel"), value: null, variant: "outline" },
+        {
+          text: t("automation.delete", "Delete"),
+          value: async () => {
+            await request.deleteSchedule({ scheduleId: schedule.id });
+            await loadSchedules();
+            return "deleted";
+          },
+          variant: "destructive",
+        },
+      ],
+    });
+  };
+
+  const formatNextRun = (schedule: Schedule): string => {
+    if (!schedule.nextRunAt) return "-";
+    const diff = schedule.nextRunAt - Date.now();
+    if (diff <= 0) return t("automation.anyMoment", "Any moment now");
+    if (diff < 60 * 1000) return t("automation.lessThanMinute", "Less than 1 min");
+    if (diff < 60 * 60 * 1000) return `${Math.ceil(diff / 60000)} min`;
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.ceil((diff % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+  };
+
+  const getScheduleLabel = (schedule: Schedule): string => {
+    if (schedule.cron.type === "manual") return t("automation.manual", "Manual");
+    return schedule.cron.expr ?? "-";
+  };
+
+  if (loading) {
+    return (
+      <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
+        <div className="h-12 shrink-0 border-b border-border flex items-center px-6" style={{ WebkitAppRegion: "drag" as any }}>
+          <h1 className="text-sm font-medium">{t("automation.title", "Automation")}</h1>
+          <span className="text-xs text-muted-foreground font-normal ml-1.5">· schedules: {schedules.length}</span>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
+      {/* Header */}
+      <div
+        className="h-12 shrink-0 border-b border-border flex items-center justify-between pl-4 pr-2"
+        style={{ WebkitAppRegion: "drag" as any }}
+      >
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-medium">{t("automation.title", "Automation")}</h1>
+          <span className="text-xs text-muted-foreground font-normal">
+            · {t("automation.schedules", "schedules")}: {schedules.length}
+          </span>
+        </div>
+        <div style={{ WebkitAppRegion: "no-drag" as any }}>
+          <Button variant="default" size="sm" className="h-7 text-xs" onClick={() => setNewDialogOpen(true)}>
+            <Plus className="size-3" />
+            {t("automation.newSchedule", "New Schedule")}
+          </Button>
+        </div>
+      </div>
+
+      {/* List */}
+      <ScrollArea className="flex-1">
+        <div className="px-5 py-4 w-full max-w-4xl mx-auto">
+          {schedules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
+              <p className="mb-1">{t("automation.noSchedules", "No schedules yet")}</p>
+              <Button variant="outline" size="sm" className="h-7 text-xs mt-2" onClick={() => setNewDialogOpen(true)}>
+                <Plus className="size-3 mr-1" />
+                {t("automation.createFirst", "Create your first schedule")}
+              </Button>
+            </div>
+          ) : (
+            <ItemGroup className="gap-0">
+              {schedules.map((schedule, index) => (
+                <div key={schedule.id}>
+                  <Item
+                    size="sm"
+                    className="hover:bg-muted"
+                    onClick={() => navigate(`/automation/schedule/${schedule.id}`)}
+                  >
+                    <ItemContent>
+                      <ItemTitle className="truncate">
+                        {schedule.name}
+                        <span className="text-[10px] font-normal text-muted-foreground ml-2 uppercase">
+                          {schedule.agentId}
+                        </span>
+                      </ItemTitle>
+                      <ItemDescription className="line-clamp-1 text-xs">
+                        {getScheduleLabel(schedule)}
+                        {schedule.lastRunAt && (
+                          <>
+                            <span className="text-muted-foreground/40 mx-1.5">·</span>
+                            {t("automation.cron.lastRun", "Last run")}: {new Date(schedule.lastRunAt).toLocaleString()}
+                          </>
+                        )}
+                        {schedule.nextRunAt && (
+                          <>
+                            <span className="text-muted-foreground/40 mx-1.5">·</span>
+                            {t("automation.cron.nextRun", "Next run")}: {new Date(schedule.nextRunAt).toLocaleString()}
+                            <span className="text-muted-foreground/40 mx-1.5">·</span>
+                            {t("automation.cron.nextRunIn", "Next run in")} {formatNextRun(schedule)}
+                            {timezone && <span className="text-muted-foreground/50 ml-0.5">({timezone})</span>}
+                          </>
+                        )}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions className="gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
+                        onClick={(e) => { e.stopPropagation(); void handleTrigger(schedule.id); }}
+                        title={t("automation.triggerNow", "Trigger now")}
+                      >
+                        <Play className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
+                        onClick={(e) => { e.stopPropagation(); setEditSchedule(schedule); }}
+                        title={t("automation.editSettings", "Edit settings")}
+                      >
+                        <Settings2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation(); void handleDelete(schedule); }}
+                        title={t("automation.delete", "Delete")}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </ItemActions>
+                  </Item>
+                  {index < schedules.length - 1 && <ItemSeparator />}
+                </div>
+              ))}
+            </ItemGroup>
+          )}
+        </div>
+      </ScrollArea>
+
+      <SettingDialog
+        open={newDialogOpen}
+        onOpenChange={setNewDialogOpen}
+        onSuccess={() => void loadSchedules()}
+      />
+      {editSchedule && (
+        <SettingDialog
+          schedule={editSchedule}
+          open={editSchedule !== null}
+          onOpenChange={(open) => { if (!open) setEditSchedule(null); }}
+          onSuccess={() => void loadSchedules()}
+        />
+      )}
+    </main>
+  );
+}

@@ -19,6 +19,9 @@ import { SettingsSnippets } from "./components/settings/snippets/settings-snippe
 import { SkillsLayout } from "./components/skills/skills-layout";
 import { SkillsInstalled } from "./components/skills/installed/skills-installed";
 import { SkillsSh } from "./components/skills/skills-sh/skills-skills-sh";
+import { Automation } from "./components/automation/automation";
+import { Schedule } from "./components/automation/schedule/schedule";
+import { Task } from "./components/automation/task/task";
 
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -57,6 +60,10 @@ export function AppRouter() {
         <Route path="/skills" element={<SkillsLayout />}>
           <Route path="installed" element={<SkillsInstalled />} />
           <Route path="skills-sh" element={<SkillsSh />} />
+        </Route>
+        <Route path="/automation" element={<Automation />} />
+        <Route path="/automation/schedule/:scheduleId" element={<Schedule />}>
+          <Route path="task/:taskId" element={<Task />} />
         </Route>
       </Routes>
     </div>

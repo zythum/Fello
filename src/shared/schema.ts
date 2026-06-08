@@ -344,6 +344,59 @@ export interface SkillInfo {
   id: string;
 }
 
+// ── Automation Types ─────────────────────────────────────────────────
+
+/**
+ * 调度（Schedule）：一个自动化的配置项，包含 cron/once 触发规则和 agent prompt
+ */
+export interface Schedule {
+  /** 调度的唯一标识符 */
+  id: string;
+  /** 调度显示名称 */
+  name: string;
+  /** 使用的 Agent ID */
+  agentId: string;
+  /** Agent 执行的 Prompt 内容 */
+  prompt: string;
+  /** 调度配置 */
+  cron: {
+    /** 调度类型：cron 定时 or once 单次 */
+    type: "cron" | "manual";
+    /** 5 段式 cron 表达式（分 时 日 月 周），仅在 type='cron' 时有效 */
+    expr?: string;
+  };
+  /** 创建时间（毫秒时间戳） */
+  createdAt: number;
+  /** 更新时间（毫秒时间戳） */
+  updatedAt: number;
+  /** 上次执行时间（毫秒时间戳） */
+  lastRunAt: number | null;
+  /** 下次执行时间（运行时计算，不持久化） */
+  nextRunAt?: number | null;
+  /** 启用的 feature 列表（ask_user 在 automation 中始终为 false） */
+  features: Feature[];
+  /** 使用的 MCP 服务器 ID 列表 */
+  mcpServers: string[];
+}
+
+/**
+ * 任务（Task）：调度每次触发产生的一次执行记录
+ */
+export interface Task {
+  /** 任务的唯一标识（基于时间戳） */
+  id: string;
+  /** 所属调度 ID */
+  scheduleId: string;
+  /** 任务开始时间（毫秒时间戳） */
+  startedAt: number;
+  /** 任务完成时间（毫秒时间戳） */
+  completedAt: number | null;
+  /** 任务状态 */
+  status: "running" | "success" | "error";
+  /** 错误信息（可选） */
+  error?: string;
+}
+
 /**
  * 进程间通信（IPC）的请求定义
  * 包含从前端（Renderer/Web）发送到后端（Main）的所有方法及其参数和返回值类型
@@ -635,6 +688,71 @@ export type FelloIPCRequests = {
     params: void;
     response: { sessionId: string | null };
   };
+
+  // ── Automation IPC ────────────────────────────────────────────────
+
+  /** 获取服务端时区 */
+  getServerTimezone: {
+    params: void;
+    response: string;
+  };
+  /** 获取所有调度列表 */
+  listSchedules: {
+    params: void;
+    response: Schedule[];
+  };
+  /** 创建调度 */
+  createSchedule: {
+    params: {
+      name: string;
+      agentId: string;
+      prompt: string;
+      cron: { type: "cron" | "manual"; expr?: string };
+      features?: Feature[];
+      mcpServers?: string[];
+    };
+    response: Schedule;
+  };
+  /** 更新调度 */
+  updateSchedule: {
+    params: { scheduleId: string; updates: Partial<Omit<Schedule, "id" | "createdAt">> };
+    response: Schedule;
+  };
+  /** 删除调度 */
+  deleteSchedule: {
+    params: { scheduleId: string };
+    response: void;
+  };
+  /** 手动立即触发调度 */
+  triggerSchedule: {
+    params: { scheduleId: string };
+    response: Task;
+  };
+  /** 获取调度的任务历史 */
+  getTasks: {
+    params: { scheduleId: string };
+    response: Task[];
+  };
+  /** 获取调度某次任务生成的文件列表 */
+  getTaskFiles: {
+    params: { scheduleId: string; taskId: string };
+    response: string[];
+  };
+  /** 读取调度某次任务生成的文件内容 */
+  readTaskFile: {
+    params: { scheduleId: string; taskId: string; filePath: string };
+    response: string;
+  };
+  /** 删除调度某次任务及其文件 */
+  deleteTask: {
+    params: { scheduleId: string; taskId: string };
+    response: void;
+  };
+  /** 获取调度某次任务文件的系统绝对路径 */
+  getTaskFileSystemPath: {
+    params: { scheduleId: string; taskId: string; filePath: string };
+    response: string;
+  };
 };
 
 /**
@@ -681,6 +799,13 @@ export type FelloIPCEvents = {
   "prompt-start": { sessionId: string };
   /** Prompt 处理结束 */
   "prompt-end": { sessionId: string; stopReason?: StopReason; error?: string };
+
+  // ── Automation Events ─────────────────────────────────────────────
+
+  /** 调度列表发生变更（新增/删除/更新） */
+  "schedules-changed": void;
+  /** 任务状态更新 */
+  "task-update": { scheduleId: string; task: Task };
 };
 
 /**

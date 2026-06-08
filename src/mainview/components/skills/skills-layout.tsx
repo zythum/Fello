@@ -29,7 +29,7 @@ export function SkillsLayout() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background relative">
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center px-6"
+        className="h-12 shrink-0 border-b border-border flex items-center px-4"
         style={{ WebkitAppRegion: "drag" }}
       >
         <h1 className="text-sm font-medium">{t("skills.title")}</h1>

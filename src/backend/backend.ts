@@ -44,6 +44,7 @@ import type {
   AskUserRequest,
   AskUserRequestOption,
   Feature,
+  Schedule,
 } from "../shared/schema";
 import { ALL_FEATURES } from "../shared/constants";
 import {
@@ -65,6 +66,16 @@ import {
   extractVoiceText,
 } from "./ilink/ilink-bridge";
 import { deletePersistedSessionDirectory } from "../agents/storage";
+import {
+  store as autoStore,
+  initRunner,
+  restoreActiveSchedules,
+  scheduleCron,
+  unscheduleCron,
+  executeTask,
+  stopAllCrons,
+  getNextRun,
+} from "./automation";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
   getSkillsCatalog,
@@ -1109,6 +1120,10 @@ export function initBackend(
   };
   initWatcher(sendEvent);
 
+  // Initialize automation runner and restore crons
+  initRunner(sendEvent);
+  restoreActiveSchedules();
+
   // Try to restore iLink session on startup
   getILinkBridge()
     .tryRestore()
@@ -1150,7 +1165,7 @@ function resolveAgentInfo(agentId: string): AgentInfo {
   return { ...agent, provider, baseUrl, apiKey };
 }
 
-async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
+export async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
   const connectPromise = bridgePool.get(agentId);
   if (connectPromise) {
     const pooledBridge = await connectPromise;
@@ -1284,6 +1299,7 @@ async function ensureBridge(agentId: AgentType): Promise<ACPBridge> {
 }
 
 export async function clearBackend() {
+  stopAllCrons();
   for (const ss of sessionSocketServers.values()) {
     ss.stop();
   }
@@ -2623,6 +2639,94 @@ export const backendHandlers: {
       }
     } catch {}
     return { sessionId: null };
+  },
+
+  // ── Automation Handlers ───────────────────────────────────────────
+
+  async listSchedules() {
+    return autoStore.listSchedules().map((s) => ({ ...s, nextRunAt: getNextRun(s) }));
+  },
+
+  async getServerTimezone() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  },
+
+  async createSchedule(params) {
+    const scheduleId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = Date.now();
+    const schedule: Schedule = {
+      id: scheduleId,
+      name: params.name,
+      agentId: params.agentId,
+      prompt: params.prompt,
+      cron: { type: params.cron.type, expr: params.cron.expr },
+      createdAt: now,
+      updatedAt: now,
+      lastRunAt: null,
+      features: (params.features ?? []).filter((f) => f !== "ask_user"),
+      mcpServers: params.mcpServers ?? [],
+    };
+    autoStore.saveSchedule(schedule);
+
+    // Schedule if cron
+    if (schedule.cron.type === "cron" && schedule.cron.expr) {
+      scheduleCron(schedule);
+    }
+
+    sendEvent("schedules-changed", undefined);
+    return schedule;
+  },
+
+  async updateSchedule({ scheduleId, updates }) {
+    const schedule = autoStore.getSchedule(scheduleId);
+    if (!schedule) throw new Error("Schedule not found");
+
+    Object.assign(schedule, updates);
+    schedule.updatedAt = Date.now();
+    autoStore.saveSchedule(schedule);
+
+    // Re-schedule if cron config changed
+    if (schedule.cron.type === "cron" && schedule.cron.expr) {
+      scheduleCron(schedule);
+    } else {
+      unscheduleCron(scheduleId);
+    }
+
+    sendEvent("schedules-changed", undefined);
+    return schedule;
+  },
+
+  async deleteSchedule({ scheduleId }) {
+    unscheduleCron(scheduleId);
+    autoStore.deleteSchedule(scheduleId);
+    sendEvent("schedules-changed", undefined);
+  },
+
+  async triggerSchedule({ scheduleId }) {
+    return executeTask(scheduleId);
+  },
+
+  async getTasks({ scheduleId }) {
+    return autoStore.listTasks(scheduleId);
+  },
+
+  async getTaskFiles({ scheduleId, taskId }) {
+    return autoStore.listTaskFiles(scheduleId, taskId);
+  },
+
+  async readTaskFile({ scheduleId, taskId, filePath }) {
+    return autoStore.readTaskFile(scheduleId, taskId, filePath);
+  },
+
+  async getTaskFileSystemPath({ scheduleId, taskId, filePath }) {
+    const base = autoStore.taskDir(scheduleId, taskId);
+    const fullPath = join(base, filePath);
+    if (!fullPath.startsWith(base + "/") && fullPath !== base) throw new Error("Invalid file path");
+    return fullPath;
+  },
+
+  async deleteTask({ scheduleId, taskId }) {
+    autoStore.deleteTask(scheduleId, taskId);
   },
 };
 
