@@ -276,15 +276,20 @@ export function Sidebar() {
           value: async () => {
             // Remove from store immediately to prevent render loops
             const store = useAppStore.getState();
+            if (activeSessionId === session.id) {
+              handleNavigate("/");
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             setSessions(store.sessions.filter((s) => s.id !== session.id));
             const map = new Map(store.sessionStates);
             map.delete(session.id);
             useAppStore.setState({ sessionStates: map });
-            if (activeSessionId === session.id) {
-              handleNavigate("/");
-            }
+
             await request.deleteSession(session.id);
             await refreshData();
+
             return "deleted";
           },
         },
@@ -332,23 +337,24 @@ export function Sidebar() {
         {
           text: t("sidebar.delete"),
           value: async () => {
-            await request.deleteProject(project.id);
-            const map = new Map(useAppStore.getState().sessionStates);
-            for (const session of sessions) {
+            const state = useAppStore.getState();
+            const activeSession = state.sessions.find(session => session.id === activeSessionId);
+            if (activeSession && activeSession.projectId === project.id) {
+              handleNavigate("/");
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const map = new Map(state.sessionStates);
+            for (const session of state.sessions) {
               if (session.projectId === project.id) map.delete(session.id);
             }
             useAppStore.setState({ sessionStates: map });
 
-            const { sessions: updated } = await refreshData();
-            if (activeSessionId && !updated.some((session) => session.id === activeSessionId)) {
-              const next = updated.length > 0 ? updated[0] : null;
-              if (next) {
-                handleNavigate(`/session-view/${next.id}`);
-              } else {
-                handleNavigate("/");
-              }
-            }
-            return "confirm";
+            await request.deleteProject(project.id);
+            await refreshData();
+
+            return "deleted";
           },
           variant: "destructive",
         },
