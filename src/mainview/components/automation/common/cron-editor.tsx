@@ -30,7 +30,8 @@ function detectPreset(expr: string): Preset {
     const n = parseInt(hr.slice(2));
     if (!isNaN(n) && INTERVALS.includes(n)) return "hourly";
   }
-  const h = parseInt(hr), m = parseInt(min);
+  const h = parseInt(hr),
+    m = parseInt(min);
   if (isNaN(h) || isNaN(m)) return "custom";
   if (dom === "*" && mon === "*" && dow === "*") return "daily";
   if (dom === "*" && mon === "*" && dow === "1-5") return "weekdays";
@@ -43,17 +44,39 @@ function parseParts(expr: string) {
   if (parts.length !== 5) return { hour: 9, minute: 0, interval: 2, dow: "1" };
   const [min, hr] = parts;
   const dow = parts[4];
-  if (hr.startsWith("*/")) return { hour: 9, minute: parseInt(min) || 0, interval: parseInt(hr.slice(2)) || 2, dow: /^\d$/.test(dow) ? dow : "1" };
-  return { hour: parseInt(hr) || 9, minute: parseInt(min) || 0, interval: 2, dow: /^\d$/.test(dow) ? dow : "1" };
+  if (hr.startsWith("*/"))
+    return {
+      hour: 9,
+      minute: parseInt(min) || 0,
+      interval: parseInt(hr.slice(2)) || 2,
+      dow: /^\d$/.test(dow) ? dow : "1",
+    };
+  return {
+    hour: parseInt(hr) || 9,
+    minute: parseInt(min) || 0,
+    interval: 2,
+    dow: /^\d$/.test(dow) ? dow : "1",
+  };
 }
 
-function buildCron(preset: Preset, hour: number, minute: number, interval: number, dow: string): string {
+function buildCron(
+  preset: Preset,
+  hour: number,
+  minute: number,
+  interval: number,
+  dow: string,
+): string {
   switch (preset) {
-    case "daily": return `${minute} ${hour} * * *`;
-    case "weekdays": return `${minute} ${hour} * * 1-5`;
-    case "weekly": return `${minute} ${hour} * * ${dow}`;
-    case "hourly": return `${minute} */${interval} * * *`;
-    default: return `${minute} ${hour} * * *`;
+    case "daily":
+      return `${minute} ${hour} * * *`;
+    case "weekdays":
+      return `${minute} ${hour} * * 1-5`;
+    case "weekly":
+      return `${minute} ${hour} * * ${dow}`;
+    case "hourly":
+      return `${minute} */${interval} * * *`;
+    default:
+      return `${minute} ${hour} * * *`;
   }
 }
 
@@ -95,23 +118,37 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
   ];
 
   const intervalItems = INTERVALS.map((n) => ({ value: String(n), label: `${n}h` }));
-  const minuteItems = MINUTES.map((m) => ({ value: String(m), label: `${String(m).padStart(2, "0")}` }));
+  const minuteItems = MINUTES.map((m) => ({
+    value: String(m),
+    label: `${String(m).padStart(2, "0")}`,
+  }));
   const hourItems = HOURS.map((h) => ({ value: String(h), label: String(h).padStart(2, "0") }));
   const dowItems = DAYS_OF_WEEK_VALUES.map((v) => ({
     value: v,
-    label: t(`automation.cron.days.${v}`, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][parseInt(v)]),
+    label: t(
+      `automation.cron.days.${v}`,
+      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][parseInt(v)],
+    ),
   }));
 
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center gap-2">
-        <Select items={presetItems} value={preset} onValueChange={(v) => { if (v) handlePresetChange(v as Preset); }}>
+        <Select
+          items={presetItems}
+          value={preset}
+          onValueChange={(v) => {
+            if (v) handlePresetChange(v as Preset);
+          }}
+        >
           <SelectTrigger className="h-8 text-xs! w-32 shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {presetItems.map((p) => (
-              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -125,42 +162,104 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
           />
         ) : preset === "hourly" ? (
           <>
-            <Select items={intervalItems} value={String(parts.interval)} onValueChange={(v) => { if (v) updateParts({ interval: parseInt(v) }); }}>
-              <SelectTrigger className="h-7 text-xs! w-15"><SelectValue /></SelectTrigger>
+            <Select
+              items={intervalItems}
+              value={String(parts.interval)}
+              onValueChange={(v) => {
+                if (v) updateParts({ interval: parseInt(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs! w-15">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {intervalItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                {intervalItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">{t("automation.cron.atMinute", "at min")}</span>
-            <Select items={minuteItems} value={String(parts.minute)} onValueChange={(v) => { if (v) updateParts({ minute: parseInt(v) }); }}>
-              <SelectTrigger className="h-7 text-xs! w-15"><SelectValue /></SelectTrigger>
+            <span className="text-xs text-muted-foreground">
+              {t("automation.cron.atMinute", "at min")}
+            </span>
+            <Select
+              items={minuteItems}
+              value={String(parts.minute)}
+              onValueChange={(v) => {
+                if (v) updateParts({ minute: parseInt(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs! w-15">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {minuteItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                {minuteItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </>
         ) : (
           <>
             {preset === "weekly" && (
-              <Select items={dowItems} value={parts.dow} onValueChange={(v) => { if (v) updateParts({ dow: v }); }}>
-                <SelectTrigger className="h-7 text-xs! w-18"><SelectValue /></SelectTrigger>
+              <Select
+                items={dowItems}
+                value={parts.dow}
+                onValueChange={(v) => {
+                  if (v) updateParts({ dow: v });
+                }}
+              >
+                <SelectTrigger className="h-7 text-xs! w-18">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {dowItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  {dowItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
             <span className="text-xs text-muted-foreground">{t("automation.cron.at", "at")}</span>
-            <Select items={hourItems} value={String(parts.hour)} onValueChange={(v) => { if (v) updateParts({ hour: parseInt(v) }); }}>
-              <SelectTrigger className="h-7 text-xs! w-15"><SelectValue /></SelectTrigger>
+            <Select
+              items={hourItems}
+              value={String(parts.hour)}
+              onValueChange={(v) => {
+                if (v) updateParts({ hour: parseInt(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs! w-15">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {hourItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                {hourItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">:</span>
-            <Select items={minuteItems} value={String(parts.minute)} onValueChange={(v) => { if (v) updateParts({ minute: parseInt(v) }); }}>
-              <SelectTrigger className="h-7 text-xs! w-15"><SelectValue /></SelectTrigger>
+            <Select
+              items={minuteItems}
+              value={String(parts.minute)}
+              onValueChange={(v) => {
+                if (v) updateParts({ minute: parseInt(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs! w-15">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {minuteItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                {minuteItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </>
@@ -179,8 +278,15 @@ function formatNextCron(expr: string, locale?: string): string {
   try {
     const next = getNextCronDate(expr);
     if (!next) return "—";
-    return next.toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  } catch { return "—"; }
+    return next.toLocaleString(locale, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
 }
 
 function getNextCronDate(expr: string): Date | null {
@@ -208,7 +314,8 @@ function getNextCronDate(expr: string): Date | null {
         if (candidate > now) return candidate;
       }
     } else {
-      const h = parseInt(hrF), m = parseInt(minF);
+      const h = parseInt(hrF),
+        m = parseInt(minF);
       if (isNaN(h) || isNaN(m)) return null;
       candidate.setHours(h, m, 0, 0);
       if (candidate > now) return candidate;

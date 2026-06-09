@@ -546,6 +546,7 @@
     "nextRun": "Next",
     "noFiles": "No files generated",
     "noSchedules": "No schedules yet",
+    "emptyHint": "Schedule AI tasks to run automatically with cron expressions",
     "noTasksDesc": "No runs yet. Click \"Trigger now\" to start the first run.",
     "prompt": "Prompt",
     "promptPlaceholder": "What should the agent do?",

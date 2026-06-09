@@ -91,10 +91,7 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
 }
 
 /** 将模版字符串中的 {fieldName} 替换为 modelItem 中对应字段的值 */
-function applyModelIdTemplate(
-  template: string,
-  modelItem: Record<string, unknown>,
-): string {
+function applyModelIdTemplate(template: string, modelItem: Record<string, unknown>): string {
   return template.replace(/\{(\w+)\}/g, (_match, fieldName) => {
     const value = modelItem[fieldName];
     if (value === undefined || value === null) return _match;

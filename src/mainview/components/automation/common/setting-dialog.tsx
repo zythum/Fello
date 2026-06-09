@@ -40,19 +40,38 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   const { toast } = useMessage();
   const configuredAgents = useAppStore((s) => s.configuredAgents);
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
-  const enabledAgents = useMemo(() => configuredAgents.filter((a) => !a.disabled), [configuredAgents]);
-  const enabledMcpServers = useMemo(() => configuredMcpServers.filter((s) => !s.disabled), [configuredMcpServers]);
+  const enabledAgents = useMemo(
+    () => configuredAgents.filter((a) => !a.disabled),
+    [configuredAgents],
+  );
+  const enabledMcpServers = useMemo(
+    () => configuredMcpServers.filter((s) => !s.disabled),
+    [configuredMcpServers],
+  );
 
   const [timezone, setTimezone] = useState<string>("");
-  useEffect(() => { request.getServerTimezone().then(setTimezone).catch(() => {}); }, []);
+  useEffect(() => {
+    request
+      .getServerTimezone()
+      .then(setTimezone)
+      .catch(() => {});
+  }, []);
 
   const [name, setName] = useState(isEdit ? schedule!.name : "");
   const [agentId, setAgentId] = useState(isEdit ? schedule!.agentId : (enabledAgents[0]?.id ?? ""));
   const [prompt, setPrompt] = useState(isEdit ? schedule!.prompt : "");
-  const [cronType, setCronType] = useState<"cron" | "manual">(isEdit ? schedule!.cron.type : "cron");
-  const [cronExpr, setCronExpr] = useState(isEdit ? (schedule!.cron.expr ?? "0 9 * * 1-5") : "0 9 * * 1-5");
-  const [features, setFeatures] = useState<Feature[]>(isEdit ? (schedule!.features ?? ["skills"]) : ["skills"]);
-  const [mcpServerIds, setMcpServerIds] = useState<string[]>(isEdit ? (schedule!.mcpServers ?? []) : enabledMcpServers.map((s) => s.id));
+  const [cronType, setCronType] = useState<"cron" | "manual">(
+    isEdit ? schedule!.cron.type : "cron",
+  );
+  const [cronExpr, setCronExpr] = useState(
+    isEdit ? (schedule!.cron.expr ?? "0 9 * * 1-5") : "0 9 * * 1-5",
+  );
+  const [features, setFeatures] = useState<Feature[]>(
+    isEdit ? (schedule!.features ?? ["skills"]) : ["skills"],
+  );
+  const [mcpServerIds, setMcpServerIds] = useState<string[]>(
+    isEdit ? (schedule!.mcpServers ?? []) : enabledMcpServers.map((s) => s.id),
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -77,9 +96,12 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   }, [schedule, open]);
 
   const handleSave = async () => {
-    if (!name.trim()) return void toast.error(t("automation.validation.nameRequired", "Name is required"));
-    if (!agentId) return void toast.error(t("automation.validation.agentRequired", "Agent is required"));
-    if (!prompt.trim()) return void toast.error(t("automation.validation.promptRequired", "Prompt is required"));
+    if (!name.trim())
+      return void toast.error(t("automation.validation.nameRequired", "Name is required"));
+    if (!agentId)
+      return void toast.error(t("automation.validation.agentRequired", "Agent is required"));
+    if (!prompt.trim())
+      return void toast.error(t("automation.validation.promptRequired", "Prompt is required"));
 
     setSaving(true);
     try {
@@ -115,14 +137,23 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open, eventDetails) => {
-      if (!open && (eventDetails?.reason === "escape-key" || eventDetails?.reason === "outside-press")) return;
-      onOpenChange(open);
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(open, eventDetails) => {
+        if (
+          !open &&
+          (eventDetails?.reason === "escape-key" || eventDetails?.reason === "outside-press")
+        )
+          return;
+        onOpenChange(open);
+      }}
+    >
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t("automation.editSchedule", "Edit Schedule") : t("automation.newSchedule", "New Schedule")}
+            {isEdit
+              ? t("automation.editSchedule", "Edit Schedule")
+              : t("automation.newSchedule", "New Schedule")}
           </DialogTitle>
           <DialogDescription>
             {t("automation.dialogDesc", "Configure the automated task schedule and prompt.")}
@@ -139,7 +170,10 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 </FieldLabel>
                 <Input
                   id="auto-name"
-                  placeholder={t("automation.scheduleNamePlaceholder", "e.g. Morning Standup Summary")}
+                  placeholder={t(
+                    "automation.scheduleNamePlaceholder",
+                    "e.g. Morning Standup Summary",
+                  )}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-8 text-[11px]! text-foreground/70 focus-visible:ring-0.5"
@@ -150,13 +184,23 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 <FieldLabel htmlFor="auto-agent" className="text-[11px] text-muted-foreground">
                   {t("automation.agent", "Agent")}
                 </FieldLabel>
-                <Select value={agentId} onValueChange={(v) => { if (v) setAgentId(v); }}>
-                  <SelectTrigger id="auto-agent" className="w-full text-[11px]! text-muted-foreground">
+                <Select
+                  value={agentId}
+                  onValueChange={(v) => {
+                    if (v) setAgentId(v);
+                  }}
+                >
+                  <SelectTrigger
+                    id="auto-agent"
+                    className="w-full text-[11px]! text-muted-foreground"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {enabledAgents.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.id}</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.id}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -185,7 +229,9 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
               </div>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7">
-                  <div className={`text-xs truncate ${features.includes("skills") ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
+                  <div
+                    className={`text-xs truncate ${features.includes("skills") ? "text-muted-foreground" : "text-muted-foreground/50"}`}
+                  >
                     {t("constant.feature.skills", "Skills")}
                   </div>
                   <Switch
@@ -197,7 +243,9 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 <div className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7">
                   <div className="text-xs truncate text-muted-foreground/50">
                     {t("constant.feature.askUser", "Ask User")}
-                    <span className="text-[10px] ml-1">({t("automation.alwaysDisabled", "always disabled")})</span>
+                    <span className="text-[10px] ml-1">
+                      ({t("automation.alwaysDisabled", "always disabled")})
+                    </span>
                   </div>
                   <Switch size="sm" checked={false} disabled />
                 </div>
@@ -209,17 +257,31 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 <div className="text-xs text-muted-foreground">
                   {t("automation.mcpServers", "MCP Servers")}
                 </div>
-                <div className={configuredMcpServers.length > 5 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"}>
+                <div
+                  className={
+                    configuredMcpServers.length > 5
+                      ? "grid grid-cols-2 gap-1"
+                      : "flex flex-col gap-1"
+                  }
+                >
                   {configuredMcpServers.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7">
-                      <div className={`text-xs truncate ${mcpServerIds.includes(s.id) ? "text-muted-foreground" : "text-muted-foreground/50"}`} title={s.id}>
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                    >
+                      <div
+                        className={`text-xs truncate ${mcpServerIds.includes(s.id) ? "text-muted-foreground" : "text-muted-foreground/50"}`}
+                        title={s.id}
+                      >
                         {s.id}
                       </div>
                       <Switch
                         size="sm"
                         checked={mcpServerIds.includes(s.id)}
                         onCheckedChange={(c) => {
-                          setMcpServerIds((prev) => c ? [...prev, s.id] : prev.filter((id) => id !== s.id));
+                          setMcpServerIds((prev) =>
+                            c ? [...prev, s.id] : prev.filter((id) => id !== s.id),
+                          );
                         }}
                       />
                     </div>
@@ -234,7 +296,10 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
               </FieldLabel>
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-[11px] text-foreground/70 cursor-pointer">
-                  <Switch checked={cronType === "cron"} onCheckedChange={(c) => setCronType(c ? "cron" : "manual")} />
+                  <Switch
+                    checked={cronType === "cron"}
+                    onCheckedChange={(c) => setCronType(c ? "cron" : "manual")}
+                  />
                   {t("automation.timedExecution", "Timed (cron)")}
                 </label>
                 {cronType === "cron" ? (
@@ -250,10 +315,22 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-7 text-xs">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-7 text-xs"
+          >
             {t("automation.cancel", "Cancel")}
           </Button>
-          <Button type="button" size="sm" disabled={saving} onClick={handleSave} className="h-7 text-xs">
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving}
+            onClick={handleSave}
+            className="h-7 text-xs"
+          >
             {saving && <LoaderCircle className="size-3 animate-spin mr-1" />}
             {isEdit ? t("automation.save", "Save") : t("automation.create", "Create")}
           </Button>

@@ -293,7 +293,7 @@ export function Sidebar() {
               handleNavigate("/");
             }
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             setSessions(store.sessions.filter((s) => s.id !== session.id));
             const map = new Map(store.sessionStates);
@@ -351,12 +351,12 @@ export function Sidebar() {
           text: t("sidebar.delete"),
           value: async () => {
             const state = useAppStore.getState();
-            const activeSession = state.sessions.find(session => session.id === activeSessionId);
+            const activeSession = state.sessions.find((session) => session.id === activeSessionId);
             if (activeSession && activeSession.projectId === project.id) {
               handleNavigate("/");
             }
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const map = new Map(state.sessionStates);
             for (const session of state.sessions) {
@@ -672,7 +672,6 @@ export function Sidebar() {
               </div>
             );
           })}
-
         </div>
       </ScrollArea>
 

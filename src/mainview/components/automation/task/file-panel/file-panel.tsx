@@ -92,7 +92,10 @@ function FileTree({
                 onClick={() => toggleFolder(node.path)}
               >
                 <ChevronRight
-                  className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")}
+                  className={cn(
+                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                    isOpen && "rotate-90",
+                  )}
                 />
                 <Folder className="size-4 shrink-0 text-muted-foreground/90" />
                 <span className="flex-1 truncate leading-normal">{node.name}</span>
@@ -205,17 +208,23 @@ export function Panel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="py-1">
-          {!hasTask ? (
-            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-              {t("automation.selectTask", "Select a task")}
-            </div>
-          ) : files.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-              {t("automation.noFiles", "No files")}
-            </div>
-          ) : (
+      {!hasTask ? (
+        <div className="flex flex-col items-center justify-center flex-1 min-h-0 -mt-10 text-muted-foreground">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <Folder className="size-5 text-muted-foreground/60" />
+          </div>
+          <p className="text-xs">{t("automation.selectTask", "Select a task")}</p>
+        </div>
+      ) : files.length === 0 ? (
+        <div className="flex flex-col items-center justify-center flex-1 min-h-0 -mt-10 text-muted-foreground">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <FolderOpen className="size-5 text-muted-foreground/60" />
+          </div>
+          <p className="text-xs">{t("automation.noFiles", "No files")}</p>
+        </div>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="py-1">
             <FileTree
               nodes={tree}
               depth={0}
@@ -227,9 +236,9 @@ export function Panel({
               onCopyAbsolutePath={onCopyAbsolutePath}
               onRevealInFinder={onRevealInFinder}
             />
-          )}
-        </div>
-      </ScrollArea>
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

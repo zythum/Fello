@@ -72,12 +72,18 @@ function buildAutomationMcpServers(mcpIds: string[]): McpServer[] {
   return servers;
 }
 
-async function setupSkillsServer(taskDir: string): Promise<{ server: SocketServer; mcpServer: McpServer }> {
+async function setupSkillsServer(
+  taskDir: string,
+): Promise<{ server: SocketServer; mcpServer: McpServer }> {
   const socketPath = join(TEMP_DIR, `auto-${randomUUID()}.socket`);
   const server = await startSocketServer(socketPath);
 
   server.registry("skills/catalog", async () => {
-    return getSkillsCatalog({ projectRoot: taskDir }).map(({ id, name, description }) => ({ id, name, description }));
+    return getSkillsCatalog({ projectRoot: taskDir }).map(({ id, name, description }) => ({
+      id,
+      name,
+      description,
+    }));
   });
 
   server.registry("skills/detail", async (payload) => {
@@ -95,11 +101,22 @@ async function setupSkillsServer(taskDir: string): Promise<{ server: SocketServe
       return { error: `Failed to read skill '${id}'` };
     }
     let supportingFiles: string[] = [];
-    try { supportingFiles = listSkillFiles(skill.id, { projectRoot: taskDir }); } catch {}
-    return { id: skill.id, name: skill.name, description: skill.description, instructions: body, root_path: skillDir, supporting_files: supportingFiles };
+    try {
+      supportingFiles = listSkillFiles(skill.id, { projectRoot: taskDir });
+    } catch {}
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      instructions: body,
+      root_path: skillDir,
+      supporting_files: supportingFiles,
+    };
   });
 
-  const catalogData = getSkillsCatalog({ projectRoot: taskDir }).map(({ id, name, description }) => ({ id, name, description }));
+  const catalogData = getSkillsCatalog({ projectRoot: taskDir }).map(
+    ({ id, name, description }) => ({ id, name, description }),
+  );
   const catalogFile = join(TEMP_DIR, `auto-catalog-${randomUUID()}.json`);
   fs.writeFileSync(catalogFile, JSON.stringify(catalogData), "utf8");
 
@@ -108,9 +125,12 @@ async function setupSkillsServer(taskDir: string): Promise<{ server: SocketServe
     command: process.execPath,
     args: [
       join(__dirname, "../scripts/mcp-skills/server.mjs"),
-      "--project-dir", taskDir,
-      "--socket-path", socketPath,
-      "--catalog", catalogFile,
+      "--project-dir",
+      taskDir,
+      "--socket-path",
+      socketPath,
+      "--catalog",
+      catalogFile,
     ],
     env: [{ name: "ELECTRON_RUN_AS_NODE", value: "1" }],
   };
@@ -129,7 +149,13 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
   runningTasks.add(scheduleId);
   const taskId = String(Date.now());
   const startedAt = Date.now();
-  const task: import("../../shared/schema").Task = { id: taskId, scheduleId, startedAt, completedAt: null, status: "running" };
+  const task: import("../../shared/schema").Task = {
+    id: taskId,
+    scheduleId,
+    startedAt,
+    completedAt: null,
+    status: "running",
+  };
 
   store.saveTask(scheduleId, task);
   sendEvent?.("task-update", { scheduleId, task });
@@ -148,12 +174,18 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
           ...notification,
           update: {
             ...notification.update,
-            _meta: { ...notification.update?._meta, fello: { receivedAt: Date.now(), displayId: `auto-${notifications.length}` } },
+            _meta: {
+              ...notification.update?._meta,
+              fello: { receivedAt: Date.now(), displayId: `auto-${notifications.length}` },
+            },
           },
         });
       },
       onPermissionRequest: async (req) => {
-        const opt = req.options.find((o) => o.kind === "allow_always") ?? req.options.find((o) => o.kind === "allow_once") ?? req.options[0];
+        const opt =
+          req.options.find((o) => o.kind === "allow_always") ??
+          req.options.find((o) => o.kind === "allow_once") ??
+          req.options[0];
         return { outcome: { outcome: "selected", optionId: opt?.optionId ?? "allow" } };
       },
       onAgentTerminalOutput: () => {},
@@ -178,7 +210,12 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
     const messages = reduceNotificationsToMessages(notifications);
 
     // Write results to task directory
-    store.writeTaskFile(scheduleId, taskId, "README.md", generateReadme(schedule, messages, startedAt));
+    store.writeTaskFile(
+      scheduleId,
+      taskId,
+      "README.md",
+      generateReadme(schedule, messages, startedAt),
+    );
     store.writeTaskFile(scheduleId, taskId, "conversation.json", JSON.stringify(messages, null, 2));
 
     // Cleanup: kill the dedicated bridge process
@@ -218,7 +255,9 @@ interface ReducedMessage {
   toolTitle?: string;
 }
 
-function reduceNotificationsToMessages(notifications: SessionNotificationFelloExt[]): ReducedMessage[] {
+function reduceNotificationsToMessages(
+  notifications: SessionNotificationFelloExt[],
+): ReducedMessage[] {
   const messages: ReducedMessage[] = [];
 
   for (const n of notifications) {

@@ -27,7 +27,9 @@ const clientIdsBySocket = new WeakMap<WebSocket, string>();
 const COOKIE_NAME = "fello_token";
 
 /** Extract token from Cookie header. */
-function getTokenFromCookie(req: { headers: Record<string, string | string[] | undefined> }): string | null {
+function getTokenFromCookie(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): string | null {
   const cookieHeader = req.headers["cookie"];
   if (!cookieHeader) return null;
   const cookies = (Array.isArray(cookieHeader) ? cookieHeader.join("; ") : cookieHeader).split(";");
@@ -41,7 +43,10 @@ function getTokenFromCookie(req: { headers: Record<string, string | string[] | u
 }
 
 /** Check whether the request carries a valid token (via cookie or query param). */
-function isAuthenticated(req: { headers: Record<string, string | string[] | undefined> }, url: URL): boolean {
+function isAuthenticated(
+  req: { headers: Record<string, string | string[] | undefined> },
+  url: URL,
+): boolean {
   const fromCookie = getTokenFromCookie(req);
   if (fromCookie && fromCookie === currentToken) return true;
   const fromQuery = url.searchParams.get("token");

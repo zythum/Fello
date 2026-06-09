@@ -27,8 +27,11 @@ export function Task() {
       const readme = (files ?? []).find((f: string) => f.toLowerCase() === "readme.md");
       setSelectedFile(readme ?? null);
       setFileContent(null);
-    } catch { setTaskFiles([]); }
-    finally { setLoading(false); }
+    } catch {
+      setTaskFiles([]);
+    } finally {
+      setLoading(false);
+    }
   }, [scheduleId, taskId]);
 
   useEffect(() => {
@@ -39,7 +42,11 @@ export function Task() {
   // Reload files when this task completes (running → success/error)
   useEffect(() => {
     const handler = (payload: any) => {
-      if (payload.scheduleId === scheduleId && payload.task?.id === taskId && payload.task.status !== "running") {
+      if (
+        payload.scheduleId === scheduleId &&
+        payload.task?.id === taskId &&
+        payload.task.status !== "running"
+      ) {
         void loadFiles();
       }
     };
@@ -57,8 +64,11 @@ export function Task() {
       try {
         const content = await request.readTaskFile({ scheduleId, taskId, filePath: selectedFile });
         setFileContent(content ?? null);
-      } catch { setFileContent("// Error loading file"); }
-      finally { setFileLoading(false); }
+      } catch {
+        setFileContent("// Error loading file");
+      } finally {
+        setFileLoading(false);
+      }
     })();
   }, [selectedFile, scheduleId, taskId]);
 
@@ -82,25 +92,41 @@ export function Task() {
         />
       </ResizablePanel>
       <ResizableHandle className="bg-border/70" />
-      <ResizablePanel id="filePanel" groupResizeBehavior="preserve-pixel-size" defaultSize={250} minSize={250} maxSize={400}>
+      <ResizablePanel
+        id="filePanel"
+        groupResizeBehavior="preserve-pixel-size"
+        defaultSize={250}
+        minSize={250}
+        maxSize={400}
+      >
         <Panel
           files={taskFiles}
           selectedFile={selectedFile}
           hasTask={true}
           onSelectFile={setSelectedFile}
           onCopyRelativePath={async (file) => {
-            try { await copyText(file); } catch {}
+            try {
+              await copyText(file);
+            } catch {}
           }}
           onCopyAbsolutePath={async (file) => {
             try {
-              const abs = await request.getTaskFileSystemPath({ scheduleId: scheduleId!, taskId: taskId!, filePath: file });
+              const abs = await request.getTaskFileSystemPath({
+                scheduleId: scheduleId!,
+                taskId: taskId!,
+                filePath: file,
+              });
               await copyText(abs);
             } catch {}
           }}
           onRevealInFinder={async (file) => {
             if (isWebUI) return;
             try {
-              const abs = await request.getTaskFileSystemPath({ scheduleId: scheduleId!, taskId: taskId!, filePath: file });
+              const abs = await request.getTaskFileSystemPath({
+                scheduleId: scheduleId!,
+                taskId: taskId!,
+                filePath: file,
+              });
               await electron.revealInFinder(abs);
             } catch {}
           }}

@@ -15,14 +15,15 @@ import {
   ItemDescription,
   ItemActions,
 } from "@/components/ui/item";
-import { SettingDialog } from "./common/setting-dialog";
 import {
-  Play,
-  Settings2,
-  Trash2,
-  LoaderCircle,
-  Plus,
-} from "lucide-react";
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { SettingDialog } from "./common/setting-dialog";
+import { Play, Settings2, Trash2, LoaderCircle, Plus, ClockCheck } from "lucide-react";
 import { useMessage } from "../providers/message";
 
 export function Automation() {
@@ -35,7 +36,12 @@ export function Automation() {
   const [editSchedule, setEditSchedule] = useState<Schedule | null>(null);
   const [timezone, setTimezone] = useState("");
 
-  useEffect(() => { request.getServerTimezone().then(setTimezone).catch(() => {}); }, []);
+  useEffect(() => {
+    request
+      .getServerTimezone()
+      .then(setTimezone)
+      .catch(() => {});
+  }, []);
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -80,7 +86,9 @@ export function Automation() {
   const handleDelete = async (schedule: Schedule) => {
     await confirm({
       title: t("automation.deleteTitle", "Delete Schedule"),
-      content: t("automation.deleteConfirm", 'Delete "{{name}}" permanently?', { name: schedule.name }),
+      content: t("automation.deleteConfirm", 'Delete "{{name}}" permanently?', {
+        name: schedule.name,
+      }),
       buttons: [
         { text: t("automation.cancel", "Cancel"), value: null, variant: "outline" },
         {
@@ -115,9 +123,14 @@ export function Automation() {
   if (loading) {
     return (
       <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
-        <div className="h-12 shrink-0 border-b border-border flex items-center px-6" style={{ WebkitAppRegion: "drag" as any }}>
+        <div
+          className="h-12 shrink-0 border-b border-border flex items-center px-6"
+          style={{ WebkitAppRegion: "drag" as any }}
+        >
           <h1 className="text-sm font-medium">{t("automation.title", "Automation")}</h1>
-          <span className="text-xs text-muted-foreground font-normal ml-1.5">· schedules: {schedules.length}</span>
+          <span className="text-xs text-muted-foreground font-normal ml-1.5">
+            · schedules: {schedules.length}
+          </span>
         </div>
         <div className="flex flex-1 items-center justify-center">
           <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
@@ -140,7 +153,12 @@ export function Automation() {
           </span>
         </div>
         <div style={{ WebkitAppRegion: "no-drag" as any }}>
-          <Button variant="default" size="sm" className="h-7 text-xs" onClick={() => setNewDialogOpen(true)}>
+          <Button
+            variant="default"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setNewDialogOpen(true)}
+          >
             <Plus className="size-3" />
             {t("automation.newSchedule", "New Schedule")}
           </Button>
@@ -151,9 +169,25 @@ export function Automation() {
       <ScrollArea className="flex-1">
         <div className="px-5 py-4 w-full max-w-4xl mx-auto">
           {schedules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
-              <p className="mb-1">{t("automation.noSchedules", "No schedules yet")}</p>
-              <Button variant="outline" size="sm" className="h-7 text-xs mt-2" onClick={() => setNewDialogOpen(true)}>
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <ClockCheck className="size-6 text-muted-foreground/60" />
+              </div>
+              <p className="text-sm font-medium text-foreground/70 mb-1">
+                {t("automation.noSchedules", "No schedules yet")}
+              </p>
+              <p className="text-xs text-muted-foreground/70 mb-4 max-w-[240px] text-center">
+                {t(
+                  "automation.emptyHint",
+                  "Schedule AI tasks to run automatically with cron expressions",
+                )}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setNewDialogOpen(true)}
+              >
                 <Plus className="size-3 mr-1" />
                 {t("automation.createFirst", "Create your first schedule")}
               </Button>
@@ -162,67 +196,108 @@ export function Automation() {
             <ItemGroup className="gap-0">
               {schedules.map((schedule, index) => (
                 <Fragment key={schedule.id}>
-                  <Item
-                    size="sm"
-                    className="hover:bg-muted select-none"
-                    onClick={() => navigate(`/automation/schedule/${schedule.id}`)}
-                  >
-                    <ItemContent className="gap-1.5">
-                      <ItemTitle className="truncate">
-                        {schedule.name}
-                        <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">
-                          {schedule.agentId}
-                        </Badge>
-                      </ItemTitle>
-                      <ItemDescription className="line-clamp-1 text-xs">
-                        {getScheduleLabel(schedule)}
-                        {schedule.lastRunAt && (
-                          <>
-                            <span className="text-muted-foreground/40 mx-1.5">·</span>
-                            {t("automation.cron.lastRun", "Last run")}: {new Date(schedule.lastRunAt).toLocaleString(i18n.language)}
-                          </>
-                        )}
-                        {schedule.nextRunAt && (
-                          <>
-                            <span className="text-muted-foreground/40 mx-1.5">·</span>
-                            {t("automation.cron.nextRun", "Next run")}: {new Date(schedule.nextRunAt).toLocaleString(i18n.language)}
-                            <span className="text-muted-foreground/40 mx-1.5">·</span>
-                            {t("automation.cron.nextRunIn", "Next run in")} {formatNextRun(schedule)}
-                            {timezone && <span className="text-muted-foreground/50 ml-0.5">({timezone})</span>}
-                          </>
-                        )}
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions className="gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
-                        onClick={(e) => { e.stopPropagation(); void handleTrigger(schedule.id); }}
-                        title={t("automation.triggerNow", "Trigger now")}
+                  <ContextMenu>
+                    <ContextMenuTrigger className="group/ctx">
+                      <Item
+                        size="sm"
+                        className="hover:bg-muted group-data-[popup-open]/ctx:bg-muted select-none"
+                        onClick={() => navigate(`/automation/schedule/${schedule.id}`)}
                       >
-                        <Play className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
-                        onClick={(e) => { e.stopPropagation(); setEditSchedule(schedule); }}
-                        title={t("automation.editSettings", "Edit settings")}
+                        <ItemContent className="gap-1.5">
+                          <ItemTitle className="truncate">
+                            {schedule.name}
+                            <Badge
+                              variant="outline"
+                              className="px-1 text-[10px] leading-none uppercase shrink-0"
+                            >
+                              {schedule.agentId}
+                            </Badge>
+                          </ItemTitle>
+                          <ItemDescription className="line-clamp-1 text-xs">
+                            {getScheduleLabel(schedule)}
+                            {schedule.lastRunAt && (
+                              <>
+                                <span className="text-muted-foreground/40 mx-1.5">·</span>
+                                {t("automation.cron.lastRun", "Last run")}:{" "}
+                                {new Date(schedule.lastRunAt).toLocaleString(i18n.language)}
+                              </>
+                            )}
+                            {schedule.nextRunAt && (
+                              <>
+                                <span className="text-muted-foreground/40 mx-1.5">·</span>
+                                {t("automation.cron.nextRun", "Next run")}:{" "}
+                                {new Date(schedule.nextRunAt).toLocaleString(i18n.language)}
+                                <span className="text-muted-foreground/40 mx-1.5">·</span>
+                                {t("automation.cron.nextRunIn", "Next run in")}{" "}
+                                {formatNextRun(schedule)}
+                                {timezone && (
+                                  <span className="text-muted-foreground/50 ml-0.5">
+                                    ({timezone})
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </ItemDescription>
+                        </ItemContent>
+                        <ItemActions className="gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleTrigger(schedule.id);
+                            }}
+                            title={t("automation.triggerNow", "Trigger now")}
+                          >
+                            <Play className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-foreground/50 hover:text-foreground hover:bg-accent"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditSchedule(schedule);
+                            }}
+                            title={t("automation.editSettings", "Edit settings")}
+                          >
+                            <Settings2 className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDelete(schedule);
+                            }}
+                            title={t("automation.delete", "Delete")}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </ItemActions>
+                      </Item>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => void handleTrigger(schedule.id)}>
+                        <Play className="size-3.5 mr-2" />
+                        {t("automation.triggerNow", "Trigger now")}
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => setEditSchedule(schedule)}>
+                        <Settings2 className="size-3.5 mr-2" />
+                        {t("automation.editSettings", "Edit settings")}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        variant="destructive"
+                        onClick={() => void handleDelete(schedule)}
                       >
-                        <Settings2 className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation(); void handleDelete(schedule); }}
-                        title={t("automation.delete", "Delete")}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </ItemActions>
-                  </Item>
+                        <Trash2 className="size-3.5 mr-2" />
+                        {t("automation.delete", "Delete")}
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                   {index < schedules.length - 1 && <ItemSeparator />}
                 </Fragment>
               ))}
@@ -240,7 +315,9 @@ export function Automation() {
         <SettingDialog
           schedule={editSchedule}
           open={editSchedule !== null}
-          onOpenChange={(open) => { if (!open) setEditSchedule(null); }}
+          onOpenChange={(open) => {
+            if (!open) setEditSchedule(null);
+          }}
           onSuccess={() => void loadSchedules()}
         />
       )}

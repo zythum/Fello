@@ -184,7 +184,10 @@ export function SettingsAgentApiDialog({
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="api-provider" className="text-[11px] text-muted-foreground">
+                    <FieldLabel
+                      htmlFor="api-provider"
+                      className="text-[11px] text-muted-foreground"
+                    >
                       {t("settings.agents.apiProvider", "Provider")}
                     </FieldLabel>
                     <Select name={field.name} value={field.value} onValueChange={field.onChange}>
@@ -367,7 +370,10 @@ export function SettingsAgentApiDialog({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="api-model-template" className="text-[11px] text-muted-foreground">
+                  <FieldLabel
+                    htmlFor="api-model-template"
+                    className="text-[11px] text-muted-foreground"
+                  >
                     {t("settings.agents.modelIdTemplate", "Model Id Template")}
                   </FieldLabel>
                   <Input

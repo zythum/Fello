@@ -120,133 +120,141 @@ export function Welcome() {
 
       {/* Getting Started Steps */}
       {showGuide && (
-      <Card
-        size="sm"
-        className="relative z-10 w-100 bg-card/80 backdrop-blur-sm animate-text-fade-in"
-        style={{ animationDelay: "0.8s", animationFillMode: "both" }}
-      >
-        <CardContent className="flex flex-col gap-2.5 px-3 py-3">
-          <div className="flex items-center justify-between px-3">
-            <p className="text-xs font-medium text-muted-foreground/90 uppercase tracking-wide">
-              {t("welcome.getStarted")}
-            </p>
-            {/* Language Tabs */}
-            <Tabs
-              value={i18n.language}
-              onValueChange={(lang) => {
-                if (!lang) return;
-                setI18n({ language: lang });
-                i18n.changeLanguage(lang);
-                request.updateSettings({ i18n: { language: lang } }).catch(() => {});
-              }}
-            >
-              <TabsList>
-                <TabsTrigger value="en" className="text-[11px] h-6 px-1.5">English</TabsTrigger>
-                <TabsTrigger value="zh-CN" className="text-[11px] h-6 px-1.5">简体中文</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Step 1: Configure Agent */}
-          <button
-            type="button"
-            onClick={() => !hasAgents && navigate("/settings/agents")}
-            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
-              hasAgents
-                ? "border-green-500/20 bg-green-500/5 cursor-default"
-                : "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
-            }`}
-          >
-            <div
-              className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
-                hasAgents ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
-              }`}
-            >
-              {hasAgents ? <Check className="size-3.5" /> : <Bot className="size-3.5" />}
+        <Card
+          size="sm"
+          className="relative z-10 w-100 bg-card/80 backdrop-blur-sm animate-text-fade-in"
+          style={{ animationDelay: "0.8s", animationFillMode: "both" }}
+        >
+          <CardContent className="flex flex-col gap-2.5 px-3 py-3">
+            <div className="flex items-center justify-between px-3">
+              <p className="text-xs font-medium text-muted-foreground/90 uppercase tracking-wide">
+                {t("welcome.getStarted")}
+              </p>
+              {/* Language Tabs */}
+              <Tabs
+                value={i18n.language}
+                onValueChange={(lang) => {
+                  if (!lang) return;
+                  setI18n({ language: lang });
+                  i18n.changeLanguage(lang);
+                  request.updateSettings({ i18n: { language: lang } }).catch(() => {});
+                }}
+              >
+                <TabsList>
+                  <TabsTrigger value="en" className="text-[11px] h-6 px-1.5">
+                    English
+                  </TabsTrigger>
+                  <TabsTrigger value="zh-CN" className="text-[11px] h-6 px-1.5">
+                    简体中文
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium">
-                {hasAgents
-                  ? t("welcome.stepAgentDone", { count: enabledAgentCount })
-                  : t("welcome.stepAgent")}
-              </div>
-              {!hasAgents && (
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {t("welcome.stepAgentDesc")}
-                </div>
-              )}
-            </div>
-          </button>
 
-          {/* Step 2: Add Project */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!hasProjects && hasAgents) {
-                window.dispatchEvent(new CustomEvent("fello:add-project"));
-              }
-            }}
-            disabled={!hasAgents}
-            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
-              hasProjects
-                ? "border-green-500/20 bg-green-500/5 cursor-default"
-                : !hasAgents
-                  ? "border-border opacity-40 cursor-not-allowed"
+            {/* Step 1: Configure Agent */}
+            <button
+              type="button"
+              onClick={() => !hasAgents && navigate("/settings/agents")}
+              className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
+                hasAgents
+                  ? "border-green-500/20 bg-green-500/5 cursor-default"
                   : "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
-            }`}
-          >
-            <div
-              className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
-                hasProjects ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
               }`}
             >
-              {hasProjects ? <Check className="size-3.5" /> : <FolderPlus className="size-3.5" />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium">
-                {hasProjects
-                  ? t("welcome.stepProjectDone", { count: projects.length })
-                  : t("welcome.stepProject")}
+              <div
+                className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
+                  hasAgents ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
+                }`}
+              >
+                {hasAgents ? <Check className="size-3.5" /> : <Bot className="size-3.5" />}
               </div>
-              {!hasProjects && (
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {t("welcome.stepProjectDesc")}
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium">
+                  {hasAgents
+                    ? t("welcome.stepAgentDone", { count: enabledAgentCount })
+                    : t("welcome.stepAgent")}
                 </div>
-              )}
-            </div>
-          </button>
-
-          {/* Step 3: Start Chat */}
-          <button
-            type="button"
-            onClick={() => {
-              if (allDone) {
-                // Trigger new session dialog via the first project
-                const firstProject = projects[0];
-                if (firstProject) {
-                  window.dispatchEvent(new CustomEvent("fello:new-session", { detail: { projectId: firstProject.id } }));
-                }
-              }
-            }}
-            disabled={!allDone}
-            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
-              allDone
-                ? "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
-                : "border-border opacity-40 cursor-not-allowed"
-            }`}
-          >
-            <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <MessageCirclePlus className="size-3.5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium">{t("welcome.stepChat")}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                {t("welcome.stepChatDesc")}
+                {!hasAgents && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {t("welcome.stepAgentDesc")}
+                  </div>
+                )}
               </div>
-            </div>
-          </button>
-        </CardContent>
-      </Card>
+            </button>
+
+            {/* Step 2: Add Project */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!hasProjects && hasAgents) {
+                  window.dispatchEvent(new CustomEvent("fello:add-project"));
+                }
+              }}
+              disabled={!hasAgents}
+              className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
+                hasProjects
+                  ? "border-green-500/20 bg-green-500/5 cursor-default"
+                  : !hasAgents
+                    ? "border-border opacity-40 cursor-not-allowed"
+                    : "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
+              }`}
+            >
+              <div
+                className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
+                  hasProjects ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
+                }`}
+              >
+                {hasProjects ? <Check className="size-3.5" /> : <FolderPlus className="size-3.5" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium">
+                  {hasProjects
+                    ? t("welcome.stepProjectDone", { count: projects.length })
+                    : t("welcome.stepProject")}
+                </div>
+                {!hasProjects && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {t("welcome.stepProjectDesc")}
+                  </div>
+                )}
+              </div>
+            </button>
+
+            {/* Step 3: Start Chat */}
+            <button
+              type="button"
+              onClick={() => {
+                if (allDone) {
+                  // Trigger new session dialog via the first project
+                  const firstProject = projects[0];
+                  if (firstProject) {
+                    window.dispatchEvent(
+                      new CustomEvent("fello:new-session", {
+                        detail: { projectId: firstProject.id },
+                      }),
+                    );
+                  }
+                }
+              }}
+              disabled={!allDone}
+              className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
+                allDone
+                  ? "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
+                  : "border-border opacity-40 cursor-not-allowed"
+              }`}
+            >
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <MessageCirclePlus className="size-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium">{t("welcome.stepChat")}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {t("welcome.stepChatDesc")}
+                </div>
+              </div>
+            </button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

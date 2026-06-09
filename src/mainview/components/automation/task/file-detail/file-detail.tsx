@@ -10,7 +10,7 @@ import { DocxDetail } from "./docx-detail/docx-detail";
 import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, FileText, FolderOpen } from "lucide-react";
 
 interface FileDetailProps {
   fileName: string | null;
@@ -33,37 +33,61 @@ function isBinaryContent(content: string): boolean {
   return nullCount > 0 || nonPrintableCount > len * 0.3;
 }
 
-export function FileDetail({ fileName, fileContent, fileLoading, hasTask, hasFiles }: FileDetailProps) {
+export function FileDetail({
+  fileName,
+  fileContent,
+  fileLoading,
+  hasTask,
+  hasFiles,
+}: FileDetailProps) {
   const { t } = useTranslation();
   const fileKind = useMemo(() => getFileKind(fileName), [fileName]);
 
   const isUnsupportedBinary = useMemo(() => {
     if (!fileContent || !fileName) return false;
     // Binary formats that have dedicated previewers are not "unsupported"
-    if (fileKind === "image" || fileKind === "pdf" || fileKind === "docx" || fileKind === "pptx" || fileKind === "xlsx") return false;
+    if (
+      fileKind === "image" ||
+      fileKind === "pdf" ||
+      fileKind === "docx" ||
+      fileKind === "pptx" ||
+      fileKind === "xlsx"
+    )
+      return false;
     return isBinaryContent(fileContent);
   }, [fileContent, fileName, fileKind]);
 
   if (!hasTask) {
     return (
-      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-        {t("automation.selectTaskToPreview", "Select a task to preview files")}
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <FileText className="size-6 text-muted-foreground/60" />
+        </div>
+        <p className="text-xs">
+          {t("automation.selectTaskToPreview", "Select a task to preview files")}
+        </p>
       </div>
     );
   }
 
   if (!hasFiles) {
     return (
-      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-        {t("automation.noFiles", "No files generated")}
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <FolderOpen className="size-6 text-muted-foreground/60" />
+        </div>
+        <p className="text-xs">{t("automation.noFiles", "No files generated")}</p>
       </div>
     );
   }
 
   if (!fileName) {
     return (
-      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-        {t("automation.selectFileToPreview", "Select a file to preview")}
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <FileText className="size-6 text-muted-foreground/60" />
+        </div>
+        <p className="text-xs">{t("automation.selectFileToPreview", "Select a file to preview")}</p>
       </div>
     );
   }
