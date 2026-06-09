@@ -24,7 +24,6 @@ import {
   FolderPlus,
   RefreshCw,
   ChevronRight,
-  Folder,
   Loader2,
   ChevronsDownUp,
   Pencil,
@@ -211,17 +210,12 @@ function TreeItem({
           {node.isFolder ? (
             <ChevronRight
               className={cn(
-                "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                "size-3.5 shrink-0 text-muted-foreground scale-110 transition-transform",
                 isOpen && "rotate-90",
               )}
             />
           ) : (
-            <span className="w-3.5 shrink-0" />
-          )}
-          {node.isFolder ? (
-            <Folder className="size-4 shrink-0 text-muted-foreground/90" />
-          ) : (
-            <FileIcon name={node.name} className="size-4 shrink-0 text-muted-foreground/90" />
+            <FileIcon name={node.name} className="size-3.5 shrink-0 text-muted-foreground/90" />
           )}
           {isEditing ? (
             <input
@@ -643,9 +637,15 @@ export const FilePanel = memo(function FilePanel({
         const next = new Set(prev);
         if (next.has(id)) {
           next.delete(id);
+          // Also collapse all descendants
+          const prefix = id + "/";
+          for (const key of prev) {
+            if (key.startsWith(prefix)) next.delete(key);
+          }
         } else {
           next.add(id);
         }
+        openFoldersRef.current = next;
         return next;
       });
 
@@ -684,6 +684,7 @@ export const FilePanel = memo(function FilePanel({
 
   const collapseAll = useCallback(() => {
     setOpenFolders(new Set());
+    openFoldersRef.current = new Set();
   }, []);
 
   const handleSelect = useCallback(
@@ -780,7 +781,11 @@ export const FilePanel = memo(function FilePanel({
       children: isFolder ? [] : undefined,
     };
     if (parentId) {
-      setOpenFolders((prev) => new Set(prev).add(parentId));
+      setOpenFolders((prev) => {
+        const next = new Set(prev).add(parentId);
+        openFoldersRef.current = next;
+        return next;
+      });
       let needsFetch = false;
       for (const root of data) {
         const p = findNode(root, parentId);
@@ -1405,7 +1410,7 @@ export const FilePanel = memo(function FilePanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-1 pl-1">
         <ContextMenu>
           <ContextMenuTrigger
             render={<div />}

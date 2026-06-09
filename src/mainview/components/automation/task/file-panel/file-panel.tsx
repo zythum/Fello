@@ -51,7 +51,19 @@ function buildTree(paths: string[]): TreeNode[] {
       if (existing.children) current = existing.children;
     }
   }
-  return root;
+
+  function sortNodes(nodes: TreeNode[]): TreeNode[] {
+    nodes.sort((a, b) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const n of nodes) {
+      if (n.children) sortNodes(n.children);
+    }
+    return nodes;
+  }
+
+  return sortNodes(root);
 }
 
 function FileTree({
@@ -93,11 +105,10 @@ function FileTree({
               >
                 <ChevronRight
                   className={cn(
-                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                    "size-3.5 shrink-0 text-muted-foreground transition-transform scale-110",
                     isOpen && "rotate-90",
                   )}
                 />
-                <Folder className="size-4 shrink-0 text-muted-foreground/90" />
                 <span className="flex-1 truncate leading-normal">{node.name}</span>
               </div>
               {isOpen && node.children && (
@@ -128,8 +139,7 @@ function FileTree({
               style={{ paddingLeft: `${depth * 16 + 6}px` }}
               onClick={() => onSelectFile(node.path)}
             >
-              <span className="w-3.5 shrink-0" />
-              <FileIcon name={node.name} className="size-4 shrink-0 text-muted-foreground/90" />
+              <FileIcon name={node.name} className="size-3.5 shrink-0 text-muted-foreground/90" />
               <span className="flex-1 truncate leading-normal">{node.name}</span>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -223,7 +233,7 @@ export function Panel({
           <p className="text-xs">{t("automation.noFiles", "No files")}</p>
         </div>
       ) : (
-        <ScrollArea className="min-h-0 flex-1">
+        <ScrollArea className="min-h-0 flex-1 pl-1">
           <div className="py-1">
             <FileTree
               nodes={tree}
