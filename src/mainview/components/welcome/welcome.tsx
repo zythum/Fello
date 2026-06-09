@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, ArrowLeft, Bot, FolderPlus, MessageCirclePlus, Check } from "lucide-react";
+import { MessageSquare, Bot, FolderPlus, MessageCirclePlus, Check } from "lucide-react";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParticleBackground } from "./particle-background";
 import "./welcome.css";
@@ -35,12 +36,14 @@ export function Welcome() {
 
   const agents = useAppStore((s) => s.configuredAgents);
   const projects = useAppStore((s) => s.projects);
+  const sessions = useAppStore((s) => s.sessions);
   const setI18n = useAppStore((s) => s.setI18n);
 
   const enabledAgentCount = useMemo(() => agents.filter((a) => !a.disabled).length, [agents]);
   const hasAgents = enabledAgentCount > 0;
   const hasProjects = projects.length > 0;
   const allDone = hasAgents && hasProjects;
+  const showGuide = !allDone || (projects.length <= 1 && sessions.length === 0);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -108,7 +111,7 @@ export function Welcome() {
           <AnimatedTitle text={t("welcome.title")} />
         </div>
         <p
-          className="mt-2 max-w-md text-sm text-muted-foreground animate-text-fade-in"
+          className="mt-2 max-w-md text-sm text-muted-foreground animate-text-fade-in min-h-10"
           style={{ animationDelay: "0.6s", animationFillMode: "both" }}
         >
           {t("welcome.desc")}
@@ -116,44 +119,46 @@ export function Welcome() {
       </div>
 
       {/* Getting Started Steps */}
-      {!allDone ? (
-        <div
-          className="relative z-10 flex flex-col gap-3 w-full max-w-xs animate-text-fade-in"
-          style={{ animationDelay: "0.8s", animationFillMode: "both" }}
-        >
-          <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide text-center">
-            {t("welcome.getStarted")}
-          </p>
-
-          {/* Language Tabs */}
-          <Tabs
-            value={i18n.language}
-            onValueChange={(lang) => {
-              if (!lang) return;
-              setI18n({ language: lang });
-              i18n.changeLanguage(lang);
-              request.updateSettings({ i18n: { language: lang } }).catch(() => {});
-            }}
-            className="self-center w-full"
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="en" className="flex-1 text-xs">{t("settings.general.english")}</TabsTrigger>
-              <TabsTrigger value="zh-CN" className="flex-1 text-xs">{t("settings.general.chinese")}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      {showGuide && (
+      <Card
+        size="sm"
+        className="relative z-10 w-100 bg-card/80 backdrop-blur-sm animate-text-fade-in"
+        style={{ animationDelay: "0.8s", animationFillMode: "both" }}
+      >
+        <CardContent className="flex flex-col gap-2.5 px-3 py-3">
+          <div className="flex items-center justify-between px-3">
+            <p className="text-xs font-medium text-muted-foreground/90 uppercase tracking-wide">
+              {t("welcome.getStarted")}
+            </p>
+            {/* Language Tabs */}
+            <Tabs
+              value={i18n.language}
+              onValueChange={(lang) => {
+                if (!lang) return;
+                setI18n({ language: lang });
+                i18n.changeLanguage(lang);
+                request.updateSettings({ i18n: { language: lang } }).catch(() => {});
+              }}
+            >
+              <TabsList>
+                <TabsTrigger value="en" className="text-[11px] h-6 px-1.5">English</TabsTrigger>
+                <TabsTrigger value="zh-CN" className="text-[11px] h-6 px-1.5">简体中文</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {/* Step 1: Configure Agent */}
           <button
             type="button"
             onClick={() => !hasAgents && navigate("/settings/agents")}
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
               hasAgents
-                ? "border-green-500/30 bg-green-500/5 cursor-default"
-                : "border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                ? "border-green-500/20 bg-green-500/5 cursor-default"
+                : "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
             }`}
           >
             <div
-              className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
+              className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
                 hasAgents ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
               }`}
             >
@@ -177,22 +182,21 @@ export function Welcome() {
           <button
             type="button"
             onClick={() => {
-              if (!hasProjects) {
-                // Dispatch custom event that sidebar listens to for adding project
+              if (!hasProjects && hasAgents) {
                 window.dispatchEvent(new CustomEvent("fello:add-project"));
               }
             }}
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-              hasProjects
-                ? "border-green-500/30 bg-green-500/5 cursor-default"
-                : !hasAgents
-                  ? "border-border/50 opacity-50 cursor-not-allowed"
-                  : "border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
-            }`}
             disabled={!hasAgents}
+            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
+              hasProjects
+                ? "border-green-500/20 bg-green-500/5 cursor-default"
+                : !hasAgents
+                  ? "border-border opacity-40 cursor-not-allowed"
+                  : "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
+            }`}
           >
             <div
-              className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
+              className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
                 hasProjects ? "bg-green-500/15 text-green-600" : "bg-primary/10 text-primary"
               }`}
             >
@@ -213,12 +217,25 @@ export function Welcome() {
           </button>
 
           {/* Step 3: Start Chat */}
-          <div
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${
-              !hasAgents || !hasProjects ? "border-border/50 opacity-50" : "border-border"
+          <button
+            type="button"
+            onClick={() => {
+              if (allDone) {
+                // Trigger new session dialog via the first project
+                const firstProject = projects[0];
+                if (firstProject) {
+                  window.dispatchEvent(new CustomEvent("fello:new-session", { detail: { projectId: firstProject.id } }));
+                }
+              }
+            }}
+            disabled={!allDone}
+            className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-all ${
+              allDone
+                ? "border-border hover:border-primary/30 hover:bg-primary/5 cursor-default"
+                : "border-border opacity-40 cursor-not-allowed"
             }`}
           >
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
               <MessageCirclePlus className="size-3.5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -227,16 +244,9 @@ export function Welcome() {
                 {t("welcome.stepChatDesc")}
               </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        <div
-          className="flex items-center gap-2 text-xs text-muted-foreground/50 relative z-10 animate-text-fade-in pointer-events-none"
-          style={{ animationDelay: "1s", animationFillMode: "both" }}
-        >
-          <ArrowLeft className="size-3 animate-bounce-horizontal" />
-          <span>{t("welcome.allDone")}</span>
-        </div>
+          </button>
+        </CardContent>
+      </Card>
       )}
     </div>
   );

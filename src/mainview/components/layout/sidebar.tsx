@@ -77,6 +77,17 @@ export function Sidebar() {
     return () => window.removeEventListener("fello:add-project", handler);
   }, []);
 
+  // Listen for new-session event from Welcome page
+  const handleNewSessionRef = useRef<((projectId: string) => void) | undefined>(undefined);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const projectId = (e as CustomEvent).detail?.projectId;
+      if (projectId) handleNewSessionRef.current?.(projectId);
+    };
+    window.addEventListener("fello:new-session", handler);
+    return () => window.removeEventListener("fello:new-session", handler);
+  }, []);
+
   const handleNavigate = (path: string) => {
     setOptimisticPath(path);
     setTimeout(() => {
@@ -240,6 +251,8 @@ export function Sidebar() {
     setNewSessionPermissionMode("allow-all");
     setNewSessionDialogOpen(true);
   };
+
+  handleNewSessionRef.current = openNewSessionDialog;
 
   const handleCreateNewSession = async () => {
     if (!newSessionProjectId || !newSessionAgentId) return;
@@ -659,41 +672,7 @@ export function Sidebar() {
               </div>
             );
           })}
-          {projects.length === 0 && (
-            <div className="mt-4 flex flex-col items-center gap-2 px-2">
-              {enabledAgents.length === 0 ? (
-                <>
-                  <p className="text-center text-xs text-muted-foreground select-none">
-                    {t("sidebar.noAgentsHint")}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs w-full"
-                    onClick={() => handleNavigate("/settings/agents")}
-                  >
-                    <Settings className="size-3 mr-1" />
-                    {t("sidebar.configureAgent")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-center text-xs text-muted-foreground select-none">
-                    {t("sidebar.noProjectsHint")}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs w-full"
-                    onClick={handleAddProject}
-                  >
-                    <FolderPlus className="size-3 mr-1" />
-                    {t("sidebar.addProject")}
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
+
         </div>
       </ScrollArea>
 

@@ -503,7 +503,7 @@
     "hint": "Start a new chat from the sidebar",
     "getStarted": "Get Started",
     "stepAgent": "Configure Agent",
-    "stepAgentDesc": "Add an AI agent (local Stdio or API) to power your conversations",
+    "stepAgentDesc": "Add an AI agent (Stdio or API) to power your conversations",
     "stepAgentDone": "{{count}} agent(s) configured",
     "stepProject": "Add Project",
     "stepProjectDesc": "Select a local project folder as your workspace",
