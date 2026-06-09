@@ -31,6 +31,9 @@ It brings local and cloud AI agents into your development workflow — all insid
 - **💬 WeChat iLink** — Connect Fello to WeChat. Receive messages, reply, and stay in the loop — right from your desktop.
 - **💬 微信 iLink** — 将 Fello 接入微信，在桌面端收发消息，时刻在线。
 
+- **⏰ Automation** — Schedule AI tasks with cron expressions. Let agents run on autopilot — daily reports, periodic checks, or any recurring workflow.
+- **⏰ 自动化** — 通过 cron 表达式配置定时 AI 任务计划，让 Agent 自动执行日报生成、定期检查等重复性工作流。
+
 - **🎨 Beautiful & Modern UI** — Dark/light themes, responsive layout, tabbed panels, and smooth streaming chat.
 - **🎨 美观现代的界面** — 深色/浅色主题、响应式布局、标签面板、流畅的流式对话。
 
@@ -51,6 +54,7 @@ It brings local and cloud AI agents into your development workflow — all insid
 | **Diff View** | Side-by-side file diffing (Git-style) for code reviews |
 | **WebUI** | Browser access over local network via WebSocket |
 | **WeChat iLink** | Mobile ↔ Desktop messaging bridge |
+| **Automation** | Cron-based scheduled AI tasks with file output and history tracking |
 | **Skills** | Browse & install from [skills.sh](https://skills.sh) marketplace |
 | **Chat Timeline** | Jump between messages with timeline dots |
 | **Auto Titles** | Sessions auto-name themselves from your first message |
@@ -157,6 +161,7 @@ Main/preload changes typically require restarting the dev process.
 │   ├── agents/               # Agent session logic (ACP + MCP tools, permissions, system prompts)
 │   ├── backend/              # IPC handlers, FS, Terminal, WebUI, Skills
 │   │   ├── agents/           # Agent process spawners (stdio, API)
+│   │   ├── automation/       # Cron scheduling & task execution
 │   │   └── ilink/            # WeChat iLink integration
 │   ├── electron/             # Electron main process
 │   └── mainview/             # React app (components, routing, store, i18n, styles)
@@ -206,6 +211,7 @@ npm run pack:linux   # Linux .AppImage
 - [Custom Events](./docs/custom-events.md)
 - [IPC Protocol](./docs/ipc-protocol.md)
 - [Built-in ACP Tools](./docs/builtin-tools.md)
+- [Automation](./docs/automation.md)
 - [Storage & Data](./docs/storage.md)
 
 ---

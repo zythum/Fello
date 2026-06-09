@@ -1,6 +1,7 @@
 import { CronJob } from "cron";
 import { store } from "./store";
 import { executeTask } from "./runner";
+import { storageOps } from "../storage";
 import type { Schedule } from "../../shared/schema";
 
 const scheduledCrons = new Map<string, CronJob>();
@@ -41,7 +42,7 @@ export function scheduleCron(schedule: Schedule) {
 
     const next = getNextRun(schedule);
     console.log(
-      `[Automation] Scheduled "${schedule.name}" (${schedule.cron.expr}) next: ${next ? new Date(next).toLocaleString() : "?"}`,
+      `[Automation] Scheduled "${schedule.name}" (${schedule.cron.expr}) next: ${next ? new Date(next).toLocaleString(storageOps.getSettings().i18n?.language) : "?"}`,
     );
   } catch (err) {
     console.error(`[Automation] Failed to schedule "${schedule.name}":`, err);

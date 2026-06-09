@@ -58,7 +58,7 @@ function buildCron(preset: Preset, hour: number, minute: number, interval: numbe
 }
 
 export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [preset, setPreset] = useState<Preset>(() => detectPreset(value));
   const [parts, setParts] = useState(() => parseParts(value));
 
@@ -168,18 +168,18 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {value} · {t("automation.cron.nextRun", "Next run")}: {formatNextCron(value)}
+        {value} · {t("automation.cron.nextRun", "Next run")}: {formatNextCron(value, i18n.language)}
         {timezone && <span className="ml-1 text-muted-foreground/50">({timezone})</span>}
       </p>
     </div>
   );
 }
 
-function formatNextCron(expr: string): string {
+function formatNextCron(expr: string, locale?: string): string {
   try {
     const next = getNextCronDate(expr);
     if (!next) return "—";
-    return next.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return next.toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch { return "—"; }
 }
 

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { request, subscribe } from "../../backend";
 import type { Schedule } from "../../../shared/schema";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Item,
@@ -25,7 +26,7 @@ import {
 import { useMessage } from "../providers/message";
 
 export function Automation() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { confirm, toast } = useMessage();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -51,10 +52,20 @@ export function Automation() {
     void loadSchedules();
   }, [loadSchedules]);
 
+  // Refresh every 30s to keep countdown up-to-date
+  useEffect(() => {
+    const timer = setInterval(() => void loadSchedules(), 30_000);
+    return () => clearInterval(timer);
+  }, [loadSchedules]);
+
   useEffect(() => {
     const handleChanged = () => void loadSchedules();
     subscribe.on("schedules-changed", handleChanged);
-    return () => subscribe.off("schedules-changed", handleChanged);
+    subscribe.on("task-update", handleChanged);
+    return () => {
+      subscribe.off("schedules-changed", handleChanged);
+      subscribe.off("task-update", handleChanged);
+    };
   }, [loadSchedules]);
 
   const handleTrigger = async (scheduleId: string) => {
@@ -150,31 +161,31 @@ export function Automation() {
           ) : (
             <ItemGroup className="gap-0">
               {schedules.map((schedule, index) => (
-                <div key={schedule.id}>
+                <Fragment key={schedule.id}>
                   <Item
                     size="sm"
-                    className="hover:bg-muted"
+                    className="hover:bg-muted select-none"
                     onClick={() => navigate(`/automation/schedule/${schedule.id}`)}
                   >
-                    <ItemContent>
+                    <ItemContent className="gap-1.5">
                       <ItemTitle className="truncate">
                         {schedule.name}
-                        <span className="text-[10px] font-normal text-muted-foreground ml-2 uppercase">
+                        <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">
                           {schedule.agentId}
-                        </span>
+                        </Badge>
                       </ItemTitle>
                       <ItemDescription className="line-clamp-1 text-xs">
                         {getScheduleLabel(schedule)}
                         {schedule.lastRunAt && (
                           <>
                             <span className="text-muted-foreground/40 mx-1.5">·</span>
-                            {t("automation.cron.lastRun", "Last run")}: {new Date(schedule.lastRunAt).toLocaleString()}
+                            {t("automation.cron.lastRun", "Last run")}: {new Date(schedule.lastRunAt).toLocaleString(i18n.language)}
                           </>
                         )}
                         {schedule.nextRunAt && (
                           <>
                             <span className="text-muted-foreground/40 mx-1.5">·</span>
-                            {t("automation.cron.nextRun", "Next run")}: {new Date(schedule.nextRunAt).toLocaleString()}
+                            {t("automation.cron.nextRun", "Next run")}: {new Date(schedule.nextRunAt).toLocaleString(i18n.language)}
                             <span className="text-muted-foreground/40 mx-1.5">·</span>
                             {t("automation.cron.nextRunIn", "Next run in")} {formatNextRun(schedule)}
                             {timezone && <span className="text-muted-foreground/50 ml-0.5">({timezone})</span>}
@@ -213,7 +224,7 @@ export function Automation() {
                     </ItemActions>
                   </Item>
                   {index < schedules.length - 1 && <ItemSeparator />}
-                </div>
+                </Fragment>
               ))}
             </ItemGroup>
           )}

@@ -19,7 +19,7 @@ import { useMessage } from "../../providers/message";
 
 export function Schedule() {
   const { scheduleId } = useParams<{ scheduleId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm } = useMessage();
@@ -134,12 +134,12 @@ export function Schedule() {
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <h1 className="text-sm font-medium truncate">{schedule.name}</h1>
-          <Badge variant="outline" className="px-1 text-[10px] uppercase shrink-0">{schedule.agentId}</Badge>
+          <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">{schedule.agentId}</Badge>
         </div>
         <div className="text-xs text-muted-foreground hidden sm:block shrink-0 mr-2">
           {schedule.cron.type === "cron" ? schedule.cron.expr : t("automation.manual", "Manual")}
           {schedule.nextRunAt && (
-            <><span className="text-muted-foreground/40 mx-1">·</span>{t("automation.cron.nextRun", "Next")}: {new Date(schedule.nextRunAt).toLocaleString()}{timezone && <span className="text-muted-foreground/50 ml-0.5">({timezone})</span>}</>
+            <><span className="text-muted-foreground/40 mx-1">·</span>{t("automation.cron.nextRun", "Next")}: {new Date(schedule.nextRunAt).toLocaleString(i18n.language)}{timezone && <span className="text-muted-foreground/50 ml-0.5">({timezone})</span>}</>
           )}
         </div>
         <div className="flex items-center gap-2" style={{ WebkitAppRegion: "no-drag" as any }}>
@@ -182,8 +182,8 @@ export function Schedule() {
                           onClick={() => navigate(`/automation/schedule/${scheduleId}/task/${task.id}`)}
                         >
                           <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                            <div className="truncate">{new Date(task.startedAt).toLocaleDateString()}</div>
-                            <div className="text-muted-foreground truncate text-[11px]">{new Date(task.startedAt).toLocaleTimeString()}</div>
+                            <div className="truncate">{new Date(task.startedAt).toLocaleDateString(i18n.language)}</div>
+                            <div className="text-muted-foreground truncate text-[11px]">{new Date(task.startedAt).toLocaleTimeString(i18n.language)}</div>
                           </div>
                           <div className="shrink-0 ml-2">
                             {getTaskIcon(task)}

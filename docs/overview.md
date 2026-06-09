@@ -105,6 +105,19 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 完全支持 WEBUI 所有功能：Agent 会话、文件操作、终端交互、MCP 服务器、Skills
 - 适合部署在 Linux 服务器、CI/CD 环境，或需要远程持续访问的场景
 
+### 自动化（Automation）
+
+- 定时任务计划：基于 cron 表达式配置定时触发的 AI Agent 任务
+- 计划管理：支持创建、编辑、删除计划，支持 cron 定时和手动触发两种模式
+- 任务执行：每次触发时 spawn 独立的 ACPBridge 执行，支持 MCP 和 Skills
+- 并发保护：同一计划不会并发执行，正在运行时跳过新触发
+- 文件持久化：任务产物以文件形式存储在 `~/.fello/automations/<schedule-id>/tasks/<task-id>/` 下
+- 任务历史：支持查看每次执行的状态、时间和产出文件
+- 文件预览：支持 Markdown、代码、HTML、PDF、图片等多格式任务产物预览
+- 实时更新：通过 `schedules-changed` 和 `task-update` 事件推送前端状态更新
+- 路径安全：readTaskFile/writeTaskFile 有路径穿越保护
+- 优雅清理：应用退出时 `stopAllCrons` 清理所有定时任务
+
 ### 微信 iLink 集成
 
 - 在设置中配置微信 iLink 连接，通过扫码登录

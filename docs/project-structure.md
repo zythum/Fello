@@ -18,7 +18,12 @@ fello/
 │   │   └── utils.ts                     # ContentBlock 转换工具
 │   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
-│   │   ├── backend.ts                # IPC handlers 注册、文件/终端/Skills/iLink API 实现
+│   │   ├── backend.ts                # IPC handlers 注册、文件/终端/Skills/iLink/Automation API 实现
+│   │   ├── automation/               # 自动化任务计划模块
+│   │   │   ├── index.ts              # 模块导出入口
+│   │   │   ├── store.ts              # 文件持久化层（Schedule/Task CRUD，基于 ~/.fello/automations/）
+│   │   │   ├── scheduler.ts          # Cron 计划管理（CronJob 注册/注销/恢复/停止）
+│   │   │   └── runner.ts             # 任务执行器（spawn ACPBridge，MCP/Skills 集成）
 │   │   ├── agent/                    # Agent 连接与进程管理
 │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
 │   │   ├── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
@@ -86,6 +91,28 @@ fello/
 │       │   └── utils.ts             # cn()、formatSessionTime 等工具函数
 │       │
 │       ├── components/
+│       │   ├── automation/           # 自动化任务管理页面
+│       │   │   ├── automation.tsx        # 计划列表页（创建/编辑/删除/触发）
+│       │   │   ├── common/
+│       │   │   │   ├── cron-editor.tsx       # Cron 表达式编辑器（含预设）
+│       │   │   │   └── setting-dialog.tsx    # 计划配置弹窗（Agent/Prompt/Features/MCP）
+│       │   │   ├── schedule/
+│       │   │   │   └── schedule.tsx          # 计划详情页（含可调整大小的任务历史面板）
+│       │   │   └── task/
+│       │   │       ├── task.tsx              # 任务详情视图
+│       │   │       ├── file-panel/
+│       │   │       │   └── file-panel.tsx    # 任务文件列表面板
+│       │   │       └── file-detail/
+│       │   │           ├── file-detail.tsx       # 任务文件详情入口（按类型分发）
+│       │   │           ├── file-types.ts         # 文件类型判断
+│       │   │           ├── code-detail/          # 代码文件预览
+│       │   │           ├── markdown-detail/      # Markdown 预览
+│       │   │           ├── html-detail/          # HTML 预览
+│       │   │           ├── image-detail/         # 图片预览
+│       │   │           ├── pdf-detail/           # PDF 预览
+│       │   │           ├── docx-detail/          # DOCX 预览
+│       │   │           ├── xlsx-detail/          # Excel 预览
+│       │   │           └── pptx-detail/          # PPTX 预览
 │       │   ├── session/              # 会话主工作区相关组件
 │       │   │   ├── chat/             # 聊天核心区域与气泡组件
 │       │   │   │   ├── bubbles/      # 各类角色消息气泡 (agent/user/system/tool/thinking/plan)
@@ -268,6 +295,13 @@ fello/
 ├── sockets/                         # Unix Domain Socket 文件（MCP 子进程 IPC）
 ├── workspaces/                      # 工作区临时数据
 ├── temp/                            # 临时文件目录
+├── automations/                     # 自动化任务数据
+│   └── <schedule-id>/
+│       ├── schedule.json            # 计划配置
+│       └── tasks/
+│           └── <task-id>/
+│               ├── task.json        # 任务元数据（状态、时间、错误信息）
+│               └── ...              # 任务产出文件（Agent 执行生成）
 ├── projects/                        # 项目数据（Stdio Agent 会话）
 │   └── <project-id>/
 │       ├── project.json

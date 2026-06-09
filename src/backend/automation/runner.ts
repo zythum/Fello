@@ -281,7 +281,8 @@ function reduceNotificationsToMessages(notifications: SessionNotificationFelloEx
 function generateReadme(schedule: Schedule, messages: ReducedMessage[], startedAt: number): string {
   const lines: string[] = [];
   lines.push(`# ${schedule.name}`);
-  lines.push(`> Run at ${new Date(startedAt).toLocaleString()}`);
+  const locale = storageOps.getSettings().i18n?.language;
+  lines.push(`> Run at ${new Date(startedAt).toLocaleString(locale)}`);
   lines.push("");
   for (const msg of messages) {
     if (msg.role === "user" || msg.role === "assistant") {
