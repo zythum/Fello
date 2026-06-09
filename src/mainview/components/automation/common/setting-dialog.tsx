@@ -295,7 +295,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 {t("automation.schedule", "Schedule")}
               </FieldLabel>
               <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-[11px] text-foreground/70 cursor-pointer">
+                <label className="flex items-center gap-2 text-[11px] text-foreground/70">
                   <Switch
                     checked={cronType === "cron"}
                     onCheckedChange={(c) => setCronType(c ? "cron" : "manual")}

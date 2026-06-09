@@ -746,7 +746,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     <HoverCard>
                       <HoverCardTrigger
                         render={
-                          <div className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                          <div className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
                             <ImageIcon className="size-3.5" />
                             <span className="max-w-25 truncate">{att.filename}</span>
                           </div>

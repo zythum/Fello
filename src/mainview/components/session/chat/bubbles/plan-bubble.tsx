@@ -25,7 +25,7 @@ export const PlanBubble = memo(function PlanBubble({
       )}
       defaultOpen
     >
-      <CollapsibleTrigger className="w-full bg-transparent border-0 flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
+      <CollapsibleTrigger className="w-full bg-transparent border-0 flex select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">
         <Notebook className="size-3 text-muted-foreground" />
         <div className="flex-1 flex items-center">
           <span className="text-foreground">{t("planBubble.title")}</span>
