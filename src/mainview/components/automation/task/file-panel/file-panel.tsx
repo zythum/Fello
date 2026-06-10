@@ -143,13 +143,13 @@ function FileTree({
               <span className="flex-1 truncate leading-normal">{node.name}</span>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              <ContextMenuItem onClick={() => onCopyRelativePath(node.path)}>
+              <ContextMenuItem onClick={() => onCopyAbsolutePath(node.path)}>
                 <Copy className="size-3.5 mr-2" />
                 {t("filePanel.copyPath", "Copy Path")}
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => onCopyAbsolutePath(node.path)}>
+              <ContextMenuItem onClick={() => onCopyRelativePath(node.path)}>
                 <Copy className="size-3.5 mr-2" />
-                {t("filePanel.copyAbsolutePath", "Copy Absolute Path")}
+                {t("filePanel.copyRelativePath", "Copy Relative Path")}
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem onClick={() => onRevealInFinder(node.path)}>
@@ -202,7 +202,7 @@ export function Panel({
     <div className="flex h-full min-h-0 flex-col text-xs w-full">
       <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
-          <Folders className="size-4" />
+          <Folders className="size-3.5" />
           <span className="text-xs font-medium text-nowrap">{t("automation.files", "Files")}</span>
         </div>
         <div className="ml-auto mr-2 flex items-center gap-0.5">

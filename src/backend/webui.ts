@@ -9,6 +9,7 @@ import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
 import { storageOps } from "./storage";
 import { serveProjectFile } from "./serve-project-file";
+import { store as autoStore } from "./automation/store";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
 import * as mimeTypes from "mime-types";
@@ -177,6 +178,27 @@ export async function startWebUI(options?: {
       }
 
       const result = await serveProjectFile(project.cwd, relativePath);
+      res.writeHead(result.status, { "Content-Type": result.mimeType });
+      res.end(result.body);
+      return;
+    }
+
+    // ── Automation task file serving route: /automation/<scheduleId>/task/<taskId>/<relative-path> ──
+    if (url.pathname.startsWith("/automation/")) {
+      const pathParts = url.pathname.split("/");
+      // /automation/<scheduleId>/task/<taskId>/<...relativePath>
+      const scheduleId = pathParts[2] || "";
+      const taskId = pathParts[4] || "";
+      const relativePath = decodeURIComponent(pathParts.slice(5).join("/") || "");
+
+      if (!scheduleId || pathParts[3] !== "task" || !taskId || !relativePath) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Bad Request");
+        return;
+      }
+
+      const taskDir = autoStore.taskDir(scheduleId, taskId);
+      const result = await serveProjectFile(taskDir, relativePath);
       res.writeHead(result.status, { "Content-Type": result.mimeType });
       res.end(result.body);
       return;

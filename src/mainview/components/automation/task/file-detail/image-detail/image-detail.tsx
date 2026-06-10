@@ -1,17 +1,90 @@
-import { ImageIcon } from "lucide-react";
+import { useMemo } from "react";
+import { TransformWrapper, TransformComponent, useControls } from "react-zoom-pan-pinch";
+import { ZoomIn, ZoomOut, Undo2 } from "lucide-react";
+import { useTaskFile } from "../common/use-task-file";
+import { LoadingState, ErrorState } from "../common/loading-state";
 
 interface ImageDetailProps {
+  scheduleId: string;
+  taskId: string;
   fileName: string;
-  content: string;
 }
 
-export function ImageDetail({ fileName }: ImageDetailProps) {
+function Controls() {
+  const { zoomIn, zoomOut, resetTransform } = useControls();
   return (
-    <div className="flex items-center justify-center h-full">
-      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-        <ImageIcon className="size-8" />
-        <span className="text-xs">{fileName}</span>
-      </div>
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-popover/90 backdrop-blur border border-border rounded-lg shadow-lg px-2 py-1.5">
+      <button
+        type="button"
+        onClick={() => zoomOut()}
+        className="flex size-7 items-center justify-center rounded hover:bg-muted transition-colors"
+        aria-label="Zoom out"
+      >
+        <ZoomOut className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => resetTransform()}
+        className="flex size-7 items-center justify-center rounded hover:bg-muted transition-colors"
+        aria-label="Reset"
+      >
+        <Undo2 className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => zoomIn()}
+        className="flex size-7 items-center justify-center rounded hover:bg-muted transition-colors"
+        aria-label="Zoom in"
+      >
+        <ZoomIn className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+export function ImageDetail({ scheduleId, taskId, fileName }: ImageDetailProps) {
+  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, { encoding: "base64" });
+
+  const src = useMemo(() => {
+    if (!content) return "";
+    const ext = fileName.split(".").pop()?.toLowerCase() || "";
+    let mimeType = ext;
+    if (ext === "svg") mimeType = "svg+xml";
+    else if (ext === "jpg") mimeType = "jpeg";
+    return `data:image/${mimeType};base64,${content}`;
+  }, [fileName, content]);
+
+  if (loading) return <LoadingState />;
+  if (errorMsg) return <ErrorState message={errorMsg} />;
+
+  return (
+    <div className="relative h-full w-full">
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.1}
+        maxScale={10}
+        centerOnInit
+        wheel={{ step: 0.002 }}
+      >
+        <Controls />
+        <TransformComponent
+          wrapperStyle={{ width: "100%", height: "100%" }}
+          contentStyle={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={src}
+            alt={fileName}
+            className="max-w-full max-h-full object-contain select-none"
+            draggable={false}
+          />
+        </TransformComponent>
+      </TransformWrapper>
     </div>
   );
 }

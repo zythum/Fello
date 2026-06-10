@@ -537,6 +537,7 @@
     "editSchedule": "Edit Schedule",
     "editSettings": "Edit settings",
     "features": "Features",
+    "files": "Files",
     "lastRun": "Last",
     "lessThanMinute": "Less than 1 min",
     "manual": "Manual",
@@ -558,6 +559,7 @@
     "schedules": "schedules",
     "selectFileToPreview": "Select a file to preview",
     "selectTaskToPreview": "Select a task to preview files",
+    "selectTask": "Select a task",
     "timedExecution": "Timed (cron)",
     "triggerNow": "Trigger now",
     "validation": {

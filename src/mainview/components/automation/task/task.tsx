@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { request, isWebUI, subscribe } from "../../../backend";
 import { electron } from "../../../electron";
@@ -11,12 +10,9 @@ import { copyText } from "@/lib/clipboard";
 
 export function Task() {
   const { scheduleId, taskId } = useParams<{ scheduleId: string; taskId: string }>();
-  const { t } = useTranslation();
 
   const [taskFiles, setTaskFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [fileContent, setFileContent] = useState<string | null>(null);
-  const [fileLoading, setFileLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadFiles = useCallback(async () => {
@@ -26,7 +22,6 @@ export function Task() {
       setTaskFiles(files ?? []);
       const readme = (files ?? []).find((f: string) => f.toLowerCase() === "readme.md");
       setSelectedFile(readme ?? null);
-      setFileContent(null);
     } catch {
       setTaskFiles([]);
     } finally {
@@ -54,24 +49,6 @@ export function Task() {
     return () => subscribe.off("task-update", handler);
   }, [scheduleId, taskId, loadFiles]);
 
-  useEffect(() => {
-    if (!selectedFile || !scheduleId || !taskId) {
-      setFileContent(null);
-      return;
-    }
-    setFileLoading(true);
-    (async () => {
-      try {
-        const content = await request.readTaskFile({ scheduleId, taskId, filePath: selectedFile });
-        setFileContent(content ?? null);
-      } catch {
-        setFileContent("// Error loading file");
-      } finally {
-        setFileLoading(false);
-      }
-    })();
-  }, [selectedFile, scheduleId, taskId]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -84,11 +61,37 @@ export function Task() {
     <ResizablePanelGroup className="h-full">
       <ResizablePanel id="fileDetail">
         <FileDetail
+          scheduleId={scheduleId!}
+          taskId={taskId!}
           fileName={selectedFile}
-          fileContent={fileContent}
-          fileLoading={fileLoading}
           hasTask={true}
           hasFiles={taskFiles.length > 0}
+          onCopyPath={async (file) => {
+            try {
+              await copyText(file);
+            } catch {}
+          }}
+          onCopyAbsolutePath={async (file) => {
+            try {
+              const abs = await request.getTaskFileSystemPath({
+                scheduleId: scheduleId!,
+                taskId: taskId!,
+                filePath: file,
+              });
+              await copyText(abs);
+            } catch {}
+          }}
+          onRevealInFinder={async (file) => {
+            if (isWebUI) return;
+            try {
+              const abs = await request.getTaskFileSystemPath({
+                scheduleId: scheduleId!,
+                taskId: taskId!,
+                filePath: file,
+              });
+              await electron.revealInFinder(abs);
+            } catch {}
+          }}
         />
       </ResizablePanel>
       <ResizableHandle className="bg-border/70" />

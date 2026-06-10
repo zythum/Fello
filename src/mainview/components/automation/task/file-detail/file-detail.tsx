@@ -10,52 +10,31 @@ import { DocxDetail } from "./docx-detail/docx-detail";
 import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
-import { LoaderCircle, FileText, FolderOpen } from "lucide-react";
+import { FileText, FolderOpen } from "lucide-react";
 
 interface FileDetailProps {
+  scheduleId: string;
+  taskId: string;
   fileName: string | null;
-  fileContent: string | null;
-  fileLoading: boolean;
   hasTask: boolean;
   hasFiles: boolean;
-}
-
-/** 检查文件内容是否为二进制（含 null 字节或超过 30% 不可打印字符） */
-function isBinaryContent(content: string): boolean {
-  const len = Math.min(content.length, 512);
-  let nullCount = 0;
-  let nonPrintableCount = 0;
-  for (let i = 0; i < len; i++) {
-    const code = content.charCodeAt(i);
-    if (code === 0) nullCount++;
-    else if (code < 8 || (code > 13 && code < 32)) nonPrintableCount++;
-  }
-  return nullCount > 0 || nonPrintableCount > len * 0.3;
+  onCopyPath?: (file: string) => void;
+  onCopyAbsolutePath?: (file: string) => void;
+  onRevealInFinder?: (file: string) => void;
 }
 
 export function FileDetail({
+  scheduleId,
+  taskId,
   fileName,
-  fileContent,
-  fileLoading,
   hasTask,
   hasFiles,
+  onCopyPath,
+  onCopyAbsolutePath,
+  onRevealInFinder,
 }: FileDetailProps) {
   const { t } = useTranslation();
   const fileKind = useMemo(() => getFileKind(fileName), [fileName]);
-
-  const isUnsupportedBinary = useMemo(() => {
-    if (!fileContent || !fileName) return false;
-    // Binary formats that have dedicated previewers are not "unsupported"
-    if (
-      fileKind === "image" ||
-      fileKind === "pdf" ||
-      fileKind === "docx" ||
-      fileKind === "pptx" ||
-      fileKind === "xlsx"
-    )
-      return false;
-    return isBinaryContent(fileContent);
-  }, [fileContent, fileName, fileKind]);
 
   if (!hasTask) {
     return (
@@ -92,6 +71,15 @@ export function FileDetail({
     );
   }
 
+  const contextProps = {
+    scheduleId,
+    taskId,
+    fileName,
+    onCopyPath: onCopyPath ? () => onCopyPath(fileName) : undefined,
+    onCopyAbsolutePath: onCopyAbsolutePath ? () => onCopyAbsolutePath(fileName) : undefined,
+    onRevealInFinder: onRevealInFinder ? () => onRevealInFinder(fileName) : undefined,
+  };
+
   return (
     <div className="flex flex-col w-full h-full min-w-0 relative overflow-hidden">
       {/* Header */}
@@ -108,30 +96,22 @@ export function FileDetail({
 
       {/* Content */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
-        {fileLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : isUnsupportedBinary ? (
-          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-            {t("fileDetail.fileFormatNotSupported", "File format not supported for preview")}
-          </div>
-        ) : fileKind === "image" ? (
-          <ImageDetail fileName={fileName} content={fileContent ?? ""} />
+        {fileKind === "image" ? (
+          <ImageDetail {...contextProps} />
         ) : fileKind === "markdown" ? (
-          <MarkdownDetail fileName={fileName} content={fileContent ?? ""} />
+          <MarkdownDetail {...contextProps} />
         ) : fileKind === "html" ? (
-          <HtmlDetail fileName={fileName} content={fileContent ?? ""} />
+          <HtmlDetail {...contextProps} />
         ) : fileKind === "pdf" ? (
-          <PdfDetail fileName={fileName} content={fileContent ?? ""} />
+          <PdfDetail {...contextProps} />
         ) : fileKind === "docx" ? (
-          <DocxDetail fileName={fileName} content={fileContent ?? ""} />
+          <DocxDetail {...contextProps} />
         ) : fileKind === "pptx" ? (
-          <PptxDetail fileName={fileName} content={fileContent ?? ""} />
+          <PptxDetail {...contextProps} />
         ) : fileKind === "xlsx" ? (
-          <XlsxDetail fileName={fileName} content={fileContent ?? ""} />
+          <XlsxDetail {...contextProps} />
         ) : (
-          <CodeDetail fileName={fileName} content={fileContent ?? ""} />
+          <CodeDetail {...contextProps} />
         )}
       </div>
     </div>

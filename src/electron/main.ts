@@ -493,37 +493,62 @@ app.whenReady().then(() => {
   protocol.handle("web", async (request) => {
     const url = new URL(request.url);
 
-    // Only handle web://project/... URLs
-    if (url.host !== "project") {
-      return new Response("Not Found", { status: 404 });
+    // Handle web://project/... URLs
+    if (url.host === "project") {
+      const pathParts = url.pathname.split("/");
+      const projectId = pathParts[1] || "";
+      const relativePath = decodeURIComponent(pathParts.slice(2).join("/") || "");
+
+      if (!projectId || !relativePath) {
+        return new Response("Bad Request", { status: 400 });
+      }
+
+      const project = storageOps.getProject(projectId);
+      if (!project) {
+        return new Response("Project Not Found", { status: 404 });
+      }
+
+      const result = await serveProjectFile(project.cwd, relativePath);
+
+      // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const blob = new Blob([result.body as any], { type: result.mimeType });
+      return new Response(blob, {
+        status: result.status,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+        },
+      });
     }
 
-    // Parse path: /<projectId>/<relative-path>
-    const pathParts = url.pathname.split("/");
-    const projectId = pathParts[1] || "";
-    const relativePath = decodeURIComponent(pathParts.slice(2).join("/") || "");
+    // Handle web://automation/<scheduleId>/task/<taskId>/<relative-path>
+    if (url.host === "automation") {
+      const pathParts = url.pathname.split("/");
+      const scheduleId = pathParts[1] || "";
+      const taskId = pathParts[3] || "";
+      const relativePath = decodeURIComponent(pathParts.slice(4).join("/") || "");
 
-    if (!projectId || !relativePath) {
-      return new Response("Bad Request", { status: 400 });
+      if (!scheduleId || pathParts[2] !== "task" || !taskId || !relativePath) {
+        return new Response("Bad Request", { status: 400 });
+      }
+
+      const { store } = await import("../backend/automation/store");
+      const taskDir = store.taskDir(scheduleId, taskId);
+      const result = await serveProjectFile(taskDir, relativePath);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const blob = new Blob([result.body as any], { type: result.mimeType });
+      return new Response(blob, {
+        status: result.status,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+        },
+      });
     }
 
-    const project = storageOps.getProject(projectId);
-    if (!project) {
-      return new Response("Project Not Found", { status: 404 });
-    }
-
-    const result = await serveProjectFile(project.cwd, relativePath);
-
-    // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const blob = new Blob([result.body as any], { type: result.mimeType });
-    return new Response(blob, {
-      status: result.status,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-      },
-    });
+    return new Response("Not Found", { status: 404 });
   });
 
   setupMenu();

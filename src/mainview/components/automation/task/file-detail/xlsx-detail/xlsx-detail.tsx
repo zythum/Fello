@@ -1,17 +1,22 @@
-import { FileText } from "lucide-react";
+import { XlsxView } from "../../../../common/xlsx-view";
+import { useTaskFile } from "../common/use-task-file";
+import { LoadingState, ErrorState } from "../common/loading-state";
 
 interface XlsxDetailProps {
+  scheduleId: string;
+  taskId: string;
   fileName: string;
-  content: string;
 }
 
-export function XlsxDetail({ fileName }: XlsxDetailProps) {
+export function XlsxDetail({ scheduleId, taskId, fileName }: XlsxDetailProps) {
+  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, { encoding: "base64" });
+
+  if (loading) return <LoadingState />;
+  if (errorMsg) return <ErrorState message={errorMsg} />;
+
   return (
-    <div className="flex items-center justify-center h-full">
-      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-        <FileText className="size-8" />
-        <span className="text-xs">{fileName}</span>
-      </div>
+    <div className="h-full">
+      <XlsxView data={arrayBuffer} filename={fileName} />
     </div>
   );
 }

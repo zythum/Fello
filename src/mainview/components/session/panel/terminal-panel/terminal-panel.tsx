@@ -56,7 +56,7 @@ export function TerminalPanel({
       {/* Header */}
       <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
-          <SquareTerminal className="size-4" />
+          <SquareTerminal className="size-3.5" />
           <span className="text-xs font-medium text-nowrap">{t("panel.terminal")}</span>
         </div>
         <div className="ml-auto mr-2 flex items-center">
@@ -73,14 +73,19 @@ export function TerminalPanel({
       </div>
 
       {/* Terminal list - vertical */}
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-0.5 py-1 px-1">
-          {terminals.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
-              <span>{t("terminalPanel.noTerminalSelected", "No terminals")}</span>
-            </div>
-          ) : (
-            terminals.map((terminal) => (
+      {terminals.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center -mt-10 text-muted-foreground">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <SquareTerminal className="size-5 text-muted-foreground/60" />
+          </div>
+          <p className="text-xs text-muted-foreground/70">
+            {t("terminalPanel.noTerminalSelected", "No terminals")}
+          </p>
+        </div>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex flex-col gap-0.5 py-1 px-1">
+            {terminals.map((terminal) => (
               <button
                 key={terminal.id}
                 type="button"
@@ -111,10 +116,10 @@ export function TerminalPanel({
                   <X className="size-3 text-muted-foreground" />
                 </span>
               </button>
-            ))
-          )}
-        </div>
-      </ScrollArea>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

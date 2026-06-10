@@ -374,6 +374,16 @@ export const FilePanel = memo(function FilePanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLoading(true), 500);
+    return () => clearTimeout(timer);
+  }, [loading]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => {
@@ -1341,10 +1351,13 @@ export const FilePanel = memo(function FilePanel({
     );
   }
 
-  if (loading && data.length === 0) {
+  if (showLoading && data.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="size-3 animate-spin" /> {t("filePanel.loading")}
+      <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+        <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+          <Loader2 className="size-5 text-muted-foreground/60 animate-spin" />
+        </div>
+        <p className="text-xs text-muted-foreground/70">{t("filePanel.loading")}</p>
       </div>
     );
   }
@@ -1367,7 +1380,7 @@ export const FilePanel = memo(function FilePanel({
       {/* Header */}
       <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
-          <Folders className="size-4" />
+          <Folders className="size-3.5" />
           <span className="text-xs font-medium text-nowrap">{t("filePanel.title")}</span>
         </div>
         <div className="ml-auto mr-2 flex items-center gap-0.5">
@@ -1375,6 +1388,7 @@ export const FilePanel = memo(function FilePanel({
             variant="ghost"
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
+            disabled={loading}
             onClick={() => createIn(getSelectedFolder(), false)}
             title={t("filePanel.newFile")}
           >
@@ -1384,6 +1398,7 @@ export const FilePanel = memo(function FilePanel({
             variant="ghost"
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
+            disabled={loading}
             onClick={() => createIn(getSelectedFolder(), true)}
             title={t("filePanel.newFolder")}
           >
@@ -1393,6 +1408,7 @@ export const FilePanel = memo(function FilePanel({
             variant="ghost"
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
+            disabled={loading}
             onClick={collapseAll}
             title={t("filePanel.collapseFolders")}
           >
@@ -1402,6 +1418,7 @@ export const FilePanel = memo(function FilePanel({
             variant="ghost"
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
+            disabled={loading}
             onClick={refresh}
             title={t("filePanel.refresh", "Refresh")}
           >
@@ -1410,90 +1427,101 @@ export const FilePanel = memo(function FilePanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1 pl-1">
-        <ContextMenu>
-          <ContextMenuTrigger
-            render={<div />}
-            className="min-h-full py-1"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) clearSelection();
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect =
-                e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
-              setDropTargetId("__root__");
-            }}
-            onDragLeave={() => setDropTargetId(null)}
-            onDrop={async (e) => {
-              e.preventDefault();
-              setDropTargetId(null);
-              if (!cwd) return;
+      {data.length === 0 ? (
+        <div
+          className="flex-1 flex flex-col items-center justify-center -mt-10 text-muted-foreground"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={(e) => void handleExternalDrop(e, "")}
+        >
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <Folders className="size-5 text-muted-foreground/60" />
+          </div>
+          <p className="text-xs text-muted-foreground/70">{t("filePanel.emptyDirectory")}</p>
+        </div>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1 pl-1">
+          <ContextMenu>
+            <ContextMenuTrigger
+              render={<div />}
+              className="min-h-full py-1"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) clearSelection();
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect =
+                  e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
+                setDropTargetId("__root__");
+              }}
+              onDragLeave={() => setDropTargetId(null)}
+              onDrop={async (e) => {
+                e.preventDefault();
+                setDropTargetId(null);
+                if (!cwd) return;
 
-              if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
-                await handleExternalDrop(e, "");
-                return;
-              }
+                if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
+                  await handleExternalDrop(e, "");
+                  return;
+                }
 
-              if (dragIds.length === 0 || !activeProjectId) return;
-              try {
-                await Promise.all(
-                  dragIds.map((id) => {
-                    const srcName = id.split("/").pop()!;
-                    const newPath = srcName;
-                    if (id === newPath) return Promise.resolve();
-                    return request.moveFile({
-                      projectId: activeProjectId,
-                      oldRelativePath: id,
-                      newRelativePath: newPath,
-                    });
-                  }),
-                );
-              } catch (err) {
-                console.error("Move failed:", extractErrorMessage(err));
-              }
-              setDragIds([]);
-              refresh();
-            }}
-          >
-            {data.map((node) => (
-              <TreeItem
-                key={node.id}
-                previewId={previewFileId}
-                node={node}
-                depth={0}
-                {...sharedProps}
-              />
-            ))}
-            {data.length === 0 && (
-              <div className="py-6 text-center text-xs text-muted-foreground">
-                {t("filePanel.emptyDirectory")}
-              </div>
-            )}
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem onClick={() => createIn(null, false)}>
-              <FilePlus />
-              {t("filePanel.newFile")}
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => createIn(null, true)}>
-              <FolderPlus />
-              {t("filePanel.newFolder")}
-            </ContextMenuItem>
-            <ContextMenuItem onClick={refresh}>
-              <RefreshCw />
-              {t("filePanel.refresh", "Refresh")}
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            {!isWebUI && (
-              <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
-                <FolderOpen />
-                {t("filePanel.revealInFinder")}
+                if (dragIds.length === 0 || !activeProjectId) return;
+                try {
+                  await Promise.all(
+                    dragIds.map((id) => {
+                      const srcName = id.split("/").pop()!;
+                      const newPath = srcName;
+                      if (id === newPath) return Promise.resolve();
+                      return request.moveFile({
+                        projectId: activeProjectId,
+                        oldRelativePath: id,
+                        newRelativePath: newPath,
+                      });
+                    }),
+                  );
+                } catch (err) {
+                  console.error("Move failed:", extractErrorMessage(err));
+                }
+                setDragIds([]);
+                refresh();
+              }}
+            >
+              {data.map((node) => (
+                <TreeItem
+                  key={node.id}
+                  previewId={previewFileId}
+                  node={node}
+                  depth={0}
+                  {...sharedProps}
+                />
+              ))}
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem onClick={() => createIn(null, false)}>
+                <FilePlus />
+                {t("filePanel.newFile")}
               </ContextMenuItem>
-            )}
-          </ContextMenuContent>
-        </ContextMenu>
-      </ScrollArea>
+              <ContextMenuItem onClick={() => createIn(null, true)}>
+                <FolderPlus />
+                {t("filePanel.newFolder")}
+              </ContextMenuItem>
+              <ContextMenuItem onClick={refresh}>
+                <RefreshCw />
+                {t("filePanel.refresh", "Refresh")}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              {!isWebUI && (
+                <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
+                  <FolderOpen />
+                  {t("filePanel.revealInFinder")}
+                </ContextMenuItem>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
+        </ScrollArea>
+      )}
 
       {gitSummary}
     </div>

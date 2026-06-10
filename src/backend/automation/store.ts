@@ -144,11 +144,12 @@ export const store = {
     return result;
   },
 
-  readTaskFile(scheduleId: string, taskId: string, filePath: string): string {
+  readTaskFile(scheduleId: string, taskId: string, filePath: string, encoding?: "base64"): string {
     const base = this.taskDir(scheduleId, taskId);
     const fullPath = join(base, filePath);
     if (!fullPath.startsWith(base + "/") && fullPath !== base) throw new Error("Invalid file path");
     if (!existsSync(fullPath)) throw new Error("File not found");
+    if (encoding === "base64") return readFileSync(fullPath).toString("base64");
     return readFileSync(fullPath, "utf-8");
   },
 

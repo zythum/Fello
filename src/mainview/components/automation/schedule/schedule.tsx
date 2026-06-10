@@ -133,13 +133,40 @@ export function Schedule() {
     return (
       <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
         <div
-          className="h-12 shrink-0 border-b border-border flex items-center px-6"
+          className="h-12 shrink-0 border-b border-border flex items-center gap-1 px-2"
           style={{ WebkitAppRegion: "drag" }}
         >
-          <h1 className="text-sm font-medium">—</h1>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+          <div style={{ WebkitAppRegion: "no-drag" }}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              onClick={() => navigate("/automation")}
+            >
+              <ArrowLeft className="size-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-0"></div>
+          <div className="text-xs text-muted-foreground hidden sm:block shrink-0 mr-2"></div>
+          <div className="flex items-center gap-2" style={{ WebkitAppRegion: "no-drag" as any }}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              title={t("automation.editSettings", "Edit settings")}
+            >
+              <Settings2 className="size-3.5" />
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-7 text-xs shrink-0"
+              onClick={handleTrigger}
+            >
+              <Play className="size-3 mr-1" />
+              {t("automation.triggerNow", "Trigger now")}
+            </Button>
+          </div>
         </div>
       </main>
     );

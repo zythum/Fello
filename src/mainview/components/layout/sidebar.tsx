@@ -831,7 +831,13 @@ export function Sidebar() {
               <div className="text-xs text-muted-foreground">
                 {t("sidebar.newSessionDialog.mcp", { defaultValue: "MCP" })}
               </div>
-              <div className="flex flex-col gap-1">
+              <div
+                className={
+                  configuredMcpServers.length > 5
+                    ? "grid grid-cols-2 gap-1"
+                    : "flex flex-col gap-1"
+                }
+              >
                 {configuredMcpServers.map((mcp) => (
                   <div
                     key={mcp.id}

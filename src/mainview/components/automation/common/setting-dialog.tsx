@@ -165,7 +165,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
           <FieldGroup>
             <div className="grid grid-cols-[2fr_1fr] gap-3">
               <Field>
-                <FieldLabel htmlFor="auto-name" className="text-[11px] text-muted-foreground">
+                <FieldLabel htmlFor="auto-name" className="text-xs text-muted-foreground">
                   {t("automation.scheduleName", "Schedule Name")}
                 </FieldLabel>
                 <Input
@@ -176,12 +176,12 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                   )}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="h-8 text-[11px]! text-foreground/70 focus-visible:ring-0.5"
+                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
                 />
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="auto-agent" className="text-[11px] text-muted-foreground">
+                <FieldLabel htmlFor="auto-agent" className="text-xs text-muted-foreground">
                   {t("automation.agent", "Agent")}
                 </FieldLabel>
                 <Select
@@ -192,7 +192,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 >
                   <SelectTrigger
                     id="auto-agent"
-                    className="w-full text-[11px]! text-muted-foreground"
+                    className="w-full text-xs! text-muted-foreground"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -208,7 +208,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
             </div>
 
             <Field>
-              <FieldLabel htmlFor="auto-prompt" className="text-[11px] text-muted-foreground">
+              <FieldLabel htmlFor="auto-prompt" className="text-xs text-muted-foreground">
                 {t("automation.prompt", "Prompt")}
               </FieldLabel>
               <Textarea
@@ -291,21 +291,21 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
             )}
 
             <Field>
-              <FieldLabel className="text-[11px] text-muted-foreground">
+              <FieldLabel className="text-xs text-muted-foreground">
                 {t("automation.schedule", "Schedule")}
               </FieldLabel>
               <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-[11px] text-foreground/70">
+                <div className="flex items-center gap-2 text-xs text-foreground/70">
                   <Switch
                     checked={cronType === "cron"}
                     onCheckedChange={(c) => setCronType(c ? "cron" : "manual")}
                   />
                   {t("automation.timedExecution", "Timed (cron)")}
-                </label>
+                </div>
                 {cronType === "cron" ? (
                   <CronEditor value={cronExpr} onChange={setCronExpr} timezone={timezone} />
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {t("automation.manualDesc", "Manual trigger only. No automatic scheduling.")}
                   </p>
                 )}

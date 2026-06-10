@@ -2714,8 +2714,8 @@ export const backendHandlers: {
     return autoStore.listTaskFiles(scheduleId, taskId);
   },
 
-  async readTaskFile({ scheduleId, taskId, filePath }) {
-    return autoStore.readTaskFile(scheduleId, taskId, filePath);
+  async readTaskFile({ scheduleId, taskId, filePath, encoding }) {
+    return autoStore.readTaskFile(scheduleId, taskId, filePath, encoding);
   },
 
   async getTaskFileSystemPath({ scheduleId, taskId, filePath }) {

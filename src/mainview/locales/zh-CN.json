@@ -537,6 +537,7 @@
     "editSchedule": "编辑计划",
     "editSettings": "编辑设置",
     "features": "功能",
+    "files": "文件",
     "lastRun": "上次",
     "lessThanMinute": "不到 1 分钟",
     "manual": "手动",
@@ -558,6 +559,7 @@
     "schedules": "计划",
     "selectFileToPreview": "选择文件预览",
     "selectTaskToPreview": "选择任务查看文件",
+    "selectTask": "选择一个任务",
     "timedExecution": "定时（cron）",
     "triggerNow": "立即触发",
     "validation": {

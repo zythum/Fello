@@ -31,7 +31,8 @@ export function Automation() {
   const navigate = useNavigate();
   const { confirm, toast } = useMessage();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editSchedule, setEditSchedule] = useState<Schedule | null>(null);
   const [timezone, setTimezone] = useState("");
@@ -43,8 +44,18 @@ export function Automation() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLoading(true), 500);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   const loadSchedules = useCallback(async () => {
     try {
+      setLoading(true);
       const list = await request.listSchedules();
       setSchedules(list ?? []);
     } catch (err) {
@@ -124,17 +135,29 @@ export function Automation() {
     return (
       <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
         <div
-          className="h-12 shrink-0 border-b border-border flex items-center px-6"
+          className="h-12 shrink-0 border-b border-border flex items-center justify-between pl-4 pr-2"
           style={{ WebkitAppRegion: "drag" as any }}
         >
-          <h1 className="text-sm font-medium">{t("automation.title", "Automation")}</h1>
-          <span className="text-xs text-muted-foreground font-normal ml-1.5">
-            · schedules: {schedules.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-medium">{t("automation.title", "Automation")}</h1>
+            <span className="text-xs text-muted-foreground font-normal"></span>
+          </div>
+          <div style={{ WebkitAppRegion: "no-drag" as any }}>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-7 text-xs"
+            >
+              <Plus className="size-3" />
+              {t("automation.newSchedule", "New Schedule")}
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        {showLoading && (
+          <div className="flex flex-1 items-center justify-center">
+            <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
       </main>
     );
   }
@@ -166,33 +189,33 @@ export function Automation() {
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1">
-        <div className="px-5 py-4 w-full max-w-4xl mx-auto">
-          {schedules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                <ClockCheck className="size-6 text-muted-foreground/60" />
-              </div>
-              <p className="text-sm font-medium text-foreground/70 mb-1">
-                {t("automation.noSchedules", "No schedules yet")}
-              </p>
-              <p className="text-xs text-muted-foreground/70 mb-4 max-w-[240px] text-center">
-                {t(
-                  "automation.emptyHint",
-                  "Schedule AI tasks to run automatically with cron expressions",
-                )}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setNewDialogOpen(true)}
-              >
-                <Plus className="size-3 mr-1" />
-                {t("automation.createFirst", "Create your first schedule")}
-              </Button>
-            </div>
-          ) : (
+      {schedules.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4 -mt-10">
+            <ClockCheck className="size-6 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm font-medium text-foreground/70 mb-1">
+            {t("automation.noSchedules", "No schedules yet")}
+          </p>
+          <p className="text-xs text-muted-foreground/70 mb-4 max-w-60 text-center">
+            {t(
+              "automation.emptyHint",
+              "Schedule AI tasks to run automatically with cron expressions",
+            )}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setNewDialogOpen(true)}
+          >
+            <Plus className="size-3 mr-1" />
+            {t("automation.createFirst", "Create your first schedule")}
+          </Button>
+        </div>
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="px-5 py-4 w-full max-w-4xl mx-auto">
             <ItemGroup className="gap-0">
               {schedules.map((schedule, index) => (
                 <Fragment key={schedule.id}>
@@ -200,7 +223,7 @@ export function Automation() {
                     <ContextMenuTrigger className="group/ctx">
                       <Item
                         size="sm"
-                        className="hover:bg-muted group-data-[popup-open]/ctx:bg-muted select-none"
+                        className="hover:bg-muted group-data-popup-open/ctx:bg-muted select-none"
                         onClick={() => navigate(`/automation/schedule/${schedule.id}`)}
                       >
                         <ItemContent className="gap-1.5">
@@ -302,9 +325,9 @@ export function Automation() {
                 </Fragment>
               ))}
             </ItemGroup>
-          )}
-        </div>
-      </ScrollArea>
+          </div>
+        </ScrollArea>
+      )}
 
       <SettingDialog
         open={newDialogOpen}
