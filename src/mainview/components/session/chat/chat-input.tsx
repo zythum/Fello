@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
@@ -17,13 +17,6 @@ import { reduceFlushStreaming } from "../../../lib/session-state-reducer";
 import * as tiks from "@rexa-developer/tiks";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ArrowUp,
   Square,
   Paperclip,
@@ -34,6 +27,8 @@ import {
   Library,
   Wrench,
   Clipboard,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -41,6 +36,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
@@ -147,6 +145,49 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const isStreaming = session.isStreaming;
   const availableModels = session.models?.availableModels ?? [];
   const currentModelId = session.models?.currentModelId ?? null;
+
+  // Group models by prefix (e.g. "openai/gpt-4o" → group "openai")
+  const groupedModels = useMemo(() => {
+    const groups = new Map<string, typeof availableModels>();
+    for (const m of availableModels) {
+      const slashIdx = m.name.indexOf("/");
+      const key = slashIdx > 0 ? m.name.slice(0, slashIdx) : "";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(m);
+    }
+    return groups;
+  }, [availableModels]);
+
+  const handleModelChange = useCallback(async (modelId: string) => {
+    const sid = session.id;
+    if (!sid) return;
+    useAppStore.getState().updateSession({
+      ...session,
+      models: { ...session.models!, currentModelId: modelId },
+    });
+    try {
+      await request.setModel({ sessionId: sid, modelId });
+    } catch (err) {
+      console.error("Failed to set model:", err);
+      useAppStore.getState().updateSession(session);
+    }
+  }, [session]);
+
+  const handleModeChange = useCallback(async (modeId: string) => {
+    const sid = session.id;
+    if (!sid) return;
+    useAppStore.getState().updateSession({
+      ...session,
+      modes: { ...session.modes!, currentModeId: modeId },
+    });
+    try {
+      await request.setMode({ sessionId: sid, modeId });
+    } catch (err) {
+      console.error("Failed to set mode:", err);
+      useAppStore.getState().updateSession(session);
+    }
+  }, [session]);
+
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
   const initializeInfo = session.initializeInfo;
@@ -901,48 +942,29 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           >
             <div className="flex items-center gap-2">
               {availableModes.length > 0 && (
-                <>
-                  <Select
-                    items={availableModes.map((m) => ({ value: m.id, label: m.name }))}
-                    value={currentModeId ?? ""}
-                    onValueChange={async (modeId) => {
-                      if (!modeId) return;
-                      const sid = session.id;
-                      if (!sid) return;
-                      // Optimistic UI update
-                      useAppStore.getState().updateSession({
-                        ...session,
-                        modes: { ...session.modes!, currentModeId: modeId },
-                      });
-                      try {
-                        await request.setMode({
-                          sessionId: sid,
-                          modeId: modeId,
-                        });
-                      } catch (err) {
-                        console.error("Failed to set mode:", err);
-                        // Revert optimistic update
-                        useAppStore.getState().updateSession(session);
-                      }
-                    }}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="outline" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48" />
+                    }
                   >
-                    <SelectTrigger size="sm">
-                      <SelectValue placeholder={t("chatInput.mode", "Mode")} />
-                    </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} className="w-60">
-                      {availableModes.map((mode) => (
-                        <SelectItem key={mode.id} value={mode.id}>
-                          <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
-                            <span>{mode.name}</span>
-                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
-                              {mode.description}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </>
+                    <span className="truncate">{availableModes.find((m) => m.id === currentModeId)?.name ?? t("chatInput.mode", "Mode")}</span>
+                    <ChevronDown className="size-3 opacity-60 shrink-0" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-auto! max-h-none! max-w-60 min-w-(--anchor-width)">
+                    {availableModes.map((mode) => (
+                      <DropdownMenuItem key={mode.id} onClick={() => handleModeChange(mode.id)} className="gap-2">
+                        <Check className={`size-3 shrink-0 ${mode.id === currentModeId ? "opacity-100" : "opacity-0"}`} />
+                        <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                          <span>{mode.name}</span>
+                          {mode.description && (
+                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{mode.description}</span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               <div className="flex items-center">
                 {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
@@ -1023,48 +1045,67 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             </div>
             <div className="flex items-center gap-2">
               {availableModels.length > 0 ? (
-                <Select
-                  items={availableModels.map((m) => ({ value: m.modelId, label: m.name }))}
-                  value={currentModelId ?? ""}
-                  onValueChange={async (modelId) => {
-                    if (!modelId) return;
-                    const sid = session.id;
-                    if (!sid) return;
-                    // Optimistic UI update
-                    useAppStore.getState().updateSession({
-                      ...session,
-                      models: { ...session.models!, currentModelId: modelId },
-                    });
-                    try {
-                      await request.setModel({
-                        sessionId: sid,
-                        modelId: modelId,
-                      });
-                    } catch (err) {
-                      console.error("Failed to set model:", err);
-                      // Revert optimistic update
-                      useAppStore.getState().updateSession(session);
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="outline" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48" />
                     }
-                  }}
-                >
-                  <SelectTrigger size="sm">
-                    <SelectValue placeholder={t("chatInput.selectModel", "Select model")} />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} className="w-60">
-                    {availableModels.map((m) => (
-                      <SelectItem key={m.modelId} value={m.modelId}>
-                        <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
-                          <span>{m.name}</span>
-                          {m.description && (
-                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
-                              {m.description}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  >
+                    <span className="truncate">{availableModels.find((m) => m.modelId === currentModelId)?.name ?? t("chatInput.selectModel", "Select model")}</span>
+                    <ChevronDown className="size-3 opacity-60 shrink-0" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-auto! max-h-none! max-w-64 min-w-(--anchor-width)">
+                    {groupedModels.size <= 1 ? (
+                      availableModels.map((m) => (
+                        <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
+                          <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
+                          <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                            <span className="truncate">{m.name}</span>
+                            {m.description && (
+                              <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
+                            )}
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      Array.from(groupedModels.entries()).map(([group, models]) =>
+                        group ? (
+                          <DropdownMenuSub key={group}>
+                            <DropdownMenuSubTrigger className="gap-2">
+                              <Check className={`size-3 shrink-0 ${models.some((m) => m.modelId === currentModelId) ? "opacity-100" : "opacity-0"}`} />
+                              {group}
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="max-h-80 overflow-y-auto min-w-40">
+                              {models.map((m) => (
+                                <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
+                                  <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
+                                  <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                                    <span className="truncate">{m.name.slice(group.length + 1)}</span>
+                                    {m.description && (
+                                      <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
+                                    )}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        ) : (
+                          models.map((m) => (
+                            <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
+                              <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
+                              <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                                <span className="truncate">{m.name}</span>
+                                {m.description && (
+                                  <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
+                                )}
+                              </div>
+                            </DropdownMenuItem>
+                          ))
+                        ),
+                      )
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : null}
               {isStreaming ? (
                 <Button
