@@ -11,9 +11,17 @@ It brings local and cloud AI agents into your development workflow — all insid
 
 ---
 
+### 📖 User Manual / 用户手册
+
+🚀 [**Fello User Manual**](./guides/README.md) — Getting started, agent configuration, MCP setup, and more.
+
+🚀 [**Fello 用户手册**](./guides/README.md) — 快速开始、Agent 配置、MCP 设置等完整指南。
+
+---
+
 ## 🌟 Why Fello?
 
-> **Talk to your codebase. Let AI handle the heavy lifting.**  
+> **Talk to your codebase. Let AI handle the heavy lifting.**
 > **与你的代码对话，让 AI 处理繁重工作。**
 
 - **🧠 Multiple Agent Support** — Run local Stdio agents (via ACP, like `kiro-cli acp`) or connect to any OpenAI-compatible API. Switch freely between them per session.
@@ -201,7 +209,7 @@ npm run pack:win     # Windows .exe
 npm run pack:linux   # Linux .AppImage
 ```
 
-### 📖 Guide
+### 📖 Developer Guide
 
 - [Overview](./docs/overview.md)
 - [Tech Stack](./docs/tech-stack.md)
