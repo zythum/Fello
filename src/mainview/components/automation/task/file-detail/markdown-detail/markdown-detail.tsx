@@ -59,14 +59,14 @@ export function MarkdownDetail({
         <Copy /> {t("fileDetail.copyFileContent", "Copy file content")}
       </ContextMenuItem>
       {(onCopyPath || onCopyAbsolutePath || onRevealInFinder) && <ContextMenuSeparator />}
-      {onCopyPath && (
-        <ContextMenuItem onClick={onCopyPath}>
+      {onCopyAbsolutePath && (
+        <ContextMenuItem onClick={onCopyAbsolutePath}>
           <Copy /> {t("filePanel.copyPath", "Copy Path")}
         </ContextMenuItem>
       )}
-      {onCopyAbsolutePath && (
-        <ContextMenuItem onClick={onCopyAbsolutePath}>
-          <Copy /> {t("filePanel.copyAbsolutePath", "Copy Absolute Path")}
+      {onCopyPath && (
+        <ContextMenuItem onClick={onCopyPath}>
+          <Copy /> {t("filePanel.copyRelativePath", "Copy Relative Path")}
         </ContextMenuItem>
       )}
       {!isWebUI && onRevealInFinder && (
@@ -87,7 +87,7 @@ export function MarkdownDetail({
               else setContextSelectedText(null);
             }}
           >
-            <ContextMenuTrigger className="h-full">
+            <ContextMenuTrigger className="h-full select-text">
               <div className="p-4 max-w-3xl">
                 <StreamMarkdown>{content}</StreamMarkdown>
               </div>
