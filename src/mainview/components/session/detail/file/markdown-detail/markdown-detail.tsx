@@ -106,7 +106,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
       {viewMode === "preview" ? (
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
-            <ContextMenuTrigger className="h-full">
+            <ContextMenuTrigger className="h-full select-text">
               <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
                 <StreamMarkdown>{content}</StreamMarkdown>
               </div>
