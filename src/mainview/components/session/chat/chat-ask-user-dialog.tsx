@@ -189,6 +189,7 @@ function AskUserOptions({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmitInput();
@@ -266,7 +267,7 @@ function AskUserOptions({
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t("askUser.inputPlaceholder", "Type your response... (Enter to send)")}
-              className="min-h-19 max-h-50 block resize-none border-none shadow-none focus-visible:ring-0 leading-relaxed p-2 pb-8 text-foreground/80 placeholder:text-muted-foreground/50 break-all"
+              className="min-h-19 text-xs! max-h-50 block resize-none border-none shadow-none focus-visible:ring-0 leading-relaxed p-2 pb-8 text-foreground/80 placeholder:text-muted-foreground/50 break-all"
               autoFocus
             />
             <div className="absolute bottom-1.5 right-1.5">
