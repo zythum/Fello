@@ -69,11 +69,12 @@ export function Automation() {
     void loadSchedules();
   }, [loadSchedules]);
 
-  // Refresh every 30s to keep countdown up-to-date
+  // Re-render every 30s to keep countdown text up-to-date (no data fetch)
+  const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => void loadSchedules(), 30_000);
+    const timer = setInterval(() => setTick((t) => t + 1), 30_000);
     return () => clearInterval(timer);
-  }, [loadSchedules]);
+  }, []);
 
   useEffect(() => {
     const handleChanged = () => void loadSchedules();
