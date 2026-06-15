@@ -59,7 +59,7 @@ export function HtmlDetail({
 
   const iframeUrl = useMemo(() => {
     const path = `/automation/${scheduleId}/task/${taskId}/${fileName}`;
-    if (httpBaseUrl) return `${httpBaseUrl}${path}`;
+    if (isWebUI && httpBaseUrl) return `${httpBaseUrl}${path}`;
     return `web://automation/${scheduleId}/task/${taskId}/${fileName}`;
   }, [httpBaseUrl, scheduleId, taskId, fileName]);
 

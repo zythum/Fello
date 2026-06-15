@@ -74,7 +74,7 @@ export function TerminalPanel({
 
       {/* Terminal list - vertical */}
       {terminals.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center -mt-10 text-muted-foreground">
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
           <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
             <SquareTerminal className="size-5 text-muted-foreground/60" />
           </div>

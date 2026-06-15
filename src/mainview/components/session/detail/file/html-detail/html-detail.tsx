@@ -55,11 +55,10 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   }, [webUIStatus, isWebUI]);
 
   // Construct the URL for the iframe and the "Open in Browser" button.
-  // In WebUI mode, both use the same HTTP URL.
-  // In Electron mode, the iframe uses the custom web:// protocol,
-  // while the "Open" button uses HTTP (only available when WebUI is enabled).
+  // In WebUI mode (browser), use HTTP URL.
+  // In Electron mode, always use the custom web:// protocol to avoid cookie/auth issues.
   const iframeUrl = useMemo(() => {
-    if (httpBaseUrl) {
+    if (isWebUI && httpBaseUrl) {
       return `${httpBaseUrl}/project/${projectId}/${file}`;
     }
     return `web://project/${projectId}/${file}`;

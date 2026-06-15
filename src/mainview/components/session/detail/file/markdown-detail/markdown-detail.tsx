@@ -62,7 +62,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
     return (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
       const resolved = resolvePath(src);
-      if (httpBase || isWebUI) return `${httpBase}/project/${projectId}/${resolved}`;
+      if (isWebUI && httpBase) return `${httpBase}/project/${projectId}/${resolved}`;
       return `web://project/${projectId}/${resolved}`;
     };
   }, [projectId, resolvePath, webUIStatus]);

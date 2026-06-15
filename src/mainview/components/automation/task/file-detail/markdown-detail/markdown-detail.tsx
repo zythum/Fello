@@ -75,7 +75,7 @@ export function MarkdownDetail({
     return (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
       const resolved = resolvePath(src);
-      if (httpBase || isWebUI) return `${httpBase}/${basePath}/${resolved}`;
+      if (isWebUI && httpBase) return `${httpBase}/${basePath}/${resolved}`;
       return `web://${basePath}/${resolved}`;
     };
   }, [scheduleId, taskId, resolvePath, webUIStatus]);
