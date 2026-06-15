@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../../common/code-view";
@@ -15,6 +15,7 @@ import { copyText } from "@/lib/clipboard";
 import { MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
 import { request, isWebUI } from "../../../../../backend";
 import { electron } from "../../../../../electron";
+import { useAppStore } from "../../../../../store";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
 import { LoadingState, ErrorState } from "../common/loading-state";
@@ -30,6 +31,41 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const { content, gitContent, loading, errorMsg } = useFile(projectId, file, { gitHead: true });
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+  const webUIStatus = useAppStore((s) => s.webUIStatus);
+
+  const resolvePath = useCallback(
+    (src: string) => {
+      if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
+      const dir = file.includes("/") ? file.substring(0, file.lastIndexOf("/")) : "";
+      const raw = src.startsWith("/") ? src.slice(1) : dir ? `${dir}/${src}` : src;
+      const parts = raw.split("/");
+      const normalized: string[] = [];
+      for (const p of parts) {
+        if (p === "." || p === "") continue;
+        if (p === ".." && normalized.length) normalized.pop();
+        else if (p !== "..") normalized.push(p);
+      }
+      return normalized.join("/");
+    },
+    [file],
+  );
+
+  const imageSource = useMemo(() => {
+    let httpBase: string | null = null;
+    if (webUIStatus.enabled && webUIStatus.url) {
+      try {
+        const parsed = new URL(webUIStatus.url);
+        const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
+        httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
+      } catch { /* ignore */ }
+    }
+    return (src: string) => {
+      if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
+      const resolved = resolvePath(src);
+      if (httpBase || isWebUI) return `${httpBase}/project/${projectId}/${resolved}`;
+      return `web://project/${projectId}/${resolved}`;
+    };
+  }, [projectId, resolvePath, webUIStatus]);
 
   const viewModes: ViewMode[] =
     gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
@@ -108,7 +144,17 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger className="h-full select-text">
               <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
-                <StreamMarkdown>{content}</StreamMarkdown>
+                <StreamMarkdown
+                  imageSource={imageSource}
+                  onLinkClick={(href) => {
+                    document.dispatchEvent(
+                      new CustomEvent("fello-preview-file", {
+                        detail: { projectId, relativePath: resolvePath(href) },
+                      }),
+                    );
+                    return false;
+                  }}
+                >{content}</StreamMarkdown>
               </div>
             </ContextMenuTrigger>
             {contextMenuItems}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,7 @@ import { StreamMarkdown } from "../../../../common/stream-markdown";
 import { CodeView } from "../../../../common/code-view";
 import { copyText } from "@/lib/clipboard";
 import { isWebUI } from "../../../../../backend";
+import { useAppStore } from "../../../../../store";
 import { useTaskFile } from "../common/use-task-file";
 import { LoadingState, ErrorState } from "../common/loading-state";
 
@@ -26,6 +27,7 @@ interface MarkdownDetailProps {
   onCopyPath?: () => void;
   onCopyAbsolutePath?: () => void;
   onRevealInFinder?: () => void;
+  onNavigateFile?: (file: string) => void;
 }
 
 export function MarkdownDetail({
@@ -35,11 +37,48 @@ export function MarkdownDetail({
   onCopyPath,
   onCopyAbsolutePath,
   onRevealInFinder,
+  onNavigateFile,
 }: MarkdownDetailProps) {
   const { t } = useTranslation();
   const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+  const webUIStatus = useAppStore((s) => s.webUIStatus);
+
+  const resolvePath = useCallback(
+    (src: string) => {
+      if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
+      const dir = fileName.includes("/") ? fileName.substring(0, fileName.lastIndexOf("/")) : "";
+      const raw = src.startsWith("/") ? src.slice(1) : dir ? `${dir}/${src}` : src;
+      const parts = raw.split("/");
+      const normalized: string[] = [];
+      for (const p of parts) {
+        if (p === "." || p === "") continue;
+        if (p === ".." && normalized.length) normalized.pop();
+        else if (p !== "..") normalized.push(p);
+      }
+      return normalized.join("/");
+    },
+    [fileName],
+  );
+
+  const imageSource = useMemo(() => {
+    let httpBase: string | null = null;
+    if (webUIStatus.enabled && webUIStatus.url) {
+      try {
+        const parsed = new URL(webUIStatus.url);
+        const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
+        httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
+      } catch { /* ignore */ }
+    }
+    const basePath = `automation/${scheduleId}/task/${taskId}`;
+    return (src: string) => {
+      if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
+      const resolved = resolvePath(src);
+      if (httpBase || isWebUI) return `${httpBase}/${basePath}/${resolved}`;
+      return `web://${basePath}/${resolved}`;
+    };
+  }, [scheduleId, taskId, resolvePath, webUIStatus]);
 
   const handleCopyContent = useCallback(() => {
     copyText(content);
@@ -89,7 +128,10 @@ export function MarkdownDetail({
           >
             <ContextMenuTrigger className="h-full select-text">
               <div className="p-4 max-w-3xl">
-                <StreamMarkdown>{content}</StreamMarkdown>
+                <StreamMarkdown
+                  imageSource={imageSource}
+                  onLinkClick={onNavigateFile ? (href) => { onNavigateFile(resolvePath(href)); return false; } : undefined}
+                >{content}</StreamMarkdown>
               </div>
             </ContextMenuTrigger>
             {contextMenuItems}

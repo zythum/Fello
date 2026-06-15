@@ -1,5 +1,6 @@
 import { useMemo, isValidElement, useState, useCallback } from "react";
-import { Streamdown, type Components } from "streamdown";
+import { Streamdown, defaultRehypePlugins, type Components } from "streamdown";
+import type { Pluggable, PluggableList } from 'unified';
 import { mermaid } from "@streamdown/mermaid";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
@@ -18,6 +19,30 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+
+/**
+ * Build rehype plugins that rewrite img src via a transform function
+ * before rehype-harden blocks relative/unknown-protocol images.
+ */
+function buildImageRehypePlugins(transformSrc: (src: string) => string): PluggableList {
+  const { raw, sanitize, harden } = defaultRehypePlugins as Record<string, Pluggable>;
+  const [sanitizePlugin, sanitizeSchema] = sanitize as [any, Record<string, any>];
+  const protocols = sanitizeSchema.protocols as Record<string, string[]>;
+  const extendedSchema = {
+    ...sanitizeSchema,
+    protocols: { ...protocols, src: [...(protocols.src || []), "web"] },
+  };
+  const rehypeResolveImages = () => (tree: any) => {
+    const walk = (node: any) => {
+      if (node.type === "element" && node.tagName === "img" && node.properties?.src) {
+        node.properties.src = transformSrc(node.properties.src);
+      }
+      if (node.children) node.children.forEach(walk);
+    };
+    walk(tree);
+  };
+  return [raw, [sanitizePlugin, extendedSchema], rehypeResolveImages, harden];
+}
 
 function CodeBlock({
   language,
@@ -70,6 +95,10 @@ export interface StreamMarkdownProps {
   isStreaming?: boolean;
   children?: string;
   forceBreaks?: boolean;
+  /** Transform image src before rendering. Use to resolve relative paths. */
+  imageSource?: (src: string) => string;
+  /** Intercept clicks on relative-path links. Return false to prevent default navigation. */
+  onLinkClick?: (href: string, e: React.MouseEvent) => boolean | void;
 }
 
 const FRONTMATTER_REGEX = /^---\s*([\s\S]*?)\s*---/;
@@ -157,6 +186,11 @@ const components: Components = {
       {children}
     </TableCell>
   ),
+  img: ({ node: _node, ...props }) => (
+    <div className="w-full rounded-sm overflow-hidden">
+      <img {...props} className="max-w-full m-auto" />
+    </div>
+  ),
 };
 
 export function StreamMarkdown({
@@ -164,7 +198,32 @@ export function StreamMarkdown({
   children,
   isStreaming,
   forceBreaks,
+  imageSource,
+  onLinkClick,
 }: StreamMarkdownProps) {
+  const rehypePlugins = useMemo(() => {
+    if (!imageSource) return undefined;
+    return buildImageRehypePlugins(imageSource);
+  }, [imageSource]);
+
+  const resolvedComponents = useMemo(() => {
+    if (!onLinkClick) return components;
+    return {
+      ...components,
+      a: ({ href, children, node: _node, ...props }: any) => {
+        if (href && !/^(https?:|data:|#|mailto:|blob:|web:)/.test(href)) {
+          const handleClick = (e: React.MouseEvent) => {
+            if (onLinkClick(href, e) === false) {
+              e.preventDefault();
+            }
+          };
+          return <a href={href} onClick={handleClick} {...props}>{children}</a>;
+        }
+        return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+      },
+    };
+  }, [onLinkClick]);
+
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
   }, [forceBreaks]);
@@ -191,12 +250,13 @@ export function StreamMarkdown({
       )}
       <Streamdown
         plugins={{ mermaid, math, cjk }}
-        components={components}
+        components={resolvedComponents}
         shikiTheme={["github-light", "github-dark"]}
         isAnimating={isStreaming}
         animated={{ sep: "char" }}
         linkSafety={{ enabled: false }}
         remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         controls={{
           table: { fullscreen: false },
           mermaid: { fullscreen: false },

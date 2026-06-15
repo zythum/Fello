@@ -47,7 +47,7 @@ const typographyClasses: Record<string, string> = {
   agent_message: cn(
     baseClasses,
     "prose prose-sm dark:prose-invert",
-    "prose-p:leading-normal prose-p:text-foreground/90 prose-p:my-2 prose-p:text-[13px]",
+    "prose-p:leading-normal prose-p:text-foreground/80 prose-p:my-2 prose-p:text-[13px]",
     "prose-headings:text-foreground prose-headings:font-medium prose-headings:mt-2.5 prose-headings:mb-1",
     "prose-h1:text-[15px] prose-h2:text-[14px] prose-h3:text-[13px] prose-h4:text-[12px] prose-h5:text-[12px] prose-h6:text-[11px]",
     "prose-strong:text-foreground prose-strong:font-medium",
