@@ -23,7 +23,7 @@ jobs:
             script: npm run release:mac:x64
           - os: macos-latest
             script: npm run release:mac:arm64
-          - os: windows-latest
+          - os: windows-2022
             script: npm run release:win
           - os: ubuntu-latest
             script: npm run release:linux
@@ -37,13 +37,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Setup Windows build tools
-        if: runner.os == 'Windows'
-        uses: microsoft/setup-msbuild@v2
-
       - run: npm ci
-        env:
-          GYP_MSVS_VERSION: "2022"
 
       - name: Build and publish macOS
         if: runner.os == 'macOS'
