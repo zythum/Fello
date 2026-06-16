@@ -833,9 +833,7 @@ export function Sidebar() {
               </div>
               <div
                 className={
-                  configuredMcpServers.length > 5
-                    ? "grid grid-cols-2 gap-1"
-                    : "flex flex-col gap-1"
+                  configuredMcpServers.length > 5 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"
                 }
               >
                 {configuredMcpServers.map((mcp) => (

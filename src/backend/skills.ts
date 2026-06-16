@@ -1,7 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { randomUUID } from "crypto";
+import { fileURLToPath } from "url";
 import type { SkillInfo } from "../shared/schema";
+import { TEMP_DIR } from "./storage";
 import { toPosixPath } from "./utils";
 
 export const SKILL_FILENAME = "SKILL.md";
@@ -269,4 +272,83 @@ export async function installSkill(source: string, slug: string) {
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     await fs.promises.writeFile(filePath, file.contents, "utf-8");
   }
+}
+
+/**
+ * Register skills/catalog and skills/detail routes on a socket server.
+ */
+export function registerSkillsRoute(
+  server: {
+    registry: (path: string, handler: (payload: unknown) => unknown | Promise<unknown>) => void;
+  },
+  projectRoot: string,
+) {
+  server.registry("skills/catalog", async () => {
+    return getSkillsCatalog({ projectRoot }).map(({ id, name, description }) => ({
+      id,
+      name,
+      description,
+    }));
+  });
+
+  server.registry("skills/detail", async (payload) => {
+    const { id } = payload as { id: string };
+    const catalog = getSkillsCatalog({ projectRoot });
+    const skill = catalog.find((s) => s.id === id);
+    if (!skill) return { error: `Skill '${id}' not found.`, available_skills: catalog };
+    const skillDir = getSkillSystemPathFromId(skill.id, { projectRoot });
+    if (!skillDir) return { error: `Failed to read skill '${id}'` };
+    let body = "";
+    try {
+      const text = fs.readFileSync(path.join(skillDir, SKILL_FILENAME), "utf8");
+      body = parseSkillFrontmatter(text).body;
+    } catch {
+      return { error: `Failed to read skill '${id}'` };
+    }
+    let supportingFiles: string[] = [];
+    try {
+      supportingFiles = listSkillFiles(skill.id, { projectRoot });
+    } catch {}
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      instructions: body,
+      root_path: skillDir,
+      supporting_files: supportingFiles,
+    };
+  });
+}
+
+/**
+ * Build a McpServer config for the built-in skills MCP server.
+ * Generates the catalog file internally.
+ */
+export function buildSkillsMcpServer(options: { projectDir: string; socketPath: string }): {
+  name: string;
+  command: string;
+  args: string[];
+  env: { name: string; value: string }[];
+} {
+  const catalog = getSkillsCatalog({ projectRoot: options.projectDir }).map(
+    ({ id, name, description }) => ({ id, name, description }),
+  );
+  const catalogFilename = path.join(TEMP_DIR, `skills-catalog-${randomUUID()}.json`);
+  fs.writeFileSync(catalogFilename, JSON.stringify(catalog), "utf8");
+
+  const __dir = path.dirname(fileURLToPath(import.meta.url));
+  return {
+    name: "skills",
+    command: process.execPath,
+    args: [
+      path.join(__dir, "../scripts/mcp-skills/server.mjs"),
+      "--project-dir",
+      options.projectDir,
+      "--socket-path",
+      options.socketPath,
+      "--catalog",
+      catalogFilename,
+    ],
+    env: [{ name: "ELECTRON_RUN_AS_NODE", value: "1" }],
+  };
 }

@@ -58,7 +58,9 @@ export function useTaskFile(
     }
 
     load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [scheduleId, taskId, filePath, encoding, t]);
 
   const arrayBuffer = useMemo(

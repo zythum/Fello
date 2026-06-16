@@ -18,28 +18,39 @@ fello/
 │   │   └── utils.ts                     # ContentBlock 转换工具
 │   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
-│   │   ├── backend.ts                # IPC handlers 注册、文件/终端/Skills/iLink/Automation API 实现
+│   │   ├── backend.ts                # IPC 总入口：注册各领域模块、组装 backendHandlers
+│   │   ├── session.ts                # 会话生命周期管理（new/load/sendPrompt/cancel/delete）
+│   │   ├── session-agent-bridge.ts   # Agent Bridge 池管理（ensureBridge/clearPool）
+│   │   ├── ask-user.ts               # askUser 通用机制（请求/响应/超时/路由注册）
+│   │   ├── terminal.ts               # PTY 终端管理（创建/销毁/resize/输出）
+│   │   ├── ilink-handlers.ts         # iLink 微信集成处理器（命令路由/消息转发）
+│   │   ├── ilink-state.ts            # iLink 活跃会话状态管理
+│   │   ├── project.ts                # 项目 CRUD 操作
+│   │   ├── project-filesystem.ts     # 文件系统操作（搜索/读写/目录遍历）
+│   │   ├── project-git.ts            # Git 状态查询与 HEAD 文件读取
+│   │   ├── serve-file.ts             # 安全文件服务（路径穿越防护、MIME 检测）
 │   │   ├── automation/               # 自动化任务计划模块
-│   │   │   ├── index.ts              # 模块导出入口
+│   │   │   ├── index.ts              # 模块导出入口 + 高层 Schedule/Task 处理器
 │   │   │   ├── store.ts              # 文件持久化层（Schedule/Task CRUD，基于 ~/.fello/automations/）
 │   │   │   ├── scheduler.ts          # Cron 计划管理（CronJob 注册/注销/恢复/停止）
 │   │   │   └── runner.ts             # 任务执行器（spawn ACPBridge，MCP/Skills 集成）
 │   │   ├── agent/                    # Agent 连接与进程管理
-│   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
+│   │   │   ├── agent-bridge.ts           # Agent 连接封装（类型路由、生命周期管理）
+│   │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
+│   │   │   ├── base-agent.ts             # AgentProcess 统一接口
+│   │   │   ├── stdio-agent.ts            # Stdio Agent 进程 spawn（child_process）
+│   │   │   ├── openai-compatible-api-agent.ts # API Agent 进程内启动
+│   │   │   └── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
 │   │   ├── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
 │   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
 │   │   ├── watcher.ts                # 文件系统监控（@parcel/watcher 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
-│   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成
-│   │   ├── socket-server.ts          # Unix Domain Socket HTTP 服务器（MCP 子进程 IPC）
+│   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成、路由注册
+│   │   ├── socket-server.ts          # Unix Domain Socket HTTP 服务器 + 路径生成
 │   │   ├── i18n.ts                   # 后端多语言初始化
 │   │   ├── locales/                  # 后端多语言 JSON 字典
 │   │   │   ├── en.json
 │   │   │   └── zh-CN.json
-│   │   │   ├── agent-bridge.ts           # Agent 连接封装（类型路由、生命周期管理）
-│   │   │   ├── base-agent.ts            # AgentProcess 统一接口
-│   │   │   ├── stdio-agent.ts           # Stdio Agent 进程 spawn（child_process）
-│   │   │   └── openai-compatible-api-agent.ts # API Agent 进程内启动
 │   │   └── ilink/                    # 微信 iLink 集成
 │   │       ├── ilink-bridge.ts       # iLink 连接管理、QR 登录、消息收发
 │   │       ├── ilink-client.ts       # iLink REST API 客户端
@@ -265,10 +276,24 @@ fello/
 ### `src/backend`
 
 - 面向系统能力的底层实现：文件系统、终端 PTY
+- 模块化设计：`backend.ts` 作为总入口，具体逻辑拆分到领域模块：
+  - `session.ts` — 会话生命周期（new/load/sendPrompt/cancel/delete）
+  - `session-agent-bridge.ts` — Agent Bridge 池管理与复用
+  - `ask-user.ts` — askUser 通用请求/响应/超时机制
+  - `terminal.ts` — PTY 终端创建/销毁/resize
+  - `ilink-handlers.ts` — iLink 微信命令路由与消息转发
+  - `ilink-state.ts` — iLink 活跃会话状态
+  - `project.ts` — 项目 CRUD
+  - `project-filesystem.ts` — 文件搜索/读写/目录遍历
+  - `project-git.ts` — Git 状态与 HEAD 文件读取
+  - `serve-file.ts` — 安全文件服务（路径穿越防护）
 - 负责 Agent 进程与会话生命周期管理（`agent/agent-bridge.ts`）
 - Agent 进程 spawner：Stdio（child_process）和 API（in-process）
+- Agent 配置解析：`agent/resolve-agent-info.ts`
+- Agent 终端管理：`agent/agent-terminal-manager.ts`
 - iLink 微信集成：连接管理、消息收发
-- Skills 系统：目录扫描、skills.sh 市场集成
+- Skills 系统：目录扫描、skills.sh 市场集成、路由注册（`registerSkillsRoute`、`buildSkillsMcpServer`）
+- Unix Socket Server：`socket-server.ts`（含 `generateSocketPath`）
 - 通过 `src/shared/schema.ts` 保持主渲染层 API 契约稳定
 
 ### `src/electron`

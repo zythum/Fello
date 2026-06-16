@@ -82,17 +82,18 @@ export const FEATURE_I18N_KEYS: Record<Feature, string> = {
                        │
                        ▼
   ┌──────────────────────────────────────────────────┐
-  │          Backend (backend.ts + skills.ts)          │
+  │          Backend (skills.ts)          │
   │                                                    │
   │  getSkillsCatalog({ projectRoot })                  │
   │    → 扫描 project/user 级别目录                     │
   │    → 解析 SKILL.md frontmatter                     │
   │    → 返回 SkillInfo[]                              │
   │                                                    │
-  │  skill detail lookup                               │
-  │    → 解析 skill id                                 │
-  │    → 读取 SKILL.md body (instructions)             │
-  │    → 列出辅助文件列表                               │
+  │  registerSkillsRoute(server, projectRoot)           │
+  │    → 注册 /skills/catalog 和 /skills/detail 路由    │
+  │                                                    │
+  │  buildSkillsMcpServer({ projectDir, socketPath })   │
+  │    → 构建 skills MCP Server 配置 + catalog 快照     │
   └──────────────────────────────────────────────────┘
 ```
 
@@ -104,7 +105,7 @@ export const FEATURE_I18N_KEYS: Record<Feature, string> = {
 
 ### 启动
 
-MCP Server 由 `buildMcpServersConfig()` 在 `backend.ts` 中按需构建，仅在 `features` 包含 `"skills"` 时注入：
+MCP Server 由 `buildMcpServersConfig()` 在 `session.ts` 中按需构建，仅在 `features` 包含 `"skills"` 时注入：
 
 ```typescript
 if (socketPath && features.includes("skills")) {
@@ -209,6 +210,14 @@ interface SkillInfo {
   scope: "agents" | "claude" | "fello";
 }
 ```
+
+### Skills MCP 路由注册 — `registerSkillsRoute()`
+
+`registerSkillsRoute(server, projectRoot)` 向 Socket Server 注册  和  两个路由，供 MCP 子进程回调。该函数被 （常规会话）和 （自动化任务）共享使用。
+
+### Skills MCP 配置构建 — `buildSkillsMcpServer()`
+
+`buildSkillsMcpServer({ projectDir, socketPath })` 构建 skills MCP Server 的启动配置（command + args + env），内部自动生成 catalog JSON 快照文件。被  和  共享使用，消除了原有的重复代码。
 
 ### Socket 路由处理
 
@@ -330,8 +339,8 @@ for (const file of await readdir(TEMP_DIR)) {
 | 文件 | 层 | 职责 |
 |---|---|---|
 | `src/scripts/mcp-skills/server.ts` | MCP | Skills MCP tool 注册 & Socket 转发 |
-| `src/backend/backend.ts` | Backend | `buildMcpServersConfig()` 按 feature 注入 Skills MCP Server |
-| `src/backend/skills.ts` | Backend | Skills 目录扫描、frontmatter 解析、CRUD |
+| `src/backend/session.ts` | Backend | `buildMcpServersConfig()` 按 feature 注入 Skills MCP Server |
+| `src/backend/skills.ts` | Backend | Skills 目录扫描、frontmatter 解析、CRUD、`registerSkillsRoute()`、`buildSkillsMcpServer()` |
 | `src/backend/storage.ts` | Backend | `TEMP_DIR`、`SOCKETS_DIR` 常量 |
 | `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器 |
 | `src/shared/zod/mcp-skills-schema.ts` | Shared | Skills Zod schema（catalog、detail request/response） |

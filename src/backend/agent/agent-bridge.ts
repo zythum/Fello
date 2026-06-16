@@ -39,13 +39,12 @@ import type {
   PromptResponse,
   CancelNotification,
   SessionConfigOption,
-  McpServer,
 } from "@agentclientprotocol/sdk";
 import type { AgentInfo } from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
-import { AgentTerminalManager } from "../agent-terminal-manager";
+import { AgentTerminalManager } from "./agent-terminal-manager";
 import { WORKSPACE_TEMP_DIR } from "../storage";
 
 export type SessionUpdateCallback = (update: SessionNotification) => void;

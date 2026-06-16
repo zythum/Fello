@@ -9,7 +9,9 @@ interface PdfDetailProps {
 }
 
 export function PdfDetail({ scheduleId, taskId, fileName }: PdfDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, { encoding: "base64" });
+  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+    encoding: "base64",
+  });
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;

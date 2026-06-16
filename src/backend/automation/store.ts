@@ -66,6 +66,31 @@ export const store = {
     writeFileSync(this.scheduleConfigPath(schedule.id), JSON.stringify(schedule, null, 2));
   },
 
+  createSchedule(params: {
+    name: Schedule["name"];
+    agentId: Schedule["agentId"];
+    prompt: Schedule["prompt"];
+    cron: Schedule["cron"];
+    features?: Schedule["features"];
+    mcpServers?: Schedule["mcpServers"];
+  }): Schedule {
+    const now = Date.now();
+    const schedule: Schedule = {
+      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+      name: params.name,
+      agentId: params.agentId,
+      prompt: params.prompt,
+      cron: { type: params.cron.type, expr: params.cron.expr ?? "" },
+      createdAt: now,
+      updatedAt: now,
+      lastRunAt: null,
+      features: (params.features ?? []).filter((f) => f !== "ask_user"),
+      mcpServers: params.mcpServers ?? [],
+    };
+    this.saveSchedule(schedule);
+    return schedule;
+  },
+
   deleteSchedule(scheduleId: string) {
     const dir = this.scheduleDir(scheduleId);
     if (existsSync(dir)) {

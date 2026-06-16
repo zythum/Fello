@@ -80,7 +80,7 @@
 
 ### 2. Backend 层
 
-#### 2.1 askUser 核心函数 — `backend.ts`
+#### 2.1 askUser 核心函数 — `ask-user.ts`
 
 `askUser()` 是统一的用户询问入口，目前有两种触发路径：
 
@@ -234,8 +234,8 @@ Zod schema 在 `src/shared/zod/mcp-ask-user-schema.ts` 中定义一次，Backend
 | 文件 | 层 | 职责 |
 |---|---|---|
 | `src/scripts/mcp-ask-user/server.ts` | MCP | ask_user MCP tool 注册 & Socket 转发 |
-| `src/backend/backend.ts` | Backend | `askUser()` 核心逻辑 |
-| `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器（详见 [socket-server.md](./socket-server.md)） |
+| `src/backend/ask-user.ts` | Backend | `askUser()` 核心逻辑、`registerAskUserRoute()`、`buildAskUserMcpServer()` |
+| `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器 + `generateSocketPath()`（详见 [socket-server.md](./socket-server.md)） |
 | `src/shared/zod/mcp-ask-user-schema.ts` | Shared | ask-user Zod schema 定义（请求 + 响应） |
 | `src/shared/schema.ts` | Shared | TypeScript 接口定义 |
 | `src/backend/storage.ts` | Backend | `SOCKETS_DIR` 常量 |

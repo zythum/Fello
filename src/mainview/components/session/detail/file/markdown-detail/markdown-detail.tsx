@@ -57,7 +57,9 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
         const parsed = new URL(webUIStatus.url);
         const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
         httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     return (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
@@ -154,7 +156,9 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
                     );
                     return false;
                   }}
-                >{content}</StreamMarkdown>
+                >
+                  {content}
+                </StreamMarkdown>
               </div>
             </ContextMenuTrigger>
             {contextMenuItems}

@@ -45,13 +45,15 @@ interface Task {
 
 ```
 src/backend/automation/
-├── index.ts        # 模块导出
+├── index.ts        # 模块导出 + 高层 Schedule/Task 处理器（listSchedules/createSchedule/updateSchedule/deleteSchedule 等）
 ├── store.ts        # 文件持久化层（Schedule/Task CRUD）
 ├── scheduler.ts    # Cron 计划管理（CronJob 注册/注销/恢复/停止）
 └── runner.ts       # 任务执行器（spawn ACPBridge，MCP/Skills 集成）
 ```
 
 ### store.ts — 持久化
+
+`createSchedule(params)` 工厂方法封装了 Schedule 对象的创建逻辑（ID 生成、ask_user 过滤、默认值），被 `index.ts` 和 `backend.ts` 共享使用，避免外部手动构造 Schedule 对象。
 
 - 数据目录：`~/.fello/automations/`
 - 每个 Schedule 一个子目录，内含 `schedule.json` 和 `tasks/` 目录
@@ -84,11 +86,13 @@ src/backend/automation/
 
 ### runner.ts — 任务执行
 
+`initRunner()` 初始化时自动调用 `restoreActiveSchedules()` 恢复所有活跃计划。`runner.ts` 使用共享模块：`agent/resolve-agent-info.ts`（Agent 配置解析）、`skills.ts` 的 `registerSkillsRoute()` / `buildSkillsMcpServer()`（Skills MCP 集成）、`socket-server.ts` 的 `generateSocketPath()`（socket 路径生成）。
+
 执行流程：
 
 1. 检查并发锁（同一 Schedule 不重复执行）
 2. 创建 Task 记录，状态标记为 `running`
-3. 解析 Agent 配置（Stdio 或 API 类型）
+3. 通过共享的 `resolveAgentInfo()` 解析 Agent 配置（Stdio 或 API 类型）
 4. Spawn 独立的 `ACPBridge` 实例
 5. 配置 MCP 服务器和 Skills（如启用）
 6. 建立新会话，发送 Prompt

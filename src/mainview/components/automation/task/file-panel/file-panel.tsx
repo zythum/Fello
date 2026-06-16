@@ -219,15 +219,15 @@ export function Panel({
       </div>
 
       {!hasTask ? (
-        <div className="flex flex-col items-center justify-center flex-1 min-h-0 -mt-10 text-muted-foreground">
-          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+        <div className="flex flex-col items-center justify-center flex-1 min-h-0 text-muted-foreground">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3 -mt-10">
             <Folder className="size-5 text-muted-foreground/60" />
           </div>
           <p className="text-xs">{t("automation.selectTask", "Select a task")}</p>
         </div>
       ) : files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 min-h-0 -mt-10 text-muted-foreground">
-          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+        <div className="flex flex-col items-center justify-center flex-1 min-h-0 text-muted-foreground">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3 -mt-10">
             <FolderOpen className="size-5 text-muted-foreground/60" />
           </div>
           <p className="text-xs">{t("automation.noFiles", "No files")}</p>

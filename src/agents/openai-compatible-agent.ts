@@ -327,7 +327,10 @@ export class OpenaiCompatibleAgent implements Agent {
     sessionRef = session;
     this.sessions.set(sessionId, session);
     await this.persistSessionState(session);
-    await this.pushAvailableCommands(sessionId);
+    // 消息不能推太早，等客户端连接就绪后再推送
+    setTimeout(() => {
+      this.pushAvailableCommands(sessionId).catch(() => {});
+    }, 500);
     return {
       sessionId,
       models: modelState.availableModels.length > 0 ? modelState : null,
@@ -547,17 +550,18 @@ export class OpenaiCompatibleAgent implements Agent {
       switch (command) {
         case "compact":
           return this.handleCompact(session, params.sessionId);
-        default:
-          if (this.connection) {
-            await this.connection.sessionUpdate({
-              sessionId: params.sessionId,
-              update: {
-                sessionUpdate: "agent_message_chunk",
-                content: { type: "text", text: `Unknown command: /${command}` },
-              },
-            });
-          }
-          return { stopReason: "end_turn" };
+        // Skip Unknown command
+        // default:
+        //   if (this.connection) {
+        //     await this.connection.sessionUpdate({
+        //       sessionId: params.sessionId,
+        //       update: {
+        //         sessionUpdate: "agent_message_chunk",
+        //         content: { type: "text", text: `Unknown command: /${command}` },
+        //       },
+        //     });
+        //   }
+        //   return { stopReason: "end_turn" };
       }
     }
 

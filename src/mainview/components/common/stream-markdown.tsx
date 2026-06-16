@@ -1,6 +1,6 @@
 import { useMemo, isValidElement, useState, useCallback } from "react";
 import { Streamdown, defaultRehypePlugins, type Components } from "streamdown";
-import type { Pluggable, PluggableList } from 'unified';
+import type { Pluggable, PluggableList } from "unified";
 import { mermaid } from "@streamdown/mermaid";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
@@ -217,9 +217,17 @@ export function StreamMarkdown({
               e.preventDefault();
             }
           };
-          return <a href={href} onClick={handleClick} {...props}>{children}</a>;
+          return (
+            <a href={href} onClick={handleClick} {...props}>
+              {children}
+            </a>
+          );
         }
-        return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+            {children}
+          </a>
+        );
       },
     };
   }, [onLinkClick]);

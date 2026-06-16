@@ -1,6 +1,7 @@
 import { createServer, type Server } from "http";
-import { dirname } from "path";
+import { dirname, join } from "path";
 import { mkdirSync, existsSync, unlinkSync } from "fs";
+import { SOCKETS_DIR } from "./storage";
 
 /** 判断路径是否为 Windows 命名管道路径（以 \.\pipe\ 或 \?\pipe\ 开头） */
 function isWindowsPipePath(p: string) {
@@ -94,7 +95,7 @@ export async function startSocketServer(socketPath: string): Promise<SocketServe
       const serverRef: SocketServer = {
         stop: () => {
           server.close();
-          server.closeAllConnections?.();
+          server.closeAllConnections();
           // Windows named pipe 由 OS 自动清理，无需 unlink
           if (!isWindowsPipePath(socketPath)) {
             if (existsSync(socketPath)) {
@@ -117,4 +118,12 @@ export async function startSocketServer(socketPath: string): Promise<SocketServe
       reject(err);
     });
   });
+}
+
+export function generateSocketPath(key: string): string {
+  const timestamp = Date.now();
+  if (process.platform === "win32") {
+    return `\\\\.\\pipe\\fello-${key}-${timestamp}`;
+  }
+  return join(SOCKETS_DIR, `${key}-${timestamp}.socket`);
 }

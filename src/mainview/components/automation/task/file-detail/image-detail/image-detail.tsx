@@ -43,7 +43,9 @@ function Controls() {
 }
 
 export function ImageDetail({ scheduleId, taskId, fileName }: ImageDetailProps) {
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, { encoding: "base64" });
+  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+    encoding: "base64",
+  });
 
   const src = useMemo(() => {
     if (!content) return "";

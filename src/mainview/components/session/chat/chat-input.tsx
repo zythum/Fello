@@ -158,35 +158,41 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     return groups;
   }, [availableModels]);
 
-  const handleModelChange = useCallback(async (modelId: string) => {
-    const sid = session.id;
-    if (!sid) return;
-    useAppStore.getState().updateSession({
-      ...session,
-      models: { ...session.models!, currentModelId: modelId },
-    });
-    try {
-      await request.setModel({ sessionId: sid, modelId });
-    } catch (err) {
-      console.error("Failed to set model:", err);
-      useAppStore.getState().updateSession(session);
-    }
-  }, [session]);
+  const handleModelChange = useCallback(
+    async (modelId: string) => {
+      const sid = session.id;
+      if (!sid) return;
+      useAppStore.getState().updateSession({
+        ...session,
+        models: { ...session.models!, currentModelId: modelId },
+      });
+      try {
+        await request.setModel({ sessionId: sid, modelId });
+      } catch (err) {
+        console.error("Failed to set model:", err);
+        useAppStore.getState().updateSession(session);
+      }
+    },
+    [session],
+  );
 
-  const handleModeChange = useCallback(async (modeId: string) => {
-    const sid = session.id;
-    if (!sid) return;
-    useAppStore.getState().updateSession({
-      ...session,
-      modes: { ...session.modes!, currentModeId: modeId },
-    });
-    try {
-      await request.setMode({ sessionId: sid, modeId });
-    } catch (err) {
-      console.error("Failed to set mode:", err);
-      useAppStore.getState().updateSession(session);
-    }
-  }, [session]);
+  const handleModeChange = useCallback(
+    async (modeId: string) => {
+      const sid = session.id;
+      if (!sid) return;
+      useAppStore.getState().updateSession({
+        ...session,
+        modes: { ...session.modes!, currentModeId: modeId },
+      });
+      try {
+        await request.setMode({ sessionId: sid, modeId });
+      } catch (err) {
+        console.error("Failed to set mode:", err);
+        useAppStore.getState().updateSession(session);
+      }
+    },
+    [session],
+  );
 
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
@@ -592,12 +598,17 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           }
         }
         if (paths.length > 0) {
-          const joined = paths.join(" ");
-          setLocalInput((prev) => (prev ? `${prev} ${joined}` : joined));
+          // Restore focus and insert text natively so MentionsInput catches the onChange
+          const target = e.target as HTMLElement;
+          if (target.tagName !== "TEXTAREA") return;
+          const textarea = target as HTMLTextAreaElement;
+          textarea.focus();
+          let insertText = '';
+          for (const path of paths) {
+            insertText += `@[#resource:${path}](${path}) `;
+          }
+          document.execCommand("insertText", false, insertText);
         }
-        requestAnimationFrame(() => {
-          containerRef.current?.querySelector("textarea")?.focus();
-        });
         return;
       }
 
@@ -656,6 +667,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
+
       const text = e.clipboardData.getData("text/plain");
       const files = e.clipboardData.files;
       if (!session) return;
@@ -691,13 +703,17 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         }
 
         if (paths.length > 0) {
-          const joined = paths.join(" ");
-          setLocalInput((prev) => (prev ? `${prev} ${joined}` : joined));
+          // Restore focus and insert text natively so MentionsInput catches the onChange
+          const target = e.target as HTMLElement;
+          if (target.tagName !== "TEXTAREA") return;
+          const textarea = target as HTMLTextAreaElement;
+          textarea.focus();
+          let insertText = '';
+          for (const path of paths) {
+            insertText += `@[#resource:${path}](${path}) `;
+          }
+          document.execCommand("insertText", false, insertText);
         }
-        // Focus the textarea after drop
-        requestAnimationFrame(() => {
-          containerRef.current?.querySelector("textarea")?.focus();
-        });
         e.preventDefault();
         return;
       }
@@ -945,20 +961,38 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button variant="outline" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48"
+                      />
                     }
                   >
-                    <span className="truncate">{availableModes.find((m) => m.id === currentModeId)?.name ?? t("chatInput.mode", "Mode")}</span>
+                    <span className="truncate">
+                      {availableModes.find((m) => m.id === currentModeId)?.name ??
+                        t("chatInput.mode", "Mode")}
+                    </span>
                     <ChevronDown className="size-3 opacity-60 shrink-0" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-auto! max-h-none! max-w-60 min-w-(--anchor-width)">
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-auto! max-h-none! max-w-60 min-w-(--anchor-width)"
+                  >
                     {availableModes.map((mode) => (
-                      <DropdownMenuItem key={mode.id} onClick={() => handleModeChange(mode.id)} className="gap-2">
-                        <Check className={`size-3 shrink-0 ${mode.id === currentModeId ? "opacity-100" : "opacity-0"}`} />
+                      <DropdownMenuItem
+                        key={mode.id}
+                        onClick={() => handleModeChange(mode.id)}
+                        className="gap-2"
+                      >
+                        <Check
+                          className={`size-3 shrink-0 ${mode.id === currentModeId ? "opacity-100" : "opacity-0"}`}
+                        />
                         <div className="flex min-w-0 flex-col gap-0.5 pr-3">
                           <span>{mode.name}</span>
                           {mode.description && (
-                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{mode.description}</span>
+                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                              {mode.description}
+                            </span>
                           )}
                         </div>
                       </DropdownMenuItem>
@@ -1022,7 +1056,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       snippets.map((s) => (
                         <DropdownMenuItem
                           key={s.id}
-                          onClick={() => setLocalInput((prev) => prev + s.content)}
+                          onClick={() => {
+                            containerRef.current?.querySelector("textarea")?.focus();
+                            document.execCommand("insertText", false, s.content);
+                          }}
                         >
                           <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
                             <span className="text-xs">{s.title}</span>
@@ -1048,62 +1085,98 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button variant="outline" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48"
+                      />
                     }
                   >
-                    <span className="truncate">{availableModels.find((m) => m.modelId === currentModelId)?.name ?? t("chatInput.selectModel", "Select model")}</span>
+                    <span className="truncate">
+                      {availableModels.find((m) => m.modelId === currentModelId)?.name ??
+                        t("chatInput.selectModel", "Select model")}
+                    </span>
                     <ChevronDown className="size-3 opacity-60 shrink-0" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-auto! max-h-none! max-w-64 min-w-(--anchor-width)">
-                    {groupedModels.size <= 1 ? (
-                      availableModels.map((m) => (
-                        <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
-                          <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
-                          <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                            <span className="truncate">{m.name}</span>
-                            {m.description && (
-                              <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
-                            )}
-                          </div>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      Array.from(groupedModels.entries()).map(([group, models]) =>
-                        group ? (
-                          <DropdownMenuSub key={group}>
-                            <DropdownMenuSubTrigger className="gap-2">
-                              <Check className={`size-3 shrink-0 ${models.some((m) => m.modelId === currentModelId) ? "opacity-100" : "opacity-0"}`} />
-                              {group}
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="max-h-80 overflow-y-auto min-w-40">
-                              {models.map((m) => (
-                                <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
-                                  <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
-                                  <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                                    <span className="truncate">{m.name.slice(group.length + 1)}</span>
-                                    {m.description && (
-                                      <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
-                                    )}
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        ) : (
-                          models.map((m) => (
-                            <DropdownMenuItem key={m.modelId} onClick={() => handleModelChange(m.modelId)} className="gap-2">
-                              <Check className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`} />
-                              <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                                <span className="truncate">{m.name}</span>
-                                {m.description && (
-                                  <span className="text-[10px] text-muted-foreground/60 line-clamp-2">{m.description}</span>
-                                )}
-                              </div>
-                            </DropdownMenuItem>
-                          ))
-                        ),
-                      )
-                    )}
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-auto! max-h-none! max-w-64 min-w-(--anchor-width)"
+                  >
+                    {groupedModels.size <= 1
+                      ? availableModels.map((m) => (
+                          <DropdownMenuItem
+                            key={m.modelId}
+                            onClick={() => handleModelChange(m.modelId)}
+                            className="gap-2"
+                          >
+                            <Check
+                              className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                            />
+                            <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                              <span className="truncate">{m.name}</span>
+                              {m.description && (
+                                <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                                  {m.description}
+                                </span>
+                              )}
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      : Array.from(groupedModels.entries()).map(([group, models]) =>
+                          group ? (
+                            <DropdownMenuSub key={group}>
+                              <DropdownMenuSubTrigger className="gap-2">
+                                <Check
+                                  className={`size-3 shrink-0 ${models.some((m) => m.modelId === currentModelId) ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {group}
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="max-h-80 overflow-y-auto min-w-40">
+                                {models.map((m) => (
+                                  <DropdownMenuItem
+                                    key={m.modelId}
+                                    onClick={() => handleModelChange(m.modelId)}
+                                    className="gap-2"
+                                  >
+                                    <Check
+                                      className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                                    />
+                                    <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                                      <span className="truncate">
+                                        {m.name.slice(group.length + 1)}
+                                      </span>
+                                      {m.description && (
+                                        <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                                          {m.description}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          ) : (
+                            models.map((m) => (
+                              <DropdownMenuItem
+                                key={m.modelId}
+                                onClick={() => handleModelChange(m.modelId)}
+                                className="gap-2"
+                              >
+                                <Check
+                                  className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                                />
+                                <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                                  <span className="truncate">{m.name}</span>
+                                  {m.description && (
+                                    <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                                      {m.description}
+                                    </span>
+                                  )}
+                                </div>
+                              </DropdownMenuItem>
+                            ))
+                          ),
+                        )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}

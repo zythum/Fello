@@ -13,20 +13,17 @@ export interface ProjectFileResult {
 }
 
 /**
- * Safely resolve and read a file from a project directory.
- * Prevents directory traversal — any path escaping the project root is rejected.
+ * Safely resolve and read a file from a directory.
+ * Prevents directory traversal — any path escaping the root is rejected.
  *
  * This function is shared by:
  *   - Electron's custom `web://` protocol handler (protocol.handle)
  *   - WebUI's HTTP server route (`/project/:projectId/*`)
  */
-export async function serveProjectFile(
-  projectCwd: string,
-  relativePath: string,
-): Promise<ProjectFileResult> {
-  // 1. Resolve the path relative to the project root
-  const safeCwd = resolve(projectCwd);
-  const fullPath = resolve(safeCwd, relativePath || "");
+export async function serveFile(filename: string, cwd: string): Promise<ProjectFileResult> {
+  // 1. Resolve the path relative to the root
+  const safeCwd = resolve(cwd);
+  const fullPath = resolve(safeCwd, filename || "");
 
   // 2. Prevent directory traversal
   const rel = relative(safeCwd, fullPath);
@@ -35,7 +32,7 @@ export async function serveProjectFile(
       status: 403,
       body: "Forbidden: path traversal detected",
       mimeType: "text/plain",
-      error: `Path traversal: ${relativePath} is outside project root`,
+      error: `Path traversal: ${filename} is outside root`,
     };
   }
 
@@ -48,7 +45,7 @@ export async function serveProjectFile(
       status: 404,
       body: "Not Found",
       mimeType: "text/plain",
-      error: `File not found: ${relativePath}`,
+      error: `File not found: ${filename}`,
     };
   }
 
@@ -73,7 +70,7 @@ export async function serveProjectFile(
       status: 404,
       body: "Not Found",
       mimeType: "text/plain",
-      error: `Not a file: ${relativePath}`,
+      error: `Not a file: ${filename}`,
     };
   }
 

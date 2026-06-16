@@ -1436,7 +1436,7 @@ export const FilePanel = memo(function FilePanel({
           }}
           onDrop={(e) => void handleExternalDrop(e, "")}
         >
-          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3 -mt-10">
             <Folders className="size-5 text-muted-foreground/60" />
           </div>
           <p className="text-xs text-muted-foreground/70">{t("filePanel.emptyDirectory")}</p>

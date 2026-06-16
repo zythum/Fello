@@ -190,10 +190,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                     if (v) setAgentId(v);
                   }}
                 >
-                  <SelectTrigger
-                    id="auto-agent"
-                    className="w-full text-xs! text-muted-foreground"
-                  >
+                  <SelectTrigger id="auto-agent" className="w-full text-xs! text-muted-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

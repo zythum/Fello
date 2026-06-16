@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
 import { storageOps } from "./storage";
-import { serveProjectFile } from "./serve-project-file";
+import { serveFile } from "./serve-file";
 import { store as autoStore } from "./automation/store";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
@@ -177,7 +177,7 @@ export async function startWebUI(options?: {
         return;
       }
 
-      const result = await serveProjectFile(project.cwd, relativePath);
+      const result = await serveFile(relativePath, project.cwd);
       res.writeHead(result.status, { "Content-Type": result.mimeType });
       res.end(result.body);
       return;
@@ -198,7 +198,7 @@ export async function startWebUI(options?: {
       }
 
       const taskDir = autoStore.taskDir(scheduleId, taskId);
-      const result = await serveProjectFile(taskDir, relativePath);
+      const result = await serveFile(relativePath, taskDir);
       res.writeHead(result.status, { "Content-Type": result.mimeType });
       res.end(result.body);
       return;

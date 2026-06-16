@@ -69,7 +69,9 @@ export function MarkdownDetail({
         const parsed = new URL(webUIStatus.url);
         const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
         httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     const basePath = `automation/${scheduleId}/task/${taskId}`;
     return (src: string) => {
@@ -130,8 +132,17 @@ export function MarkdownDetail({
               <div className="p-4 max-w-3xl">
                 <StreamMarkdown
                   imageSource={imageSource}
-                  onLinkClick={onNavigateFile ? (href) => { onNavigateFile(resolvePath(href)); return false; } : undefined}
-                >{content}</StreamMarkdown>
+                  onLinkClick={
+                    onNavigateFile
+                      ? (href) => {
+                          onNavigateFile(resolvePath(href));
+                          return false;
+                        }
+                      : undefined
+                  }
+                >
+                  {content}
+                </StreamMarkdown>
               </div>
             </ContextMenuTrigger>
             {contextMenuItems}

@@ -9,7 +9,9 @@ interface DocxDetailProps {
 }
 
 export function DocxDetail({ scheduleId, taskId, fileName }: DocxDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, { encoding: "base64" });
+  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+    encoding: "base64",
+  });
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;

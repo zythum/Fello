@@ -77,9 +77,10 @@ Socket 文件放在 `~/.fello/sockets/`，路径含随机 UUID，防止其他本
 | `startSocketServer(socketPath)` | 创建 HTTP server 监听指定 socket 文件，返回 `SocketServer` 实例 |
 | `ss.stop()` | 关闭 server 并删除 socket 文件 |
 | `ss.registry(path, handler)` | 注册 POST 路由处理器 |
+| `generateSocketPath(key)` | 生成 socket 文件路径（Windows 命名管道 / Unix socket），含时间戳 |
 | `GET /health` | 健康检查 → `{ ok: true }` |
 
-### Session Socket 管理 — `backend.ts`
+### Session Socket 管理 — `session.ts`
 
 ```
 sessionSocketServers = Map<sessionId, SocketServer>
@@ -173,8 +174,10 @@ function postToSocket(path: string, body: unknown): Promise<any> {
 
 | 文件 | 职责 |
 |---|---|
-| `src/backend/socket-server.ts` | Unix Domain Socket HTTP 服务器实现 |
-| `src/backend/backend.ts` | Socket 生命周期管理（创建/复用/停止） |
+| `src/backend/socket-server.ts` | Unix Domain Socket HTTP 服务器实现 + `generateSocketPath()` |
+| `src/backend/session.ts` | Socket 生命周期管理（创建/复用/停止） |
+| `src/backend/skills.ts` | `registerSkillsRoute()` / `buildSkillsMcpServer()` |
+| `src/backend/ask-user.ts` | `registerAskUserRoute()` / `buildAskUserMcpServer()` |
 | `src/scripts/mcp-ask-user/server.ts` | ask-user MCP 客户端，使用 Socket Server |
 | `src/scripts/mcp-skills/server.ts` | skills MCP 客户端，使用 Socket Server |
 | `src/backend/storage.ts` | `SOCKETS_DIR` 常量（socket 文件存放目录） |

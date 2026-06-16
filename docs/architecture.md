@@ -66,11 +66,22 @@
 
 - **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
 - **`src/scripts/electron-preload/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
-- **`src/backend/backend.ts`**：核心后端业务逻辑、文件系统能力、终端 PTY 管理、Skills/iLink IPC 注册
+- **`src/backend/backend.ts`**：IPC 总入口，组装各领域模块为统一的 `backendHandlers` 对象
+- **`src/backend/session.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、MCP 配置构建、通知合并与广播
+- **`src/backend/session-agent-bridge.ts`**：Agent Bridge 池管理（`ensureBridge`/`clearPool`）、会话 Socket Server 生命周期
+- **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册（`registerAskUserRoute`）
+- **`src/backend/terminal.ts`**：PTY 终端管理（创建/销毁/resize/输入输出）
+- **`src/backend/ilink-handlers.ts`**：iLink 微信集成处理器（`getILinkBridge`、命令路由、消息转发）
+- **`src/backend/ilink-state.ts`**：iLink 活跃会话 ID 与回复缓冲状态管理
+- **`src/backend/project.ts`**：项目 CRUD 操作
+- **`src/backend/project-filesystem.ts`**：文件系统操作（搜索/读写/目录遍历/文件信息）
+- **`src/backend/project-git.ts`**：Git 状态查询与 HEAD 文件读取
+- **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback）
 - **`src/backend/agent/agent-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
-- **`src/backend/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
+- **`src/backend/agent/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
+- **`src/backend/agent/resolve-agent-info.ts`**：Agent 配置解析（Stdio/API 类型校验，被 backend 和 automation 共享）
 - **`src/backend/webui.ts`**：WebUI 模式下的 WebSocket 及 HTTP 静态服务
-- **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装
+- **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装、Socket 路由注册（`registerSkillsRoute`/`buildSkillsMcpServer`）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
@@ -78,7 +89,7 @@
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
 - **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录、TEMP_DIR（临时文件目录）
-- **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）。详见 [`docs/socket-server.md`](./socket-server.md)
+- **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器 + `generateSocketPath()` 路径生成，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）。详见 [`docs/socket-server.md`](./socket-server.md)
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
 - **`src/shared/zod/mcp-ask-user-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
 - **`src/shared/zod/mcp-skills-schema.ts`**：Shared Zod schema，用于校验 Skills MCP 工具的请求与响应数据结构
@@ -127,7 +138,7 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 - **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 `list_skills` 和 `activate_skill` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/skills/catalog`、`/skills/detail`）。Skills 本身是会话级 feature flag，可以通过 `features` 参数开关
 - **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/ask-user/ask`），将 Agent 的询问请求转发到 `askUser()` 函数
 
-Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `buildMcpServersConfig()` 按需注入。
+Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `session.ts` 中的 `buildMcpServersConfig()` 按需注入。
 
 MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
 

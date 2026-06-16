@@ -1,23 +1,13 @@
-import { join, dirname } from "path";
 import { randomUUID } from "crypto";
-import { fileURLToPath } from "url";
 import type { ContentBlock, SessionNotification, McpServer } from "@agentclientprotocol/sdk";
 import { store } from "./store";
-import { runningTasks } from "./scheduler";
-import { storageOps, TEMP_DIR } from "../storage";
+import { runningTasks, restoreActiveSchedules } from "./scheduler";
+import { storageOps } from "../storage";
 import { ACPBridge } from "../agent/agent-bridge";
-import { startSocketServer, type SocketServer } from "../socket-server";
-import {
-  getSkillsCatalog,
-  getSkillSystemPathFromId,
-  parseSkillFrontmatter,
-  listSkillFiles,
-  SKILL_FILENAME,
-} from "../skills";
+import { startSocketServer, generateSocketPath, type SocketServer } from "../socket-server";
+import { resolveAgentInfo } from "../agent/resolve-agent-info";
+import { registerSkillsRoute, buildSkillsMcpServer } from "../skills";
 import type { Schedule, SessionNotificationFelloExt } from "../../shared/schema";
-import fs from "fs";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let sendEvent:
   | (<K extends "schedules-changed" | "task-update">(channel: K, payload: any) => boolean)
@@ -27,24 +17,7 @@ export function initRunner(
   emitter: <K extends "schedules-changed" | "task-update">(channel: K, payload: any) => boolean,
 ) {
   sendEvent = emitter;
-}
-
-function resolveAgentInfo(agentId: string) {
-  const settings = storageOps.getSettings();
-  const agent = settings.agents.find((a) => a.id === agentId);
-  if (!agent) throw new Error(`Unknown agent: ${agentId}`);
-  if (agent.type === "stdio") {
-    const command = agent.command.trim();
-    if (!command) throw new Error(`Agent "${agent.id}" has no command configured.`);
-    return { ...agent, command };
-  }
-  const provider = agent.provider.trim();
-  const baseUrl = agent.baseUrl.trim();
-  const apiKey = agent.apiKey.trim();
-  if (!provider) throw new Error(`Agent "${agent.id}" has no provider configured.`);
-  if (!baseUrl) throw new Error(`Agent "${agent.id}" has no baseUrl configured.`);
-  if (!apiKey) throw new Error(`Agent "${agent.id}" has no apiKey configured.`);
-  return { ...agent, provider, baseUrl, apiKey };
+  restoreActiveSchedules();
 }
 
 function buildAutomationMcpServers(mcpIds: string[]): McpServer[] {
@@ -70,72 +43,6 @@ function buildAutomationMcpServers(mcpIds: string[]): McpServer[] {
     }
   }
   return servers;
-}
-
-async function setupSkillsServer(
-  taskDir: string,
-): Promise<{ server: SocketServer; mcpServer: McpServer }> {
-  const socketPath = join(TEMP_DIR, `auto-${randomUUID()}.socket`);
-  const server = await startSocketServer(socketPath);
-
-  server.registry("skills/catalog", async () => {
-    return getSkillsCatalog({ projectRoot: taskDir }).map(({ id, name, description }) => ({
-      id,
-      name,
-      description,
-    }));
-  });
-
-  server.registry("skills/detail", async (payload) => {
-    const { id } = payload as { id: string };
-    const catalog = getSkillsCatalog({ projectRoot: taskDir });
-    const skill = catalog.find((s) => s.id === id);
-    if (!skill) return { error: `Skill '${id}' not found.` };
-    const skillDir = getSkillSystemPathFromId(skill.id, { projectRoot: taskDir });
-    if (!skillDir) return { error: `Failed to read skill '${id}'` };
-    let body = "";
-    try {
-      const text = fs.readFileSync(join(skillDir, SKILL_FILENAME), "utf8");
-      body = parseSkillFrontmatter(text).body;
-    } catch {
-      return { error: `Failed to read skill '${id}'` };
-    }
-    let supportingFiles: string[] = [];
-    try {
-      supportingFiles = listSkillFiles(skill.id, { projectRoot: taskDir });
-    } catch {}
-    return {
-      id: skill.id,
-      name: skill.name,
-      description: skill.description,
-      instructions: body,
-      root_path: skillDir,
-      supporting_files: supportingFiles,
-    };
-  });
-
-  const catalogData = getSkillsCatalog({ projectRoot: taskDir }).map(
-    ({ id, name, description }) => ({ id, name, description }),
-  );
-  const catalogFile = join(TEMP_DIR, `auto-catalog-${randomUUID()}.json`);
-  fs.writeFileSync(catalogFile, JSON.stringify(catalogData), "utf8");
-
-  const mcpServer: McpServer = {
-    name: "skills",
-    command: process.execPath,
-    args: [
-      join(__dirname, "../scripts/mcp-skills/server.mjs"),
-      "--project-dir",
-      taskDir,
-      "--socket-path",
-      socketPath,
-      "--catalog",
-      catalogFile,
-    ],
-    env: [{ name: "ELECTRON_RUN_AS_NODE", value: "1" }],
-  };
-
-  return { server, mcpServer };
 }
 
 export async function executeTask(scheduleId: string): Promise<import("../../shared/schema").Task> {
@@ -197,9 +104,10 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
     let skillsServer: SocketServer | null = null;
     const effectiveFeatures = schedule.features ?? [];
     if (effectiveFeatures.includes("skills")) {
-      const skills = await setupSkillsServer(taskDir);
-      skillsServer = skills.server;
-      mcpServers.unshift(skills.mcpServer);
+      const socketPath = generateSocketPath(`auto-${randomUUID()}`);
+      skillsServer = await startSocketServer(socketPath);
+      registerSkillsRoute(skillsServer, taskDir);
+      mcpServers.unshift(buildSkillsMcpServer({ projectDir: taskDir, socketPath }));
     }
 
     const { sessionId } = await bridge.newSession({ cwd: taskDir, mcpServers });
@@ -266,7 +174,7 @@ function reduceNotificationsToMessages(
 
     switch (update.sessionUpdate) {
       case "user_message_chunk": {
-        const content = (update as any).content;
+        const content = update.content;
         if (!content || content.type !== "text") break;
         const last = messages[messages.length - 1];
         if (last && last.role === "user") {
@@ -277,7 +185,7 @@ function reduceNotificationsToMessages(
         break;
       }
       case "agent_message_chunk": {
-        const content = (update as any).content;
+        const content = update.content;
         if (!content || content.type !== "text") break;
         const last = messages[messages.length - 1];
         if (last && last.role === "assistant") {
@@ -288,7 +196,7 @@ function reduceNotificationsToMessages(
         break;
       }
       case "agent_thought_chunk": {
-        const content = (update as any).content;
+        const content = update.content;
         if (!content || content.type !== "text") break;
         const last = messages[messages.length - 1];
         if (last && last.role === "thought") {
@@ -300,12 +208,12 @@ function reduceNotificationsToMessages(
       }
       case "tool_call":
       case "tool_call_update": {
-        const title = (update as any).title ?? "";
-        const content = (update as any).content;
+        const title = update.title ?? "";
+        const content = update.content;
         let text = "";
         if (Array.isArray(content)) {
           for (const block of content) {
-            if (block.type === "text") text += block.text ?? "";
+            if (block.type === "content") text += block.content.type ?? "";
           }
         }
         messages.push({ role: "tool_call", text, toolTitle: title });

@@ -14,15 +14,11 @@ import electronUpdater from "electron-updater";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import {
-  backendHandlers,
-  initBackend,
-  clearBackend,
-  type FelloIPCSchema,
-} from "../backend/backend";
+import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
+import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
-import { serveProjectFile } from "../backend/serve-project-file";
+import { serveFile } from "../backend/serve-file";
 import {
   createAutoUpdateCheckGate,
   createUpdaterEvent,
@@ -508,7 +504,7 @@ app.whenReady().then(() => {
         return new Response("Project Not Found", { status: 404 });
       }
 
-      const result = await serveProjectFile(project.cwd, relativePath);
+      const result = await serveFile(relativePath, project.cwd);
 
       // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -535,7 +531,7 @@ app.whenReady().then(() => {
 
       const { store } = await import("../backend/automation/store");
       const taskDir = store.taskDir(scheduleId, taskId);
-      const result = await serveProjectFile(taskDir, relativePath);
+      const result = await serveFile(relativePath, taskDir);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const blob = new Blob([result.body as any], { type: result.mimeType });

@@ -144,11 +144,7 @@ export function Automation() {
             <span className="text-xs text-muted-foreground font-normal"></span>
           </div>
           <div style={{ WebkitAppRegion: "no-drag" as any }}>
-            <Button
-              variant="default"
-              size="sm"
-              className="h-7 text-xs"
-            >
+            <Button variant="default" size="sm" className="h-7 text-xs">
               <Plus className="size-3" />
               {t("automation.newSchedule", "New Schedule")}
             </Button>
