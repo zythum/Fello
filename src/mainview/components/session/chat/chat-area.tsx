@@ -435,16 +435,6 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                     <MessageBubble
                       session={session}
                       message={group.userMessage}
-                      prevBubbleRole={
-                        groupIndex === 0
-                          ? undefined
-                          : (messageGroups[groupIndex - 1]?.contentMessages.at(-1)?.role ??
-                            messageGroups[groupIndex - 1]?.userMessage?.role)
-                      }
-                      nextBubbleRole={
-                        group.contentMessages[0]?.role ??
-                        messageGroups[groupIndex + 1]?.userMessage?.role
-                      }
                       isStreaming={false}
                     />
                   </div>
@@ -456,34 +446,25 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                   <Bot className="size-5 -translate-y-px" />
                   <span className="text-sm font-medium">{session.agentId}</span>
                 </div>
-                {group.contentMessages.map((msg, i, arr) => {
-                  const isLastInGroup = i === arr.length - 1;
-                  const isLastRendered = isLastGroup && isLastInGroup;
-                  const isStreamableRole =
-                    msg.role === "agent_message" || msg.role === "agent_thought";
-                  const isLastMessageStreaming = isStreaming && isLastRendered && isStreamableRole;
+                <div className="mt-6">
+                  {group.contentMessages.map((msg, i, arr) => {
+                    const isLastInGroup = i === arr.length - 1;
+                    const isLastRendered = isLastGroup && isLastInGroup;
+                    const isStreamableRole =
+                      msg.role === "agent_message" || msg.role === "agent_thought";
+                    const isLastMessageStreaming =
+                      isStreaming && isLastRendered && isStreamableRole;
 
-                  return (
-                    <div
-                      key={msg.displayId}
-                      className="chat-message"
-                      data-role={msg.role}
-                      data-display-id={msg.displayId}
-                    >
+                    return (
                       <MessageBubble
+                        key={msg.displayId}
                         session={session}
                         message={msg}
-                        prevBubbleRole={i === 0 ? group.userMessage?.role : arr[i - 1]?.role}
-                        nextBubbleRole={
-                          isLastInGroup
-                            ? messageGroups[groupIndex + 1]?.userMessage?.role
-                            : arr[i + 1]?.role
-                        }
                         isStreaming={isLastMessageStreaming}
                       />
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
                 <div
                   className={cn(
                     "text-[11px] text-muted-foreground/50 mt-4 uppercase tracking-widest",

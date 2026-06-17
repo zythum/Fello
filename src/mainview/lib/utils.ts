@@ -78,15 +78,6 @@ export function extractErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export function downloadDataUrl(dataUrl: string, filename: string) {
-  const link = document.createElement("a");
-  link.href = dataUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
 export function formatBytes(bytes: number, decimals = 2) {
   if (!+bytes) return "0 Bytes";
   const k = 1024;

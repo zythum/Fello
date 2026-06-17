@@ -308,7 +308,8 @@
     "feature": {
       "title": "Features",
       "askUser": "Ask Me",
-      "skills": "Skills"
+      "skills": "Skills",
+      "shareToUser": "Share to User"
     }
   },
   "chatHeader": {
@@ -518,6 +519,10 @@
     "back": "Back",
     "inputPlaceholder": "Type your response... (Enter to send)",
     "submit": "Submit"
+  },
+  "shareToUser": {
+    "copyToProject": "Copy to project",
+    "reveal": "Reveal in Finder"
   },
   "automation": {
     "title": "Automation",

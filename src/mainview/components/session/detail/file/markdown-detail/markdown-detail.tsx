@@ -15,7 +15,7 @@ import { copyText } from "@/lib/clipboard";
 import { MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
 import { request, isWebUI } from "../../../../../backend";
 import { electron } from "../../../../../electron";
-import { useAppStore } from "../../../../../store";
+import { resolveFileUrl } from "../../../../../lib/file-url";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
 import { LoadingState, ErrorState } from "../common/loading-state";
@@ -31,7 +31,6 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const { content, gitContent, loading, errorMsg } = useFile(projectId, file, { gitHead: true });
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
-  const webUIStatus = useAppStore((s) => s.webUIStatus);
 
   const resolvePath = useCallback(
     (src: string) => {
@@ -51,23 +50,12 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   );
 
   const imageSource = useMemo(() => {
-    let httpBase: string | null = null;
-    if (webUIStatus.enabled && webUIStatus.url) {
-      try {
-        const parsed = new URL(webUIStatus.url);
-        const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
-        httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch {
-        /* ignore */
-      }
-    }
     return (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
       const resolved = resolvePath(src);
-      if (isWebUI && httpBase) return `${httpBase}/project/${projectId}/${resolved}`;
-      return `web://project/${projectId}/${resolved}`;
+      return resolveFileUrl(`/project/${projectId}/${resolved}`);
     };
-  }, [projectId, resolvePath, webUIStatus]);
+  }, [projectId, resolvePath]);
 
   const viewModes: ViewMode[] =
     gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];

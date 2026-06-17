@@ -966,6 +966,13 @@ export const storageOps = {
     appendFileSync(filePath, data);
   },
 
+  /** 获取 session 的 share 目录路径 */
+  sessionShareDir(sessionId: string): string | null {
+    const session = this.getSession(sessionId);
+    if (!session) return null;
+    return join(sessionDir(session.projectId, sessionId), "share");
+  },
+
   readTerminalOutput(sessionId: string, terminalId: string): string | null {
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(terminalId)) {
       throw new Error("Invalid terminalId");

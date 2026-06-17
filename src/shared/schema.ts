@@ -147,7 +147,7 @@ export interface HttpMcpServerInfo extends BaseMcpServerInfo {
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
-export type Feature = "skills" | "ask_user";
+export type Feature = "skills" | "ask_user" | "share_to_user";
 
 /**
  * 应用的主题配置信息
@@ -751,6 +751,12 @@ export type FelloIPCRequests = {
   /** 获取调度某次任务文件的系统绝对路径 */
   getTaskFileSystemPath: {
     params: { scheduleId: string; taskId: string; filePath: string };
+    response: string;
+  };
+
+  /** 获取 shareToUser 文件的系统绝对路径 */
+  getShareFileSystemPath: {
+    params: { sessionId: string; sharePath: string };
     response: string;
   };
 };

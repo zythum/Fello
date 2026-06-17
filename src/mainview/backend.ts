@@ -43,6 +43,17 @@ const bridge = window.fello ?? fallbackBridge;
 
 export const clientId = generateUUID();
 
+/**
+ * WebUI 模式下的 HTTP base URL（如 http://192.168.1.100:9090）。
+ * Electron 模式下为 null。
+ * 可直接用于拼接文件服务 URL，无需走 React store。
+ */
+export const webUIBaseUrl: string | null = (() => {
+  if (!isWebUI) return null;
+  const port = new URLSearchParams(window.location.search).get("port") || window.location.port;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+})();
+
 let ws: WebSocket | null = null;
 let wsReadyPromise: Promise<void> | null = null;
 let msgId = 0;

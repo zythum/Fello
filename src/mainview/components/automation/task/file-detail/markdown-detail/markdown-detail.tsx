@@ -14,7 +14,7 @@ import { StreamMarkdown } from "../../../../common/stream-markdown";
 import { CodeView } from "../../../../common/code-view";
 import { copyText } from "@/lib/clipboard";
 import { isWebUI } from "../../../../../backend";
-import { useAppStore } from "../../../../../store";
+import { resolveFileUrl } from "../../../../../lib/file-url";
 import { useTaskFile } from "../common/use-task-file";
 import { LoadingState, ErrorState } from "../common/loading-state";
 
@@ -43,7 +43,6 @@ export function MarkdownDetail({
   const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
-  const webUIStatus = useAppStore((s) => s.webUIStatus);
 
   const resolvePath = useCallback(
     (src: string) => {
@@ -63,24 +62,12 @@ export function MarkdownDetail({
   );
 
   const imageSource = useMemo(() => {
-    let httpBase: string | null = null;
-    if (webUIStatus.enabled && webUIStatus.url) {
-      try {
-        const parsed = new URL(webUIStatus.url);
-        const port = new URLSearchParams(parsed.search).get("port") || parsed.port;
-        httpBase = `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch {
-        /* ignore */
-      }
-    }
-    const basePath = `automation/${scheduleId}/task/${taskId}`;
     return (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
       const resolved = resolvePath(src);
-      if (isWebUI && httpBase) return `${httpBase}/${basePath}/${resolved}`;
-      return `web://${basePath}/${resolved}`;
+      return resolveFileUrl(`/automation/${scheduleId}/${taskId}/${resolved}`);
     };
-  }, [scheduleId, taskId, resolvePath, webUIStatus]);
+  }, [scheduleId, taskId, resolvePath]);
 
   const handleCopyContent = useCallback(() => {
     copyText(content);

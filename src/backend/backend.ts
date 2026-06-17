@@ -2,11 +2,7 @@ import { readdir, rm } from "fs/promises";
 import { join } from "path";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { storageOps, TEMP_DIR } from "./storage";
-import {
-  initRunner,
-  executeTask,
-  stopAllCrons,
-} from "./automation";
+import { initRunner, executeTask, stopAllCrons } from "./automation";
 import * as automationHandlers from "./automation";
 import { initWatcher, syncWatchers } from "./watcher";
 import {
@@ -26,6 +22,7 @@ import { initTerminal, killAllTerminals } from "./terminal";
 import * as terminalHandlers from "./terminal";
 import { initAskUser } from "./ask-user";
 import * as askUserHandlers from "./ask-user";
+
 import { markProjectFsDirty } from "./project-filesystem";
 import * as filesystemHandlers from "./project-filesystem";
 import { initSession, broadcastAndSaveSessionUpdate, clearSession } from "./session";
@@ -372,6 +369,13 @@ export const backendHandlers: {
   },
   async getTaskFileSystemPath({ scheduleId, taskId, filePath }) {
     return automationHandlers.getTaskFileSystemPath(scheduleId, taskId, filePath);
+  },
+
+  async getShareFileSystemPath({ sessionId, sharePath }) {
+    const { join } = await import("path");
+    const shareDir = storageOps.sessionShareDir(sessionId);
+    if (!shareDir) throw new Error("Session not found");
+    return join(shareDir, sharePath);
   },
   async deleteTask({ scheduleId, taskId }) {
     automationHandlers.deleteTask(scheduleId, taskId);

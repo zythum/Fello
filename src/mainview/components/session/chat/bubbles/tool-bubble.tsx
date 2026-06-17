@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { FileIcon as FileTypeIcon } from "../../../common/file-icon";
-import { isWebUI } from "../../../../backend";
+import { isWebUI, request } from "../../../../backend";
 import { electron } from "../../../../electron";
+import { resolveFileUrl } from "../../../../lib/file-url";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -21,6 +28,10 @@ import {
   Globe,
   ArrowRightLeft,
   Wrench,
+  ImageIcon,
+  FolderOpen,
+  CopyPlus,
+  MoreHorizontal,
 } from "lucide-react";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
 import { AgentTerminalOutput } from "../../../common/agent-terminal-output";
@@ -31,6 +42,10 @@ import type { ToolCallMessage } from "../../../../lib/chat-message";
 import type { ToolCallStatus } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../../../shared/schema";
 import type { BaseBubbleProps } from "./base-bubble";
+import {
+  shareToUserRespondSchema,
+  type ShareToUserRespond,
+} from "../../../../../shared/zod/mcp-share-to-user-schema";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -55,23 +70,66 @@ const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
 interface ToolItemProps {
   session: SessionInfo;
   message: ToolCallMessage;
-  defaultOpen?: boolean;
 }
 
-export function ToolItem({ session, message, defaultOpen = false }: ToolItemProps) {
+/**
+ * 检测 tool call 是否为 share_to_user 等内部工具。
+ * 通过 rawInput 的结构特征判断（包含 type 字段且值为 "link" 或 "base64"）。
+ */
+export function parseFelloTools(
+  message: ToolCallMessage,
+): { type: "shareToUser"; respond: ShareToUserRespond } | null {
+  if (!message.content) return null;
+  if (!message.content.length) return null;
+  if (message.content[0].type !== "content") return null;
+  if (message.content[0].content.type !== "text") return null;
+  const text = message.content[0].content.text;
+  try {
+    const json = JSON.parse(text);
+    if (json.fello) {
+      if (json.fello["share-to-user"]) {
+        const shareToUserRespondResult = shareToUserRespondSchema.safeParse(
+          json.fello["share-to-user"],
+        );
+        if (shareToUserRespondResult.success) {
+          return { type: "shareToUser", respond: shareToUserRespondResult.data };
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
+export function ToolItem({ session, message }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
   const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
-  const [open, setOpen] = useState(defaultOpen);
+  const userAction = useRef<boolean>(false);
+  const [open, setOpen] = useState(false);
+
   useEffect(() => {
-    setOpen(defaultOpen);
-  }, [defaultOpen]);
+    if (userAction.current === true) {
+      return;
+    }
+    if (message.kind === "execute" && message.status === "in_progress") {
+      const timer = setTimeout(() => setOpen(true), 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setOpen(false);
+    }
+  }, [message.kind, message.status]);
+
+  const onOpenChange = useCallback((open: boolean) => {
+    userAction.current = true;
+    setOpen(open);
+  }, []);
+
   return (
     <Collapsible
       className="text-xs min-w-0 overflow-hidden group"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <CollapsibleTrigger
         render={<div />}
@@ -209,38 +267,93 @@ export function ToolItem({ session, message, defaultOpen = false }: ToolItemProp
   );
 }
 
+function ShareToUserBubble({
+  session,
+  respond,
+}: {
+  session: SessionInfo;
+  respond: ShareToUserRespond;
+}) {
+  const { sharePath, name } = respond;
+  const { t } = useTranslation();
+  const [error, setError] = useState(false);
+  const url = resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`);
+
+  const handleCopyToProject = useCallback(async () => {
+    try {
+      const absPath = await request.getShareFileSystemPath({ sessionId: session.id, sharePath });
+      await request.copyFileToWorkspace({ projectId: session.projectId, sourcePath: absPath });
+    } catch (err) {
+      console.error("Failed to copy to project:", err);
+    }
+  }, [session, sharePath]);
+
+  const handleReveal = useCallback(async () => {
+    try {
+      const absPath = await request.getShareFileSystemPath({ sessionId: session.id, sharePath });
+      electron.revealInFinder(absPath);
+    } catch (err) {
+      console.error("Failed to reveal in finder:", err);
+    }
+  }, [session, sharePath]);
+
+  return (
+    <div className="share-to-user-bubble border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-card">
+        <ImageIcon className="size-4 text-sky-500 shrink-0" />
+        <span className="flex-1 min-w-0 truncate text-xs font-medium text-foreground">{name}</span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-md hover:bg-muted hover:text-foreground size-6 text-xs text-foreground/70 outline-none">
+            <MoreHorizontal className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-40">
+            <DropdownMenuItem onClick={handleCopyToProject}>
+              <CopyPlus />
+              {t("shareToUser.copyToProject", "Copy to project")}
+            </DropdownMenuItem>
+            {!isWebUI && (
+              <DropdownMenuItem onClick={handleReveal}>
+                <FolderOpen />
+                {t("shareToUser.reveal", "Reveal in Finder")}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Image */}
+      <div className="flex items-center justify-center bg-muted/10 min-h-32">
+        {error ? (
+          <p className="text-xs text-muted-foreground p-4">Failed to load image</p>
+        ) : (
+          <img
+            src={url}
+            alt={name}
+            className="max-w-full max-h-[60vh] object-contain"
+            onError={() => setError(true)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ToolBubble({
   session,
   message,
-  prevBubbleRole,
-  nextBubbleRole,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<ToolCallMessage>) {
-  const isGroupedWithPrev = prevBubbleRole === "tool_call";
-  const isGroupedWithNext = nextBubbleRole === "tool_call";
-  const hasPrevBubble = prevBubbleRole != null;
-  const [delayedOpen, setDelayedOpen] = useState(false);
-  useEffect(() => {
-    if (!nextBubbleRole && message.kind === "execute" && message.status === "in_progress") {
-      const timer = setTimeout(() => setDelayedOpen(true), 2000);
-      return () => clearTimeout(timer);
-    } else {
-      setDelayedOpen(false);
-    }
-  }, [nextBubbleRole, message.kind, message.status]);
-  const defaultOpen = delayedOpen;
+  const felloTool = useMemo(() => parseFelloTools(message), [message.content]);
+
+  if (felloTool?.type === "shareToUser") {
+    return <ShareToUserBubble session={session} respond={felloTool.respond} />;
+  }
 
   return (
-    <div
-      className={cn(
-        "tool-bubble border border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
-        !isGroupedWithPrev && hasPrevBubble && "mt-4",
-        isGroupedWithPrev && "-mt-px",
-        !isGroupedWithPrev && "rounded-t-md",
-        !isGroupedWithNext && "rounded-b-md",
-      )}
-    >
-      <ToolItem session={session} message={message} defaultOpen={defaultOpen} />
+    <div className="tool-bubble border border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto [&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md [&:not(:has(+.tool-bubble))]:mb-4">
+      <ToolItem session={session} message={message} />
     </div>
   );
 }

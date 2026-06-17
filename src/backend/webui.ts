@@ -7,9 +7,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
-import { storageOps } from "./storage";
-import { serveFile } from "./serve-file";
-import { store as autoStore } from "./automation/store";
+import { parseFileRoute, serveRoute } from "./file-routes";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
 import * as mimeTypes from "mime-types";
@@ -52,6 +50,14 @@ function isAuthenticated(
   if (fromCookie && fromCookie === currentToken) return true;
   const fromQuery = url.searchParams.get("token");
   if (fromQuery && fromQuery === currentToken) return true;
+
+  // ── Dev mode: Vite serves the page, use refer for Auth ──
+  if (process.env.ELECTRON_RENDERER_URL) {
+    const referer = String(req.headers.referer);
+    if (referer.startsWith(process.env.ELECTRON_RENDERER_URL)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -126,13 +132,6 @@ export async function startWebUI(options?: {
       res.end("Unauthorized");
     };
 
-    // ── Dev mode: Vite serves the page, this server is WS-only ──
-    if (process.env.ELECTRON_RENDERER_URL) {
-      res.writeHead(200, { "Content-Type": "text/plain" });
-      res.end("Fello WebUI WebSocket Server is running.");
-      return;
-    }
-
     // ── Authenticate all requests ─────────────────────────────────
     // Page requests (SPA routes served via index.html) must carry a valid
     // `?token=` in the URL — if valid, a session cookie is set so subsequent
@@ -141,67 +140,38 @@ export async function startWebUI(options?: {
     // All non-page requests authenticate via cookie (or ?token= as fallback).
     const isPageRequest = url.pathname === "/";
 
-    const fromQuery = url.searchParams.get("token");
+    const tokenFromQuery = url.searchParams.get("token");
 
     if (isPageRequest) {
       // Page request: must have a valid ?token= in the URL (cookie is NOT accepted)
-      if (!fromQuery || fromQuery !== currentToken) {
+      if (!tokenFromQuery || tokenFromQuery !== currentToken) {
         unauthorized();
         return;
       }
       // Valid token → set session cookie for subsequent requests
-      res.setHeader("Set-Cookie", `${COOKIE_NAME}=${fromQuery}; Path=/; HttpOnly; SameSite=Lax`);
+      res.setHeader(
+        "Set-Cookie",
+        `${COOKIE_NAME}=${tokenFromQuery}; Path=/; HttpOnly; SameSite=Lax`,
+      );
     } else if (!isAuthenticated(req, url)) {
       // Non-page request (assets, project files): authenticate via cookie or ?token=
       unauthorized();
       return;
     }
 
-    // ── Project file serving route: /project/<projectId>/<relative-path> ──
-    // Used by the WebDetail component to load HTML files with relative asset references.
-    if (url.pathname.startsWith("/project/")) {
-      const pathParts = url.pathname.split("/");
-      const projectId = pathParts[2] || "";
-      const relativePath = decodeURIComponent(pathParts.slice(3).join("/") || "");
-
-      if (!projectId || !relativePath) {
-        res.writeHead(400, { "Content-Type": "text/plain" });
-        res.end("Bad Request");
+    // ── 统一文件服务路由 ──
+    // 由 file-routes.ts 统一解析，支持:
+    //   /project/<projectId>/<relativePath>
+    //   /share/<projectId>/<sessionId>/<sharePath>
+    //   /automation/<scheduleId>/<taskId>/<relativePath>
+    {
+      const route = parseFileRoute(url);
+      if (route) {
+        const result = await serveRoute(route);
+        res.writeHead(result.status, { "Content-Type": result.mimeType });
+        res.end(result.body);
         return;
       }
-
-      const project = storageOps.getProject(projectId);
-      if (!project) {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end("Project Not Found");
-        return;
-      }
-
-      const result = await serveFile(relativePath, project.cwd);
-      res.writeHead(result.status, { "Content-Type": result.mimeType });
-      res.end(result.body);
-      return;
-    }
-
-    // ── Automation task file serving route: /automation/<scheduleId>/task/<taskId>/<relative-path> ──
-    if (url.pathname.startsWith("/automation/")) {
-      const pathParts = url.pathname.split("/");
-      // /automation/<scheduleId>/task/<taskId>/<...relativePath>
-      const scheduleId = pathParts[2] || "";
-      const taskId = pathParts[4] || "";
-      const relativePath = decodeURIComponent(pathParts.slice(5).join("/") || "");
-
-      if (!scheduleId || pathParts[3] !== "task" || !taskId || !relativePath) {
-        res.writeHead(400, { "Content-Type": "text/plain" });
-        res.end("Bad Request");
-        return;
-      }
-
-      const taskDir = autoStore.taskDir(scheduleId, taskId);
-      const result = await serveFile(relativePath, taskDir);
-      res.writeHead(result.status, { "Content-Type": result.mimeType });
-      res.end(result.body);
-      return;
     }
 
     // In prod, serve the static files from the renderer directory

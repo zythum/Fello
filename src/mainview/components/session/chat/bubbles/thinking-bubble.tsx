@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { Lightbulb } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
 import type { AgentThoughtMessage } from "../../../../lib/chat-message";
@@ -10,8 +10,6 @@ import type { BaseBubbleProps } from "./base-bubble";
 export const ThinkingBubble = memo(function ThinkingBubble({
   session,
   message,
-  prevBubbleRole,
-  nextBubbleRole: _nextBubbleRole,
   isStreaming,
 }: BaseBubbleProps<AgentThoughtMessage>) {
   const { t } = useTranslation();
@@ -23,7 +21,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({
 
   return (
     <Collapsible
-      className={cn("w-full pointer-events-auto", prevBubbleRole != null && "mt-3")}
+      className="thinking-bubble w-full pointer-events-auto my-4"
       open={open}
       onOpenChange={setOpen}
     >

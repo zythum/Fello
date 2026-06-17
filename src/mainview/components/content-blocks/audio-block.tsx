@@ -1,9 +1,6 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { downloadDataUrl } from "../../lib/utils";
 import { SessionInfo } from "../../../shared/schema";
 import type { AudioContent } from "@agentclientprotocol/sdk";
 import type { ChatMessage } from "../../lib/chat-message";
@@ -24,12 +21,6 @@ export const AudioBlock = memo(function AudioBlock({
   const { t } = useTranslation();
   const data = block.data;
   const mimeType = block.mimeType ?? undefined;
-
-  const handleDownload = async () => {
-    if (data && mimeType) {
-      downloadDataUrl(`data:${mimeType};base64,${data}`, "audio");
-    }
-  };
 
   const hasContent = !!data;
 
@@ -52,15 +43,6 @@ export const AudioBlock = memo(function AudioBlock({
           {t("contentBlock.audio", "Audio:")} {mimeType}
         </span>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 shrink-0"
-        onClick={handleDownload}
-        title={t("contentBlock.download", "Download")}
-      >
-        <Download className="h-4 w-4" />
-      </Button>
     </Card>
   );
 });

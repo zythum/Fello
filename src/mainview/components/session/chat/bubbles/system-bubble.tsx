@@ -5,14 +5,12 @@ import type { BaseBubbleProps } from "./base-bubble";
 export const SystemBubble = memo(function SystemBubble({
   session: _session,
   message,
-  prevBubbleRole: _prevBubbleRole,
-  nextBubbleRole: _nextBubbleRole,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<SystemMessage>) {
   const { kind, contents } = message;
 
   return (
-    <div className="flex w-full flex-col items-center justify-center py-2 gap-2 pointer-events-auto">
+    <div className="system-bubble flex w-full flex-col items-center justify-center py-2 gap-2 pointer-events-auto my-4">
       <div
         className={
           kind === "info"

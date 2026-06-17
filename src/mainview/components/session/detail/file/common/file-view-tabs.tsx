@@ -16,7 +16,11 @@ export function FileViewTabs({ viewMode, viewModes, onViewModeChange }: FileView
 
   return (
     <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center pointer-events-none">
-      <Tabs className="pointer-events-auto" value={viewMode} onValueChange={(v) => onViewModeChange(v as ViewMode)}>
+      <Tabs
+        className="pointer-events-auto"
+        value={viewMode}
+        onValueChange={(v) => onViewModeChange(v as ViewMode)}
+      >
         <TabsList className="h-8 border border-border shadow-lg">
           {viewModes.map((mode) => (
             <TabsTrigger key={mode} value={mode} className="text-xs min-w-18">

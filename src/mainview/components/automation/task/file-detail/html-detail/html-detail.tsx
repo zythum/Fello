@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/context-menu";
 import { CodeView } from "../../../../common/code-view";
 import { copyText } from "@/lib/clipboard";
-import { isWebUI } from "../../../../../backend";
-import { useAppStore } from "../../../../../store";
+import { isWebUI, webUIBaseUrl } from "../../../../../backend";
+import { resolveFileUrl } from "../../../../../lib/file-url";
 import { useTaskFile } from "../common/use-task-file";
 import { LoadingState, ErrorState } from "../common/loading-state";
 
@@ -41,32 +41,14 @@ export function HtmlDetail({
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [retryKey, setRetryKey] = useState(0);
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
-  const webUIStatus = useAppStore((s) => s.webUIStatus);
 
-  const httpBaseUrl = useMemo(() => {
-    if (webUIStatus.enabled && webUIStatus.url) {
-      try {
-        const parsed = new URL(webUIStatus.url);
-        const urlParams = new URLSearchParams(parsed.search);
-        const port = urlParams.get("port") || parsed.port;
-        return `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch {
-        return webUIStatus.url;
-      }
-    }
-    return null;
-  }, [webUIStatus]);
-
-  const iframeUrl = useMemo(() => {
-    const path = `/automation/${scheduleId}/task/${taskId}/${fileName}`;
-    if (isWebUI && httpBaseUrl) return `${httpBaseUrl}${path}`;
-    return `web://automation/${scheduleId}/task/${taskId}/${fileName}`;
-  }, [httpBaseUrl, scheduleId, taskId, fileName]);
+  const pathname = `/automation/${scheduleId}/${taskId}/${fileName}`;
+  const iframeUrl = useMemo(() => resolveFileUrl(pathname), [pathname]);
 
   const httpUrl = useMemo(() => {
-    if (!httpBaseUrl) return null;
-    return `${httpBaseUrl}/automation/${scheduleId}/task/${taskId}/${fileName}`;
-  }, [httpBaseUrl, scheduleId, taskId, fileName]);
+    if (!webUIBaseUrl) return null;
+    return `${webUIBaseUrl}${pathname}`;
+  }, [pathname]);
 
   const handleOpenExternal = useCallback(() => {
     if (httpUrl) window.open(httpUrl, "_blank", "noopener,noreferrer");

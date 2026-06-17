@@ -18,7 +18,7 @@ import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
-import { serveFile } from "../backend/serve-file";
+import { parseFileRoute, serveRoute } from "../backend/file-routes";
 import {
   createAutoUpdateCheckGate,
   createUpdaterEvent,
@@ -36,11 +36,12 @@ if (isDev) {
   // app.disableHardwareAcceleration();
 }
 
-// Register the custom `web://` scheme as privileged before app is ready.
+// Register the custom `fello://` scheme as privileged before app is ready.
 // This enables standard URL parsing, fetch support, and CORS in iframes.
+// URL 格式: fello://web/<resourceType>/<path>
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: "web",
+    scheme: "fello",
     privileges: {
       standard: true,
       secure: true,
@@ -483,68 +484,35 @@ app.on("before-quit", (event) => {
 });
 
 app.whenReady().then(() => {
-  // Register custom web:// protocol handler for serving project files.
-  // URL format: web://project/<projectId>/<relative-path>
-  // Allows HTML files to reference relative paths (images, CSS, JS) naturally.
-  protocol.handle("web", async (request) => {
+  // Register custom fello:// protocol handler for serving files.
+  // 仅响应 fello://web/...，统一由 file-routes.ts 解析:
+  //   fello://web/project/<projectId>/<relativePath>
+  //   fello://web/share/<projectId>/<sessionId>/<sharePath>
+  //   fello://web/automation/<scheduleId>/<taskId>/<relativePath>
+  protocol.handle("fello", async (request) => {
     const url = new URL(request.url);
+    // 仅响应 fello://web/... 请求
+    if (url.host !== "web") {
+      return new Response("Not Found", { status: 404 });
+    }
+    const route = parseFileRoute(url);
 
-    // Handle web://project/... URLs
-    if (url.host === "project") {
-      const pathParts = url.pathname.split("/");
-      const projectId = pathParts[1] || "";
-      const relativePath = decodeURIComponent(pathParts.slice(2).join("/") || "");
-
-      if (!projectId || !relativePath) {
-        return new Response("Bad Request", { status: 400 });
-      }
-
-      const project = storageOps.getProject(projectId);
-      if (!project) {
-        return new Response("Project Not Found", { status: 404 });
-      }
-
-      const result = await serveFile(relativePath, project.cwd);
-
-      // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const blob = new Blob([result.body as any], { type: result.mimeType });
-      return new Response(blob, {
-        status: result.status,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-        },
-      });
+    if (!route) {
+      return new Response("Not Found", { status: 404 });
     }
 
-    // Handle web://automation/<scheduleId>/task/<taskId>/<relative-path>
-    if (url.host === "automation") {
-      const pathParts = url.pathname.split("/");
-      const scheduleId = pathParts[1] || "";
-      const taskId = pathParts[3] || "";
-      const relativePath = decodeURIComponent(pathParts.slice(4).join("/") || "");
+    const result = await serveRoute(route);
 
-      if (!scheduleId || pathParts[2] !== "task" || !taskId || !relativePath) {
-        return new Response("Bad Request", { status: 400 });
-      }
-
-      const { store } = await import("../backend/automation/store");
-      const taskDir = store.taskDir(scheduleId, taskId);
-      const result = await serveFile(relativePath, taskDir);
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const blob = new Blob([result.body as any], { type: result.mimeType });
-      return new Response(blob, {
-        status: result.status,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-        },
-      });
-    }
-
-    return new Response("Not Found", { status: 404 });
+    // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const blob = new Blob([result.body as any], { type: result.mimeType });
+    return new Response(blob, {
+      status: result.status,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+      },
+    });
   });
 
   setupMenu();

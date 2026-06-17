@@ -5,77 +5,27 @@ import { UserBubble } from "./user-bubble";
 import { AgentBubble } from "./agent-bubble";
 import { SystemBubble } from "./system-bubble";
 import { PlanBubble } from "./plan-bubble";
-import type { ChatMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
+import type { ChatMessage } from "../../../../lib/chat-message";
 
 export const MessageBubble = memo(function MessageBubble({
   session,
   message,
-  prevBubbleRole,
-  nextBubbleRole,
   isStreaming,
 }: BaseBubbleProps<ChatMessage>) {
   switch (message.role) {
     case "tool_call":
-      return (
-        <ToolBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <ToolBubble session={session} message={message} isStreaming={isStreaming} />;
     case "agent_thought":
-      return (
-        <ThinkingBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <ThinkingBubble session={session} message={message} isStreaming={isStreaming} />;
     case "user_message":
-      return (
-        <UserBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <UserBubble session={session} message={message} isStreaming={isStreaming} />;
     case "agent_message":
-      return (
-        <AgentBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <AgentBubble session={session} message={message} isStreaming={isStreaming} />;
     case "system_message":
-      return (
-        <SystemBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <SystemBubble session={session} message={message} isStreaming={isStreaming} />;
     case "plan":
-      return (
-        <PlanBubble
-          session={session}
-          message={message}
-          prevBubbleRole={prevBubbleRole}
-          nextBubbleRole={nextBubbleRole}
-          isStreaming={isStreaming}
-        />
-      );
+      return <PlanBubble session={session} message={message} isStreaming={isStreaming} />;
     default:
       return null;
   }

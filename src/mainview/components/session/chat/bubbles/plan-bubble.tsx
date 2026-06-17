@@ -9,8 +9,6 @@ import type { PlanMessage } from "../../../../lib/chat-message";
 export const PlanBubble = memo(function PlanBubble({
   session: _session,
   message,
-  prevBubbleRole,
-  nextBubbleRole: _nextBubbleRole,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<PlanMessage>) {
   const { t } = useTranslation();
@@ -19,10 +17,7 @@ export const PlanBubble = memo(function PlanBubble({
 
   return (
     <Collapsible
-      className={cn(
-        "border border-border bg-card rounded-md pointer-events-auto",
-        prevBubbleRole != null && "mt-4",
-      )}
+      className="plan-bubble border border-border bg-card rounded-md pointer-events-auto my-4"
       defaultOpen
     >
       <CollapsibleTrigger className="w-full bg-transparent border-0 flex select-none items-center gap-2 px-3 py-2 text-xs hover:bg-secondary">

@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { copyText } from "@/lib/clipboard";
 import { ExternalLink, RotateCcw, MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { request, isWebUI } from "../../../../../backend";
+import { request, isWebUI, webUIBaseUrl } from "../../../../../backend";
 import { electron } from "../../../../../electron";
-import { useAppStore } from "../../../../../store";
+import { resolveFileUrl } from "../../../../../lib/file-url";
 import { ErrorState } from "../common/loading-state";
 import { useFile } from "../common/use-file";
 import type { ViewMode } from "../common/file-view-tabs";
@@ -36,38 +36,13 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   // Load file content for code/compare views
   const { content, gitContent, loading: fileLoading } = useFile(projectId, file, { gitHead: true });
 
-  // WebUI status is already in the global store — no extra fetch needed
-  const webUIStatus = useAppStore((s) => s.webUIStatus);
-
-  // Derive the base URL for the HTTP file serving route
-  const httpBaseUrl = useMemo(() => {
-    if (webUIStatus.enabled && webUIStatus.url) {
-      try {
-        const parsed = new URL(webUIStatus.url);
-        const urlParams = new URLSearchParams(parsed.search);
-        const port = urlParams.get("port") || parsed.port;
-        return `${parsed.protocol}//${parsed.hostname}:${port}`;
-      } catch {
-        return webUIStatus.url;
-      }
-    }
-    return null;
-  }, [webUIStatus, isWebUI]);
-
-  // Construct the URL for the iframe and the "Open in Browser" button.
-  // In WebUI mode (browser), use HTTP URL.
-  // In Electron mode, always use the custom web:// protocol to avoid cookie/auth issues.
-  const iframeUrl = useMemo(() => {
-    if (isWebUI && httpBaseUrl) {
-      return `${httpBaseUrl}/project/${projectId}/${file}`;
-    }
-    return `web://project/${projectId}/${file}`;
-  }, [httpBaseUrl, projectId, file]);
+  const pathname = `/project/${projectId}/${file}`;
+  const iframeUrl = useMemo(() => resolveFileUrl(pathname), [pathname]);
 
   const httpUrl = useMemo(() => {
-    if (!httpBaseUrl) return null;
-    return `${httpBaseUrl}/project/${projectId}/${file}`;
-  }, [httpBaseUrl, projectId, file]);
+    if (!webUIBaseUrl) return null;
+    return `${webUIBaseUrl}${pathname}`;
+  }, [pathname]);
 
   // Pre-check if the file (or its index.html) exists
   useEffect(() => {

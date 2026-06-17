@@ -603,7 +603,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           if (target.tagName !== "TEXTAREA") return;
           const textarea = target as HTMLTextAreaElement;
           textarea.focus();
-          let insertText = '';
+          let insertText = "";
           for (const path of paths) {
             insertText += `@[#resource:${path}](${path}) `;
           }
@@ -667,7 +667,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-
       const text = e.clipboardData.getData("text/plain");
       const files = e.clipboardData.files;
       if (!session) return;
@@ -708,7 +707,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           if (target.tagName !== "TEXTAREA") return;
           const textarea = target as HTMLTextAreaElement;
           textarea.focus();
-          let insertText = '';
+          let insertText = "";
           for (const path of paths) {
             insertText += `@[#resource:${path}](${path}) `;
           }

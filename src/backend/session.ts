@@ -17,6 +17,7 @@ import {
   respondAskUser,
   registerAskUserRoute,
 } from "./ask-user";
+import { buildShareToUserMcpServer, registerShareToUserRoute } from "./share-to-user";
 import {
   getIlinkBridge,
   getIlinkActiveSessionId,
@@ -53,6 +54,7 @@ async function createSessionSocketServer(
   const server = await startSocketServer(options.socketPath);
   registerAskUserRoute(server, sessionId);
   registerSkillsRoute(server, options.project.cwd);
+  registerShareToUserRoute(server, sessionId);
   sessionSocketServers.set(sessionId, server);
   return server;
 }
@@ -85,6 +87,10 @@ function buildMcpServersConfig(
 
   if (socketPath && features.includes("ask_user")) {
     servers.push(buildAskUserMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("share_to_user")) {
+    servers.push(buildShareToUserMcpServer({ projectDir: project.cwd, socketPath }));
   }
 
   const globalSettings = storageOps.getSettings();

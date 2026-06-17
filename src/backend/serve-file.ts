@@ -17,7 +17,7 @@ export interface ProjectFileResult {
  * Prevents directory traversal — any path escaping the root is rejected.
  *
  * This function is shared by:
- *   - Electron's custom `web://` protocol handler (protocol.handle)
+ *   - Electron's custom `fello://` protocol handler (protocol.handle)
  *   - WebUI's HTTP server route (`/project/:projectId/*`)
  */
 export async function serveFile(filename: string, cwd: string): Promise<ProjectFileResult> {

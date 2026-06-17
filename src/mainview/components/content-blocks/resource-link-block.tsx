@@ -1,9 +1,9 @@
 import { memo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { ExternalLink, Search, Copy, Download, Link2 } from "lucide-react";
+import { ExternalLink, Search, Copy, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getBasename, formatBytes, downloadDataUrl, isSubPath } from "../../lib/utils";
+import { formatBytes, isSubPath } from "../../lib/utils";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { useMessage } from "../providers/message";
@@ -52,22 +52,6 @@ export const ResourceLinkBlock = memo(function ResourceLinkBlock({
       electron.revealInFinder(path);
     }
   }, [uri]);
-
-  const handleDownload = useCallback(async () => {
-    if (isWebUI) {
-      try {
-        const dataUrl = await request.readUrlAsDataUrl({ url: uri, mimeType });
-        downloadDataUrl(dataUrl, name || getBasename(uri));
-      } catch (err) {
-        const msg = (err as Error).message || String(err);
-        if (msg.includes("exceeds 20MB")) {
-          toast.error(t("contentBlock.fileTooLarge", "File is too large (exceeds 20MB)"));
-        } else {
-          console.error("Failed to download resource link", err);
-        }
-      }
-    }
-  }, [uri, mimeType, name, t]);
 
   const handleCopyToWorkspace = useCallback(async () => {
     if (projectId && sessionCwd && !isWebUI) {
@@ -121,18 +105,6 @@ export const ResourceLinkBlock = memo(function ResourceLinkBlock({
           >
             <ExternalLink className="h-3 w-3 mr-1" />
             {t("contentBlock.openLink", "Open Link")}
-          </Button>
-        )}
-
-        {isFile && isWebUI && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-6 text-[10px] px-2"
-            onClick={handleDownload}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            {t("contentBlock.download", "Download")}
           </Button>
         )}
 

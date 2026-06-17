@@ -31,8 +31,6 @@ function escapeMarkdown(text: string): string {
 export const UserBubble = memo(function UserBubble({
   session,
   message,
-  prevBubbleRole: _prevBubbleRole,
-  nextBubbleRole: _nextBubbleRole,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<UserMessage>) {
   const { t } = useTranslation();

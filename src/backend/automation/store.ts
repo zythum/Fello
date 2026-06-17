@@ -84,7 +84,7 @@ export const store = {
       createdAt: now,
       updatedAt: now,
       lastRunAt: null,
-      features: (params.features ?? []).filter((f) => f !== "ask_user"),
+      features: (params.features ?? []).filter((f) => f !== "ask_user" && f !== "share_to_user"),
       mcpServers: params.mcpServers ?? [],
     };
     this.saveSchedule(schedule);

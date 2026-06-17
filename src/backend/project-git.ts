@@ -6,13 +6,7 @@ import { resolveSafePath, toPosixPath } from "./utils";
 
 const execFileAsync = promisify(execFile);
 
-export async function getGitStatus({
-  projectId,
-  cwd,
-}: {
-  projectId: string;
-  cwd?: string;
-}) {
+export async function getGitStatus({ projectId, cwd }: { projectId: string; cwd?: string }) {
   try {
     const project = storageOps.getProject(projectId);
     if (!project) throw new Error("Project not found");
