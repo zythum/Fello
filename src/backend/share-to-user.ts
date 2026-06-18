@@ -9,6 +9,11 @@ import {
   type ShareToUserRespond,
 } from "../shared/zod/mcp-share-to-user-schema";
 import type { SocketServer } from "./socket-server";
+import {
+  getIlinkBridge,
+  getIlinkActiveSessionId,
+  appendIlinkImageBuffer,
+} from "./ilink-state";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -89,10 +94,10 @@ export async function shareToUser(options: ShareToUserOptions): Promise<ShareToU
     mkdirSync(targetDir, { recursive: true });
   }
 
-  // 写入文件
+  // 读取/生成图片 buffer
+  let buffer: Buffer;
   if (type === "link" && uri) {
     try {
-      let buffer: Buffer;
       if (uri.startsWith("https://") || uri.startsWith("http://")) {
         // 远程 URL → fetch 下载
         const response = await fetch(uri);
@@ -105,20 +110,31 @@ export async function shareToUser(options: ShareToUserOptions): Promise<ShareToU
         const sourcePath = uri.startsWith("file://") ? fileURLToPath(uri) : uri;
         buffer = await readFile(sourcePath);
       }
-      await writeFile(targetPath, buffer);
     } catch (err) {
       throw new Error(
         `Failed to read image from "${uri}": ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   } else if (type === "base64" && data) {
-    // base64 类型：直接解码写入
-    const buffer = Buffer.from(data, "base64");
-    await writeFile(targetPath, buffer);
+    // base64 类型：直接解码
+    buffer = Buffer.from(data, "base64");
   } else {
     throw new Error(
       `Invalid shareToUser request: type="${type}" but no ${type === "link" ? "uri" : "data"} provided`,
     );
+  }
+
+  // 写入文件
+  await writeFile(targetPath, buffer);
+
+  // ── Forward to WeChat via iLink ──
+  const ilinkBridge = getIlinkBridge();
+  const ilinkActiveSessionId = getIlinkActiveSessionId();
+  if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
+    const toUserId = ilinkBridge.userId;
+    if (toUserId) {
+      appendIlinkImageBuffer({ filePath: targetPath, name, toUserId });
+    }
   }
 
   // 返回结果
