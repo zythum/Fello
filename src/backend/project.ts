@@ -1,5 +1,5 @@
 import { storageOps } from "./storage";
-import { bridgePool } from "./session-agent-bridge";
+import { ensureBridge } from "./session-agent-bridge";
 import { clearProjectSearchState, initProjectFsVersion } from "./project-filesystem";
 import { syncWatchers } from "./watcher";
 
@@ -37,12 +37,9 @@ export async function deleteProject(projectId: string) {
 
   for (const session of projectSessions) {
     try {
-      const connectPromise = bridgePool.get(session.agentId);
-      if (connectPromise) {
-        const b = await connectPromise;
-        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
-        await b.deleteSession(session.resumeId);
-      }
+      const b = await ensureBridge(session.agentId);
+      if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+      await b.deleteSession(session.resumeId);
     } catch (error) {
       console.warn(
         `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,

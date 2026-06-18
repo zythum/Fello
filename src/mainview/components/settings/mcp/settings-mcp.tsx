@@ -91,6 +91,7 @@ export function SettingsMcp() {
   const { toast, confirm } = useMessage();
   const [mcpServers, setMcpServers] = useState<McpServerInfo[]>([]);
 
+  const [contextMenuMcpId, setContextMenuMcpId] = useState<string | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
   const [stdioDialogOpen, setStdioDialogOpen] = useState(false);
   const [httpDialogOpen, setHttpDialogOpen] = useState(false);
@@ -208,6 +209,10 @@ export function SettingsMcp() {
         "settings.mcp.confirmDeleteDesc",
         "Are you sure you want to delete this MCP server? This action cannot be undone.",
       ),
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        { text: t("settings.mcp.delete", "Delete"), value: "confirm", variant: "destructive" },
+      ],
     });
     if (!result) return;
     const updated = mcpServers.filter((a) => a.id !== id);
@@ -321,9 +326,9 @@ export function SettingsMcp() {
               >
                 {mcpServers.map((mcp) => (
                   <McpSortableItem key={mcp.id} id={mcp.id}>
-                    <ContextMenu>
+                    <ContextMenu onOpenChange={(open) => setContextMenuMcpId(open ? mcp.id : null)}>
                       <ContextMenuTrigger>
-                        <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
+                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuMcpId === mcp.id ? "ring-1 ring-primary" : ""}`}>
                           <span
                             className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                           >

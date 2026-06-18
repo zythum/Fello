@@ -13,7 +13,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, RefreshCw, XCircle } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import {
@@ -77,10 +77,11 @@ function isApiAgent(agent: AgentInfo): agent is ApiAgentInfo {
 
 export function SettingsAgents() {
   const { t } = useTranslation();
-  const { configuredAgents, setConfiguredAgents } = useAppStore();
+  const { configuredAgents, sessions, setConfiguredAgents } = useAppStore();
   const { toast, confirm } = useMessage();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
 
+  const [contextMenuAgentId, setContextMenuAgentId] = useState<string | null>(null);
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
   const [stdioDialogOpen, setStdioDialogOpen] = useState(false);
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
@@ -178,17 +179,75 @@ export function SettingsAgents() {
   };
 
   const handleDelete = async (id: string) => {
+    // 从 store 中计算该 Agent 关联的会话数量
+    const sessionCount = sessions.filter((s) => s.agentId === id).length;
+
+    const content =
+      sessionCount > 0
+        ? t(
+            "settings.agents.confirmDeleteDescWithSessions",
+            "Are you sure you want to delete this agent? {{count}} session(s) will also be deleted. This action cannot be undone.",
+            { count: sessionCount },
+          )
+        : t(
+            "settings.agents.confirmDeleteDesc",
+            "Are you sure you want to delete this agent? This action cannot be undone.",
+          );
+
     const result = await confirm({
       title: t("settings.agents.confirmDeleteTitle", "Delete Agent"),
-      content: t(
-        "settings.agents.confirmDeleteDesc",
-        "Are you sure you want to delete this agent? This action cannot be undone.",
-      ),
+      content,
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        { text: t("settings.agents.delete", "Delete"), value: "confirm", variant: "destructive" },
+      ],
     });
     if (!result) return;
     const updated = agents.filter((a) => a.id !== id);
     setAgents(updated);
     await handleSave(updated);
+  };
+
+  const handleReset = async (id: string) => {
+    try {
+      await request.resetAgent({ agentId: id });
+      toast.success(t("settings.agents.resetSuccess", "Agent reset."));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err) ||
+          t("settings.agents.resetFailed", "Failed to reset agent."),
+      );
+    }
+  };
+
+  const handleDeleteAllSessions = async (id: string) => {
+    const result = await confirm({
+      title: t("settings.agents.confirmDeleteAllSessionsTitle", "Delete All Sessions"),
+      content: t(
+        "settings.agents.confirmDeleteAllSessionsDesc",
+        "All sessions for this agent will be permanently deleted. This action cannot be undone.",
+      ),
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        { text: t("settings.agents.delete", "Delete"), value: "confirm", variant: "destructive" },
+      ],
+    });
+    if (!result) return;
+    try {
+      const res = await request.clearAgentSessions({ agentId: id });
+      toast.success(
+        t(
+          "settings.agents.deleteAllSessionsSuccess",
+          "{{count}} session(s) deleted.",
+          { count: res.deletedSessionIds.length },
+        ),
+      );
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err) ||
+          t("settings.agents.deleteAllSessionsFailed", "Failed to clear sessions."),
+      );
+    }
   };
 
   const handleToggleDisabled = async (id: string, disabled: boolean) => {
@@ -275,9 +334,9 @@ export function SettingsAgents() {
               >
                 {agents.map((agent) => (
                   <AgentSortableItem key={agent.id} id={agent.id}>
-                    <ContextMenu>
+                    <ContextMenu onOpenChange={(open) => setContextMenuAgentId(open ? agent.id : null)}>
                       <ContextMenuTrigger>
-                        <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
+                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuAgentId === agent.id ? "ring-1 ring-primary" : ""}`}>
                           <span
                             className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${agent.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                           >
@@ -299,10 +358,18 @@ export function SettingsAgents() {
                           </div>
                         </div>
                       </ContextMenuTrigger>
-                      <ContextMenuContent className="w-32">
+                      <ContextMenuContent className="w-40">
                         <ContextMenuItem onClick={() => openEditDialog(agent)}>
                           <Pencil className="size-3" />
                           {t("settings.agents.edit", "Edit")}
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => handleReset(agent.id)}>
+                          <RefreshCw className="size-3" />
+                          {t("settings.agents.reset", "Reset Agent")}
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => handleDeleteAllSessions(agent.id)}>
+                          <XCircle className="size-3" />
+                          {t("settings.agents.deleteAllSessions", "Delete All Sessions")}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem

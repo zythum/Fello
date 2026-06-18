@@ -70,6 +70,7 @@ export function SettingsSnippets() {
   const { snippets, setSnippets } = useAppStore();
   const { toast, confirm } = useMessage();
 
+  const [contextMenuSnippetId, setContextMenuSnippetId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<SnippetInfo | null>(null);
 
@@ -111,6 +112,10 @@ export function SettingsSnippets() {
         "settings.snippets.confirmDeleteDesc",
         "Are you sure you want to delete this snippet? This action cannot be undone.",
       ),
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        { text: t("settings.snippets.delete", "Delete"), value: "confirm", variant: "destructive" },
+      ],
     });
     if (!result) return;
     await handleSave(snippets.filter((s) => s.id !== id));
@@ -182,9 +187,9 @@ export function SettingsSnippets() {
               >
                 {snippets.map((s) => (
                   <SnippetSortableItem key={s.id} id={s.id}>
-                    <ContextMenu>
+                    <ContextMenu onOpenChange={(open) => setContextMenuSnippetId(open ? s.id : null)}>
                       <ContextMenuTrigger>
-                        <div className="flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden">
+                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuSnippetId === s.id ? "ring-1 ring-primary" : ""}`}>
                           <span className="font-bold text-xs ml-1 truncate shrink-0 max-w-32 select-none">
                             {s.title}
                           </span>

@@ -647,13 +647,10 @@ export async function deleteSession(sessionId: string) {
 
   if (session) {
     try {
-      const connectPromise = await ensureBridge(session.agentId);
-      if (connectPromise) {
-        const b = await connectPromise;
-        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
-        // 通过 ACP session/delete 协议删除持久化会话目录
-        await b.deleteSession(session.resumeId);
-      }
+      const b = await ensureBridge(session.agentId);
+      if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+      // 通过 ACP session/delete 协议删除持久化会话目录
+      await b.deleteSession(session.resumeId);
     } catch (error) {
       console.warn(
         `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -676,6 +673,71 @@ export async function deleteSession(sessionId: string) {
   }
 
   sendEvent("sessions-changed", undefined);
+}
+
+/**
+ * 重置 Agent（轻量）：仅关闭在 bridge 上加载的会话，停止 socket 服务。
+ * 不删除本地持久化数据（session 元数据、消息历史等）。
+ * 用于 Agent 设置变更后或用户手动重置 Agent。
+ */
+export async function resetAgentSessions(agentId: string): Promise<number> {
+  const sessions = storageOps.listSessions().filter((s) => s.agentId === agentId);
+  for (const session of sessions) {
+    try {
+      const connectPromise = bridgePool.get(session.agentId);
+      if (connectPromise) {
+        const b = await connectPromise;
+        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+      }
+    } catch (error) {
+      console.warn(
+        `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    stopSessionSocketServer(session.id);
+  }
+  if (sessions.length > 0) {
+    sendEvent("sessions-changed", undefined);
+  }
+  return sessions.length;
+}
+
+/**
+ * 删除 Agent 的所有会话（彻底）：关闭 bridge 会话、删除 agent 端持久化数据、
+ * 删除本地 session 元数据、停止 socket 服务。
+ * 用于 Agent 被删除的场景。
+ */
+export async function deleteAgentSessions(agentId: string): Promise<string[]> {
+  const sessions = storageOps.listSessions().filter((s) => s.agentId === agentId);
+  const ids = sessions.map((s) => s.id);
+  for (const session of sessions) {
+    try {
+      const b = await ensureBridge(session.agentId);
+      if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+      await b.deleteSession(session.resumeId);
+    } catch (error) {
+      console.warn(
+        `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    storageOps.deleteSession(session.id);
+    stopSessionSocketServer(session.id);
+
+    if (getIlinkActiveSessionId() === session.id) {
+      setIlinkActiveSessionId(null);
+      setIlinkReplyBuffer("");
+      try {
+        await writeActiveSessionId(null);
+      } catch (error) {
+        console.warn("[iLink] Failed to clear persisted active session:", error);
+      }
+      sendEvent("ilink-active-session-changed", { sessionId: null });
+    }
+  }
+  if (sessions.length > 0) {
+    sendEvent("sessions-changed", undefined);
+  }
+  return ids;
 }
 
 export async function getModels({ sessionId }: { sessionId: string }) {

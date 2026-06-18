@@ -25,7 +25,7 @@ import * as askUserHandlers from "./ask-user";
 
 import { markProjectFsDirty } from "./project-filesystem";
 import * as filesystemHandlers from "./project-filesystem";
-import { initSession, broadcastAndSaveSessionUpdate, clearSession } from "./session";
+import { initSession, broadcastAndSaveSessionUpdate, clearSession, resetAgentSessions, deleteAgentSessions } from "./session";
 import * as sessionHandlers from "./session";
 import { initProject } from "./project";
 import * as projectHandlers from "./project";
@@ -33,6 +33,7 @@ import { initIlinkHandlers, getILinkBridge } from "./ilink-handlers";
 import * as ilinkHandlers from "./ilink-handlers";
 import * as gitHandlers from "./project-git";
 import { setIlinkActiveSessionId } from "./ilink-state";
+import { deleteAgentPersistedStorage, deleteOrphanedAgentSessionDirectories } from "../agents/storage";
 
 // ── sendEvent ────────────────────────────────────────────────────────
 
@@ -134,13 +135,61 @@ export const backendHandlers: {
     const newAgents = settings.agents;
     if (newAgents) {
       const oldAgents = storageOps.getSettings().agents;
-      const changed =
-        oldAgents.length !== newAgents.length ||
-        oldAgents.some((a, i) => JSON.stringify(a) !== JSON.stringify(newAgents[i]));
-      if (changed) {
-        for (const [agentId, p] of bridgePool) {
-          bridgePool.delete(agentId);
-          p.then((b) => b.kill()).catch(() => {});
+
+      // 找出被修改的 Agent（ID 相同但配置不同）和被删除的 Agent
+      const oldMap = new Map(oldAgents.map((a) => [a.id, a]));
+      const newMap = new Map(newAgents.map((a) => [a.id, a]));
+      const changedOrRemoved = new Set<string>();
+
+      for (const [id, oldCfg] of oldMap) {
+        if (!newMap.has(id)) {
+          changedOrRemoved.add(id); // 被删除
+        } else {
+          const newCfg = newMap.get(id)!;
+          if (JSON.stringify(oldCfg) !== JSON.stringify(newCfg)) {
+            changedOrRemoved.add(id); // 配置变更
+          }
+        }
+      }
+
+      if (changedOrRemoved.size > 0) {
+        for (const agentId of changedOrRemoved) {
+          const isRemoved = !newMap.has(agentId);
+          if (isRemoved) {
+            // Agent 被删除：关闭会话、删除持久化数据、清理本地存储
+            await deleteAgentSessions(agentId).catch((err) => {
+              console.warn(`[backend] Failed to delete sessions for agent ${agentId}:`, err);
+            });
+            // 仅 API 类型 Agent 有 ~/.fello/api-agents/<agentId>/ 持久化目录，需要清理
+            if (oldMap.get(agentId)?.type === "api") {
+              try {
+                deleteAgentPersistedStorage(agentId);
+              } catch (err) {
+                console.warn(
+                  `[backend] Failed to delete persisted storage for agent ${agentId}:`,
+                  err,
+                );
+              }
+            }
+          } else {
+            // Agent 配置变更：仅关闭会话（保留持久化数据）
+            await resetAgentSessions(agentId).catch((err) => {
+              console.warn(`[backend] Failed to reset sessions for agent ${agentId}:`, err);
+            });
+            // 如果是 API Agent，清理 api-agents 目录下的孤儿会话历史
+            if (oldMap.get(agentId)?.type === "api") {
+              const knownResumeIds = new Set(
+                storageOps.listSessions().filter((s) => s.agentId === agentId).map((s) => s.resumeId),
+              );
+              deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
+            }
+          }
+          // 断连并销毁 bridge
+          const p = bridgePool.get(agentId);
+          if (p) {
+            bridgePool.delete(agentId);
+            p.then((b) => b.kill()).catch(() => {});
+          }
         }
       }
     }
@@ -220,6 +269,27 @@ export const backendHandlers: {
   },
   async deleteSession(sessionId) {
     return sessionHandlers.deleteSession(sessionId);
+  },
+  async resetAgent({ agentId }) {
+    await resetAgentSessions(agentId);
+    // 如果是 API Agent，清理 api-agents 目录下已不存在的孤儿会话历史
+    const agentCfg = storageOps.getSettings().agents.find((a) => a.id === agentId);
+    if (agentCfg?.type === "api") {
+      const knownResumeIds = new Set(
+        storageOps.listSessions().filter((s) => s.agentId === agentId).map((s) => s.resumeId),
+      );
+      deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
+    }
+    // 断连并销毁 bridge
+    const p = bridgePool.get(agentId);
+    if (p) {
+      bridgePool.delete(agentId);
+      p.then((b) => b.kill()).catch(() => {});
+    }
+  },
+  async clearAgentSessions({ agentId }) {
+    const deletedSessionIds = await deleteAgentSessions(agentId);
+    return { deletedSessionIds };
   },
   async getModels(params) {
     return sessionHandlers.getModels(params);

@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 import { FELLO_DIR } from "../backend/storage";
 import type { ModelMessage } from "ai";
@@ -162,4 +162,39 @@ export function deletePersistedSessionDirectory(params: {
     recursive: true,
     force: true,
   });
+}
+
+/** 删除某个 Agent 在 ~/.fello/api-agents/ 下的全部存储内容 */
+export function deleteAgentPersistedStorage(agentId: string): void {
+  const dir = join(FELLO_DIR, "api-agents", toSafePathSegment(agentId));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/**
+ * 清理 api-agents 目录下已不存在的会话子目录（孤儿会话历史）。
+ * @param agentId Agent ID
+ * @param knownSessionIds Fello 侧已知的 resumeId 集合
+ */
+export function deleteOrphanedAgentSessionDirectories(
+  agentId: string,
+  knownSessionIds: Set<string>,
+): void {
+  const sessionsDir = join(FELLO_DIR, "api-agents", toSafePathSegment(agentId), "sessions");
+  let entries: string[];
+  try {
+    entries = readdirSync(sessionsDir);
+  } catch {
+    // 目录不存在或不可读，跳过
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = join(sessionsDir, entry);
+    try {
+      if (statSync(fullPath).isDirectory() && !knownSessionIds.has(entry)) {
+        rmSync(fullPath, { recursive: true, force: true });
+      }
+    } catch {
+      // 单个条目处理失败不影响后续
+    }
+  }
 }

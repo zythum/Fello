@@ -527,7 +527,10 @@ export type FelloIPCRequests = {
   };
   /** 删除会话 */
   deleteSession: { params: string; response: void };
-
+  /** 重置 Agent：关闭其所有会话并清理 bridge，不删除持久化数据 */
+  resetAgent: { params: { agentId: string }; response: void };
+  /** 清理 Agent 的所有会话（关闭 bridge 会话 + 删除本地数据 + 停 socket 服务），不删除 Agent 配置 */
+  clearAgentSessions: { params: { agentId: string }; response: { deletedSessionIds: string[] } };
   /**
    * 获取系统文件路径
    * 该接口专门用于获取底层操作系统真实的路径（包含原生路径分隔符如 `\` 或 `/`）。

@@ -126,6 +126,9 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
     );
     store.writeTaskFile(scheduleId, taskId, "conversation.json", JSON.stringify(messages, null, 2));
 
+    await bridge.closeSession(sessionId);
+    await bridge.deleteSession(sessionId);
+
     // Cleanup: kill the dedicated bridge process
     await bridge.kill();
     skillsServer?.stop();
