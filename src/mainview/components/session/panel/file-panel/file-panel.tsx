@@ -946,6 +946,18 @@ export const FilePanel = memo(function FilePanel({
 
       e.dataTransfer.setData("application/x-fello-tree-nodes", JSON.stringify(nodesPayloads));
 
+      // 同时写入标准 text/uri-list 格式，允许拖到外部应用（Finder 等）使用
+      const fileUris = nodesPayloads
+        .filter((p) => !p.isFolder)
+        .map((p) => {
+          const absPath = cwd ? `${cwd.replace(/\/?$/, "/")}${p.id}` : p.id;
+          return `file://${absPath}`;
+        })
+        .join("\n");
+      if (fileUris) {
+        e.dataTransfer.setData("text/uri-list", fileUris);
+      }
+
       const downloadablePayload = nodesPayloads.find((p) => !p.isFolder);
       if (downloadablePayload) {
         // DownloadURL needs just the filename (basename), not the full path

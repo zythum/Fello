@@ -78,6 +78,35 @@ function searchFileItemToSuggestItem(f: SearchFileItem): SuggestItem {
   };
 }
 
+/** 根据绝对路径判断是否属于当前项目，返回合适的 mention 标记（#file: / #folder: / #resource:） */
+async function absPathToMention(
+  absPath: string,
+  projectId: string,
+  projectCwd?: string,
+): Promise<string> {
+  // Project root itself or paths outside the project → treat as external resource
+  if (projectCwd && (absPath === projectCwd || absPath === projectCwd.replace(/\/$/, "") || !absPath.startsWith(projectCwd.replace(/\/?$/, "/")))) {
+    const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
+    return `@[#resource:${fileUri}](${fileUri}) `;
+  }
+  try {
+    const relPath = await request.getSystemFilePath({
+      projectId,
+      path: absPath,
+      isAbsolute: false,
+    });
+    const info = await request.getFileInfo({ projectId, relativePath: relPath });
+    if (info) {
+      const prefix = info.isFile ? "#file:" : "#folder:";
+      return `@[${prefix}${relPath}](${absPath}) `;
+    }
+  } catch {
+    // not within project
+  }
+  const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
+  return `@[#resource:${fileUri}](${fileUri}) `;
+}
+
 /** 将 File 读取为 base64（不含 data: URL 前缀） */
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -567,13 +596,13 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(false);
-
       const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
       const supportsEmbedded =
         initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
       // Handle files drop
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const paths: string[] = [];
+        const absPaths: string[] = [];
+        let hasInlineAttachments = false;
 
         for (const file of Array.from(e.dataTransfer.files)) {
           const isImage = file.type.startsWith("image/");
@@ -581,33 +610,78 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           const canReadText = supportsEmbedded;
 
           if (canEmbed || canReadText) {
-            // Read inline and store immediately
+            hasInlineAttachments = true;
+            // Read inline and store immediately (folders will fail silently)
             (async () => {
-              const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
-              const type: "image" | "file" = isImage ? "image" : "file";
-              updateSessionState((s) => ({
-                draftAttachments: [
-                  ...s.draftAttachments,
-                  { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
-                ],
-              }));
+              try {
+                const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
+                const type: "image" | "file" = isImage ? "image" : "file";
+                updateSessionState((s) => ({
+                  draftAttachments: [
+                    ...s.draftAttachments,
+                    { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
+                  ],
+                }));
+              } catch {
+                // Can't read inline (e.g. folder) → try electron path API as fallback
+                if (!isWebUI) {
+                  const p = electron.getPathForFile(file);
+                  if (p) {
+                    const mention = await absPathToMention(p, session.projectId, session.cwd);
+                    const target = e.target as HTMLElement;
+                    if (target.tagName === "TEXTAREA") {
+                      target.focus();
+                      document.execCommand("insertText", false, mention);
+                    }
+                  }
+                }
+              }
             })();
           } else if (!isWebUI) {
             const p = electron.getPathForFile(file);
-            if (p) paths.push(p);
+            if (p) absPaths.push(p);
           }
         }
-        if (paths.length > 0) {
-          // Restore focus and insert text natively so MentionsInput catches the onChange
+
+        // Async resolve absolute paths to mentions (with project-aware prefix)
+        if (absPaths.length > 0) {
+          (async () => {
+            const target = e.target as HTMLElement;
+            if (target.tagName !== "TEXTAREA") return;
+            const textarea = target as HTMLTextAreaElement;
+            textarea.focus();
+            const mentions = await Promise.all(
+              absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
+            );
+            document.execCommand("insertText", false, mentions.join(""));
+          })();
+          return;
+        }
+        // If we got here without handling anything (e.g. folder from Finder),
+        // fall through to check text/uri-list instead of returning
+        if (hasInlineAttachments) return;
+      }
+
+      // Handle file:// URIs from external sources (VS Code file tree drag, etc.)
+      const uriList = e.dataTransfer.getData("text/uri-list");
+      if (uriList) {
+        const uris = uriList.split("\n").map((u) => u.trim()).filter(Boolean);
+        const absPaths = uris
+          .filter((uri) => uri.startsWith("file://"))
+          .map((uri) => decodeURIComponent(uri.replace(/^file:\/\//, "")))
+          .filter(Boolean);
+
+        if (absPaths.length > 0) {
           const target = e.target as HTMLElement;
           if (target.tagName !== "TEXTAREA") return;
           const textarea = target as HTMLTextAreaElement;
           textarea.focus();
-          let insertText = "";
-          for (const path of paths) {
-            insertText += `@[#resource:${path}](${path}) `;
-          }
-          document.execCommand("insertText", false, insertText);
+          (async () => {
+            const mentions = await Promise.all(
+              absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
+            );
+            document.execCommand("insertText", false, mentions.join(" ") + " ");
+          })();
         }
         return;
       }
@@ -632,7 +706,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         // ignore malformed data
       }
     },
-    [initializeInfo?.agentCapabilities?.promptCapabilities],
+    [initializeInfo?.agentCapabilities?.promptCapabilities, session.projectId],
   );
 
   const handleDragOver = useCallback(
@@ -640,7 +714,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       // Must always preventDefault on dragover to allow drop
       if (
         e.dataTransfer.types.includes("application/x-fello-tree-nodes") ||
-        e.dataTransfer.types.includes("Files")
+        e.dataTransfer.types.includes("Files") ||
+        e.dataTransfer.types.includes("text/uri-list")
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -702,16 +777,16 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         }
 
         if (paths.length > 0) {
-          // Restore focus and insert text natively so MentionsInput catches the onChange
           const target = e.target as HTMLElement;
           if (target.tagName !== "TEXTAREA") return;
           const textarea = target as HTMLTextAreaElement;
           textarea.focus();
-          let insertText = "";
-          for (const path of paths) {
-            insertText += `@[#resource:${path}](${path}) `;
-          }
-          document.execCommand("insertText", false, insertText);
+          (async () => {
+            const mentions = await Promise.all(
+              paths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
+            );
+            document.execCommand("insertText", false, mentions.join(""));
+          })();
         }
         e.preventDefault();
         return;
