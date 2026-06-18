@@ -70,15 +70,18 @@ function inferToolKind(name: string): ToolKind {
 
 async function createClient(server: McpServer, cwd: string): Promise<MCPClient> {
   if ("type" in server) {
-    return createMCPClient({
-      transport: {
-        type: server.type,
-        url: server.url,
-        headers: toHeaderRecord(server.headers),
-      },
-      clientName: "fello-openai-compatible-agent",
-      version: "0.1.0",
-    });
+    if (server.type === 'http' || server.type === 'sse') {
+      return createMCPClient({
+        transport: {
+          type: server.type,
+          url: server.url,
+          headers: toHeaderRecord(server.headers),
+        },
+        clientName: "fello-openai-compatible-agent",
+        version: "0.1.0",
+      });
+    }
+    throw new Error(`McpServer Type: ${server.type} not supported.`);
   }
   return createMCPClient({
     transport: new StdioClientTransport({

@@ -430,6 +430,23 @@ export class ACPBridge {
     this._sessionsCwdMap.delete(sessionId);
   }
 
+  /**
+   * Delete a session's persisted data via the ACP session/delete protocol.
+   * The agent will remove the session directory (~/.fello/api-agents/...).
+   * Deleted/non-existent sessions are handled gracefully.
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    if (!this.connection) return;
+    try {
+      await this.connection.unstable_deleteSession({ sessionId });
+    } catch {}
+    this._modelStates.delete(sessionId);
+    this._modeStates.delete(sessionId);
+    this._configOptions.delete(sessionId);
+    this._loadedSessions.delete(sessionId);
+    this._sessionsCwdMap.delete(sessionId);
+  }
+
   async loadSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     if (!this.connection) throw new Error("Not connected");
 

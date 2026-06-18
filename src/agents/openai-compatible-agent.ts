@@ -10,6 +10,8 @@ import type {
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
+  DeleteSessionRequest,
+  DeleteSessionResponse,
   InitializeRequest,
   InitializeResponse,
   LoadSessionRequest,
@@ -36,6 +38,7 @@ import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
 import {
   appendPersistedSessionHistory,
+  deletePersistedSessionDirectory,
   loadPersistedSessionHistory,
   loadPersistedSessionState,
   savePersistedSessionHistory,
@@ -167,6 +170,7 @@ export class OpenaiCompatibleAgent implements Agent {
           additionalDirectories: {},
           close: {},
           resume: {},
+          delete: {},
         },
       },
     };
@@ -763,6 +767,23 @@ export class OpenaiCompatibleAgent implements Agent {
     session.abortController = null;
     await closeACPClientTools(session.acp);
     await closeMCPSessionTools(session.mcp);
+    return {};
+  }
+
+  async unstable_deleteSession(
+    params: DeleteSessionRequest,
+  ): Promise<DeleteSessionResponse> {
+    // 如果会话当前是活跃的，先关闭它（清理资源）
+    const session = this.sessions.get(params.sessionId);
+    if (session) {
+      await this.closeSession(params);
+    }
+    // 删除持久化的会话目录（session.json + history.jsonl）
+    deletePersistedSessionDirectory({
+      agentId: this.agentId,
+      sessionId: params.sessionId,
+    });
+
     return {};
   }
 
