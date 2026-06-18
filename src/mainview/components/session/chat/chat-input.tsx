@@ -85,7 +85,12 @@ async function absPathToMention(
   projectCwd?: string,
 ): Promise<string> {
   // Project root itself or paths outside the project → treat as external resource
-  if (projectCwd && (absPath === projectCwd || absPath === projectCwd.replace(/\/$/, "") || !absPath.startsWith(projectCwd.replace(/\/?$/, "/")))) {
+  if (
+    projectCwd &&
+    (absPath === projectCwd ||
+      absPath === projectCwd.replace(/\/$/, "") ||
+      !absPath.startsWith(projectCwd.replace(/\/?$/, "/")))
+  ) {
     const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
     return `@[#resource:${fileUri}](${fileUri}) `;
   }
@@ -665,7 +670,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       // Handle file:// URIs from external sources (VS Code file tree drag, etc.)
       const uriList = e.dataTransfer.getData("text/uri-list");
       if (uriList) {
-        const uris = uriList.split("\n").map((u) => u.trim()).filter(Boolean);
+        const uris = uriList
+          .split("\n")
+          .map((u) => u.trim())
+          .filter(Boolean);
         const absPaths = uris
           .filter((uri) => uri.startsWith("file://"))
           .map((uri) => decodeURIComponent(uri.replace(/^file:\/\//, "")))
@@ -735,6 +743,54 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     e.preventDefault();
     // Debounce to avoid flicker when moving between child elements
     dragLeaveTimer.current = setTimeout(() => setIsDragOver(false), 50);
+  }, []);
+
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const isContextMenuOpenRef = useRef(false);
+
+  // 右键菜单在 chat-input 范围内打开时，保持高亮（focus-within 样式）
+  // 仅通过 mousedown 判断：点击到 container 外部且不在上下文菜单 popup 上时才关闭
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      if (container.contains(e.target as Node)) {
+        isContextMenuOpenRef.current = true;
+        setIsContextMenuOpen(true);
+      }
+    };
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!isContextMenuOpenRef.current) return;
+      const container = containerRef.current;
+      if (!container) return;
+      // 点击在 container 内部 → 不关闭
+      if (container.contains(e.target as Node)) return;
+      // 点击在上下文菜单 popup 上 → 不关闭（允许菜单交互）
+      const target = e.target as HTMLElement;
+      if (
+        target?.closest?.('[data-slot="context-menu-content"]') ||
+        target?.closest?.('[data-slot="context-menu"]')
+      ) {
+        return;
+      }
+      // 点击在其他地方 → 关闭高亮
+      isContextMenuOpenRef.current = false;
+      setIsContextMenuOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isContextMenuOpenRef.current) {
+        isContextMenuOpenRef.current = false;
+        setIsContextMenuOpen(false);
+      }
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const hasActiveAskUser = askUserRequests ? askUserRequests.length > 0 : false;
@@ -857,8 +913,20 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       <div className="mx-auto max-w-5xl">
         <div
           ref={containerRef}
+          onContextMenu={() => {
+            // 右键点击 highlighter（MentionsInput 覆盖层）时确保 textarea 保持焦点，
+            // 这样 focus-within 样式在右键菜单打开时也能生效
+            const textarea = containerRef.current?.querySelector("textarea");
+            if (textarea && document.activeElement !== textarea) {
+              textarea.focus();
+            }
+          }}
           className={`rounded-lg border bg-card shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20 transition-colors focus-within:border-ring focus-within:ring-ring ${
-            isDragOver ? "border-primary ring-0.5 ring-primary bg-primary/5" : "border-input"
+            isDragOver
+              ? "border-primary ring-0.5 ring-primary bg-primary/5"
+              : isContextMenuOpen
+                ? "border-ring ring-ring"
+                : "border-input"
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}

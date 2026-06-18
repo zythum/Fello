@@ -31,8 +31,17 @@ import {
   ImageIcon,
   FolderOpen,
   CopyPlus,
-  MoreHorizontal,
+  EllipsisVertical,
+  SquareChartGantt,
 } from "lucide-react";
+import {
+  Item,
+  ItemMedia,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+} from "@/components/ui/item";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
 import { AgentTerminalOutput } from "../../../common/agent-terminal-output";
 import { ContentBlocks } from "../../../content-blocks/content-blocks";
@@ -310,40 +319,66 @@ function ShareToUserBubble({
     }
   }, [session, sharePath, projectPath]);
 
-  return (
-    <div className="share-to-user-bubble border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-card">
-        {isImage ? (
-          <ImageIcon className="size-4 text-sky-500 shrink-0" />
-        ) : (
-          <FileTypeIcon name={name} className="size-4 shrink-0" />
+  const handlePreview = useCallback(() => {
+    if (!projectPath) return;
+    document.dispatchEvent(
+      new CustomEvent("fello-preview-file", {
+        detail: { projectId: session.projectId, relativePath: projectPath },
+      }),
+    );
+  }, [session.projectId, projectPath]);
+
+  const previewButton = isProject ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-7 shrink-0"
+      onClick={handlePreview}
+      title={t("shareToUser.preview", "Preview")}
+    >
+      <SquareChartGantt className="size-3.5" />
+    </Button>
+  ) : null;
+
+  const menuActions = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" className="size-7 shrink-0" />}
+      >
+        <EllipsisVertical className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-40">
+        {!isProject && (
+          <DropdownMenuItem onClick={handleCopyToProject}>
+            <CopyPlus />
+            {t("shareToUser.copyToProject", "Copy to project")}
+          </DropdownMenuItem>
         )}
-        <span className="flex-1 min-w-0 truncate text-xs font-medium text-foreground">{name}</span>
+        {!isWebUI && (
+          <DropdownMenuItem onClick={handleReveal}>
+            <FolderOpen />
+            {t("shareToUser.reveal", "Reveal in Finder")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-md hover:bg-muted hover:text-foreground size-6 text-xs text-foreground/70 outline-none">
-            <MoreHorizontal className="size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-40">
-            {!isProject && (
-              <DropdownMenuItem onClick={handleCopyToProject}>
-                <CopyPlus />
-                {t("shareToUser.copyToProject", "Copy to project")}
-              </DropdownMenuItem>
-            )}
-            {!isWebUI && (
-              <DropdownMenuItem onClick={handleReveal}>
-                <FolderOpen />
-                {t("shareToUser.reveal", "Reveal in Finder")}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Content */}
-      {isImage ? (
+  if (isImage) {
+    return (
+      <div className="border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4">
+        <Item variant="muted" size="xs" className="border-0 rounded-none">
+          <ItemMedia className="size-4 shrink-0 overflow-hidden rounded-sm flex items-center justify-center bg-muted/30">
+            <ImageIcon className="size-5 text-sky-500" />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle className="text-xs">{name}</ItemTitle>
+          </ItemContent>
+          <ItemActions className="gap-0">
+            {previewButton}
+            {menuActions}
+          </ItemActions>
+        </Item>
         <div className="flex items-center justify-center bg-muted/10 min-h-32">
           {error ? (
             <p className="text-xs text-muted-foreground p-4">
@@ -358,16 +393,24 @@ function ShareToUserBubble({
             />
           )}
         </div>
-      ) : (
-        <div className="flex items-center gap-3 px-4 py-3">
-          <FileTypeIcon name={name} className="size-8 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{name}</p>
-            {mimeType && <p className="text-xs text-muted-foreground">{mimeType}</p>}
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+    );
+  }
+
+  return (
+    <Item variant="outline" size="sm" className="pointer-events-auto my-4">
+      <ItemMedia className="size-10 shrink-0 overflow-hidden rounded-sm flex items-center justify-center bg-muted/30">
+        <FileTypeIcon name={name} className="size-7" />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>{name}</ItemTitle>
+        {mimeType && <ItemDescription className="text-xs">{mimeType}</ItemDescription>}
+      </ItemContent>
+      <ItemActions className="gap-0">
+        {previewButton}
+        {menuActions}
+      </ItemActions>
+    </Item>
   );
 }
 

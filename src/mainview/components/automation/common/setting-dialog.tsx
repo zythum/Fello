@@ -229,9 +229,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
               </div>
               <div
                 className={
-                  ALL_FEATURES.length >= 2
-                    ? "grid grid-cols-2 gap-1"
-                    : "flex flex-col gap-1"
+                  ALL_FEATURES.length >= 2 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"
                 }
               >
                 {ALL_FEATURES.map((feature) => {
@@ -276,9 +274,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                             !isDisabled
                               ? (c) =>
                                   setFeatures((prev) =>
-                                    c
-                                      ? [...prev, feature]
-                                      : prev.filter((f) => f !== feature),
+                                    c ? [...prev, feature] : prev.filter((f) => f !== feature),
                                   )
                               : undefined
                           }
@@ -308,9 +304,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                       className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
                       onClick={() =>
                         setMcpServerIds((prev) =>
-                          prev.includes(s.id)
-                            ? prev.filter((id) => id !== s.id)
-                            : [...prev, s.id],
+                          prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
                         )
                       }
                     >

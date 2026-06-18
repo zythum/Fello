@@ -140,13 +140,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                 <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
                   {t("constant.feature.title", "Features")}
                 </div>
-                <div
-                  className={
-                    ALL_FEATURES.length >= 2
-                      ? "grid grid-cols-2 gap-0.5"
-                      : ""
-                  }
-                >
+                <div className={ALL_FEATURES.length >= 2 ? "grid grid-cols-2 gap-0.5" : ""}>
                   {ALL_FEATURES.map((feature) => (
                     <div
                       key={feature}
@@ -194,11 +188,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                       {t("settings.mcp.title", "MCP Servers")}
                     </div>
                     <div
-                      className={
-                        configuredMcpServers.length >= 2
-                          ? "grid grid-cols-2 gap-0.5"
-                          : ""
-                      }
+                      className={configuredMcpServers.length >= 2 ? "grid grid-cols-2 gap-0.5" : ""}
                     >
                       {configuredMcpServers.map((mcp) => (
                         <div
