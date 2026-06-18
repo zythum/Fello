@@ -135,37 +135,54 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           </PopoverPrimitive.Trigger>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
-              <PopoverPrimitive.Popup className="z-10 min-w-56 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+              <PopoverPrimitive.Popup className="z-10 min-w-96 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
                 {/* Features toggles */}
                 <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
                   {t("constant.feature.title", "Features")}
                 </div>
-                {ALL_FEATURES.map((feature) => (
-                  <div
-                    key={feature}
-                    className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors"
-                  >
-                    <span
-                      className={cn(
-                        "truncate mr-2",
-                        localFeatures.includes(feature)
-                          ? "text-muted-foreground"
-                          : "text-muted-foreground/50",
-                      )}
-                    >
-                      {t(FEATURE_I18N_KEYS[feature], feature)}
-                    </span>
-                    <Switch
-                      size="sm"
-                      checked={localFeatures.includes(feature)}
-                      onCheckedChange={(checked) => {
+                <div
+                  className={
+                    ALL_FEATURES.length >= 2
+                      ? "grid grid-cols-2 gap-0.5"
+                      : ""
+                  }
+                >
+                  {ALL_FEATURES.map((feature) => (
+                    <div
+                      key={feature}
+                      className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors cursor-default"
+                      onClick={() =>
                         setLocalFeatures((prev) =>
-                          checked ? [...prev, feature] : prev.filter((f) => f !== feature),
-                        );
-                      }}
-                    />
-                  </div>
-                ))}
+                          prev.includes(feature)
+                            ? prev.filter((f) => f !== feature)
+                            : [...prev, feature],
+                        )
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "truncate mr-2",
+                          localFeatures.includes(feature)
+                            ? "text-muted-foreground"
+                            : "text-muted-foreground/50",
+                        )}
+                      >
+                        {t(FEATURE_I18N_KEYS[feature], feature)}
+                      </span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          size="sm"
+                          checked={localFeatures.includes(feature)}
+                          onCheckedChange={(checked) => {
+                            setLocalFeatures((prev) =>
+                              checked ? [...prev, feature] : prev.filter((f) => f !== feature),
+                            );
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Divider */}
                 <div className="border-t border-border/50 my-1" />
@@ -176,29 +193,39 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                     <div className="px-2 py-1 mt-1 text-xs font-semibold text-foreground/80">
                       {t("settings.mcp.title", "MCP Servers")}
                     </div>
-                    {configuredMcpServers.map((mcp) => (
-                      <div
-                        key={mcp.id}
-                        className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors"
-                        onClick={() => handleToggle(mcp.id)}
-                      >
-                        <span
-                          className={cn(
-                            "truncate mr-2",
-                            localMcpServers.includes(mcp.id)
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground/50",
-                          )}
+                    <div
+                      className={
+                        configuredMcpServers.length >= 2
+                          ? "grid grid-cols-2 gap-0.5"
+                          : ""
+                      }
+                    >
+                      {configuredMcpServers.map((mcp) => (
+                        <div
+                          key={mcp.id}
+                          className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors cursor-default"
+                          onClick={() => handleToggle(mcp.id)}
                         >
-                          {mcp.id}
-                        </span>
-                        <Switch
-                          size="sm"
-                          checked={localMcpServers.includes(mcp.id)}
-                          onCheckedChange={() => handleToggle(mcp.id)}
-                        />
-                      </div>
-                    ))}
+                          <span
+                            className={cn(
+                              "truncate mr-2",
+                              localMcpServers.includes(mcp.id)
+                                ? "text-muted-foreground"
+                                : "text-muted-foreground/50",
+                            )}
+                          >
+                            {mcp.id}
+                          </span>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              size="sm"
+                              checked={localMcpServers.includes(mcp.id)}
+                              onCheckedChange={() => handleToggle(mcp.id)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </>
                 )}
 

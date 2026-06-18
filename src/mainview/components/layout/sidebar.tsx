@@ -797,11 +797,24 @@ export function Sidebar() {
               <div className="text-xs text-muted-foreground">
                 {t("constant.feature.title", { defaultValue: "Features" })}
               </div>
-              <div className="flex flex-col gap-1">
+              <div
+                className={
+                  ALL_FEATURES.length >= 2
+                    ? "grid grid-cols-2 gap-1"
+                    : "flex flex-col gap-1"
+                }
+              >
                 {ALL_FEATURES.map((feature) => (
                   <div
                     key={feature}
-                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
+                    onClick={() =>
+                      setNewSessionFeatures((prev) =>
+                        prev.includes(feature)
+                          ? prev.filter((f) => f !== feature)
+                          : [...prev, feature],
+                      )
+                    }
                   >
                     <div
                       className={cn(
@@ -813,15 +826,17 @@ export function Sidebar() {
                     >
                       {t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
                     </div>
-                    <Switch
-                      size="sm"
-                      checked={newSessionFeatures.includes(feature)}
-                      onCheckedChange={(checked) => {
-                        setNewSessionFeatures((prev) =>
-                          checked ? [...prev, feature] : prev.filter((f) => f !== feature),
-                        );
-                      }}
-                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        size="sm"
+                        checked={newSessionFeatures.includes(feature)}
+                        onCheckedChange={(checked) => {
+                          setNewSessionFeatures((prev) =>
+                            checked ? [...prev, feature] : prev.filter((f) => f !== feature),
+                          );
+                        }}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -833,13 +848,21 @@ export function Sidebar() {
               </div>
               <div
                 className={
-                  configuredMcpServers.length > 5 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"
+                  configuredMcpServers.length >= 2 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"
                 }
               >
                 {configuredMcpServers.map((mcp) => (
                   <div
                     key={mcp.id}
-                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
+                    onClick={() => {
+                      setNewSessionMcpIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(mcp.id)) next.delete(mcp.id);
+                        else next.add(mcp.id);
+                        return next;
+                      });
+                    }}
                   >
                     <div
                       className={cn(
@@ -852,18 +875,20 @@ export function Sidebar() {
                     >
                       {mcp.id}
                     </div>
-                    <Switch
-                      size="sm"
-                      checked={newSessionMcpIds.has(mcp.id)}
-                      onCheckedChange={(checked) => {
-                        setNewSessionMcpIds((prev) => {
-                          const next = new Set(prev);
-                          if (checked) next.add(mcp.id);
-                          else next.delete(mcp.id);
-                          return next;
-                        });
-                      }}
-                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        size="sm"
+                        checked={newSessionMcpIds.has(mcp.id)}
+                        onCheckedChange={(checked) => {
+                          setNewSessionMcpIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(mcp.id);
+                            else next.delete(mcp.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </div>
                   </div>
                 ))}
                 {configuredMcpServers.length === 0 && (

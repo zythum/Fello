@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
 import type { Schedule, Feature } from "../../../../shared/schema";
+import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../../shared/constants";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ import { LoaderCircle } from "lucide-react";
 import { useMessage } from "../../providers/message";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { CronEditor } from "./cron-editor";
+
+const DISABLED_FEATURES: Feature[] = ["ask_user", "share_to_user"];
 
 interface Props {
   schedule?: Schedule;
@@ -224,28 +227,66 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
               <div className="text-xs text-muted-foreground">
                 {t("automation.features", "Features")}
               </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7">
-                  <div
-                    className={`text-xs truncate ${features.includes("skills") ? "text-muted-foreground" : "text-muted-foreground/50"}`}
-                  >
-                    {t("constant.feature.skills", "Skills")}
-                  </div>
-                  <Switch
-                    size="sm"
-                    checked={features.includes("skills")}
-                    onCheckedChange={(c) => setFeatures(c ? ["skills"] : [])}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7">
-                  <div className="text-xs truncate text-muted-foreground/50">
-                    {t("constant.feature.askUser", "Ask User")}
-                    <span className="text-[10px] ml-1">
-                      ({t("automation.alwaysDisabled", "always disabled")})
-                    </span>
-                  </div>
-                  <Switch size="sm" checked={false} disabled />
-                </div>
+              <div
+                className={
+                  ALL_FEATURES.length >= 2
+                    ? "grid grid-cols-2 gap-1"
+                    : "flex flex-col gap-1"
+                }
+              >
+                {ALL_FEATURES.map((feature) => {
+                  const isDisabled = DISABLED_FEATURES.includes(feature);
+                  return (
+                    <div
+                      key={feature}
+                      className={`flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 ${!isDisabled ? "cursor-default" : ""} hover:bg-accent transition-colors`}
+                      onClick={
+                        !isDisabled
+                          ? () =>
+                              setFeatures((prev) =>
+                                prev.includes(feature)
+                                  ? prev.filter((f) => f !== feature)
+                                  : [...prev, feature],
+                              )
+                          : undefined
+                      }
+                    >
+                      <div
+                        className={`text-xs truncate ${
+                          !isDisabled
+                            ? features.includes(feature)
+                              ? "text-muted-foreground"
+                              : "text-muted-foreground/50"
+                            : "text-muted-foreground/50"
+                        }`}
+                      >
+                        {t(FEATURE_I18N_KEYS[feature], feature)}
+                        {isDisabled && (
+                          <span className="text-[10px] ml-1">
+                            ({t("automation.alwaysDisabled", "always disabled")})
+                          </span>
+                        )}
+                      </div>
+                      <div onClick={!isDisabled ? (e) => e.stopPropagation() : undefined}>
+                        <Switch
+                          size="sm"
+                          checked={!isDisabled ? features.includes(feature) : false}
+                          disabled={isDisabled}
+                          onCheckedChange={
+                            !isDisabled
+                              ? (c) =>
+                                  setFeatures((prev) =>
+                                    c
+                                      ? [...prev, feature]
+                                      : prev.filter((f) => f !== feature),
+                                  )
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -256,7 +297,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 </div>
                 <div
                   className={
-                    configuredMcpServers.length > 5
+                    configuredMcpServers.length >= 2
                       ? "grid grid-cols-2 gap-1"
                       : "flex flex-col gap-1"
                   }
@@ -264,7 +305,14 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                   {configuredMcpServers.map((s) => (
                     <div
                       key={s.id}
-                      className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7"
+                      className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
+                      onClick={() =>
+                        setMcpServerIds((prev) =>
+                          prev.includes(s.id)
+                            ? prev.filter((id) => id !== s.id)
+                            : [...prev, s.id],
+                        )
+                      }
                     >
                       <div
                         className={`text-xs truncate ${mcpServerIds.includes(s.id) ? "text-muted-foreground" : "text-muted-foreground/50"}`}
@@ -272,15 +320,17 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                       >
                         {s.id}
                       </div>
-                      <Switch
-                        size="sm"
-                        checked={mcpServerIds.includes(s.id)}
-                        onCheckedChange={(c) => {
-                          setMcpServerIds((prev) =>
-                            c ? [...prev, s.id] : prev.filter((id) => id !== s.id),
-                          );
-                        }}
-                      />
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          size="sm"
+                          checked={mcpServerIds.includes(s.id)}
+                          onCheckedChange={(c) => {
+                            setMcpServerIds((prev) =>
+                              c ? [...prev, s.id] : prev.filter((id) => id !== s.id),
+                            );
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
