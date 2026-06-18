@@ -1,13 +1,18 @@
 import type { ILinkBridge } from "./ilink/ilink-bridge";
+import { isImageMimeType } from "../shared/constants";
 
 // ── Types ────────────────────────────────────────────────────────────
 
-export interface IlinkImageEntry {
-  /** 已保存到本地的图片的绝对路径 */
+export { isImageMimeType };
+
+export interface IlinkMediaEntry {
+  /** 已保存到本地的文件的绝对路径 */
   filePath: string;
   /** 原始文件名 */
   name: string;
   toUserId: string;
+  /** MIME type, used to decide image vs file sending */
+  mimeType?: string;
 }
 
 // ── Mutable State ────────────────────────────────────────────────────
@@ -15,7 +20,7 @@ export interface IlinkImageEntry {
 let ilinkBridge: ILinkBridge | null = null;
 let ilinkActiveSessionId: string | null = null;
 let ilinkReplyBuffer = "";
-let ilinkImageBuffer: IlinkImageEntry[] = [];
+let ilinkMediaBuffer: IlinkMediaEntry[] = [];
 let iLinkCommandPending: ((input: string) => void) | null = null;
 
 // ── Getters ──────────────────────────────────────────────────────────
@@ -32,8 +37,8 @@ export function getIlinkReplyBuffer(): string {
   return ilinkReplyBuffer;
 }
 
-export function getIlinkImageBuffer(): IlinkImageEntry[] {
-  return ilinkImageBuffer;
+export function getIlinkMediaBuffer(): IlinkMediaEntry[] {
+  return ilinkMediaBuffer;
 }
 
 export function getILinkCommandPending(): ((input: string) => void) | null {
@@ -58,12 +63,12 @@ export function appendIlinkReplyBuffer(text: string) {
   ilinkReplyBuffer += text;
 }
 
-export function appendIlinkImageBuffer(entry: IlinkImageEntry) {
-  ilinkImageBuffer.push(entry);
+export function appendIlinkMediaBuffer(entry: IlinkMediaEntry) {
+  ilinkMediaBuffer.push(entry);
 }
 
-export function clearIlinkImageBuffer() {
-  ilinkImageBuffer = [];
+export function clearIlinkMediaBuffer() {
+  ilinkMediaBuffer = [];
 }
 
 export function setILinkCommandPending(fn: ((input: string) => void) | null) {

@@ -70,7 +70,7 @@ function inferToolKind(name: string): ToolKind {
 
 async function createClient(server: McpServer, cwd: string): Promise<MCPClient> {
   if ("type" in server) {
-    if (server.type === 'http' || server.type === 'sse') {
+    if (server.type === "http" || server.type === "sse") {
       return createMCPClient({
         transport: {
           type: server.type,

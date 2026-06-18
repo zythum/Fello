@@ -531,7 +531,8 @@
   },
   "shareToUser": {
     "copyToProject": "Copy to project",
-    "reveal": "Reveal in Finder"
+    "reveal": "Reveal in Finder",
+    "loadFailed": "Failed to load image"
   },
   "automation": {
     "title": "Automation",

@@ -770,9 +770,7 @@ export class OpenaiCompatibleAgent implements Agent {
     return {};
   }
 
-  async unstable_deleteSession(
-    params: DeleteSessionRequest,
-  ): Promise<DeleteSessionResponse> {
+  async unstable_deleteSession(params: DeleteSessionRequest): Promise<DeleteSessionResponse> {
     // 如果会话当前是活跃的，先关闭它（清理资源）
     const session = this.sessions.get(params.sessionId);
     if (session) {

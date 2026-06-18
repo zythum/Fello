@@ -531,7 +531,8 @@
   },
   "shareToUser": {
     "copyToProject": "复制到项目",
-    "reveal": "在访达中显示"
+    "reveal": "在访达中显示",
+    "loadFailed": "图片加载失败"
   },
   "automation": {
     "title": "自动化",

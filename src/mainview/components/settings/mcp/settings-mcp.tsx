@@ -328,7 +328,9 @@ export function SettingsMcp() {
                   <McpSortableItem key={mcp.id} id={mcp.id}>
                     <ContextMenu onOpenChange={(open) => setContextMenuMcpId(open ? mcp.id : null)}>
                       <ContextMenuTrigger>
-                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuMcpId === mcp.id ? "ring-1 ring-primary" : ""}`}>
+                        <div
+                          className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuMcpId === mcp.id ? "ring-1 ring-primary" : ""}`}
+                        >
                           <span
                             className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                           >

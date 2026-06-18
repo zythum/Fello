@@ -187,9 +187,13 @@ export function SettingsSnippets() {
               >
                 {snippets.map((s) => (
                   <SnippetSortableItem key={s.id} id={s.id}>
-                    <ContextMenu onOpenChange={(open) => setContextMenuSnippetId(open ? s.id : null)}>
+                    <ContextMenu
+                      onOpenChange={(open) => setContextMenuSnippetId(open ? s.id : null)}
+                    >
                       <ContextMenuTrigger>
-                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuSnippetId === s.id ? "ring-1 ring-primary" : ""}`}>
+                        <div
+                          className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuSnippetId === s.id ? "ring-1 ring-primary" : ""}`}
+                        >
                           <span className="font-bold text-xs ml-1 truncate shrink-0 max-w-32 select-none">
                             {s.title}
                           </span>

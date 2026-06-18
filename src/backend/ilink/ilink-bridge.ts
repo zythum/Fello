@@ -384,7 +384,7 @@ export class ILinkBridge {
    *   2. Encrypt image with AES-128-ECB + PKCS7
    *   3. getUploadUrl → uploadToCdn → sendMessage with image_item
    */
-  async sendImageReply(toUserId: string, imageBuffer: Buffer, filename: string): Promise<void> {
+  async sendImageReply(toUserId: string, imageBuffer: Buffer, _filename: string): Promise<void> {
     if (!this.client || !this.creds) {
       throw new Error("iLink not connected");
     }
@@ -443,6 +443,77 @@ export class ILinkBridge {
                 encrypt_type: 1,
               },
               mid_size: filesize,
+            },
+          },
+        ],
+      },
+      base_info: { channel_version: "0.1.0" },
+    });
+  }
+
+  /**
+   * Send a file reply to a user via WeChat.
+   *
+   * Protocol flow:
+   *   1. Generate random AES key + filekey
+   *   2. Encrypt file with AES-128-ECB + PKCS7
+   *   3. getUploadUrl (media_type=3/FILE) → uploadToCdn → sendMessage with file_item
+   */
+  async sendFileReply(toUserId: string, fileBuffer: Buffer, filename: string): Promise<void> {
+    if (!this.client || !this.creds) {
+      throw new Error("iLink not connected");
+    }
+
+    const contextToken = this.contextTokenCache.get(toUserId);
+    if (!contextToken) {
+      console.warn("[iLink] No context_token for user, cannot send file:", toUserId);
+      return;
+    }
+
+    const rawSize = fileBuffer.length;
+    const rawfilemd5 = md5Buffer(fileBuffer);
+    const aesKeyHex = randomAesKeyHex();
+    const filekey = randomFileKey();
+    const filesize = aesEcbPaddedSize(rawSize);
+    const aesKey = Buffer.from(aesKeyHex, "hex");
+
+    const ciphertext = encryptAesEcb(fileBuffer, aesKey);
+
+    const { upload_param } = await this.client.getUploadUrl({
+      filekey,
+      media_type: 3, // FILE
+      to_user_id: toUserId,
+      rawsize: rawSize,
+      rawfilemd5,
+      filesize,
+      no_need_thumb: true,
+      aeskey: aesKeyHex,
+      base_info: { channel_version: "0.1.0" },
+    });
+
+    const encryptedParam = await this.client.uploadToCdn(upload_param, filekey, ciphertext);
+    const aesKeyBase64 = Buffer.from(aesKeyHex, "utf-8").toString("base64");
+
+    await this.client.sendMessage({
+      msg: {
+        from_user_id: "",
+        to_user_id: toUserId,
+        client_id: `fello:${Date.now()}-${randomUUID().slice(0, 8)}`,
+        message_type: 2, // BOT
+        message_state: 2, // FINISH
+        context_token: contextToken,
+        item_list: [
+          {
+            type: 4, // FILE
+            file_item: {
+              media: {
+                encrypt_query_param: encryptedParam,
+                aes_key: aesKeyBase64,
+                encrypt_type: 1,
+              },
+              file_name: filename,
+              md5: rawfilemd5,
+              len: String(rawSize),
             },
           },
         ],

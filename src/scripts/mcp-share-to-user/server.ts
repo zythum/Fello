@@ -32,14 +32,14 @@ const server = new McpServer({
   name: "Share to User",
   version: "1.0.0",
   description:
-    "Share images (PNG, JPEG, GIF, WebP, SVG) directly to the user's chat area. Use this to show generated images, screenshots, diagrams, or any visual output.",
+    "Share files (images, documents, etc.) directly to the user's chat area. Supports image preview and file cards.",
 });
 
 server.registerTool(
   "share_to_user",
   {
-    description: `Share an image to the user's chat area for them to see. Currently supports: JPEG, PNG, GIF, WebP, SVG, BMP, AVIF.
-Provide the image as a file:// URI, https:// URL, or base64-encoded data.`,
+    description: `Share a file to the user's chat area for them to see. Supports images (with preview), PDFs, documents, and any file type (shown as a file card).
+Provide the file as a file:// URI, https:// URL, base64-encoded data, or a project-relative path (zero-copy).`,
     inputSchema: shareToUserRequestSchema,
   },
   async (input) => {
@@ -48,24 +48,16 @@ Provide the image as a file:// URI, https:// URL, or base64-encoded data.`,
         await postToSocket("/share-to-user/share", input),
       );
 
+      const respond: Record<string, unknown> = { name: result.name };
+      if (result.sharePath) respond.sharePath = result.sharePath;
+      if (result.projectPath) respond.projectPath = result.projectPath;
+      if (result.mimeType) respond.mimeType = result.mimeType;
+
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                ok: true,
-                fello: {
-                  "share-to-user": {
-                    sharePath: result.sharePath,
-                    name: result.name,
-                    mimeType: result.mimeType,
-                  },
-                },
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify({ ok: true, fello: { "share-to-user": respond } }, null, 2),
           },
         ],
       };
@@ -74,14 +66,7 @@ Provide the image as a file:// URI, https:// URL, or base64-encoded data.`,
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                ok: false,
-                error: err.message || String(err),
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify({ ok: false, error: err.message || String(err) }, null, 2),
           },
         ],
         isError: true,

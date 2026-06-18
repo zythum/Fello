@@ -44,6 +44,7 @@ import type { SessionInfo } from "../../../../../shared/schema";
 import type { BaseBubbleProps } from "./base-bubble";
 import {
   shareToUserRespondSchema,
+  isImageMimeType,
   type ShareToUserRespond,
 } from "../../../../../shared/zod/mcp-share-to-user-schema";
 
@@ -274,12 +275,20 @@ function ShareToUserBubble({
   session: SessionInfo;
   respond: ShareToUserRespond;
 }) {
-  const { sharePath, name } = respond;
+  const { sharePath, projectPath, name, mimeType } = respond;
   const { t } = useTranslation();
   const [error, setError] = useState(false);
-  const url = resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`);
+  const isImage = isImageMimeType(mimeType);
+  const isProject = !!projectPath;
+
+  const url = projectPath
+    ? resolveFileUrl(`/project/${session.projectId}/${projectPath}`)
+    : sharePath
+      ? resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`)
+      : "";
 
   const handleCopyToProject = useCallback(async () => {
+    if (!sharePath) return;
     try {
       const absPath = await request.getShareFileSystemPath({ sessionId: session.id, sharePath });
       await request.copyFileToWorkspace({ projectId: session.projectId, sourcePath: absPath });
@@ -290,18 +299,26 @@ function ShareToUserBubble({
 
   const handleReveal = useCallback(async () => {
     try {
-      const absPath = await request.getShareFileSystemPath({ sessionId: session.id, sharePath });
-      electron.revealInFinder(absPath);
+      if (projectPath) {
+        electron.revealInFinder(`${session.cwd}/${projectPath}`);
+      } else if (sharePath) {
+        const absPath = await request.getShareFileSystemPath({ sessionId: session.id, sharePath });
+        electron.revealInFinder(absPath);
+      }
     } catch (err) {
       console.error("Failed to reveal in finder:", err);
     }
-  }, [session, sharePath]);
+  }, [session, sharePath, projectPath]);
 
   return (
     <div className="share-to-user-bubble border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-card">
-        <ImageIcon className="size-4 text-sky-500 shrink-0" />
+        {isImage ? (
+          <ImageIcon className="size-4 text-sky-500 shrink-0" />
+        ) : (
+          <FileTypeIcon name={name} className="size-4 shrink-0" />
+        )}
         <span className="flex-1 min-w-0 truncate text-xs font-medium text-foreground">{name}</span>
 
         <DropdownMenu>
@@ -309,10 +326,12 @@ function ShareToUserBubble({
             <MoreHorizontal className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
-            <DropdownMenuItem onClick={handleCopyToProject}>
-              <CopyPlus />
-              {t("shareToUser.copyToProject", "Copy to project")}
-            </DropdownMenuItem>
+            {!isProject && (
+              <DropdownMenuItem onClick={handleCopyToProject}>
+                <CopyPlus />
+                {t("shareToUser.copyToProject", "Copy to project")}
+              </DropdownMenuItem>
+            )}
             {!isWebUI && (
               <DropdownMenuItem onClick={handleReveal}>
                 <FolderOpen />
@@ -323,19 +342,31 @@ function ShareToUserBubble({
         </DropdownMenu>
       </div>
 
-      {/* Image */}
-      <div className="flex items-center justify-center bg-muted/10 min-h-32">
-        {error ? (
-          <p className="text-xs text-muted-foreground p-4">Failed to load image</p>
-        ) : (
-          <img
-            src={url}
-            alt={name}
-            className="max-w-full max-h-[60vh] object-contain"
-            onError={() => setError(true)}
-          />
-        )}
-      </div>
+      {/* Content */}
+      {isImage ? (
+        <div className="flex items-center justify-center bg-muted/10 min-h-32">
+          {error ? (
+            <p className="text-xs text-muted-foreground p-4">
+              {t("shareToUser.loadFailed", "Failed to load image")}
+            </p>
+          ) : (
+            <img
+              src={url}
+              alt={name}
+              className="max-w-full max-h-[60vh] object-contain"
+              onError={() => setError(true)}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <FileTypeIcon name={name} className="size-8 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{name}</p>
+            {mimeType && <p className="text-xs text-muted-foreground">{mimeType}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

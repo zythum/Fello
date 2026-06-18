@@ -20,12 +20,13 @@ import {
 } from "./ask-user";
 import { buildShareToUserMcpServer, registerShareToUserRoute } from "./share-to-user";
 import {
+  isImageMimeType,
   getIlinkBridge,
   getIlinkActiveSessionId,
   getIlinkReplyBuffer,
-  getIlinkImageBuffer,
+  getIlinkMediaBuffer,
   setIlinkReplyBuffer,
-  clearIlinkImageBuffer,
+  clearIlinkMediaBuffer,
   setIlinkActiveSessionId,
   appendIlinkReplyBuffer,
 } from "./ilink-state";
@@ -159,21 +160,24 @@ function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, upd
 }
 
 /**
- * Flush queued iLink images. Called after text flush to ensure ordering:
- *   text first → images after
+ * Flush queued iLink media. Called after text flush to ensure ordering:
+ *   text first → media after
  */
-function flushIlinkImages(bridge: NonNullable<ReturnType<typeof getIlinkBridge>>) {
-  const images = getIlinkImageBuffer();
-  if (images.length === 0) return;
-  clearIlinkImageBuffer();
-  for (const img of images) {
-    // Read file from disk asynchronously, then send
+function flushIlinkMedia(bridge: NonNullable<ReturnType<typeof getIlinkBridge>>) {
+  const items = getIlinkMediaBuffer();
+  if (items.length === 0) return;
+  clearIlinkMediaBuffer();
+  for (const img of items) {
     (async () => {
       try {
         const buffer = await readFile(img.filePath);
-        await bridge.sendImageReply(img.toUserId, buffer, img.name);
+        if (isImageMimeType(img.mimeType)) {
+          await bridge.sendImageReply(img.toUserId, buffer, img.name);
+        } else {
+          await bridge.sendFileReply(img.toUserId, buffer, img.name);
+        }
       } catch (err) {
-        console.warn("[iLink] Failed to forward image to WeChat:", err);
+        console.warn("[iLink] Failed to forward file to WeChat:", err);
       }
     })();
   }
@@ -237,7 +241,7 @@ export function broadcastAndSaveSessionUpdate(
       });
     }
     // Flush images from previous tool call completion
-    flushIlinkImages(ilinkBridge);
+    flushIlinkMedia(ilinkBridge);
   }
 
   if (sessionUpdate === "tool_call_update") {
@@ -267,7 +271,7 @@ export function broadcastAndSaveSessionUpdate(
 
       // Flush images queued by share_to_user tool completion
       if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
-        flushIlinkImages(ilinkBridge);
+        flushIlinkMedia(ilinkBridge);
       }
     }
   } else {
@@ -631,7 +635,7 @@ export async function sendPrompt({
           flushPromise.then(() => bridge.sendTextReply(userId, label).catch(() => {}));
         }
         // Flush any remaining queued images (after all text)
-        flushIlinkImages(bridge);
+        flushIlinkMedia(bridge);
       }
     }
   }

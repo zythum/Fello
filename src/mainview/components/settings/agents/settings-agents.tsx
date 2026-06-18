@@ -214,8 +214,7 @@ export function SettingsAgents() {
       toast.success(t("settings.agents.resetSuccess", "Agent reset."));
     } catch (err) {
       toast.error(
-        extractErrorMessage(err) ||
-          t("settings.agents.resetFailed", "Failed to reset agent."),
+        extractErrorMessage(err) || t("settings.agents.resetFailed", "Failed to reset agent."),
       );
     }
   };
@@ -236,11 +235,9 @@ export function SettingsAgents() {
     try {
       const res = await request.clearAgentSessions({ agentId: id });
       toast.success(
-        t(
-          "settings.agents.deleteAllSessionsSuccess",
-          "{{count}} session(s) deleted.",
-          { count: res.deletedSessionIds.length },
-        ),
+        t("settings.agents.deleteAllSessionsSuccess", "{{count}} session(s) deleted.", {
+          count: res.deletedSessionIds.length,
+        }),
       );
     } catch (err) {
       toast.error(
@@ -334,9 +331,13 @@ export function SettingsAgents() {
               >
                 {agents.map((agent) => (
                   <AgentSortableItem key={agent.id} id={agent.id}>
-                    <ContextMenu onOpenChange={(open) => setContextMenuAgentId(open ? agent.id : null)}>
+                    <ContextMenu
+                      onOpenChange={(open) => setContextMenuAgentId(open ? agent.id : null)}
+                    >
                       <ContextMenuTrigger>
-                        <div className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuAgentId === agent.id ? "ring-1 ring-primary" : ""}`}>
+                        <div
+                          className={`flex items-center gap-2 rounded-lg border p-1.5 min-h-10 text-sm bg-secondary/50 cursor-default select-none overflow-hidden ${contextMenuAgentId === agent.id ? "ring-1 ring-primary" : ""}`}
+                        >
                           <span
                             className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${agent.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                           >

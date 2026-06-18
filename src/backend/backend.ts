@@ -25,7 +25,13 @@ import * as askUserHandlers from "./ask-user";
 
 import { markProjectFsDirty } from "./project-filesystem";
 import * as filesystemHandlers from "./project-filesystem";
-import { initSession, broadcastAndSaveSessionUpdate, clearSession, resetAgentSessions, deleteAgentSessions } from "./session";
+import {
+  initSession,
+  broadcastAndSaveSessionUpdate,
+  clearSession,
+  resetAgentSessions,
+  deleteAgentSessions,
+} from "./session";
 import * as sessionHandlers from "./session";
 import { initProject } from "./project";
 import * as projectHandlers from "./project";
@@ -33,7 +39,10 @@ import { initIlinkHandlers, getILinkBridge } from "./ilink-handlers";
 import * as ilinkHandlers from "./ilink-handlers";
 import * as gitHandlers from "./project-git";
 import { setIlinkActiveSessionId } from "./ilink-state";
-import { deleteAgentPersistedStorage, deleteOrphanedAgentSessionDirectories } from "../agents/storage";
+import {
+  deleteAgentPersistedStorage,
+  deleteOrphanedAgentSessionDirectories,
+} from "../agents/storage";
 
 // ── sendEvent ────────────────────────────────────────────────────────
 
@@ -179,7 +188,10 @@ export const backendHandlers: {
             // 如果是 API Agent，清理 api-agents 目录下的孤儿会话历史
             if (oldMap.get(agentId)?.type === "api") {
               const knownResumeIds = new Set(
-                storageOps.listSessions().filter((s) => s.agentId === agentId).map((s) => s.resumeId),
+                storageOps
+                  .listSessions()
+                  .filter((s) => s.agentId === agentId)
+                  .map((s) => s.resumeId),
               );
               deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
             }
@@ -276,7 +288,10 @@ export const backendHandlers: {
     const agentCfg = storageOps.getSettings().agents.find((a) => a.id === agentId);
     if (agentCfg?.type === "api") {
       const knownResumeIds = new Set(
-        storageOps.listSessions().filter((s) => s.agentId === agentId).map((s) => s.resumeId),
+        storageOps
+          .listSessions()
+          .filter((s) => s.agentId === agentId)
+          .map((s) => s.resumeId),
       );
       deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
     }
