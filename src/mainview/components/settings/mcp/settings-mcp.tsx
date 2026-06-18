@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type {
   HttpMcpServerInfo,
   McpServerInfo,
+  SseMcpServerInfo,
   StdioMcpServerInfo,
 } from "../../../../shared/schema";
 import { useAppStore } from "../../../store";
@@ -45,6 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { SettingsMcpStdioDialog } from "./settings-mcp-stdio-dialog";
 import { SettingsMcpHttpDialog } from "./settings-mcp-http-dialog";
+import { SettingsMcpSseDialog } from "./settings-mcp-sse-dialog";
 
 function McpSortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -85,6 +87,10 @@ function isHttpMcp(mcp: McpServerInfo): mcp is HttpMcpServerInfo {
   return mcp.type === "http";
 }
 
+function isSseMcp(mcp: McpServerInfo): mcp is SseMcpServerInfo {
+  return mcp.type === "sse";
+}
+
 export function SettingsMcp() {
   const { t } = useTranslation();
   const { configuredMcpServers, setConfiguredMcpServers } = useAppStore();
@@ -95,8 +101,10 @@ export function SettingsMcp() {
   const [dialogOriginalId, setDialogOriginalId] = useState<string | null>(null);
   const [stdioDialogOpen, setStdioDialogOpen] = useState(false);
   const [httpDialogOpen, setHttpDialogOpen] = useState(false);
+  const [sseDialogOpen, setSseDialogOpen] = useState(false);
   const [stdioDialogItem, setStdioDialogItem] = useState<StdioMcpServerInfo | null>(null);
   const [httpDialogItem, setHttpDialogItem] = useState<HttpMcpServerInfo | null>(null);
+  const [sseDialogItem, setSseDialogItem] = useState<SseMcpServerInfo | null>(null);
 
   useEffect(() => {
     setMcpServers(configuredMcpServers);
@@ -117,8 +125,10 @@ export function SettingsMcp() {
   const closeDialogs = () => {
     setStdioDialogOpen(false);
     setHttpDialogOpen(false);
+    setSseDialogOpen(false);
     setStdioDialogItem(null);
     setHttpDialogItem(null);
+    setSseDialogItem(null);
     setDialogOriginalId(null);
   };
 
@@ -145,6 +155,7 @@ export function SettingsMcp() {
   const openAddStdioDialog = () => {
     setDialogOriginalId(null);
     setHttpDialogItem(null);
+    setSseDialogItem(null);
     setStdioDialogItem({
       id: "",
       type: "stdio",
@@ -159,6 +170,7 @@ export function SettingsMcp() {
   const openAddHttpDialog = () => {
     setDialogOriginalId(null);
     setStdioDialogItem(null);
+    setSseDialogItem(null);
     setHttpDialogItem({
       id: "",
       type: "http",
@@ -169,9 +181,24 @@ export function SettingsMcp() {
     setHttpDialogOpen(true);
   };
 
+  const openAddSseDialog = () => {
+    setDialogOriginalId(null);
+    setStdioDialogItem(null);
+    setHttpDialogItem(null);
+    setSseDialogItem({
+      id: "",
+      type: "sse",
+      url: "",
+      headers: {},
+      disabled: false,
+    });
+    setSseDialogOpen(true);
+  };
+
   const openRecommendedHttpDialog = (id: string, url: string) => {
     setDialogOriginalId(null);
     setStdioDialogItem(null);
+    setSseDialogItem(null);
     setHttpDialogItem({
       id,
       type: "http",
@@ -186,19 +213,28 @@ export function SettingsMcp() {
     setDialogOriginalId(mcp.id);
     if (isStdioMcp(mcp)) {
       setHttpDialogItem(null);
+      setSseDialogItem(null);
       setStdioDialogItem({ ...mcp });
       setStdioDialogOpen(true);
       return;
     }
     if (isHttpMcp(mcp)) {
       setStdioDialogItem(null);
+      setSseDialogItem(null);
       setHttpDialogItem({ ...mcp });
       setHttpDialogOpen(true);
+      return;
+    }
+    if (isSseMcp(mcp)) {
+      setStdioDialogItem(null);
+      setHttpDialogItem(null);
+      setSseDialogItem({ ...mcp });
+      setSseDialogOpen(true);
     }
   };
 
   const getServerSummary = (mcp: McpServerInfo): string => {
-    if (mcp.type === "http") return mcp.url;
+    if (mcp.type === "http" || mcp.type === "sse") return mcp.url;
     return [mcp.command, ...(mcp.args || [])].join(" ");
   };
 
@@ -285,6 +321,15 @@ export function SettingsMcp() {
               <Plus className="mr-1 size-3" />
               {t("settings.mcp.addHttpMcp", "Add HTTP MCP")}
             </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={openAddSseDialog}
+              className="h-7 text-xs text-foreground/70"
+            >
+              <Plus className="mr-1 size-3" />
+              {t("settings.mcp.addSseMcp", "Add SSE MCP")}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background hover:bg-muted hover:text-foreground h-7 w-7 text-xs text-foreground/70">
                 <BookmarkPlus className="size-3" />
@@ -335,6 +380,9 @@ export function SettingsMcp() {
                             className={`font-bold text-xs ml-1 truncate shrink-0 max-w-24 select-none ${mcp.disabled ? "text-muted-foreground/50 line-through" : ""}`}
                           >
                             {mcp.id}
+                          </span>
+                          <span className="text-[9px] shrink-0 px-1 py-0.5 rounded bg-muted text-muted-foreground/70 uppercase font-medium">
+                            {mcp.type}
                           </span>
                           <span className="text-[10px] flex-1 w-0 text-muted-foreground font-mono truncate">
                             {getServerSummary(mcp)}
@@ -390,6 +438,16 @@ export function SettingsMcp() {
           else setHttpDialogOpen(open);
         }}
         initialMcp={httpDialogItem}
+        onSave={upsertMcp}
+      />
+
+      <SettingsMcpSseDialog
+        open={sseDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialogs();
+          else setSseDialogOpen(open);
+        }}
+        initialMcp={sseDialogItem}
         onSave={upsertMcp}
       />
     </div>

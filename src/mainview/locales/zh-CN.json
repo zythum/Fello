@@ -187,6 +187,7 @@
       "addMcp": "添加 MCP 服务器",
       "addStdioMcp": "添加 Stdio MCP",
       "addHttpMcp": "添加 HTTP MCP",
+      "addSseMcp": "添加 SSE MCP",
       "recommended": {
         "exa": {
           "name": "Exa",
@@ -204,6 +205,7 @@
       "headers": "请求头 (JSON)",
       "headersJson": "请求头 (JSON)",
       "httpDialogDesc": "配置 MCP 服务器 ID、HTTP URL 和请求头。",
+      "sseDialogDesc": "配置 MCP 服务器 ID、SSE 端点 URL 和请求头。",
       "cancel": "取消",
       "save": "保存",
       "edit": "编辑",

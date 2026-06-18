@@ -343,10 +343,13 @@ export function SettingsAgents() {
                           >
                             {agent.id}
                           </span>
+                          <span className="text-[9px] shrink-0 px-1 py-0.5 rounded bg-muted text-muted-foreground/70 uppercase font-medium">
+                            {agent.type}
+                          </span>
                           <span className="text-[10px] flex-1 w-0 text-muted-foreground font-mono truncate">
                             {isStdioAgent(agent)
                               ? [agent.command, ...(agent.args || [])].join(" ")
-                              : `api:${agent.provider} ${agent.baseUrl}`}
+                              : `${agent.provider} ${agent.baseUrl}`}
                           </span>
                           <div className="flex items-center gap-1 shrink-0 ml-1">
                             <Switch

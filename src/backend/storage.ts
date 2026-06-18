@@ -74,7 +74,13 @@ interface HttpMcpServerMeta extends BaseMcpServerMeta {
   headers: Record<string, string>;
 }
 
-type McpServerMeta = StdioMcpServerMeta | HttpMcpServerMeta;
+interface SseMcpServerMeta extends BaseMcpServerMeta {
+  type: "sse";
+  url: string;
+  headers: Record<string, string>;
+}
+
+type McpServerMeta = StdioMcpServerMeta | HttpMcpServerMeta | SseMcpServerMeta;
 
 interface SettingsMeta {
   agents: {
@@ -268,6 +274,19 @@ function readSettings(): SettingsMeta {
           const order = typeof cfg?.order === "number" ? cfg.order : 0;
           next[id] = { type, command, args, env, disabled, order };
         } else if (type === "http") {
+          const url = typeof cfg?.url === "string" ? cfg.url : "";
+          const headers = (() => {
+            if (!isObject(cfg?.headers)) return {};
+            const nextHeaders: Record<string, string> = {};
+            for (const [k, v] of Object.entries(cfg.headers)) {
+              nextHeaders[k] = String(v);
+            }
+            return nextHeaders;
+          })();
+          const disabled = typeof cfg?.disabled === "boolean" ? cfg.disabled : false;
+          const order = typeof cfg?.order === "number" ? cfg.order : 0;
+          next[id] = { type, url, headers, disabled, order };
+        } else if (type === "sse") {
           const url = typeof cfg?.url === "string" ? cfg.url : "";
           const headers = (() => {
             if (!isObject(cfg?.headers)) return {};
@@ -573,6 +592,15 @@ export const storageOps = {
               disabled: srvMeta.disabled,
             };
           }
+          if (srvMeta.type === "sse") {
+            return {
+              id,
+              type: srvMeta.type,
+              url: srvMeta.url,
+              headers: Object.assign({}, srvMeta.headers),
+              disabled: srvMeta.disabled,
+            };
+          }
           throw new Error(`Invalid mcpServer type ${(srvMeta as any).type}.`);
         })
         .sort((a, b) => meta.mcpServers[a.id].order - meta.mcpServers[b.id].order),
@@ -673,6 +701,14 @@ export const storageOps = {
               order: idx,
             };
           } else if (srv.type === "http") {
+            nextMcpServers[srv.id] = {
+              type: srv.type,
+              url: srv.url,
+              headers: Object.assign({}, srv.headers),
+              disabled: srv.disabled,
+              order: idx,
+            };
+          } else if (srv.type === "sse") {
             nextMcpServers[srv.id] = {
               type: srv.type,
               url: srv.url,

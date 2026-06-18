@@ -40,6 +40,13 @@ function buildAutomationMcpServers(mcpIds: string[]): McpServer[] {
         url: config.url,
         headers: Object.entries(config.headers).map(([k, v]) => ({ name: k, value: v })),
       });
+    } else if (config.type === "sse") {
+      servers.push({
+        type: "sse",
+        name: id,
+        url: config.url,
+        headers: Object.entries(config.headers).map(([k, v]) => ({ name: k, value: v })),
+      });
     }
   }
   return servers;

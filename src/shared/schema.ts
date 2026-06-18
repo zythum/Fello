@@ -143,8 +143,17 @@ export interface HttpMcpServerInfo extends BaseMcpServerInfo {
   headers: Record<string, string>;
 }
 
-/** MCP Server 配置联合类型：stdio / http */
-export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo;
+export interface SseMcpServerInfo extends BaseMcpServerInfo {
+  /** 通过 SSE 连接 MCP Server */
+  type: "sse";
+  /** MCP Server 的 SSE 端点地址 */
+  url: string;
+  /** 建立 SSE 连接时附加的请求头 */
+  headers: Record<string, string>;
+}
+
+/** MCP Server 配置联合类型：stdio / http / sse */
+export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo | SseMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
 export type Feature = "skills" | "ask_user" | "share_to_user";
