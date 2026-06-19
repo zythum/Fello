@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
 import { request, subscribe, isWebUI } from "../../../../backend";
+import { EDITOR_LABELS } from "../../../../../shared/constants";
 import { electron } from "../../../../electron";
 import { useAppStore } from "../../../../store";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
   Copy,
   MessageSquarePlus,
   Folders,
+  Code,
 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { cn, extractErrorMessage } from "@/lib/utils";
@@ -57,6 +59,7 @@ interface Actions {
   drop: (e: React.DragEvent, id: string) => void;
   dragEnd: () => void;
   revealInFinder: (id: string) => void;
+  openInEditor: (id: string) => void;
   previewFile: (id: string) => void;
   copyPath: (id: string, isAbsolute: boolean) => void;
   addToChat: (id: string) => void;
@@ -328,6 +331,18 @@ function TreeItem({
             >
               <FolderOpen />
               {t("filePanel.revealInFinder")}
+            </ContextMenuItem>
+          )}
+          {!isWebUI && (
+            <ContextMenuItem
+              onClick={() => {
+                actions.openInEditor(node.id);
+              }}
+            >
+              <Code />
+              {t("filePanel.openInEditor", {
+                editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+              })}
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
@@ -1163,6 +1178,16 @@ export const FilePanel = memo(function FilePanel({
         isAbsolute: true,
       });
       electron.revealInFinder(absPath);
+    },
+    openInEditor: async (id: string) => {
+      if (!activeProjectId || isWebUI) return;
+      const absPath = await request.getSystemFilePath({
+        projectId: activeProjectId,
+        path: id,
+        isAbsolute: true,
+      });
+      const editorName = useAppStore.getState().editor.name;
+      electron.openInEditor(absPath, editorName);
     },
     previewFile: (id: string) => {
       onPreviewFile(id);

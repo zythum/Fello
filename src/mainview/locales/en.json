@@ -124,7 +124,12 @@
       "soundTest": "Test",
       "soundTestDesc": "Preview the current sound effect",
       "soundTestPlay": "Play",
-      "saveSoundFailed": "Failed to save sound setting."
+      "saveSoundFailed": "Failed to save sound setting.",
+      "groupEditor": "Editor",
+      "editor": "Open in Editor",
+      "editorDesc": "Choose the editor to open files",
+      "selectEditor": "Select editor",
+      "saveEditorFailed": "Failed to save editor setting."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",
@@ -368,6 +373,7 @@
     "copyPath": "Copy Path",
     "copyRelativePath": "Copy Relative Path",
     "revealInFinder": "Reveal in Finder",
+    "openInEditor": "Open in {{editor}}",
     "delete": "Delete",
     "deleteConfirmSingle": "How would you like to delete \"{{name}}\"?",
     "deleteConfirmMultiple": "How would you like to delete {{count}} items?",

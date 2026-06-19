@@ -13,12 +13,23 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessage } from "../../providers/message";
+import { EDITOR_LABELS } from "../../../../shared/constants";
 import * as tiks from "@rexa-developer/tiks";
 
 export function SettingsGeneral() {
   const { t, i18n: _i18n } = useTranslation();
-  const { theme, setTheme, i18n, setI18n, fileWatcher, setFileWatcher, sound, setSound } =
-    useAppStore();
+  const {
+    theme,
+    setTheme,
+    i18n,
+    setI18n,
+    fileWatcher,
+    setFileWatcher,
+    editor,
+    setEditor,
+    sound,
+    setSound,
+  } = useAppStore();
   const { toast } = useMessage();
 
   const handleThemeChange = async (mode: string | null) => {
@@ -171,6 +182,65 @@ export function SettingsGeneral() {
                     </span>
                   </div>
                   <Switch checked={fileWatcher.enabled} onCheckedChange={handleFileWatcherChange} />
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-border"></div>
+            {/* ── Editor ── */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">
+                {t("settings.general.groupEditor", "Editor")}
+              </h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.editor", "Open in Editor")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t("settings.general.editorDesc", "Choose the editor to open files")}
+                    </span>
+                  </div>
+                  {(() => {
+                    const editorItems = Object.keys(EDITOR_LABELS)
+                      .sort((a, b) => EDITOR_LABELS[a].localeCompare(EDITOR_LABELS[b]))
+                      .map((value) => ({ value: value, label: EDITOR_LABELS[value] }));
+
+                    return (
+                      <Select
+                        items={editorItems}
+                        value={editor.name}
+                        onValueChange={async (val: string | null) => {
+                          if (!val) return;
+                          const newEditor = { name: val };
+                          setEditor(newEditor);
+                          try {
+                            await request.updateSettings({ editor: newEditor });
+                          } catch {
+                            toast.error(
+                              t(
+                                "settings.general.saveEditorFailed",
+                                "Failed to save editor setting.",
+                              ),
+                            );
+                          }
+                        }}
+                      >
+                        <SelectTrigger size="sm" className="w-44">
+                          <SelectValue
+                            placeholder={t("settings.general.selectEditor", "Select editor")}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {editorItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              <span className="flex items-center gap-2">{item.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

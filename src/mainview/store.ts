@@ -4,6 +4,7 @@ import type {
   SessionInfo,
   ProjectInfo,
   SettingsInfo,
+  SettingEditorInfo,
   SettingSoundInfo,
   SessionNotificationFelloExt,
   AskUserRequest,
@@ -119,6 +120,7 @@ export interface AppState {
   i18n: SettingsInfo["i18n"];
   fileWatcher: SettingsInfo["fileWatcher"];
   ilink: SettingsInfo["ilink"];
+  editor: SettingEditorInfo;
   sound: SettingSoundInfo;
   snippets: SettingsInfo["snippets"];
   webUIStatus: { enabled: boolean; url: string | null };
@@ -179,6 +181,7 @@ export interface AppState {
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
+  setEditor: (editor: SettingEditorInfo) => void;
   setSound: (sound: SettingSoundInfo) => void;
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
@@ -221,6 +224,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
   ilink: { useOriginalImage: false },
+  editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
   snippets: [],
   webUIStatus: { enabled: false, url: null },
@@ -364,6 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setI18n: (i18n) => set({ i18n }),
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setIlink: (ilink) => set({ ilink }),
+  setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),
   setSnippets: (snippets) => set({ snippets }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),

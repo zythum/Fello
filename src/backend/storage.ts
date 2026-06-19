@@ -99,6 +99,9 @@ interface SettingsMeta {
   ilink: {
     useOriginalImage: boolean;
   };
+  editor: {
+    name: string;
+  };
   sound: {
     volume: number;
     muted: boolean;
@@ -119,6 +122,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   ilink: {
     useOriginalImage: false,
+  },
+  editor: {
+    name: "code",
   },
   sound: {
     volume: 50,
@@ -341,7 +347,15 @@ function readSettings(): SettingsMeta {
         )
       : [];
 
-    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, sound, snippets };
+    const editor: SettingsMeta["editor"] = (() => {
+      const raw = rawObj && isObject(rawObj.editor) ? rawObj.editor : null;
+      if (raw && typeof raw.name === "string" && raw.name.trim()) {
+        return { name: raw.name.trim() };
+      }
+      return DEFAULT_SETTINGS.editor;
+    })();
+
+    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, editor, sound, snippets };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -614,6 +628,9 @@ export const storageOps = {
       ilink: {
         useOriginalImage: meta.ilink.useOriginalImage,
       },
+      editor: {
+        name: meta.editor.name,
+      },
       sound: {
         volume: meta.sound.volume,
         muted: meta.sound.muted,
@@ -732,6 +749,14 @@ export const storageOps = {
         }
         return {
           useOriginalImage: settings.ilink.useOriginalImage,
+        };
+      })(),
+      editor: (() => {
+        if (!settings.editor) {
+          return prevMeta.editor;
+        }
+        return {
+          name: settings.editor.name,
         };
       })(),
       sound: (() => {

@@ -229,6 +229,14 @@ export interface SettingILinkInfo {
 }
 
 /**
+ * 编辑器配置信息
+ */
+export interface SettingEditorInfo {
+  /** 编辑器标识（传给 launch-editor 的值），如 'code', 'cursor', 'code-insiders', 'zed', 'webstorm' 等 */
+  name: string;
+}
+
+/**
  * 音效配置信息
  */
 export interface SettingSoundInfo {
@@ -268,6 +276,8 @@ export interface SettingsInfo {
   fileWatcher: SettingFileWatcherInfo;
   /** iLink 相关设置 */
   ilink: SettingILinkInfo;
+  /** 编辑器设置 */
+  editor: SettingEditorInfo;
   /** 音效设置 */
   sound: SettingSoundInfo;
   /** Snippets 列表 */

@@ -124,7 +124,12 @@
       "soundTest": "试听",
       "soundTestDesc": "预览当前音效效果",
       "soundTestPlay": "播放",
-      "saveSoundFailed": "保存音效设置失败。"
+      "saveSoundFailed": "保存音效设置失败。",
+      "groupEditor": "编辑器",
+      "editor": "使用编辑器打开",
+      "editorDesc": "选择用于打开文件的编辑器",
+      "selectEditor": "选择编辑器",
+      "saveEditorFailed": "保存编辑器设置失败。"
     },
     "agents": {
       "desc": "管理智能体的配置和启动命令。",
@@ -368,6 +373,7 @@
     "copyPath": "复制路径",
     "copyRelativePath": "复制相对路径",
     "revealInFinder": "在访达中显示",
+    "openInEditor": "使用 {{editor}} 打开",
     "delete": "删除",
     "deleteConfirmSingle": "是否删除“{{name}}”？",
     "deleteConfirmMultiple": "是否删除选中的 {{count}} 个项目？",

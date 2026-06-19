@@ -6,6 +6,7 @@ type ElectronIPCRequests = {
   showOpenDialog: { params: void; response: string | null };
   revealInFinder: { params: string; response: void };
   openInBrowser: { params: string; response: void };
+  openInEditor: { params: { filePath: string; editor?: string }; response: void };
   trashFile: { params: string; response: void };
   getUpdaterStatus: { params: void; response: UpdaterEvent | null };
   checkForUpdates: { params: { manual?: boolean } | void; response: void };

@@ -24,3 +24,27 @@ export const FEATURE_I18N_KEYS: Record<Feature, string> = {
   ask_user: "constant.feature.askUser",
   share_to_user: "constant.feature.shareToUser",
 };
+
+/** launch-editor 支持的值到显示名称的映射 */
+export const EDITOR_LABELS: Record<string, string> = {
+  code: "VS Code",
+  "code-insiders": "VS Code Insiders",
+  codium: "VSCodium",
+  cursor: "Cursor",
+  zed: "Zed",
+  atom: "Atom",
+  sublime: "Sublime Text",
+  idea: "IntelliJ IDEA",
+  webstorm: "WebStorm",
+  pycharm: "PyCharm",
+  phpstorm: "PhpStorm",
+  rubymine: "RubyMine",
+  clion: "CLion",
+  rider: "Rider",
+  appcode: "AppCode",
+  visualstudio: "Visual Studio",
+  emacs: "Emacs",
+  vim: "Vim",
+  "notepad++": "Notepad++",
+  brackets: "Brackets",
+};

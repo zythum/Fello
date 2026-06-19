@@ -25,6 +25,7 @@ function AppContent() {
     setWebUIStatus,
     setTheme,
     setI18n,
+    setEditor,
     setSnippets,
     isMacApp,
     setIsFullScreen,
@@ -70,6 +71,7 @@ function AppContent() {
         setI18n(settings.i18n);
         i18n.changeLanguage(settings.i18n.language);
       }
+      if (settings.editor) setEditor(settings.editor);
       if (settings.snippets) setSnippets(settings.snippets);
       // 恢复所有 session 中 pending 的 askUser 请求
       for (const session of sessions ?? []) {

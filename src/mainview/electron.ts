@@ -24,6 +24,13 @@ export const electron = {
     }
     return window.fello!.invoke("revealInFinder", path);
   },
+  openInEditor: async (filePath: string, editor?: string): Promise<void> => {
+    if (isWebUI) {
+      console.warn("WebUI mode: openInEditor is not supported on client machine.");
+      return;
+    }
+    return window.fello!.invoke("openInEditor", { filePath, editor });
+  },
   openInBrowser: async (url: string): Promise<void> => {
     if (isWebUI) {
       window.open(url, "_blank", "noopener,noreferrer");

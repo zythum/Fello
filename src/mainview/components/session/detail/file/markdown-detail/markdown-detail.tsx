@@ -12,8 +12,10 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { copyText } from "@/lib/clipboard";
-import { MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
+import { MessageSquarePlus, Copy, FolderOpen, Code } from "lucide-react";
+import { useAppStore } from "../../../../../store";
 import { request, isWebUI } from "../../../../../backend";
+import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
 import type { ViewMode } from "../common/file-view-tabs";
@@ -95,6 +97,13 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
     electron.revealInFinder(absPath);
   }, [projectId, file]);
 
+  const handleOpenInEditor = useCallback(async () => {
+    if (isWebUI) return;
+    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const editorName = useAppStore.getState().editor.name;
+    electron.openInEditor(absPath, editorName);
+  }, [projectId, file]);
+
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
@@ -122,6 +131,14 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
       {!isWebUI && (
         <ContextMenuItem onClick={handleRevealInFinder}>
           <FolderOpen /> {t("filePanel.revealInFinder")}
+        </ContextMenuItem>
+      )}
+      {!isWebUI && (
+        <ContextMenuItem onClick={handleOpenInEditor}>
+          <Code />{" "}
+          {t("filePanel.openInEditor", {
+            editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+          })}
         </ContextMenuItem>
       )}
     </ContextMenuContent>

@@ -96,6 +96,7 @@
     "es-toolkit": "^1.46.1",
     "fix-path": "^5.0.0",
     "fuse.js": "^7.3.0",
+    "launch-editor": "^2.14.1",
     "mime-types": "^3.0.2",
     "node-pty": "^1.1.0",
     "ws": "^8.20.0",

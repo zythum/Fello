@@ -16,6 +16,10 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
 import type { FelloIPCSchema } from "../shared/schema";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const launchEditor = require("launch-editor");
+
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
 import { parseFileRoute, serveRoute } from "../backend/file-routes";
@@ -138,6 +142,22 @@ ipcMain.handle("openInBrowser", async (_event: unknown, url: string) => {
     throw new Error(extractErrorMessage(error));
   }
 });
+
+ipcMain.handle(
+  "openInEditor",
+  async (_event: unknown, params: { filePath: string; editor?: string }) => {
+    try {
+      const { filePath, editor } = params;
+      launchEditor(filePath, editor, (fileName: string, errorMsg: string | null) => {
+        if (errorMsg) {
+          console.error(`launch-editor failed for ${fileName}: ${errorMsg}`);
+        }
+      });
+    } catch (error) {
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+);
 
 ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
   try {

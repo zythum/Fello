@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { copyText } from "@/lib/clipboard";
-import { ExternalLink, RotateCcw, MessageSquarePlus, Copy, FolderOpen } from "lucide-react";
+import { ExternalLink, RotateCcw, MessageSquarePlus, Copy, FolderOpen, Code } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAppStore } from "../../../../../store";
 import { request, isWebUI, webUIBaseUrl } from "../../../../../backend";
+import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
 import { ErrorState } from "../common/loading-state";
@@ -146,6 +148,13 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
     electron.revealInFinder(absPath);
   }, [projectId, file]);
 
+  const handleOpenInEditor = useCallback(async () => {
+    if (isWebUI) return;
+    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const editorName = useAppStore.getState().editor.name;
+    electron.openInEditor(absPath, editorName);
+  }, [projectId, file]);
+
   const contextMenuItems = (
     <ContextMenuContent>
       {contextSelectedText && (
@@ -170,6 +179,14 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
       {!isWebUI && (
         <ContextMenuItem onClick={handleRevealInFinder}>
           <FolderOpen /> {t("filePanel.revealInFinder")}
+        </ContextMenuItem>
+      )}
+      {!isWebUI && (
+        <ContextMenuItem onClick={handleOpenInEditor}>
+          <Code />{" "}
+          {t("filePanel.openInEditor", {
+            editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+          })}
         </ContextMenuItem>
       )}
     </ContextMenuContent>
