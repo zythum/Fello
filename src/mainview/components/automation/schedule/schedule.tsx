@@ -272,7 +272,7 @@ export function Schedule() {
             maxSize={400}
           >
             <div className="h-full flex flex-col">
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 overflow-hidden">
                 <div>
                   {[...tasks]
                     .sort((a, b) => b.startedAt - a.startedAt)

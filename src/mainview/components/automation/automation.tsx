@@ -211,7 +211,7 @@ export function Automation() {
           </Button>
         </div>
       ) : (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="px-5 py-4 w-full max-w-4xl mx-auto">
             <ItemGroup className="gap-0">
               {schedules.map((schedule, index) => (
