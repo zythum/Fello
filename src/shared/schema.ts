@@ -1,8 +1,6 @@
 import type {
   SessionNotification,
   InitializeResponse,
-  SessionModeState,
-  SessionModelState,
   ContentBlock,
   Usage,
 } from "@agentclientprotocol/sdk";
@@ -23,6 +21,49 @@ export interface SessionNotificationFelloExt extends SessionNotification {
       };
     };
   };
+}
+
+export interface ModelInfo {
+  /**
+   * Optional description of the model.
+   */
+  description?: string | null;
+  /**
+   * Unique identifier for the model.
+   */
+  modelId: string;
+  /**
+   * Human-readable name of the model.
+   */
+  name: string;
+}
+
+export interface SessionModelState {
+  /**
+   * The set of models that the Agent can use
+   */
+  availableModels: ModelInfo[];
+  /**
+   * The current model the Agent is in.
+   */
+  currentModelId: string;
+}
+
+export interface ModeInfo {
+  description?: string | null;
+  id: string;
+  name: string;
+}
+
+export interface SessionModeState {
+  /**
+   * The set of modes that the Agent can operate in
+   */
+  availableModes: ModeInfo[];
+  /**
+   * The current mode the Agent is in.
+   */
+  currentModeId: string;
 }
 
 /**

@@ -16,7 +16,6 @@ import type {
   InitializeResponse,
   LoadSessionRequest,
   LoadSessionResponse,
-  ModelInfo,
   NewSessionRequest,
   NewSessionResponse,
   PromptRequest,
@@ -26,13 +25,10 @@ import type {
   SessionConfigOption,
   SetSessionConfigOptionRequest,
   SetSessionConfigOptionResponse,
-  SessionModelState,
-  SetSessionModelRequest,
-  SetSessionModelResponse,
   Usage,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
-import type { ApiAgentInfo } from "../shared/schema";
+import type { ApiAgentInfo, ModelInfo, SessionModelState } from "../shared/schema";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
@@ -337,7 +333,6 @@ export class OpenaiCompatibleAgent implements Agent {
     }, 500);
     return {
       sessionId,
-      models: modelState.availableModels.length > 0 ? modelState : null,
       configOptions: await this.buildConfigOptions(modelId),
     };
   }
@@ -402,30 +397,14 @@ export class OpenaiCompatibleAgent implements Agent {
       });
     }
     await this.persistSessionState(active);
-    const models =
-      modelState.availableModels.length > 0
-        ? {
-            currentModelId: active.modelId || modelState.currentModelId || "",
-            availableModels: modelState.availableModels,
-          }
-        : null;
     await this.pushAvailableCommands(params.sessionId);
     return {
-      models,
       configOptions: await this.buildConfigOptions(active.modelId),
     };
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
     return this.resumeSession(params);
-  }
-
-  async unstable_setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
-    const session = this.sessions.get(params.sessionId);
-    if (!session) return {};
-    session.modelId = params.modelId;
-    await this.persistSessionState(session);
-    return {};
   }
 
   async setSessionConfigOption(
@@ -770,7 +749,7 @@ export class OpenaiCompatibleAgent implements Agent {
     return {};
   }
 
-  async unstable_deleteSession(params: DeleteSessionRequest): Promise<DeleteSessionResponse> {
+  async deleteSession(params: DeleteSessionRequest): Promise<DeleteSessionResponse> {
     // 如果会话当前是活跃的，先关闭它（清理资源）
     const session = this.sessions.get(params.sessionId);
     if (session) {

@@ -83,7 +83,7 @@
     ]
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^0.22.1",
+    "@agentclientprotocol/sdk": "^0.26.0",
     "@ai-sdk/mcp": "^1.0.41",
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@ast-grep/napi": "^0.42.2",

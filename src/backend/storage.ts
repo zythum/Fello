@@ -16,14 +16,12 @@ import type {
   SettingsInfo,
   SnippetInfo,
   SessionNotificationFelloExt,
+  SessionModelState,
+  SessionModeState,
   Feature,
 } from "../shared/schema";
 import { ALL_FEATURES } from "../shared/constants";
-import type {
-  SessionModelState,
-  SessionModeState,
-  InitializeResponse,
-} from "@agentclientprotocol/sdk";
+import type { InitializeResponse } from "@agentclientprotocol/sdk";
 
 export const FELLO_DIR = join(homedir(), ".fello");
 export const SOCKETS_DIR = join(FELLO_DIR, "sockets");

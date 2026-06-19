@@ -25,12 +25,8 @@ import type {
   ReleaseTerminalRequest,
   ReleaseTerminalResponse,
   InitializeResponse,
-  SessionModelState,
-  SessionModeState,
   NewSessionRequest,
   NewSessionResponse,
-  SetSessionModelRequest,
-  SetSessionModelResponse,
   ResumeSessionRequest,
   ResumeSessionResponse,
   SetSessionModeRequest,
@@ -40,12 +36,18 @@ import type {
   CancelNotification,
   SessionConfigOption,
 } from "@agentclientprotocol/sdk";
-import type { AgentInfo } from "../../shared/schema";
+import type { AgentInfo, SessionModelState, SessionModeState } from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 import { WORKSPACE_TEMP_DIR } from "../storage";
+
+export interface SetSessionModelRequest {
+  sessionId: string;
+  modelId: string;
+}
+export type SetSessionModelResponse = Record<string, never>;
 
 export type SessionUpdateCallback = (update: SessionNotification) => void;
 export type PermissionRequestCallback = (
@@ -129,19 +131,32 @@ export class ACPBridge {
 
   private normalizeSelectOptions(
     options:
-      | Array<{ value: string; name: string }>
-      | Array<{ options: Array<{ value: string; name: string }> }>,
-  ): Array<{ value: string; name: string }> {
+      | Array<{ value: string; name: string; description?: string | undefined | null }>
+      | Array<{
+          options: Array<{ value: string; name: string; description?: string | undefined | null }>;
+        }>,
+  ): Array<{ value: string; name: string; description?: string | undefined | null }> {
     if (!Array.isArray(options) || options.length === 0) return [];
     const first = options[0] as { value?: unknown; options?: unknown };
     if (typeof first?.value === "string") {
-      return (options as Array<{ value: string; name: string }>).map((item) => ({
+      return (
+        options as Array<{ value: string; name: string; description?: string | undefined | null }>
+      ).map((item) => ({
         value: item.value,
         name: item.name,
+        description: item.description,
       }));
     }
-    return (options as Array<{ options: Array<{ value: string; name: string }> }>).flatMap(
-      (group) => group.options.map((item) => ({ value: item.value, name: item.name })),
+    return (
+      options as Array<{
+        options: Array<{ value: string; name: string; description?: string | undefined | null }>;
+      }>
+    ).flatMap((group) =>
+      group.options.map((item) => ({
+        value: item.value,
+        name: item.name,
+        description: item.description,
+      })),
     );
   }
 
@@ -160,6 +175,7 @@ export class ACPBridge {
       const availableModels = this.normalizeSelectOptions(selectOption.options).map((item) => ({
         modelId: item.value,
         name: item.name,
+        description: item.description,
       }));
       this._modelStates.set(sessionId, {
         currentModelId: selectOption.currentValue,
@@ -175,6 +191,7 @@ export class ACPBridge {
       const availableModes = this.normalizeSelectOptions(selectOption.options).map((item) => ({
         id: item.value,
         name: item.name,
+        description: item.description,
       }));
       this._modeStates.set(sessionId, {
         currentModeId: selectOption.currentValue,
@@ -375,17 +392,71 @@ export class ACPBridge {
     return initResult;
   }
 
-  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
+  parseSessionConfigOptions(configOptions: SessionConfigOption[]): {
+    models: SessionModelState | null;
+    modes: SessionModeState | null;
+  } {
+    let models: SessionModelState | null = null;
+    let modes: SessionModeState | null = null;
+
+    const modelOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "model",
+    );
+    if (modelOption) {
+      const selectOption = modelOption as Extract<SessionConfigOption, { type: "select" }>;
+      models = {
+        currentModelId: selectOption.currentValue,
+        availableModels: this.normalizeSelectOptions(selectOption.options).map((item) => ({
+          modelId: item.value,
+          name: item.name,
+          description: item.description,
+        })),
+      };
+    }
+
+    const modeOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "mode",
+    );
+    if (modeOption) {
+      const selectOption = modeOption as Extract<SessionConfigOption, { type: "select" }>;
+      modes = {
+        currentModeId: selectOption.currentValue,
+        availableModes: this.normalizeSelectOptions(selectOption.options).map((item) => ({
+          id: item.value,
+          name: item.name,
+          description: item.description,
+        })),
+      };
+    }
+
+    return { models, modes };
+  }
+
+  async newSession(
+    params: NewSessionRequest,
+  ): Promise<NewSessionResponse & { models: SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.newSession(params);
-    const models = result.models ?? null;
-    const modes = result.modes ?? null;
+    const { models: configModels, modes: configModes } = result.configOptions
+      ? this.parseSessionConfigOptions(result.configOptions)
+      : { models: null, modes: null };
+    const models =
+      configModels ?? (result as unknown as { models: SessionModelState | null }).models ?? null;
+    const modes = configModes ?? result.modes ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
     this.applyConfigOptions(result.sessionId, result.configOptions);
     this._loadedSessions.add(result.sessionId);
     this._sessionsCwdMap.set(result.sessionId, params.cwd);
-    return result;
+    return Object.assign(result, { models, modes });
+  }
+
+  async hack_setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
+    return (
+      this.connection as unknown as {
+        connection: { sendRequest: (method: string, params: any) => Promise<any> };
+      }
+    ).connection.sendRequest("session/set_model", params);
   }
 
   async setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
@@ -402,10 +473,12 @@ export class ACPBridge {
         this.applyConfigOptions(params.sessionId, cfg.configOptions);
         result = {};
       } catch {
-        result = await this.connection.unstable_setSessionModel(params);
+        // Fallback to raw session/set_model for agents like kiro-cli that don't support set_config_option
+        result = await this.hack_setSessionModel(params);
       }
     } else {
-      result = await this.connection.unstable_setSessionModel(params);
+      // No configOptions available, use raw session/set_model (kiro-cli style)
+      result = await this.hack_setSessionModel(params);
     }
     const state = this._modelStates.get(params.sessionId);
     if (state) {
@@ -438,7 +511,7 @@ export class ACPBridge {
   async deleteSession(sessionId: string): Promise<void> {
     if (!this.connection) return;
     try {
-      await this.connection.unstable_deleteSession({ sessionId });
+      await this.connection.deleteSession({ sessionId });
     } catch {}
     this._modelStates.delete(sessionId);
     this._modeStates.delete(sessionId);
@@ -447,7 +520,9 @@ export class ACPBridge {
     this._sessionsCwdMap.delete(sessionId);
   }
 
-  async loadSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
+  async loadSession(
+    params: ResumeSessionRequest,
+  ): Promise<ResumeSessionResponse & { models: SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
 
     // If already loaded, return cached state without calling agent
@@ -468,14 +543,18 @@ export class ACPBridge {
         mcpServers: params.mcpServers ?? [],
       });
     }
-    const models = result.models ?? null;
-    const modes = result.modes ?? null;
+    const { models: configModels, modes: configModes } = result.configOptions
+      ? this.parseSessionConfigOptions(result.configOptions)
+      : { models: null, modes: null };
+    const models =
+      configModels ?? (result as unknown as { models: SessionModelState | null }).models ?? null;
+    const modes = configModes ?? result.modes ?? null;
     if (models) this._modelStates.set(params.sessionId, models);
     if (modes) this._modeStates.set(params.sessionId, modes);
     this.applyConfigOptions(params.sessionId, result.configOptions);
     this._loadedSessions.add(params.sessionId);
     this._sessionsCwdMap.set(params.sessionId, params.cwd);
-    return result;
+    return Object.assign(result, { models, modes });
   }
 
   async setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse> {
