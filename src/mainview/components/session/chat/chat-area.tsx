@@ -36,6 +36,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const userHasScrolledUpRef = useRef(false);
   const isProgrammaticScrollRef = useRef(false);
   const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
   const userMessageElementRefs = useRef(new Map<string, HTMLElement>());
   const userMessageIdsRef = useRef<string[]>([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -142,6 +143,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       const scrollBottom = scrollHeight - scrollTop - clientHeight;
       const nextIsAtBottom = scrollBottom < 50;
+      const scrollDelta = scrollTop - prevScrollTopRef.current;
+      prevScrollTopRef.current = scrollTop;
 
       // Distinguish "user scrolled up" from "content grew, pushing viewport up".
       // If this scroll event was triggered by our own scrollToBottom, ignore it.
@@ -153,12 +156,19 @@ export function ChatArea({ session }: { session: SessionInfo }) {
         return;
       }
 
+      // Any upward movement by the user counts as an intent to read above the
+      // bottom, even if still within the bottom threshold. This makes it easier
+      // to break out of auto-scroll with a small mouse-wheel nudge.
+      const isScrollingUp = scrollDelta <= -1;
+
       // If the content grew (scrollHeight increased) and the user didn't
       // actively scroll up, don't mark them as having scrolled up.
       const contentGrew = scrollHeight > prevScrollHeightRef.current;
       prevScrollHeightRef.current = scrollHeight;
 
-      if (!nextIsAtBottom && contentGrew && scrollBottom >= 50) {
+      if (isScrollingUp) {
+        userHasScrolledUpRef.current = true;
+      } else if (!nextIsAtBottom && contentGrew && scrollBottom >= 50) {
         // Content grew enough to push us out of the "at bottom" zone.
         // This is not a user action — keep userHasScrolledUpRef as is.
       } else {
@@ -174,10 +184,21 @@ export function ChatArea({ session }: { session: SessionInfo }) {
       });
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      // A negative deltaY means the user is scrolling up. Treat this as an
+      // immediate intent to stop auto-scrolling, even before the scroll event
+      // has fired and updated the position-based heuristics.
+      if (e.deltaY < 0) {
+        userHasScrolledUpRef.current = true;
+      }
+    };
+
     viewport.addEventListener("scroll", handleScroll, { passive: true });
+    viewport.addEventListener("wheel", handleWheel, { passive: true });
     handleScroll();
     return () => {
       viewport.removeEventListener("scroll", handleScroll);
+      viewport.removeEventListener("wheel", handleWheel);
       if (rafId != null) cancelAnimationFrame(rafId);
     };
   }, [getViewport]);
