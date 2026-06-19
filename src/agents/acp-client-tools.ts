@@ -82,6 +82,7 @@ Always prefer using line/limit to read specific sections, or use GetFileOutline 
 
         try {
           const MAX_SIZE_BYTES = 100 * 1024; // 100KB
+          const LIMIT_SIZE_BYTES = 1024 * 1024; // 1024KB
 
           // For targeted reads (line/limit specified), always allow
           const isFullFileRead = !line && !limit;
@@ -93,16 +94,25 @@ Always prefer using line/limit to read specific sections, or use GetFileOutline 
             limit,
           });
 
-          // Check size limit on full-file reads
-          if (isFullFileRead && output.content && !force) {
-            // Use TextEncoder for accurate byte count (handles UTF-8 multi-byte chars)
+          if (output.content) {
             const byteSize = new TextEncoder().encode(output.content).length;
-            if (byteSize > MAX_SIZE_BYTES) {
-              const sizeKB = (byteSize / 1024).toFixed(1);
+            if (byteSize > LIMIT_SIZE_BYTES) {
+              const sizeMB = (byteSize / 1024 / 1024).toFixed(2);
               throw new Error(
-                `File is ${sizeKB}KB (limit: 100KB). Use GetFileOutline first to see file structure, then ReadFile with line/limit to read specific sections. ` +
-                  `If you genuinely need the full content, set force=true.`,
+                `This file is ${sizeMB}MB, over 1 MB limit. Please do not read it directly.`,
               );
+            }
+
+            // Check size limit on full-file reads
+            if (isFullFileRead && !force) {
+              // Use TextEncoder for accurate byte count (handles UTF-8 multi-byte chars)
+              if (byteSize > MAX_SIZE_BYTES) {
+                const sizeKB = (byteSize / 1024).toFixed(2);
+                throw new Error(
+                  `File is ${sizeKB}KB (limit: 100KB). Use GetFileOutline first to see file structure, then ReadFile with line/limit to read specific sections. ` +
+                    `If you genuinely need the full content, set force=true.`,
+                );
+              }
             }
           }
 

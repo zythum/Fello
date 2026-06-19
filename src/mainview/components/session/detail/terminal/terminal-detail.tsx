@@ -85,6 +85,24 @@ export function TerminalDetail({ terminalId, projectId, onClose }: TerminalDetai
     return () => window.removeEventListener("resize", onResize);
   }, [fitTerminal]);
 
+  // Suppress the global text context menu for the terminal,
+  // letting the browser's native context menu handle copy/paste.
+  // xterm.js internally moves its hidden textarea under the cursor and
+  // selects the content, so the native Copy/Paste commands work correctly.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleContextMenu = (e: MouseEvent) => {
+      // Don't call preventDefault() — let the browser's native menu show.
+      // xterm.js already sets up the hidden textarea for copy/paste.
+      e.stopPropagation();
+    };
+
+    container.addEventListener("contextmenu", handleContextMenu);
+    return () => container.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}

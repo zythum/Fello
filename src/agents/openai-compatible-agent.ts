@@ -629,7 +629,7 @@ export class OpenaiCompatibleAgent implements Agent {
           ...session.mcp.tools,
           ...session.acp.tools,
         },
-        stopWhen: stepCountIs(80),
+        stopWhen: stepCountIs(128),
         abortSignal: abortController.signal,
       });
 
