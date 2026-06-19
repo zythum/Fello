@@ -608,7 +608,7 @@ export function Sidebar() {
                           })()}
                           <Badge
                             variant="outline"
-                            className="px-1 -ml-0.5 text-[10px] uppercase max-w-15 truncate text-center leading-normal py-0 select-none"
+                            className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
                           >
                             {configuredAgents.find((a) => a.id === session.agentId)?.id ||
                               session.agentId}

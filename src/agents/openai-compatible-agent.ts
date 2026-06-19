@@ -61,7 +61,25 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
       ? ` Additional workspace roots: ${additionalDirectories.join(", ")}.`
       : "";
   const workspacePrompt = `Current session working directory (cwd): ${cwd}.${extras} Use this as the default base path for relative paths.`;
-  let prompt = `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}`;
+
+  // Temporal & environment context — LLMs often hallucinate the current time
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-CA"); // YYYY-MM-DD format
+  const timeStr = now.toLocaleTimeString("en-US", { hour12: false });
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezoneOffset = -now.getTimezoneOffset();
+  const offsetSign = timezoneOffset >= 0 ? "+" : "-";
+  const offsetHours = String(Math.floor(Math.abs(timezoneOffset) / 60)).padStart(2, "0");
+  const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(2, "0");
+  const utcOffset = `UTC${offsetSign}${offsetHours}:${offsetMinutes}`;
+  const platform = process.platform; // darwin, linux, win32
+
+  const envContext = `Date and time: ${dateStr} ${timeStr} (${weekday})
+Timezone: ${timezone} (${utcOffset})
+Platform: ${platform}`;
+
+  let prompt = `${BASE_SYSTEM_PROMPT}\n\n${workspacePrompt}\n\n${envContext}`;
 
   // Load project-level AGENTS.md if present (skip if > 50 KB)
   try {
