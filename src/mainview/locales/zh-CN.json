@@ -566,6 +566,8 @@
     "manual": "手动",
     "manualDesc": "仅手动触发，无定时计划。",
     "mcpServers": "MCP 服务器",
+    "model": "模型",
+    "modelPlaceholder": "默认模型",
     "newSchedule": "新建计划",
     "nextRun": "下次",
     "noFiles": "暂无生成文件",

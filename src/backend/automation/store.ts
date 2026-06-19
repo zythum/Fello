@@ -69,6 +69,7 @@ export const store = {
   createSchedule(params: {
     name: Schedule["name"];
     agentId: Schedule["agentId"];
+    modelId?: Schedule["modelId"];
     prompt: Schedule["prompt"];
     cron: Schedule["cron"];
     features?: Schedule["features"];
@@ -79,6 +80,7 @@ export const store = {
       id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
       name: params.name,
       agentId: params.agentId,
+      modelId: params.modelId,
       prompt: params.prompt,
       cron: { type: params.cron.type, expr: params.cron.expr ?? "" },
       createdAt: now,

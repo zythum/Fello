@@ -416,6 +416,8 @@ export interface Schedule {
   name: string;
   /** 使用的 Agent ID */
   agentId: string;
+  /** 使用的模型 ID（可选，留空则使用 Agent 默认模型） */
+  modelId?: string;
   /** Agent 执行的 Prompt 内容 */
   prompt: string;
   /** 调度配置 */
@@ -769,6 +771,7 @@ export type FelloIPCRequests = {
     params: {
       name: string;
       agentId: string;
+      modelId?: string;
       prompt: string;
       cron: { type: "cron" | "manual"; expr?: string };
       features?: Feature[];

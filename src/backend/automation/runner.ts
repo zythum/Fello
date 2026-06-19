@@ -74,12 +74,13 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
   store.saveTask(scheduleId, task);
   sendEvent?.("task-update", { scheduleId, task });
 
+  const taskDir = store.taskDir(scheduleId, taskId);
+
   // Collect notifications from the bridge directly
   const notifications: SessionNotificationFelloExt[] = [];
 
   try {
     const agentInfo = resolveAgentInfo(schedule.agentId);
-    const taskDir = store.taskDir(scheduleId, taskId);
 
     const bridge = new ACPBridge(schedule.agentId, {
       agentInfo,
@@ -118,6 +119,22 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
     }
 
     const { sessionId } = await bridge.newSession({ cwd: taskDir, mcpServers });
+
+    // 如果 Schedule 指定了模型，在发送 Prompt 前设置
+    let modelError: string | null = null;
+    if (schedule.modelId) {
+      try {
+        await bridge.setSessionModel({ sessionId, modelId: schedule.modelId });
+      } catch (err) {
+        const rawError = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[Automation] Failed to set model "${schedule.modelId}" for schedule "${schedule.id}":`,
+          rawError,
+        );
+        modelError = `Failed to set model "${schedule.modelId}", using default model`;
+      }
+    }
+
     const promptContent: ContentBlock[] = [{ type: "text", text: schedule.prompt }];
     await bridge.sendPrompt({ sessionId, prompt: promptContent });
 
@@ -129,7 +146,7 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
       scheduleId,
       taskId,
       "README.md",
-      generateReadme(schedule, messages, startedAt),
+      generateReadme(schedule, messages, startedAt, modelError),
     );
     store.writeTaskFile(scheduleId, taskId, "conversation.json", JSON.stringify(messages, null, 2));
 
@@ -161,6 +178,28 @@ export async function executeTask(scheduleId: string): Promise<import("../../sha
     store.saveTask(scheduleId, task);
     sendEvent?.("task-update", { scheduleId, task });
     console.error(`[Automation] Task failed:`, errorMessage);
+
+    // 即使失败也生成 README.md 和 conversation.json
+    try {
+      const messages = reduceNotificationsToMessages(notifications);
+      store.writeTaskFile(
+        scheduleId,
+        taskId,
+        "README.md",
+        generateErrorReadme(schedule, messages, startedAt, errorMessage),
+      );
+      if (messages.length > 0) {
+        store.writeTaskFile(
+          scheduleId,
+          taskId,
+          "conversation.json",
+          JSON.stringify(messages, null, 2),
+        );
+      }
+    } catch (writeErr) {
+      console.warn(`[Automation] Failed to write error artifacts:`, writeErr);
+    }
+
     return task;
   } finally {
     runningTasks.delete(scheduleId);
@@ -235,17 +274,51 @@ function reduceNotificationsToMessages(
   return messages;
 }
 
-function generateReadme(schedule: Schedule, messages: ReducedMessage[], startedAt: number): string {
-  const lines: string[] = [];
-  lines.push(`# ${schedule.name}`);
-  const locale = storageOps.getSettings().i18n?.language;
-  lines.push(`> Run at ${new Date(startedAt).toLocaleString(locale)}`);
-  lines.push("");
+/** Append user/assistant message text to lines array (shared by all README generators) */
+function renderMessages(lines: string[], messages: ReducedMessage[]): void {
   for (const msg of messages) {
     if (msg.role === "user" || msg.role === "assistant") {
       const text = msg.text.trim();
       if (text) lines.push(text + "\n");
     }
   }
+}
+
+function generateErrorReadme(
+  schedule: Schedule,
+  messages: ReducedMessage[],
+  startedAt: number,
+  errorMessage: string,
+): string {
+  const lines: string[] = [];
+  lines.push(`# ${schedule.name}`);
+  const locale = storageOps.getSettings().i18n?.language;
+  lines.push(`> Run at ${new Date(startedAt).toLocaleString(locale)}`);
+  lines.push("");
+  lines.push(`> ❌ Task failed: ${errorMessage}`);
+  lines.push("");
+  renderMessages(lines, messages);
+  return lines.join("\n");
+}
+
+function generateReadme(
+  schedule: Schedule,
+  messages: ReducedMessage[],
+  startedAt: number,
+  modelError: string | null,
+): string {
+  const lines: string[] = [];
+  lines.push(`# ${schedule.name}`);
+  const locale = storageOps.getSettings().i18n?.language;
+  lines.push(`> Run at ${new Date(startedAt).toLocaleString(locale)}`);
+
+  if (modelError) {
+    lines.push("");
+    lines.push(`> ⚠️ ${modelError}`);
+    lines.push(`> The task continued with the agent's default model.`);
+  }
+
+  lines.push("");
+  renderMessages(lines, messages);
   return lines.join("\n");
 }

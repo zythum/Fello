@@ -16,6 +16,7 @@ export function listSchedules() {
 export function createSchedule(params: {
   name: Schedule["name"];
   agentId: Schedule["agentId"];
+  modelId?: Schedule["modelId"];
   prompt: Schedule["prompt"];
   cron: Schedule["cron"];
   features?: Schedule["features"];

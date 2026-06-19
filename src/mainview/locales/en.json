@@ -566,6 +566,8 @@
     "manual": "Manual",
     "manualDesc": "Manual trigger only. No automatic scheduling.",
     "mcpServers": "MCP Servers",
+    "model": "Model",
+    "modelPlaceholder": "Default model",
     "newSchedule": "New Schedule",
     "nextRun": "Next",
     "noFiles": "No files generated",

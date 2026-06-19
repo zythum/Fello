@@ -62,6 +62,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
 
   const [name, setName] = useState(isEdit ? schedule!.name : "");
   const [agentId, setAgentId] = useState(isEdit ? schedule!.agentId : (enabledAgents[0]?.id ?? ""));
+  const [modelId, setModelId] = useState(isEdit ? (schedule!.modelId ?? "") : "");
   const [prompt, setPrompt] = useState(isEdit ? schedule!.prompt : "");
   const [cronType, setCronType] = useState<"cron" | "manual">(
     isEdit ? schedule!.cron.type : "cron",
@@ -82,6 +83,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
     if (schedule) {
       setName(schedule.name);
       setAgentId(schedule.agentId);
+      setModelId(schedule.modelId ?? "");
       setPrompt(schedule.prompt);
       setCronType(schedule.cron.type);
       setCronExpr(schedule.cron.expr ?? "0 9 * * 1-5");
@@ -90,6 +92,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
     } else {
       setName("");
       setAgentId(enabledAgents[0]?.id ?? "");
+      setModelId("");
       setPrompt("");
       setCronType("cron");
       setCronExpr("0 9 * * 1-5");
@@ -114,6 +117,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
           updates: {
             name: name.trim(),
             agentId,
+            modelId: modelId.trim() || undefined,
             prompt: prompt.trim(),
             cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
             features,
@@ -124,6 +128,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
         await request.createSchedule({
           name: name.trim(),
           agentId,
+          modelId: modelId.trim() || undefined,
           prompt: prompt.trim(),
           cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
           features,
@@ -164,25 +169,25 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-5">
-          {/* Left: Name, Agent, Prompt */}
+          {/* Left: Name, Agent, Model, Prompt */}
           <FieldGroup>
-            <div className="grid grid-cols-[2fr_1fr] gap-3">
-              <Field>
-                <FieldLabel htmlFor="auto-name" className="text-xs text-muted-foreground">
-                  {t("automation.scheduleName", "Schedule Name")}
-                </FieldLabel>
-                <Input
-                  id="auto-name"
-                  placeholder={t(
-                    "automation.scheduleNamePlaceholder",
-                    "e.g. Morning Standup Summary",
-                  )}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                />
-              </Field>
+            <Field>
+              <FieldLabel htmlFor="auto-name" className="text-xs text-muted-foreground">
+                {t("automation.scheduleName", "Schedule Name")}
+              </FieldLabel>
+              <Input
+                id="auto-name"
+                placeholder={t(
+                  "automation.scheduleNamePlaceholder",
+                  "e.g. Morning Standup Summary",
+                )}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+              />
+            </Field>
 
+            <div className="grid grid-cols-2 gap-3">
               <Field>
                 <FieldLabel htmlFor="auto-agent" className="text-xs text-muted-foreground">
                   {t("automation.agent", "Agent")}
@@ -204,6 +209,19 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="auto-model" className="text-xs text-muted-foreground">
+                  {t("automation.model", "Model")}
+                </FieldLabel>
+                <Input
+                  id="auto-model"
+                  placeholder={t("automation.modelPlaceholder", "Default model")}
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                />
               </Field>
             </div>
 
