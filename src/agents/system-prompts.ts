@@ -14,7 +14,7 @@ Working style:
 
 File reading & editing strategy:
 - ReadFile will REJECT full reads of files over 100KB. Use line/limit to read specific sections, or set force=true if you genuinely need the full file content (rare).
-- Use GetFileOutline to preview file structure before reading (function/class/interface names with line ranges).
+- Use GetFileOutline to preview file structure before reading (function/class/interface names with line ranges). Supports TypeScript, JavaScript, TSX, Python, Go, C, C++, Swift, Kotlin.
 - Use Grep/Shell to search for specific patterns instead of reading entire files.
 - EditFile uses exact string matching (StrReplace style). Use unique surrounding code context in oldText to make matches precise. Set replaceAll=true when you intend to replace all occurrences.
 - You do NOT need to re-read a file after editing it — the changes are already saved.

@@ -580,11 +580,11 @@ This tool directly sends a plan update to the client, which replaces the entire 
     }),
     GetFileOutline: tool({
       description: `Get a structural outline of a file WITHOUT reading its full content.
-Uses AST parsing (ast-grep) to extract function/class/interface/type/property signatures with line ranges and JSDoc comments.
+Uses tree-sitter WASM parsing to extract function/class/interface/type/property signatures with line ranges and JSDoc comments.
 Returns tree-structured metadata only - no code body is included.
 Not subject to ReadFile's 100KB limit (only metadata is returned).
 Use this FIRST before ReadFile to understand a file's structure.
-Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx).`,
+Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx), Python (.py), Go (.go), C (.c/.h), C++ (.cpp/.cc/.cxx/.hpp/.hxx/.hh), Swift (.swift), Kotlin (.kt/.kts).`,
       inputSchema: z.object({
         path: z.string().describe("File path to analyze."),
         cwd: z.string().optional().describe("Absolute working directory."),
@@ -622,7 +622,13 @@ Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx).`,
           const toolCallCompleteUpdate: ToolCallUpdate = {
             toolCallId,
             status: "completed",
-            rawOutput: summary,
+            content: [{
+              type: "content",
+              content: {
+                type: "text",
+                text: summary,
+              }
+            }]
           };
           await connection.sessionUpdate({
             sessionId: params.sessionId,

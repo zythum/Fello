@@ -8,6 +8,7 @@ import type {
   EnvVariable,
 } from "@agentclientprotocol/sdk";
 import type { TextPart, ImagePart, FilePart } from "ai";
+import { join } from "path";
 
 export function toEnvVariables(env: Record<string, string> | undefined): EnvVariable[] | undefined {
   if (!env) return undefined;
@@ -107,4 +108,11 @@ function getFilenameFromUri(uri: string): string | undefined {
   const segments = clean.split("/").filter(Boolean);
   const last = segments[segments.length - 1];
   return last && last.length > 0 ? last : undefined;
+}
+
+export function getResourcesPath(...filenames: string[]) {
+  if (process.env.NODE_ENV === 'development') {
+    return join(__dirname, '../..', 'resources', ...filenames);
+  }
+  return join(process.resourcesPath, ...filenames);
 }

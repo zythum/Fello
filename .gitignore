@@ -36,3 +36,4 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+resources/tree-sitter-wasm/

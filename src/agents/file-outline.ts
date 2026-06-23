@@ -1,90 +1,14 @@
-import { extname } from "path";
-import { parse, Lang } from "@ast-grep/napi";
-// SgNode type has complex generics; we use `any` for walk function
-// since we only need basic traversal (kind, field, children, range)
-
-// ─── Language Configuration ───────────────────────────────────────────────────
-
-/**
- * @ast-grep/napi ships with these built-in languages:
- * TypeScript, JavaScript, Tsx, Html, Css
- *
- * Additional languages can be loaded via registerDynamicLanguage()
- * with a native dynamic library (.so/.dylib/.dll).
- * See: https://ast-grep.github.io/guide/api-usage/js-api.html
- */
-
-interface SymbolKindConfig {
-  /** ast-grep node kind name(s) to match */
-  types: string[];
-  /** Human-readable label */
-  label: string;
-  /** Whether to extract the name from a child "name" node */
-  hasName: boolean;
-}
-
-interface LanguageConfig {
-  lang: Lang;
-  name: string;
-  extensions: string[];
-  symbols: SymbolKindConfig[];
-}
-
-const LANGUAGES: LanguageConfig[] = [
-  {
-    lang: Lang.TypeScript,
-    name: "TypeScript",
-    extensions: [".ts"],
-    symbols: [
-      { types: ["function_declaration"], label: "function", hasName: true },
-      { types: ["method_definition"], label: "method", hasName: true },
-      { types: ["class_declaration"], label: "class", hasName: true },
-      { types: ["interface_declaration"], label: "interface", hasName: true },
-      { types: ["type_alias_declaration"], label: "type", hasName: true },
-      { types: ["enum_declaration"], label: "enum", hasName: true },
-      { types: ["abstract_class_declaration"], label: "abstract class", hasName: true },
-      { types: ["module"], label: "module", hasName: true },
-      { types: ["ambient_declaration"], label: "declare", hasName: true },
-      // Property signatures inside type/interface bodies
-      { types: ["property_signature"], label: "property", hasName: true },
-    ],
-  },
-  {
-    lang: Lang.Tsx,
-    name: "TSX",
-    extensions: [".tsx"],
-    symbols: [
-      { types: ["function_declaration"], label: "function", hasName: true },
-      { types: ["method_definition"], label: "method", hasName: true },
-      { types: ["class_declaration"], label: "class", hasName: true },
-      { types: ["interface_declaration"], label: "interface", hasName: true },
-      { types: ["type_alias_declaration"], label: "type", hasName: true },
-      { types: ["enum_declaration"], label: "enum", hasName: true },
-    ],
-  },
-  {
-    lang: Lang.JavaScript,
-    name: "JavaScript",
-    extensions: [".js", ".jsx", ".mjs", ".cjs"],
-    symbols: [
-      { types: ["function_declaration"], label: "function", hasName: true },
-      { types: ["method_definition"], label: "method", hasName: true },
-      { types: ["class_declaration"], label: "class", hasName: true },
-      { types: ["arrow_function"], label: "arrow function", hasName: false },
-    ],
-  },
-];
-
-// ─── Outline Extraction ───────────────────────────────────────────────────────
+import { extname, dirname, join } from "path";
+import { fork } from "node:child_process";
+import { fileURLToPath } from "url";
+import { getResourcesPath } from "./utils";
 
 export interface OutlineSymbol {
   kind: string;
   name: string;
   startLine: number;
   endLine: number;
-  /** First line of the preceding JSDoc/comment block, if any */
   comment?: string;
-  /** Nesting depth: 0 = top-level declaration, 1 = direct property of type/interface, etc. */
   depth: number;
 }
 
@@ -97,208 +21,423 @@ export interface FileOutline {
   error?: string;
 }
 
-function getConfig(filePath: string): { config: LanguageConfig; langName: string } | null {
-  const ext = extname(filePath).toLowerCase();
-  for (const config of LANGUAGES) {
-    if (config.extensions.includes(ext)) {
-      return { config, langName: config.name };
-    }
-  }
-  return null;
+// ─── Language Config ─────────────────────────────────────────────────────────
+
+interface SymbolKindConfig {
+  types: string[];
+  label: string;
+  hasName: boolean;
+  maxDepth?: number;
 }
 
-/**
- * Extract a structural outline from source code using ast-grep AST parsing.
- * Returns function/class/interface/type signatures with line ranges.
- */
+interface WrapperConfig {
+  /** AST node type to detect, e.g. "export_statement", "ambient_declaration" */
+  node: string;
+  /** Prefix to add to wrapped declarations, e.g. "export ", "declare " */
+  prefix: string;
+  /** If no wrapped child is found, create a standalone entry with this label (e.g. "export") */
+  createStandaloneLabel?: string;
+  /** Only process symbols at depth <= this value. Default: Infinity (all depths). 0 = top-level only. */
+  maxDepth?: number;
+}
+
+interface NameOfConfig {
+  /** Field names to check first, in priority order (e.g. "name", "source", "module_name") */
+  fieldPriority: string[];
+  /** AST node types to recursively descend into to find a name (e.g. declarator chains) */
+  recurseTypes: string[];
+  /** AST node types that ARE identifiers (e.g. "identifier", "simple_identifier") */
+  identifierTypes: string[];
+  /** Special node types whose raw text IS the name (e.g. "destructor_name", "operator_name") */
+  rawTextTypes?: string[];
+}
+
+const DEFAULT_NAME_OF: NameOfConfig = {
+  fieldPriority: ["name"],
+  recurseTypes: [],
+  identifierTypes: ["identifier"],
+};
+
+interface LangConfig {
+  name: string;
+  extensions: string[];
+  wasmFile: string;
+  symbols: SymbolKindConfig[];
+  wrappers: WrapperConfig[];
+  nameOf: NameOfConfig;
+}
+
+const LANGUAGES: LangConfig[] = [
+  {
+    name: "JavaScript",
+    extensions: [".js", ".jsx", ".mjs", ".cjs"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-javascript.wasm"),
+    symbols: [
+      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      { types: ["method_definition"], label: "method", hasName: true },
+      { types: ["class_declaration"], label: "class", hasName: true },
+      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      { types: ["import_statement"], label: "import", hasName: true },
+    ],
+    wrappers: [
+      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
+    ],
+    nameOf: {
+      fieldPriority: ["name", "source"],
+      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      identifierTypes: ["identifier", "type_identifier"],
+    },
+  },
+  {
+    name: "TypeScript",
+    extensions: [".ts"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-typescript.wasm"),
+    symbols: [
+      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      { types: ["method_definition"], label: "method", hasName: true },
+      { types: ["class_declaration", "abstract_class_declaration"], label: "class", hasName: true },
+      { types: ["interface_declaration"], label: "interface", hasName: true },
+      { types: ["type_alias_declaration"], label: "type", hasName: true },
+      { types: ["enum_declaration"], label: "enum", hasName: true },
+      { types: ["internal_module"], label: "namespace", hasName: true },
+      { types: ["property_signature"], label: "property", hasName: true },
+      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      { types: ["import_statement"], label: "import", hasName: true },
+    ],
+    wrappers: [
+      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
+      { node: "ambient_declaration", prefix: "declare ", maxDepth: 0 },
+    ],
+    nameOf: {
+      fieldPriority: ["name", "source"],
+      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      identifierTypes: ["identifier", "type_identifier"],
+    },
+  },
+  {
+    name: "TSX",
+    extensions: [".tsx"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-tsx.wasm"),
+    symbols: [
+      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      { types: ["method_definition"], label: "method", hasName: true },
+      { types: ["class_declaration", "abstract_class_declaration"], label: "class", hasName: true },
+      { types: ["interface_declaration"], label: "interface", hasName: true },
+      { types: ["type_alias_declaration"], label: "type", hasName: true },
+      { types: ["enum_declaration"], label: "enum", hasName: true },
+      { types: ["internal_module"], label: "namespace", hasName: true },
+      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      { types: ["import_statement"], label: "import", hasName: true },
+    ],
+    wrappers: [
+      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
+    ],
+    nameOf: {
+      fieldPriority: ["name", "source"],
+      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      identifierTypes: ["identifier", "type_identifier"],
+    },
+  },
+  {
+    name: "Python",
+    extensions: [".py"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-python.wasm"),
+    symbols: [
+      { types: ["function_definition"], label: "function", hasName: true },
+      { types: ["class_definition"], label: "class", hasName: true },
+      { types: ["import_statement"], label: "import", hasName: true },
+      { types: ["import_from_statement"], label: "import from", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name", "module_name"],
+      recurseTypes: [],
+      identifierTypes: ["identifier"],
+    },
+  },
+  {
+    name: "Go",
+    extensions: [".go"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-go.wasm"),
+    symbols: [
+      { types: ["function_declaration"], label: "function", hasName: true },
+      { types: ["method_declaration"], label: "method", hasName: true },
+      { types: ["type_spec"], label: "type", hasName: true },
+      { types: ["field_declaration"], label: "field", hasName: true },
+      { types: ["import_declaration"], label: "import", hasName: false },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: [],
+      identifierTypes: ["identifier", "type_identifier", "field_identifier"],
+    },
+  },
+  {
+    name: "C",
+    extensions: [".c", ".h"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-c.wasm"),
+    symbols: [
+      { types: ["function_definition"], label: "function", hasName: true },
+      { types: ["struct_specifier"], label: "struct", hasName: true, maxDepth: 0 },
+      { types: ["union_specifier"], label: "union", hasName: true, maxDepth: 0 },
+      { types: ["enum_specifier"], label: "enum", hasName: true, maxDepth: 0 },
+      { types: ["type_definition"], label: "typedef", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: ["declarator", "function_declarator", "array_declarator", "pointer_declarator", "variable_declarator"],
+      identifierTypes: ["identifier", "type_identifier", "field_identifier"],
+    },
+  },
+  {
+    name: "C++",
+    extensions: [".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".hh"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-cpp.wasm"),
+    symbols: [
+      { types: ["function_definition"], label: "function", hasName: true },
+      { types: ["class_specifier"], label: "class", hasName: true },
+      { types: ["struct_specifier"], label: "struct", hasName: true, maxDepth: 0 },
+      { types: ["union_specifier"], label: "union", hasName: true, maxDepth: 0 },
+      { types: ["enum_specifier"], label: "enum", hasName: true, maxDepth: 0 },
+      { types: ["type_definition"], label: "typedef", hasName: true },
+      { types: ["namespace_definition"], label: "namespace", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: ["declarator", "function_declarator", "array_declarator", "pointer_declarator", "reference_declarator", "variable_declarator"],
+      identifierTypes: ["identifier", "type_identifier", "field_identifier"],
+      rawTextTypes: ["destructor_name", "operator_name"],
+    },
+  },
+  {
+    name: "Swift",
+    extensions: [".swift"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-swift.wasm"),
+    symbols: [
+      { types: ["class_declaration"], label: "declaration", hasName: true },
+      { types: ["protocol_declaration"], label: "protocol", hasName: true },
+      { types: ["function_declaration"], label: "function", hasName: true },
+      { types: ["method_declaration"], label: "method", hasName: true },
+      { types: ["typealias_declaration"], label: "typealias", hasName: true },
+      { types: ["import_declaration"], label: "import", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: [],
+      identifierTypes: ["identifier", "type_identifier"],
+    },
+  },
+  {
+    name: "Kotlin",
+    extensions: [".kt", ".kts"],
+    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-kotlin.wasm"),
+    symbols: [
+      { types: ["class_declaration"], label: "declaration", hasName: true },
+      { types: ["function_declaration"], label: "function", hasName: true },
+      { types: ["object_declaration"], label: "object", hasName: true },
+      { types: ["type_alias"], label: "typealias", hasName: true },
+      { types: ["import_header"], label: "import", hasName: true },
+      { types: ["package_header"], label: "package", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: [],
+      identifierTypes: ["simple_identifier", "type_identifier"],
+    },
+  },
+];
+
+// ─── Child Process Management ────────────────────────────────────────────────
+// Uses fork() instead of Worker() because V8 Zone OOM triggers process-level
+// abort() — even a Worker thread kills the whole process.
+// A child process has its own V8 instance and can safely crash.
+
+let _child: ReturnType<typeof fork> | null = null;
+let _reqId = 0;
+const _pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
+let _childReady = false;
+let _childInitPromise: Promise<void> | null = null;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function ensureChild(): Promise<void> {
+  if (_childReady) return Promise.resolve();
+  if (_childInitPromise) return _childInitPromise;
+
+  _childInitPromise = new Promise<void>((resolve, reject) => {
+    try {
+      const modulePath = join(__dirname, "../scripts/worker-file-outline/worker.mjs");
+      const child = fork(modulePath, [], { execArgv: [] });
+
+      // Register handler BEFORE setting _child — prevent race with init_done message
+      let timer: any = setTimeout(() => {
+        child.kill();
+        _childInitPromise = null; // allow retry on next request
+        reject(new Error("Child init timed out"));
+      }, 15000);
+
+      child.on("message", function onMsg(msg: any) {
+        if (msg.type === "init_done") {
+          clearTimeout(timer);
+          _childReady = true;
+          resolve();
+          return;
+        }
+        if (msg.type === "init_error") {
+          clearTimeout(timer);
+          reject(new Error(msg.error));
+          return;
+        }
+        const p = _pending.get(msg.id);
+        if (!p) return;
+        _pending.delete(msg.id);
+        if (msg.type === "result") p.resolve(msg.symbols);
+        else if (msg.type === "error") p.reject(new Error(msg.error));
+      });
+
+      child.on("exit", (code: number) => {
+        clearTimeout(timer);
+        if (!_childReady) {
+          _childInitPromise = null;
+          reject(new Error("Child process crashed before init (code=" + code + "). This may indicate a missing WASM grammar file."));
+        }
+        _child = null;
+        _childReady = false;
+        for (const [id, p] of _pending) {
+          p.reject(new Error("Parse worker process crashed (code=" + code + "). Retry the request to restart it."));
+          _pending.delete(id);
+        }
+      });
+
+      _child = child; // now safe — handler is registered
+      child.send({ type: "init" }); // ← THIS was missing! Worker waits for init
+    } catch (e: any) {
+      _childInitPromise = null;
+      reject(e);
+    }
+  });
+
+  return _childInitPromise;
+}
+
+async function parseInChild(config: LangConfig, source: string): Promise<any[]> {
+  await ensureChild();
+
+  return new Promise((resolve, reject) => {
+    const id = ++_reqId;
+    const timer = setTimeout(() => {
+      _pending.delete(id);
+      if (_child) _child.kill(); // kill hung worker
+      _child = null;
+      _childReady = false;
+      reject(new Error("Parse request timed out (30s)"));
+    }, 30000);
+
+    _pending.set(id, {
+      resolve: (v: any) => { clearTimeout(timer); resolve(v); },
+      reject: (e: Error) => { clearTimeout(timer); reject(e); },
+    });
+
+    if (!_child) {
+      clearTimeout(timer);
+      _pending.delete(id);
+      reject(new Error("Parse process not available"));
+      return;
+    }
+
+    _child.send({
+      type: "parse",
+      id,
+      source,
+      wasmFile: config.wasmFile,
+      symbols: config.symbols,
+      wrappers: config.wrappers,
+      nameOf: config.nameOf,
+    } as any);
+  });
+}
+
+// ─── Main Entry Point ─────────────────────────────────────────────────────────
+
 export async function extractOutline(filePath: string, content: string): Promise<FileOutline> {
   const lines = content.split("\n");
   const totalLines = lines.length;
-  const detected = getConfig(filePath);
+  const ext = extname(filePath).toLowerCase();
 
-  if (!detected) {
-    return {
-      filename: filePath,
-      language: extname(filePath).slice(1) || "unknown",
-      totalLines,
-      symbols: [],
-      supported: false,
-    };
+  const config = LANGUAGES.find((c) => c.extensions.includes(ext));
+  if (config) {
+    try {
+      const symbols = await parseInChild(config, content);
+      return {
+        filename: filePath,
+        language: config.name,
+        totalLines,
+        symbols,
+        supported: true,
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[file-outline] parse failed: ${filePath} (${config.name}): ${msg}`);
+      return {
+        filename: filePath,
+        language: config.name,
+        totalLines,
+        symbols: [],
+        supported: false,
+        error: `AST parse error: ${msg}`,
+      };
+    }
   }
 
-  const { config, langName } = detected;
-
-  try {
-    const ast = parse(config.lang, content);
-    const root = ast.root();
-    const symbols: OutlineSymbol[] = [];
-
-    // Build a flat set of all target node types for fast lookup
-    const typeSet = new Set<string>();
-    for (const sym of config.symbols) {
-      for (const t of sym.types) {
-        typeSet.add(t);
-      }
-    }
-
-    // Helper: find leading comment for a node.
-    // In `export interface Foo {}`, the comment is before `export_statement`, not before `interface_declaration`.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function findLeadingComment(node: any): string | null {
-      // Try direct previous sibling first
-      const prev = node.prev();
-      if (prev && prev.kind() === "comment") return prev.text();
-      // If parent is export_statement/export, try the parent's previous sibling
-      const parent = node.parent();
-      if (parent && (parent.kind() === "export_statement" || parent.kind() === "export")) {
-        const parentPrev = parent.prev();
-        if (parentPrev && parentPrev.kind() === "comment") return parentPrev.text();
-      }
-      return null;
-    }
-
-    // Recursively walk the AST, tracking nesting depth for tree view.
-    // `insideProp` tracks whether we're inside a property_signature's value type.
-    // We only collect property_signature nodes that are direct children of
-    // type_alias_declaration or interface_declaration.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function walk(node: any, depth = 0, insideProp = false): void {
-      const kind = node.kind();
-      const isTopType = kind === "type_alias_declaration" || kind === "interface_declaration";
-      const isProperty = kind === "property_signature";
-      // Collect property_signature only when directly inside a top-level type (not inside a nested object type)
-      const shouldCollect = isProperty && depth >= 1 && !insideProp;
-      // Collect top-level declarations (not property_signature)
-      const isDeclaration = typeSet.has(kind) && !isProperty;
-
-      if (isDeclaration || shouldCollect) {
-        for (const sym of config.symbols) {
-          if (sym.types.includes(kind)) {
-            let name = "";
-            if (sym.hasName) {
-              const nameNode = node.field("name");
-              if (nameNode) {
-                name = nameNode.text();
-              } else {
-                // Fallback: first identifier child
-                for (const child of node.children()) {
-                  if (child.kind() === "identifier") {
-                    name = child.text();
-                    break;
-                  }
-                }
-              }
-            }
-            const range = node.range();
-            const commentText = findLeadingComment(node);
-            const comment = commentText ? extractCommentSummary(commentText) : undefined;
-
-            symbols.push({
-              kind: sym.label,
-              name: name || `(anonymous ${sym.label})`,
-              startLine: range.start.line + 1, // 1-based
-              endLine: range.end.line + 1,
-              comment,
-              depth: isDeclaration ? 0 : depth,
-            });
-            break;
-          }
-        }
-      }
-      // Recurse into children.
-      // - Top-level type/interface: children are at depth 1, insideProp remains as-is
-      // - Property signature: children are inside its type value, mark insideProp=true to skip nested properties
-      const nextDepth = isTopType ? 1 : isProperty ? depth + 1 : depth;
-      const nextInsideProp = isProperty ? true : insideProp;
-      for (const child of node.children()) {
-        walk(child, nextDepth, nextInsideProp);
-      }
-    }
-
-    walk(root);
-
-    // Sort by line
-    symbols.sort((a, b) => a.startLine - b.startLine);
-
-    return {
-      filename: filePath,
-      language: langName,
-      totalLines,
-      symbols,
-      supported: true,
-    };
-  } catch (error) {
-    return {
-      filename: filePath,
-      language: langName,
-      totalLines,
-      symbols: [],
-      supported: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
+  return {
+    filename: filePath,
+    language: ext.slice(1) || "unknown",
+    totalLines,
+    symbols: [],
+    supported: false,
+  };
 }
 
-/**
- * Extract the first meaningful line from a comment block.
- */
-function extractCommentSummary(comment: string): string {
-  // Strip comment markers: /*, */, //, *, and leading/trailing whitespace
-  const lines = comment
-    .split("\n")
-    .map((line) =>
-      line
-        .replace(/^\/\*+/gm, "")
-        .replace(/\*+\/$/gm, "")
-        .replace(/^\s*\*[ \t]?/gm, "")
-        .replace(/^\/\/[ \t]?/gm, "")
-        .trim(),
-    )
-    .filter((line) => line.length > 0);
+// ─── Summary Formatter ────────────────────────────────────────────────────────
 
-  if (lines.length === 0) return "";
-  const first = lines[0]!;
-  // Truncate long first lines to keep the outline compact
-  return first.length > 60 ? first.slice(0, 57) + "..." : first;
-}
-
-/**
- * Get a human-readable summary string for the outline (for LLM consumption).
- */
-export function outlineToSummary(outline: FileOutline, maxSymbols = 80): string {
-  const lines: string[] = [];
-  lines.push(`File: ${outline.filename}`);
-  lines.push(`Language: ${outline.language}`);
-  lines.push(`Total lines: ${outline.totalLines}`);
+export function outlineToSummary(outline: FileOutline, maxSymbols = 128): string {
+  const l: string[] = [];
+  l.push(`File: ${outline.filename}`);
+  l.push(`Language: ${outline.language}`);
+  l.push(`Total lines: ${outline.totalLines}`);
 
   if (!outline.supported && outline.symbols.length === 0) {
-    lines.push(
-      outline.error
-        ? `Note: ${outline.error}`
-        : "Note: Language not supported for AST parsing. Use ReadFile with line/limit parameters.",
+    l.push(
+      outline.error ? `Note: ${outline.error}` : "Note: Language not supported for AST parsing.",
     );
-    return lines.join("\n");
+    if (outline.error?.includes("Grammar not found")) {
+      l.push("  Run 'npm run download:grammars' to install language parsers.");
+    }
+    return l.join("\n");
   }
-
   if (outline.symbols.length === 0) {
-    lines.push("No top-level symbols found in this file.");
-    return lines.join("\n");
+    l.push("No top-level symbols found in this file.");
+    return l.join("\n");
   }
 
-  lines.push("─── Symbols ───");
+  l.push("─── Symbols ───");
   const shown = outline.symbols.slice(0, maxSymbols);
   for (const sym of shown) {
     const indent = "    ".repeat(sym.depth);
-    const lineRange =
+    const lr =
       sym.startLine === sym.endLine
         ? `line ${sym.startLine}`
         : `lines ${sym.startLine}-${sym.endLine}`;
-    const comment = sym.comment ? `  // ${sym.comment}` : "";
-    lines.push(`${indent}${sym.kind} ${sym.name} (${lineRange})${comment}`);
+    const cmt = sym.comment ? `  // ${sym.comment}` : "";
+    const namePart = sym.name ? ` ${sym.name}` : "";
+    l.push(`${indent}${sym.kind}${namePart} (${lr})${cmt}`);
   }
-  if (outline.symbols.length > maxSymbols) {
-    lines.push(`  ... and ${outline.symbols.length - maxSymbols} more symbols`);
-  }
-
-  return lines.join("\n");
+  if (outline.symbols.length > maxSymbols)
+    l.push(`  ... and ${outline.symbols.length - maxSymbols} more symbols`);
+  return l.join("\n");
 }

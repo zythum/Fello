@@ -143,7 +143,14 @@ const components: Components = {
     const language = className?.match(/language-(\S+)/)?.[1] || "text";
     // Use "text" for highlighting if the language isn't supported by shiki,
     // while keeping the original language label for display in CodeBlock
-    const highlightLang = language.startsWith("git") ? "text" : language;
+
+    // Languages that Shiki doesn't support but commonly appear in code fences
+    const LANGUAGE_FALLBACK: Record<string, string> = {
+      "commit": "text",
+      "git": "text",
+      "git-diff": "diff",
+    };
+    const highlightLang = LANGUAGE_FALLBACK[language] ?? language;
     let codeText = "";
     if (typeof children === "string") {
       codeText = children;

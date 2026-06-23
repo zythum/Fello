@@ -118,6 +118,12 @@ export async function startWebUI(options?: {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
+    if (req.method === 'GET' && req.url === '/favicon.ico') {
+      res.writeHead(404);
+      res.end("No Favicon");
+      return;
+    }
+
     if (req.method === "OPTIONS") {
       res.writeHead(204);
       res.end();
