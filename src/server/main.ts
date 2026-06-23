@@ -1,3 +1,4 @@
+import './env';
 import { initBackend, clearBackend } from "../backend/backend";
 import { startWebUI, stopWebUI } from "../backend/webui";
 import { version } from "../../package.json";

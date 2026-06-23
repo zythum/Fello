@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { dirname, join } from "path";
+import { join } from "path";
 import { fileURLToPath } from "url";
 import { readFile, writeFile } from "fs/promises";
 import { existsSync, mkdirSync } from "fs";
@@ -12,7 +12,6 @@ import {
 import type { SocketServer } from "./socket-server";
 import { getIlinkBridge, getIlinkActiveSessionId, appendIlinkMediaBuffer } from "./ilink-state";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -162,7 +161,7 @@ export function buildShareToUserMcpServer(options: { projectDir: string; socketP
     name: "share-to-user",
     command: process.execPath,
     args: [
-      join(__dirname, "../scripts/mcp-share-to-user/server.mjs"),
+      join(process.scriptsPath, "mcp-share-to-user/server.mjs"),
       "--project-dir",
       options.projectDir,
       "--socket-path",

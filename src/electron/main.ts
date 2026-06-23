@@ -12,8 +12,7 @@ import {
 } from "electron";
 import electronUpdater from "electron-updater";
 import { homedir } from "os";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
 import type { FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "node:module";
@@ -31,7 +30,6 @@ import {
   type UpdaterEvent,
 } from "./updater";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 const { autoUpdater } = electronUpdater;
 
@@ -343,7 +341,7 @@ function createMainWindow() {
         }
       : {}),
     webPreferences: {
-      preload: join(__dirname, "../scripts/electron-preload/preload.mjs"),
+      preload: join(process.scriptsPath, "electron-preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -440,7 +438,7 @@ function createMainWindow() {
   if (isDev) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL!);
   } else {
-    win.loadFile(join(__dirname, "../renderer/index.html"));
+    win.loadFile(join(process.rendererPath, "index.html"));
   }
 
   return win;

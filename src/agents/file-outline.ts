@@ -1,7 +1,5 @@
-import { extname, dirname, join } from "path";
+import { extname, join } from "path";
 import { fork } from "node:child_process";
-import { fileURLToPath } from "url";
-import { getResourcesPath } from "./utils";
 
 export interface OutlineSymbol {
   kind: string;
@@ -71,7 +69,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "JavaScript",
     extensions: [".js", ".jsx", ".mjs", ".cjs"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-javascript.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-javascript.wasm"),
     symbols: [
       { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
       { types: ["method_definition"], label: "method", hasName: true },
@@ -91,7 +89,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "TypeScript",
     extensions: [".ts"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-typescript.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-typescript.wasm"),
     symbols: [
       { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
       { types: ["method_definition"], label: "method", hasName: true },
@@ -117,7 +115,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "TSX",
     extensions: [".tsx"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-tsx.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-tsx.wasm"),
     symbols: [
       { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
       { types: ["method_definition"], label: "method", hasName: true },
@@ -141,7 +139,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "Python",
     extensions: [".py"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-python.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-python.wasm"),
     symbols: [
       { types: ["function_definition"], label: "function", hasName: true },
       { types: ["class_definition"], label: "class", hasName: true },
@@ -158,7 +156,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "Go",
     extensions: [".go"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-go.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-go.wasm"),
     symbols: [
       { types: ["function_declaration"], label: "function", hasName: true },
       { types: ["method_declaration"], label: "method", hasName: true },
@@ -176,7 +174,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "C",
     extensions: [".c", ".h"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-c.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-c.wasm"),
     symbols: [
       { types: ["function_definition"], label: "function", hasName: true },
       { types: ["struct_specifier"], label: "struct", hasName: true, maxDepth: 0 },
@@ -194,7 +192,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "C++",
     extensions: [".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".hh"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-cpp.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-cpp.wasm"),
     symbols: [
       { types: ["function_definition"], label: "function", hasName: true },
       { types: ["class_specifier"], label: "class", hasName: true },
@@ -215,7 +213,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "Swift",
     extensions: [".swift"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-swift.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-swift.wasm"),
     symbols: [
       { types: ["class_declaration"], label: "declaration", hasName: true },
       { types: ["protocol_declaration"], label: "protocol", hasName: true },
@@ -234,7 +232,7 @@ const LANGUAGES: LangConfig[] = [
   {
     name: "Kotlin",
     extensions: [".kt", ".kts"],
-    wasmFile: getResourcesPath("tree-sitter-wasm", "tree-sitter-kotlin.wasm"),
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-kotlin.wasm"),
     symbols: [
       { types: ["class_declaration"], label: "declaration", hasName: true },
       { types: ["function_declaration"], label: "function", hasName: true },
@@ -263,15 +261,13 @@ const _pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error)
 let _childReady = false;
 let _childInitPromise: Promise<void> | null = null;
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 function ensureChild(): Promise<void> {
   if (_childReady) return Promise.resolve();
   if (_childInitPromise) return _childInitPromise;
 
   _childInitPromise = new Promise<void>((resolve, reject) => {
     try {
-      const modulePath = join(__dirname, "../scripts/worker-file-outline/worker.mjs");
+      const modulePath = join(process.scriptsPath, "/worker-file-outline/worker.mjs");
       const child = fork(modulePath, [], { execArgv: [] });
 
       // Register handler BEFORE setting _child — prevent race with init_done message

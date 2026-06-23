@@ -109,10 +109,3 @@ function getFilenameFromUri(uri: string): string | undefined {
   const last = segments[segments.length - 1];
   return last && last.length > 0 ? last : undefined;
 }
-
-export function getResourcesPath(...filenames: string[]) {
-  if (process.env.NODE_ENV === 'development') {
-    return join(__dirname, '../..', 'resources', ...filenames);
-  }
-  return join(process.resourcesPath, ...filenames);
-}

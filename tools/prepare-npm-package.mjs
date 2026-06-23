@@ -26,6 +26,11 @@ cpSync(join(outDir, "scripts"), join(npmDir, "out", "scripts"), { recursive: tru
 // WEBUI frontend (renderer)
 cpSync(join(outDir, "renderer"), join(npmDir, "out", "renderer"), { recursive: true });
 
+// Tree-sitter WASM resources (required for GetFileOutline tool)
+const resourcesDir = join(root, "resources");
+mkdirSync(join(npmDir, "resources"), { recursive: true });
+cpSync(join(resourcesDir, "tree-sitter-wasm"), join(npmDir, "resources", "tree-sitter-wasm"), { recursive: true });
+
 // ── Generate package.json ──────────────────────────────────────────
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -46,7 +51,7 @@ const npmPkg = {
   bin: {
     "fello-server": "./out/server/main.js",
   },
-  files: ["out"],
+  files: ["out", "resources"],
   engines: {
     node: ">=20",
   },

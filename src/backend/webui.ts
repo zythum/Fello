@@ -3,16 +3,13 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { randomBytes } from "crypto";
 import { networkInterfaces } from "os";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { readFile, stat } from "fs/promises";
 import { backendHandlers } from "./backend";
 import { parseFileRoute, serveRoute } from "./file-routes";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
 import * as mimeTypes from "mime-types";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let httpServer: Server | null = null;
 let wss: WebSocketServer | null = null;
@@ -188,7 +185,7 @@ export async function startWebUI(options?: {
         reqPath = "/index.html";
       }
 
-      const baseDir = join(__dirname, "../renderer");
+      const baseDir = process.rendererPath;
       let filePath = join(baseDir, reqPath);
 
       let s = await stat(filePath).catch(() => null);

@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { z } from "zod";
 import type { FelloIPCSchema, AskUserRequest, AskUserRequestOption } from "../shared/schema";
 import {
@@ -10,8 +9,6 @@ import {
 import type { SocketServer } from "./socket-server";
 import { getIlinkBridge, getIlinkActiveSessionId } from "./ilink-state";
 import { t } from "./i18n";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -180,7 +177,7 @@ export function buildAskUserMcpServer(options: { projectDir: string; socketPath:
     name: "ask-user",
     command: process.execPath,
     args: [
-      join(__dirname, "../scripts/mcp-ask-user/server.mjs"),
+      join(process.scriptsPath, "mcp-ask-user/server.mjs"),
       "--project-dir",
       options.projectDir,
       "--socket-path",
