@@ -195,11 +195,41 @@ export async function startWebUI(options?: {
 
       const mime = mimeTypes.lookup(filePath) || "application/octet-stream";
 
-      const content = await readFile(filePath);
-      res.writeHead(200, {
-        "Content-Type": mime,
-      });
-      res.end(content);
+      // ── Negotiate content encoding (brotli > gzip > identity) ──
+      const acceptEncoding = (req.headers["accept-encoding"] as string) || "";
+      let encoding: string | null = null;
+      let encodedPath: string | null = null;
+
+      if (/\bbr\b/.test(acceptEncoding)) {
+        const brPath = filePath + ".br";
+        if (await stat(brPath).then((s) => s.isFile()).catch(() => false)) {
+          encoding = "br";
+          encodedPath = brPath;
+        }
+      }
+
+      if (!encodedPath && /\bgzip\b/.test(acceptEncoding)) {
+        const gzPath = filePath + ".gz";
+        if (await stat(gzPath).then((s) => s.isFile()).catch(() => false)) {
+          encoding = "gzip";
+          encodedPath = gzPath;
+        }
+      }
+
+      if (encodedPath && encoding) {
+        const content = await readFile(encodedPath);
+        res.writeHead(200, {
+          "Content-Type": mime,
+          "Content-Encoding": encoding,
+        });
+        res.end(content);
+      } else {
+        const content = await readFile(filePath);
+        res.writeHead(200, {
+          "Content-Type": mime,
+        });
+        res.end(content);
+      }
     } catch (err) {
       console.error("WebUI request error:", err);
       res.writeHead(404, { "Content-Type": "text/plain" });

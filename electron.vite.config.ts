@@ -1,5 +1,6 @@
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
+import compression from "vite-plugin-compression";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { readFileSync } from "fs";
@@ -32,7 +33,21 @@ export default defineConfig({
   },
   renderer: {
     root: "src/mainview",
-    plugins: [react()],
+    plugins: [
+      react(),
+      compression({
+        algorithm: "brotliCompress",
+        ext: ".br",
+        threshold: 1024,
+        compressionOptions: { level: 11 },
+      }),
+      compression({
+        algorithm: "gzip",
+        ext: ".gz",
+        threshold: 1024,
+        compressionOptions: { level: 9 },
+      }),
+    ],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
