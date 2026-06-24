@@ -75,6 +75,31 @@ jobs:
         run: |
           ${{ matrix.script }}
 
+  publish-npm:
+    name: Package npm zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run pack:npm
+
+      - name: Create and upload zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd npm-package
+          zip -r ../fello-server-$(node -p "require('./package.json').version").zip .
+          cd ..
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" fello-server-*.zip --clobber
+
   merge-mac-yml:
     name: Merge latest-mac.yml
     needs: release
