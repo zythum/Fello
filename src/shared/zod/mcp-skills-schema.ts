@@ -11,12 +11,16 @@ export const skillCatalogSchema = z.array(
   }),
 );
 
+export type SkillCatalog = z.infer<typeof skillCatalogSchema>;
+
 /**
  * Request schema for fetching a single skill's detail (activate_skill).
  */
 export const skillDetailRequestSchema = z.object({
   id: z.string().describe("The id of the skill to activate (as returned by list_skills)."),
 });
+
+export type SkillDetailRequest = z.infer<typeof skillDetailRequestSchema>;
 
 /**
  * Schema for the detailed skill response returned by activate_skill.
@@ -33,3 +37,5 @@ export const skillDetailSchema = z.object({
     .array(z.string())
     .describe("List of absolute file paths to supporting files (docs, templates, etc.)."),
 });
+
+export type SkillDetail = z.infer<typeof skillDetailSchema>;

@@ -65,7 +65,7 @@ if (isWebUI) {
   const port = urlParams.get("port") || window.location.port;
 
   if (token) {
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:${port}/?token=${token}`;
+    const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.hostname}:${port}/?token=${token}`;
     ws = new WebSocket(wsUrl);
 
     wsReadyPromise = new Promise((resolve, reject) => {

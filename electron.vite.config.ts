@@ -25,6 +25,7 @@ export default defineConfig({
           "mcp-skills/server": resolve(__dirname, "src/scripts/mcp-skills/server.ts"),
           "mcp-ask-user/server": resolve(__dirname, "src/scripts/mcp-ask-user/server.ts"),
           "mcp-share-to-user/server": resolve(__dirname, "src/scripts/mcp-share-to-user/server.ts"),
+          "mcp-search/server": resolve(__dirname, "src/scripts/mcp-search/server.ts"),
           "worker-file-outline/worker": resolve(__dirname, "src/scripts/worker-file-outline/worker.ts"),
         },
       },

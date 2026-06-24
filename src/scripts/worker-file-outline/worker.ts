@@ -30,7 +30,7 @@ async function getParser(wasmFile: string): Promise<any> {
           parser.setLanguage(lang);
           _parsers.set(wasmFile, parser);
           return parser;
-        } catch(err) {
+        } catch (err) {
           _loadPromises.delete(wasmFile); // allow retry
           throw err;
         }
@@ -133,18 +133,21 @@ function collectComments(tree: any): { text: string; startLine: number; endLine:
  */
 function cleanComment(text: string): string {
   let cleaned = text
-    .replace(/^\/\*\*?/, "")     // strip opening /* or /**
-    .replace(/\*\/$/, "")        // strip closing */
-    .replace(/^\s*\* ?/gm, "")   // strip leading * in JSDoc
-    .replace(/^\/+/, "")         // strip // or ///...
-    .replace(/^#/, "")           // strip #
-    .replace(/^'''/, "")         // strip opening '''
-    .replace(/'''$/, "")         // strip closing '''
-    .replace(/^"""/, "")         // strip opening """
-    .replace(/"""$/, "")         // strip closing """
+    .replace(/^\/\*\*?/, "") // strip opening /* or /**
+    .replace(/\*\/$/, "") // strip closing */
+    .replace(/^\s*\* ?/gm, "") // strip leading * in JSDoc
+    .replace(/^\/+/, "") // strip // or ///...
+    .replace(/^#/, "") // strip #
+    .replace(/^'''/, "") // strip opening '''
+    .replace(/'''$/, "") // strip closing '''
+    .replace(/^"""/, "") // strip opening """
+    .replace(/"""$/, "") // strip closing """
     .trim();
   // Take first non-empty line
-  const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = cleaned
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   return lines.length > 0 ? lines[0] : "";
 }
 
@@ -153,7 +156,10 @@ function cleanComment(text: string): string {
  * For most languages: comment is directly before the symbol (gap 1-2 lines).
  * For Python docstrings: the docstring is the first statement INSIDE the class/function body.
  */
-function attachComments(symbols: any[], comments: { text: string; startLine: number; endLine: number }[]): void {
+function attachComments(
+  symbols: any[],
+  comments: { text: string; startLine: number; endLine: number }[],
+): void {
   let ci = 0;
   for (const sym of symbols) {
     if (sym.depth > 0) continue;
@@ -207,7 +213,7 @@ async function parse(req: any): Promise<any[]> {
             if (sym.hasName) name = scanName(cursor, req.nameOf);
             result.push({
               kind: sym.label,
-              name: sym.hasName ? (name || `(anonymous ${sym.label})`) : "",
+              name: sym.hasName ? name || `(anonymous ${sym.label})` : "",
               startLine: cursor.startPosition.row + 1,
               endLine: cursor.endPosition.row + 1,
               depth: declDepth,
@@ -293,8 +299,14 @@ async function parse(req: any): Promise<any[]> {
               }
             }
             if (descend && wCursor.gotoFirstChild()) continue;
-            if (wCursor.gotoNextSibling()) { descend = true; continue; }
-            if (wCursor.currentDepth > 0 && wCursor.gotoParent()) { descend = false; continue; }
+            if (wCursor.gotoNextSibling()) {
+              descend = true;
+              continue;
+            }
+            if (wCursor.currentDepth > 0 && wCursor.gotoParent()) {
+              descend = false;
+              continue;
+            }
             break;
           }
         } finally {

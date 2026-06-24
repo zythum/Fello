@@ -12,7 +12,6 @@ import {
 import type { SocketServer } from "./socket-server";
 import { getIlinkBridge, getIlinkActiveSessionId, appendIlinkMediaBuffer } from "./ilink-state";
 
-
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface ShareToUserOptions {

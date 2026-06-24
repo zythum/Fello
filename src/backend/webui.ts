@@ -115,7 +115,7 @@ export async function startWebUI(options?: {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-    if (req.method === 'GET' && req.url === '/favicon.ico') {
+    if (req.method === "GET" && req.url === "/favicon.ico") {
       res.writeHead(404);
       res.end("No Favicon");
       return;
@@ -202,7 +202,11 @@ export async function startWebUI(options?: {
 
       if (/\bbr\b/.test(acceptEncoding)) {
         const brPath = filePath + ".br";
-        if (await stat(brPath).then((s) => s.isFile()).catch(() => false)) {
+        if (
+          await stat(brPath)
+            .then((s) => s.isFile())
+            .catch(() => false)
+        ) {
           encoding = "br";
           encodedPath = brPath;
         }
@@ -210,7 +214,11 @@ export async function startWebUI(options?: {
 
       if (!encodedPath && /\bgzip\b/.test(acceptEncoding)) {
         const gzPath = filePath + ".gz";
-        if (await stat(gzPath).then((s) => s.isFile()).catch(() => false)) {
+        if (
+          await stat(gzPath)
+            .then((s) => s.isFile())
+            .catch(() => false)
+        ) {
           encoding = "gzip";
           encodedPath = gzPath;
         }

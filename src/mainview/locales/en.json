@@ -325,7 +325,8 @@
       "title": "Features",
       "askUser": "Ask Me",
       "skills": "Skills",
-      "shareToUser": "Share to User"
+      "shareToUser": "Share to User",
+      "search": "Search"
     }
   },
   "chatHeader": {

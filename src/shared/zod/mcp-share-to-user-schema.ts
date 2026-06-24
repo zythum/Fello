@@ -44,6 +44,8 @@ export const shareToUserRequestSchema = z
     },
   );
 
+export type ShareToUserRequest = z.infer<typeof shareToUserRequestSchema>;
+
 export const shareToUserRespondSchema = z.object({
   sharePath: z
     .string()

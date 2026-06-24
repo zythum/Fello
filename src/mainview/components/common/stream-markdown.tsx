@@ -146,8 +146,8 @@ const components: Components = {
 
     // Languages that Shiki doesn't support but commonly appear in code fences
     const LANGUAGE_FALLBACK: Record<string, string> = {
-      "commit": "text",
-      "git": "text",
+      commit: "text",
+      git: "text",
       "git-diff": "diff",
     };
     const highlightLang = LANGUAGE_FALLBACK[language] ?? language;

@@ -325,7 +325,8 @@
       "title": "功能",
       "askUser": "向我提问",
       "skills": "技能",
-      "shareToUser": "分享给用户"
+      "shareToUser": "分享给用户",
+      "search": "项目检索"
     }
   },
   "chatHeader": {

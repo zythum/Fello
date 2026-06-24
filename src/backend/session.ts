@@ -8,6 +8,7 @@ import type {
   ToolCallUpdate,
   McpServer,
 } from "@agentclientprotocol/sdk";
+import { zContentBlock } from "@agentclientprotocol/sdk/dist/schema/zod.gen.js";
 import { storageOps } from "./storage";
 import { ensureBridge, bridgePool } from "./session-agent-bridge";
 import { startSocketServer, generateSocketPath, type SocketServer } from "./socket-server";
@@ -19,6 +20,7 @@ import {
   registerAskUserRoute,
 } from "./ask-user";
 import { buildShareToUserMcpServer, registerShareToUserRoute } from "./share-to-user";
+import { buildSearchMcpServer, registerSearchRoute } from "./search";
 import {
   isImageMimeType,
   getIlinkBridge,
@@ -59,6 +61,7 @@ async function createSessionSocketServer(
   registerAskUserRoute(server, sessionId);
   registerSkillsRoute(server, options.project.cwd);
   registerShareToUserRoute(server, sessionId);
+  registerSearchRoute(server, options.project.cwd);
   sessionSocketServers.set(sessionId, server);
   return server;
 }
@@ -95,6 +98,10 @@ function buildMcpServersConfig(
 
   if (socketPath && features.includes("share_to_user")) {
     servers.push(buildShareToUserMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("search")) {
+    servers.push(buildSearchMcpServer({ projectDir: project.cwd, socketPath }));
   }
 
   const globalSettings = storageOps.getSettings();
@@ -148,6 +155,24 @@ export function initSession(emitter: typeof sendEvent) {
 }
 
 // ── Notification Handling ────────────────────────────────────────────
+
+function findContentBlock(object: any): ContentBlock | null {
+  const { data, success } = zContentBlock.safeParse(object);
+  if (success) {
+    return data;
+  }
+  if (object && typeof object === "object") {
+    for (const name in object) {
+      if (object.hasOwnProperty(name)) {
+        const content = findContentBlock(object[name]);
+        if (content) {
+          return content;
+        }
+      }
+    }
+  }
+  return null;
+}
 
 function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, update: T): T {
   const merged: ToolCallUpdate = { ...base };
@@ -256,6 +281,20 @@ export function broadcastAndSaveSessionUpdate(
     const toolCallId = update.toolCallId;
     const key = getPendingToolCallKey(sessionId, toolCallId);
     const base = pendingToolCalls.get(key);
+
+    // kiro-cli doesn't provide update.content; try to extract a ContentBlock from rawOutput as fallback.
+    // kiro cli 不给 update.content，只能尝试通过 rawOutput 看看能不能解析一个出来。
+    if (!update.content && update.rawOutput) {
+      const content = findContentBlock(update.rawOutput);
+      if (content) {
+        update.content = [
+          {
+            type: "content",
+            content: content,
+          },
+        ];
+      }
+    }
 
     if (update.status === "in_progress") {
       if (base) {

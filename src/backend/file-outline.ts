@@ -50,11 +50,11 @@ interface NameOfConfig {
   rawTextTypes?: string[];
 }
 
-const DEFAULT_NAME_OF: NameOfConfig = {
-  fieldPriority: ["name"],
-  recurseTypes: [],
-  identifierTypes: ["identifier"],
-};
+// const DEFAULT_NAME_OF: NameOfConfig = {
+//   fieldPriority: ["name"],
+//   recurseTypes: [],
+//   identifierTypes: ["identifier"],
+// };
 
 interface LangConfig {
   name: string;
@@ -71,18 +71,31 @@ const LANGUAGES: LangConfig[] = [
     extensions: [".js", ".jsx", ".mjs", ".cjs"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-javascript.wasm"),
     symbols: [
-      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      {
+        types: ["function_declaration", "generator_function_declaration"],
+        label: "function",
+        hasName: true,
+      },
       { types: ["method_definition"], label: "method", hasName: true },
       { types: ["class_declaration"], label: "class", hasName: true },
-      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      {
+        types: ["lexical_declaration", "variable_declaration"],
+        label: "const",
+        hasName: true,
+        maxDepth: 0,
+      },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
-    wrappers: [
-      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
-    ],
+    wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
     nameOf: {
       fieldPriority: ["name", "source"],
-      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      recurseTypes: [
+        "variable_declarator",
+        "export_clause",
+        "named_exports",
+        "wildcard_export",
+        "export_specifier",
+      ],
       identifierTypes: ["identifier", "type_identifier"],
     },
   },
@@ -91,7 +104,11 @@ const LANGUAGES: LangConfig[] = [
     extensions: [".ts"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-typescript.wasm"),
     symbols: [
-      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      {
+        types: ["function_declaration", "generator_function_declaration"],
+        label: "function",
+        hasName: true,
+      },
       { types: ["method_definition"], label: "method", hasName: true },
       { types: ["class_declaration", "abstract_class_declaration"], label: "class", hasName: true },
       { types: ["interface_declaration"], label: "interface", hasName: true },
@@ -99,7 +116,12 @@ const LANGUAGES: LangConfig[] = [
       { types: ["enum_declaration"], label: "enum", hasName: true },
       { types: ["internal_module"], label: "namespace", hasName: true },
       { types: ["property_signature"], label: "property", hasName: true },
-      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      {
+        types: ["lexical_declaration", "variable_declaration"],
+        label: "const",
+        hasName: true,
+        maxDepth: 0,
+      },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
     wrappers: [
@@ -108,7 +130,13 @@ const LANGUAGES: LangConfig[] = [
     ],
     nameOf: {
       fieldPriority: ["name", "source"],
-      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      recurseTypes: [
+        "variable_declarator",
+        "export_clause",
+        "named_exports",
+        "wildcard_export",
+        "export_specifier",
+      ],
       identifierTypes: ["identifier", "type_identifier"],
     },
   },
@@ -117,22 +145,35 @@ const LANGUAGES: LangConfig[] = [
     extensions: [".tsx"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-tsx.wasm"),
     symbols: [
-      { types: ["function_declaration", "generator_function_declaration"], label: "function", hasName: true },
+      {
+        types: ["function_declaration", "generator_function_declaration"],
+        label: "function",
+        hasName: true,
+      },
       { types: ["method_definition"], label: "method", hasName: true },
       { types: ["class_declaration", "abstract_class_declaration"], label: "class", hasName: true },
       { types: ["interface_declaration"], label: "interface", hasName: true },
       { types: ["type_alias_declaration"], label: "type", hasName: true },
       { types: ["enum_declaration"], label: "enum", hasName: true },
       { types: ["internal_module"], label: "namespace", hasName: true },
-      { types: ["lexical_declaration", "variable_declaration"], label: "const", hasName: true, maxDepth: 0 },
+      {
+        types: ["lexical_declaration", "variable_declaration"],
+        label: "const",
+        hasName: true,
+        maxDepth: 0,
+      },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
-    wrappers: [
-      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
-    ],
+    wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
     nameOf: {
       fieldPriority: ["name", "source"],
-      recurseTypes: ["variable_declarator", "export_clause", "named_exports", "wildcard_export", "export_specifier"],
+      recurseTypes: [
+        "variable_declarator",
+        "export_clause",
+        "named_exports",
+        "wildcard_export",
+        "export_specifier",
+      ],
       identifierTypes: ["identifier", "type_identifier"],
     },
   },
@@ -185,7 +226,13 @@ const LANGUAGES: LangConfig[] = [
     wrappers: [],
     nameOf: {
       fieldPriority: ["name"],
-      recurseTypes: ["declarator", "function_declarator", "array_declarator", "pointer_declarator", "variable_declarator"],
+      recurseTypes: [
+        "declarator",
+        "function_declarator",
+        "array_declarator",
+        "pointer_declarator",
+        "variable_declarator",
+      ],
       identifierTypes: ["identifier", "type_identifier", "field_identifier"],
     },
   },
@@ -205,7 +252,14 @@ const LANGUAGES: LangConfig[] = [
     wrappers: [],
     nameOf: {
       fieldPriority: ["name"],
-      recurseTypes: ["declarator", "function_declarator", "array_declarator", "pointer_declarator", "reference_declarator", "variable_declarator"],
+      recurseTypes: [
+        "declarator",
+        "function_declarator",
+        "array_declarator",
+        "pointer_declarator",
+        "reference_declarator",
+        "variable_declarator",
+      ],
       identifierTypes: ["identifier", "type_identifier", "field_identifier"],
       rawTextTypes: ["destructor_name", "operator_name"],
     },
@@ -300,12 +354,22 @@ function ensureChild(): Promise<void> {
         clearTimeout(timer);
         if (!_childReady) {
           _childInitPromise = null;
-          reject(new Error("Child process crashed before init (code=" + code + "). This may indicate a missing WASM grammar file."));
+          reject(
+            new Error(
+              "Child process crashed before init (code=" +
+                code +
+                "). This may indicate a missing WASM grammar file.",
+            ),
+          );
         }
         _child = null;
         _childReady = false;
         for (const [id, p] of _pending) {
-          p.reject(new Error("Parse worker process crashed (code=" + code + "). Retry the request to restart it."));
+          p.reject(
+            new Error(
+              "Parse worker process crashed (code=" + code + "). Retry the request to restart it.",
+            ),
+          );
           _pending.delete(id);
         }
       });
@@ -335,8 +399,14 @@ async function parseInChild(config: LangConfig, source: string): Promise<any[]> 
     }, 30000);
 
     _pending.set(id, {
-      resolve: (v: any) => { clearTimeout(timer); resolve(v); },
-      reject: (e: Error) => { clearTimeout(timer); reject(e); },
+      resolve: (v: any) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      reject: (e: Error) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     });
 
     if (!_child) {

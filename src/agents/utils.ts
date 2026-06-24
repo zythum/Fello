@@ -8,7 +8,6 @@ import type {
   EnvVariable,
 } from "@agentclientprotocol/sdk";
 import type { TextPart, ImagePart, FilePart } from "ai";
-import { join } from "path";
 
 export function toEnvVariables(env: Record<string, string> | undefined): EnvVariable[] | undefined {
   if (!env) return undefined;

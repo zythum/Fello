@@ -20,6 +20,8 @@ export const askUserAskRequestSchema = z.object({
     .describe("Whether the user is allowed to enter a custom free-form response."),
 });
 
+export type AskUserAskRequest = z.infer<typeof askUserAskRequestSchema>;
+
 export const askUserAskRespondSchema = z.object({
   value: z
     .string()
@@ -30,3 +32,5 @@ export const askUserAskRespondSchema = z.object({
     .or(z.null())
     .describe("The reason for the response, such as 'timeout', 'no_client', or custom input text."),
 });
+
+export type AskUserAskRespond = z.infer<typeof askUserAskRespondSchema>;

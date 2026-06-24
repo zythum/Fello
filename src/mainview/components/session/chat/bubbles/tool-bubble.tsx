@@ -146,7 +146,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
         nativeButton={false}
         className={cn(
           "flex select-none items-center gap-2 px-2.5 py-2 hover:bg-secondary",
-          open && "bg-secondary",
+          open && "bg-secondary/80",
         )}
       >
         {kindIcon}
@@ -199,6 +199,17 @@ export function ToolItem({ session, message }: ToolItemProps) {
         {statusIcons[status]}
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t border-border overflow-hidden bg-secondary/50">
+        {message.rawInput != null && (
+          <ScrollArea viewportClassName="max-h-[70vh]" className="border-b border-border last:border-0">
+            <pre className="p-2 m-0 text-[11px] leading-relaxed text-foreground/80">
+              <code>
+                {typeof message.rawInput === "string"
+                  ? message.rawInput
+                  : toYamlString(message.rawInput)}
+              </code>
+            </pre>
+          </ScrollArea>
+        )}
         {message.content &&
           message.content.map((content, index) => {
             if (content.type === "content") {
@@ -260,17 +271,6 @@ export function ToolItem({ session, message }: ToolItemProps) {
           })}
         {message.terminalId && (
           <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId} />
-        )}
-        {(!message.content || message.content.length === 0) && message.rawInput != null && (
-          <ScrollArea viewportClassName="max-h-[70vh]">
-            <pre className="p-2 m-0 text-[11px] leading-relaxed text-foreground/80">
-              <code>
-                {typeof message.rawInput === "string"
-                  ? message.rawInput
-                  : toYamlString(message.rawInput)}
-              </code>
-            </pre>
-          </ScrollArea>
         )}
       </CollapsibleContent>
     </Collapsible>
@@ -426,7 +426,10 @@ export function ToolBubble({
   }
 
   return (
-    <div className="tool-bubble border border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto [&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md [&:not(:has(+.tool-bubble))]:mb-4">
+    <div className={cn(
+      "tool-bubble border-x border-t border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
+      "[&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md",
+      "[&:not(:has(+.tool-bubble))]:mb-4 [&:not(:has(+.tool-bubble))]:border-b")}>
       <ToolItem session={session} message={message} />
     </div>
   );

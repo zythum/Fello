@@ -11,7 +11,6 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { toEnvVariables } from "./utils";
-import { extractOutline, outlineToSummary } from "./file-outline";
 
 export type ACPAgentTerminalMap = Map<string, TerminalHandle>;
 export type ACPSessionTools = {
@@ -32,7 +31,7 @@ export function createACPClientTools(params: CreateACPClientToolsParams): ACPSes
     ReadFile: tool({
       description: `Read a text file from the local filesystem.
 NOTE: Files larger than 100KB cannot be read fully without setting force=true.
-Always prefer using line/limit to read specific sections, or use GetFileOutline first.`,
+Always prefer using line/limit to read specific sections, or use the Search MCP's file_outline tool first.`,
       inputSchema: z.object({
         path: z.string().describe("File path to read."),
         line: z.number().int().positive().optional().describe("1-based start line."),
@@ -109,7 +108,7 @@ Always prefer using line/limit to read specific sections, or use GetFileOutline 
               if (byteSize > MAX_SIZE_BYTES) {
                 const sizeKB = (byteSize / 1024).toFixed(2);
                 throw new Error(
-                  `File is ${sizeKB}KB (limit: 100KB). Use GetFileOutline first to see file structure, then ReadFile with line/limit to read specific sections. ` +
+                  `File is ${sizeKB}KB (limit: 100KB). Use file_outline (Search MCP) first to see file structure, then ReadFile with line/limit to read specific sections. ` +
                     `If you genuinely need the full content, set force=true.`,
                 );
               }
@@ -576,84 +575,6 @@ This tool directly sends a plan update to the client, which replaces the entire 
         });
 
         return { success: true, entriesCount: entries.length };
-      },
-    }),
-    GetFileOutline: tool({
-      description: `Get a structural outline of a file WITHOUT reading its full content.
-Uses tree-sitter WASM parsing to extract function/class/interface/type/property signatures with line ranges and JSDoc comments.
-Returns tree-structured metadata only - no code body is included.
-Not subject to ReadFile's 100KB limit (only metadata is returned).
-Use this FIRST before ReadFile to understand a file's structure.
-Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx), Python (.py), Go (.go), C (.c/.h), C++ (.cpp/.cc/.cxx/.hpp/.hxx/.hh), Swift (.swift), Kotlin (.kt/.kts).`,
-      inputSchema: z.object({
-        path: z.string().describe("File path to analyze."),
-        cwd: z.string().optional().describe("Absolute working directory."),
-      }),
-      execute: async ({ path, cwd }, { toolCallId }) => {
-        const connection = params.getConnection();
-        if (!connection) {
-          throw new Error("ACP connection is not available.");
-        }
-
-        const filename = resolve(cwd ?? params.cwd, path);
-        const title = `GetFileOutline ${filename}`;
-        const toolCall: ToolCall = {
-          toolCallId,
-          title,
-          kind: "read",
-          status: "in_progress",
-          locations: [{ path: filename }],
-          rawInput: { filename },
-        };
-        await connection.sessionUpdate({
-          sessionId: params.sessionId,
-          update: { sessionUpdate: "tool_call", ...toolCall },
-        });
-
-        try {
-          const fileContent = await connection.readTextFile({
-            sessionId: params.sessionId,
-            path: filename,
-          });
-
-          const outline = await extractOutline(filename, fileContent.content);
-          const summary = outlineToSummary(outline);
-
-          const toolCallCompleteUpdate: ToolCallUpdate = {
-            toolCallId,
-            status: "completed",
-            content: [{
-              type: "content",
-              content: {
-                type: "text",
-                text: summary,
-              }
-            }]
-          };
-          await connection.sessionUpdate({
-            sessionId: params.sessionId,
-            update: { sessionUpdate: "tool_call_update", ...toolCallCompleteUpdate },
-          });
-          return summary;
-        } catch (error) {
-          const errorText = error instanceof Error ? error.message : String(error);
-          const toolCallErrorUpdate: ToolCallUpdate = {
-            toolCallId,
-            status: "failed",
-            rawOutput: { error: errorText },
-            content: [
-              {
-                type: "content",
-                content: { type: "text", text: errorText },
-              },
-            ],
-          };
-          await connection.sessionUpdate({
-            sessionId: params.sessionId,
-            update: { sessionUpdate: "tool_call_update", ...toolCallErrorUpdate },
-          });
-          throw error;
-        }
       },
     }),
   };

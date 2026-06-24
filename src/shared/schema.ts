@@ -197,7 +197,7 @@ export interface SseMcpServerInfo extends BaseMcpServerInfo {
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo | SseMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
-export type Feature = "skills" | "ask_user" | "share_to_user";
+export type Feature = "skills" | "ask_user" | "share_to_user" | "search";
 
 /**
  * 应用的主题配置信息
