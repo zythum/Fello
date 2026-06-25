@@ -200,7 +200,10 @@ export function ToolItem({ session, message }: ToolItemProps) {
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t border-border overflow-hidden bg-secondary/50">
         {message.rawInput != null && (
-          <ScrollArea viewportClassName="max-h-[70vh]" className="border-b border-border last:border-0">
+          <ScrollArea
+            viewportClassName="max-h-[70vh]"
+            className="border-b border-border last:border-0"
+          >
             <pre className="p-2 m-0 text-[11px] leading-relaxed text-foreground/80">
               <code>
                 {typeof message.rawInput === "string"
@@ -426,10 +429,13 @@ export function ToolBubble({
   }
 
   return (
-    <div className={cn(
-      "tool-bubble border-x border-t border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
-      "[&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md",
-      "[&:not(:has(+.tool-bubble))]:mb-4 [&:not(:has(+.tool-bubble))]:border-b")}>
+    <div
+      className={cn(
+        "tool-bubble border-x border-t border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
+        "[&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md",
+        "[&:not(:has(+.tool-bubble))]:mb-4 [&:not(:has(+.tool-bubble))]:border-b",
+      )}
+    >
       <ToolItem session={session} message={message} />
     </div>
   );

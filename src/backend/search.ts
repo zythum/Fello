@@ -1,4 +1,4 @@
-import { join, isAbsolute, resolve } from "path";
+import { join, isAbsolute, resolve, relative } from "path";
 import { fileURLToPath } from "url";
 import { readFile } from "fs/promises";
 import { ripgrep } from "ripgrep";
@@ -23,7 +23,7 @@ import { extractOutline, outlineToSummary } from "./file-outline";
  * 2. POSIX / Windows absolute paths → used as-is
  * 3. Relative paths → resolved against projectDir (or optional cwd override)
  */
-function normalizePath(inputPath: string, projectDir: string, cwd?: string): string {
+function normalizePath(inputPath: string, cwd?: string): string {
   // file:// URI
   if (inputPath.startsWith("file://")) {
     return fileURLToPath(inputPath);
@@ -32,9 +32,7 @@ function normalizePath(inputPath: string, projectDir: string, cwd?: string): str
   if (isAbsolute(inputPath)) {
     return inputPath;
   }
-  // Relative path — resolve against cwd override or project dir
-  const base = cwd ? resolve(projectDir, cwd) : projectDir;
-  return resolve(base, inputPath);
+  return resolve(cwd ?? process.cwd(), inputPath);
 }
 
 // ── Effective CWD ────────────────────────────────────────────────────
@@ -63,6 +61,8 @@ export interface SearchOptions {
 
 export async function search(options: SearchOptions): Promise<{ output: string; code: number }> {
   const args: string[] = [];
+  args.push("--heading");
+  args.push("--line-number");
 
   if (options.ignoreCase) args.push("-i");
   if (options.fixedStrings) args.push("-F");
@@ -74,14 +74,16 @@ export async function search(options: SearchOptions): Promise<{ output: string; 
   if (options.invertMatch) args.push("-v");
   if (options.wordMatch) args.push("-w");
 
-  args.push("--heading");
-  args.push("--line-number");
   args.push(options.pattern);
-  args.push(normalizePath(options.path, options.projectDir, options.cwd));
+
+  const base = effectiveCwd(options.projectDir, options.cwd);
+  const filename = normalizePath(options.path, base);
+  const relativeFilename = relative(base, filename);
+  args.push((relativeFilename.startsWith("..") ? filename : relativeFilename) || ".");
 
   const { code, stdout } = await ripgrep(args, {
     buffer: true,
-    preopens: { ".": effectiveCwd(options.projectDir, options.cwd) },
+    preopens: { ".": base },
   });
 
   return { output: stdout || "", code };
@@ -124,7 +126,8 @@ export interface FileOutlineOptions {
 }
 
 export async function fileOutline(options: FileOutlineOptions): Promise<{ outline: string }> {
-  const filePath = normalizePath(options.path, options.projectDir, options.cwd);
+  const base = effectiveCwd(options.projectDir, options.cwd);
+  const filePath = normalizePath(options.path, base);
 
   const content = await readFile(filePath, "utf8");
 
