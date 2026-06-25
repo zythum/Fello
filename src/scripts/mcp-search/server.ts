@@ -44,6 +44,7 @@ server.registerTool(
   {
     description: `Search file contents for common patterns using ripgrep.
 Fast, respects .gitignore, skips hidden/binary files by default.
+Pattern is treated as literal text by default. Set regex=true if you need regex.
 For advanced rg flags not covered here (multiline, PCRE2, --sort, --json, --stats, etc.), use the rg tool instead.
 
 Common examples:

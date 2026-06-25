@@ -633,9 +633,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   const p = electron.getPathForFile(file);
                   if (p) {
                     const mention = await absPathToMention(p, session.projectId, session.cwd);
-                    const target = e.target as HTMLElement;
-                    if (target.tagName === "TEXTAREA") {
-                      target.focus();
+                    const textarea = containerRef.current?.querySelector("textarea");
+                    if (textarea) {
+                      textarea.focus();
                       document.execCommand("insertText", false, mention);
                     }
                   }
@@ -651,9 +651,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         // Async resolve absolute paths to mentions (with project-aware prefix)
         if (absPaths.length > 0) {
           (async () => {
-            const target = e.target as HTMLElement;
-            if (target.tagName !== "TEXTAREA") return;
-            const textarea = target as HTMLTextAreaElement;
+            const textarea = containerRef.current?.querySelector("textarea");
+            if (!textarea) return;
             textarea.focus();
             const mentions = await Promise.all(
               absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
@@ -680,11 +679,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           .filter(Boolean);
 
         if (absPaths.length > 0) {
-          const target = e.target as HTMLElement;
-          if (target.tagName !== "TEXTAREA") return;
-          const textarea = target as HTMLTextAreaElement;
-          textarea.focus();
           (async () => {
+            const textarea = containerRef.current?.querySelector("textarea");
+            if (!textarea) return;
+            textarea.focus();
             const mentions = await Promise.all(
               absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
             );

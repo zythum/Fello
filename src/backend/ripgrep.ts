@@ -56,7 +56,7 @@ export interface SearchOptions {
   pattern: string;
   path: string;
   ignoreCase?: boolean;
-  fixedStrings?: boolean;
+  regex?: boolean;
   type?: string;
   glob?: string;
   context?: number;
@@ -73,7 +73,7 @@ export async function search(options: SearchOptions): Promise<{ output: string; 
   args.push("--line-number");
 
   if (options.ignoreCase) args.push("-i");
-  if (options.fixedStrings) args.push("-F");
+  if (!options.regex) args.push("-F");
   if (options.type) args.push("-t", options.type);
   if (options.glob) args.push("-g", options.glob);
   if (options.context !== undefined) args.push("-C", String(options.context));

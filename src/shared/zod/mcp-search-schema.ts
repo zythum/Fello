@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 export const searchRequestSchema = z.object({
-  pattern: z.string().describe("Search pattern (regex by default)."),
+  pattern: z.string().describe("Search pattern (literal text by default, set regex=true for regex)."),
   path: z
     .string()
     .describe(
       "Directory or file(s) to search. Accepts: relative path (relative to project root), absolute path (POSIX or Windows), or file:// URI.",
     ),
   ignoreCase: z.boolean().optional().describe("Case insensitive search (-i)."),
-  fixedStrings: z.boolean().optional().describe("Treat pattern as literal string, not regex (-F)."),
+  regex: z.boolean().optional().describe("Treat pattern as regex instead of literal text."),
   type: z.string().optional().describe("File type filter: ts, js, py, rs, go, md, etc (-t)."),
   glob: z.string().optional().describe("Glob filter: *.test.ts, *.spec.js (-g)."),
   context: z
