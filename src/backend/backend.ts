@@ -1,4 +1,4 @@
-import { readdir, rm } from "fs/promises";
+import { readdir, rm, readFile } from "fs/promises";
 import { join } from "path";
 import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
 import { storageOps, TEMP_DIR } from "./storage";
@@ -218,7 +218,6 @@ export const backendHandlers: {
     });
   },
   async readSkillFile({ skillId, projectId }) {
-    const { readFile } = await import("fs/promises");
     return readFile(await this.getSkillFileSystemFilePath({ skillId, projectId }), "utf-8");
   },
   async getSkillFileSystemFilePath({ skillId, projectId }) {
@@ -457,7 +456,6 @@ export const backendHandlers: {
   },
 
   async getShareFileSystemPath({ sessionId, sharePath }) {
-    const { join } = await import("path");
     const shareDir = storageOps.sessionShareDir(sessionId);
     if (!shareDir) throw new Error("Session not found");
     return join(shareDir, sharePath);

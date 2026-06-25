@@ -15,7 +15,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
 import type { FelloIPCSchema } from "../shared/schema";
-import { createRequire } from "node:module";
+import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const launchEditor = require("launch-editor");
 

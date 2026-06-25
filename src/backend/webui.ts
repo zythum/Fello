@@ -235,7 +235,7 @@ export async function startWebUI(options?: {
         return;
       }
 
-      const headers: Record<string, string> = { "Content-Type": mime, "ETag": etag };
+      const headers: Record<string, string> = { "Content-Type": mime, ETag: etag };
       if (encodedPath && encoding) {
         headers["Content-Encoding"] = encoding;
       }

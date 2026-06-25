@@ -29,10 +29,6 @@ export const searchRequestSchema = z.object({
     .describe("Only list file paths with matches, not content (-l)."),
   invertMatch: z.boolean().optional().describe("Show lines that do NOT match the pattern (-v)."),
   wordMatch: z.boolean().optional().describe("Only match whole words (-w)."),
-  cwd: z
-    .string()
-    .optional()
-    .describe("Override working directory. If not set, defaults to project root."),
 });
 
 export type SearchRequest = z.infer<typeof searchRequestSchema>;
@@ -50,10 +46,6 @@ export const rgRequestSchema = z.object({
     .describe(
       "Raw ripgrep CLI arguments (e.g. ['-i', 'pattern', 'src/']). The pattern and path are included in this array.",
     ),
-  cwd: z
-    .string()
-    .optional()
-    .describe("Override working directory. If not set, defaults to project root."),
 });
 
 export type RgRequest = z.infer<typeof rgRequestSchema>;
@@ -72,10 +64,6 @@ export const fileOutlineRequestSchema = z.object({
     .describe(
       "File path to analyze. Accepts: relative path (relative to project root), absolute path (POSIX or Windows), or file:// URI.",
     ),
-  cwd: z
-    .string()
-    .optional()
-    .describe("Override working directory. If not set, defaults to project root."),
 });
 
 export type FileOutlineRequest = z.infer<typeof fileOutlineRequestSchema>;

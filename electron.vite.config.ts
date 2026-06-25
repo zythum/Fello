@@ -27,6 +27,7 @@ export default defineConfig({
           "mcp-share-to-user/server": resolve(__dirname, "src/scripts/mcp-share-to-user/server.ts"),
           "mcp-search/server": resolve(__dirname, "src/scripts/mcp-search/server.ts"),
           "worker-file-outline/worker": resolve(__dirname, "src/scripts/worker-file-outline/worker.ts"),
+          "worker-ripgrep/worker": resolve(__dirname, "src/scripts/worker-ripgrep/worker.ts"),
         },
       },
       outDir: "out/scripts",

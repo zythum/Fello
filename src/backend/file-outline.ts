@@ -1,60 +1,32 @@
-import { extname, join } from "path";
-import { fork } from "node:child_process";
+import { extname, join, isAbsolute, resolve, relative } from "path";
+import { readFile } from "fs/promises";
+import { fileURLToPath } from "url";
+import { fork } from "child_process";
+import type {
+  OutlineSymbol,
+  FileOutline,
+  SymbolKindConfig,
+  WrapperConfig,
+  NameOfConfig,
+  FileOutlineWorkerRequest,
+  FileOutlineWorkerResponse,
+} from "../shared/zod/worker-file-outline-schema";
 
-export interface OutlineSymbol {
-  kind: string;
-  name: string;
-  startLine: number;
-  endLine: number;
-  comment?: string;
-  depth: number;
-}
+export type { OutlineSymbol, FileOutline } from "../shared/zod/worker-file-outline-schema";
 
-export interface FileOutline {
-  filename: string;
-  language: string;
-  totalLines: number;
-  symbols: OutlineSymbol[];
-  supported: boolean;
-  error?: string;
+// ─── Path Normalization ──────────────────────────────────────────────────────
+
+function normalizePath(inputPath: string, cwd: string): string {
+  if (inputPath.startsWith("file://")) {
+    return fileURLToPath(inputPath);
+  }
+  if (isAbsolute(inputPath)) {
+    return inputPath;
+  }
+  return resolve(cwd, inputPath);
 }
 
 // ─── Language Config ─────────────────────────────────────────────────────────
-
-interface SymbolKindConfig {
-  types: string[];
-  label: string;
-  hasName: boolean;
-  maxDepth?: number;
-}
-
-interface WrapperConfig {
-  /** AST node type to detect, e.g. "export_statement", "ambient_declaration" */
-  node: string;
-  /** Prefix to add to wrapped declarations, e.g. "export ", "declare " */
-  prefix: string;
-  /** If no wrapped child is found, create a standalone entry with this label (e.g. "export") */
-  createStandaloneLabel?: string;
-  /** Only process symbols at depth <= this value. Default: Infinity (all depths). 0 = top-level only. */
-  maxDepth?: number;
-}
-
-interface NameOfConfig {
-  /** Field names to check first, in priority order (e.g. "name", "source", "module_name") */
-  fieldPriority: string[];
-  /** AST node types to recursively descend into to find a name (e.g. declarator chains) */
-  recurseTypes: string[];
-  /** AST node types that ARE identifiers (e.g. "identifier", "simple_identifier") */
-  identifierTypes: string[];
-  /** Special node types whose raw text IS the name (e.g. "destructor_name", "operator_name") */
-  rawTextTypes?: string[];
-}
-
-// const DEFAULT_NAME_OF: NameOfConfig = {
-//   fieldPriority: ["name"],
-//   recurseTypes: [],
-//   identifierTypes: ["identifier"],
-// };
 
 interface LangConfig {
   name: string;
@@ -304,134 +276,55 @@ const LANGUAGES: LangConfig[] = [
   },
 ];
 
-// ─── Child Process Management ────────────────────────────────────────────────
-// Uses fork() instead of Worker() because V8 Zone OOM triggers process-level
-// abort() — even a Worker thread kills the whole process.
-// A child process has its own V8 instance and can safely crash.
+// ─── Child Process (disposable, one fork per request) ────────────────────────
 
-let _child: ReturnType<typeof fork> | null = null;
-let _reqId = 0;
-const _pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
-let _childReady = false;
-let _childInitPromise: Promise<void> | null = null;
-
-function ensureChild(): Promise<void> {
-  if (_childReady) return Promise.resolve();
-  if (_childInitPromise) return _childInitPromise;
-
-  _childInitPromise = new Promise<void>((resolve, reject) => {
-    try {
-      const modulePath = join(process.scriptsPath, "/worker-file-outline/worker.mjs");
-      const child = fork(modulePath, [], { execArgv: [] });
-
-      // Register handler BEFORE setting _child — prevent race with init_done message
-      let timer: any = setTimeout(() => {
-        child.kill();
-        _childInitPromise = null; // allow retry on next request
-        reject(new Error("Child init timed out"));
-      }, 15000);
-
-      child.on("message", function onMsg(msg: any) {
-        if (msg.type === "init_done") {
-          clearTimeout(timer);
-          _childReady = true;
-          resolve();
-          return;
-        }
-        if (msg.type === "init_error") {
-          clearTimeout(timer);
-          reject(new Error(msg.error));
-          return;
-        }
-        const p = _pending.get(msg.id);
-        if (!p) return;
-        _pending.delete(msg.id);
-        if (msg.type === "result") p.resolve(msg.symbols);
-        else if (msg.type === "error") p.reject(new Error(msg.error));
-      });
-
-      child.on("exit", (code: number) => {
-        clearTimeout(timer);
-        if (!_childReady) {
-          _childInitPromise = null;
-          reject(
-            new Error(
-              "Child process crashed before init (code=" +
-                code +
-                "). This may indicate a missing WASM grammar file.",
-            ),
-          );
-        }
-        _child = null;
-        _childReady = false;
-        for (const [id, p] of _pending) {
-          p.reject(
-            new Error(
-              "Parse worker process crashed (code=" + code + "). Retry the request to restart it.",
-            ),
-          );
-          _pending.delete(id);
-        }
-      });
-
-      _child = child; // now safe — handler is registered
-      child.send({ type: "init" }); // ← THIS was missing! Worker waits for init
-    } catch (e: any) {
-      _childInitPromise = null;
-      reject(e);
-    }
-  });
-
-  return _childInitPromise;
-}
-
-async function parseInChild(config: LangConfig, source: string): Promise<any[]> {
-  await ensureChild();
-
+async function parseInChild(
+  filePath: string,
+  config: LangConfig,
+  cwd: string,
+  timeout = 30000,
+): Promise<{ symbols: OutlineSymbol[]; totalLines: number }> {
   return new Promise((resolve, reject) => {
-    const id = ++_reqId;
-    const timer = setTimeout(() => {
-      _pending.delete(id);
-      if (_child) _child.kill(); // kill hung worker
-      _child = null;
-      _childReady = false;
-      reject(new Error("Parse request timed out (30s)"));
-    }, 30000);
+    const modulePath = join(process.scriptsPath, "/worker-file-outline/worker.mjs");
+    const child = fork(modulePath, [], { execArgv: [], cwd });
 
-    _pending.set(id, {
-      resolve: (v: any) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      reject: (e: Error) => {
-        clearTimeout(timer);
-        reject(e);
-      },
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`Parse request timed out (${timeout}ms)`));
+    }, timeout);
+
+    child.on("message", (msg: FileOutlineWorkerResponse) => {
+      clearTimeout(timer);
+      if (msg.type === "result") resolve({ symbols: msg.symbols, totalLines: msg.totalLines });
+      else reject(new Error(msg.error));
     });
 
-    if (!_child) {
+    child.on("error", (err) => {
       clearTimeout(timer);
-      _pending.delete(id);
-      reject(new Error("Parse process not available"));
-      return;
-    }
+      reject(err);
+    });
 
-    _child.send({
-      type: "parse",
-      id,
-      source,
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      if (code && code !== 0) reject(new Error(`Parse worker exit ${code}`));
+    });
+
+    const request: FileOutlineWorkerRequest = {
+      filePath,
       wasmFile: config.wasmFile,
       symbols: config.symbols,
       wrappers: config.wrappers,
       nameOf: config.nameOf,
-    } as any);
+    };
+    child.send(request);
   });
 }
 
 // ─── Markdown Parser (built-in, no WASM needed) ──────────────────────────────
 
-function parseMarkdown(content: string): OutlineSymbol[] {
+function parseMarkdown(content: string): { symbols: OutlineSymbol[]; totalLines: number } {
   const lines = content.split("\n");
+  const totalLines = lines.length;
   const symbols: OutlineSymbol[] = [];
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
@@ -470,23 +363,34 @@ function parseMarkdown(content: string): OutlineSymbol[] {
     symbols[i].endLine = endLine;
   }
 
-  return symbols;
+  return { symbols, totalLines };
 }
 
 // ─── Main Entry Point ─────────────────────────────────────────────────────────
 
 const MARKDOWN_EXTENSIONS = [".md", ".mdx", ".markdown"];
 
-export async function extractOutline(filePath: string, content: string): Promise<FileOutline> {
-  const lines = content.split("\n");
-  const totalLines = lines.length;
-  const ext = extname(filePath).toLowerCase();
+export interface FileOutlineOptions {
+  projectDir: string;
+  path: string;
+  timeout?: number;
+}
+
+export async function extractOutline(options: FileOutlineOptions): Promise<FileOutline> {
+  let filename = normalizePath(options.path, options.projectDir);
+  const relativeFilename = relative(options.projectDir, filename);
+  if (relativeFilename && !relativeFilename.startsWith("..")) {
+    filename = relativeFilename;
+  }
+
+  const ext = extname(filename).toLowerCase();
 
   // Markdown: use built-in parser (tree-sitter-markdown WASM has known limitations)
   if (MARKDOWN_EXTENSIONS.includes(ext)) {
-    const symbols = parseMarkdown(content);
+    const content = await readFile(normalizePath(filename, options.projectDir), "utf8");
+    const { symbols, totalLines } = parseMarkdown(content);
     return {
-      filename: filePath,
+      filename: filename,
       language: "Markdown",
       totalLines,
       symbols,
@@ -497,9 +401,14 @@ export async function extractOutline(filePath: string, content: string): Promise
   const config = LANGUAGES.find((c) => c.extensions.includes(ext));
   if (config) {
     try {
-      const symbols = await parseInChild(config, content);
+      const { symbols, totalLines } = await parseInChild(
+        filename,
+        config,
+        options.projectDir,
+        options.timeout,
+      );
       return {
-        filename: filePath,
+        filename: filename,
         language: config.name,
         totalLines,
         symbols,
@@ -507,11 +416,11 @@ export async function extractOutline(filePath: string, content: string): Promise
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[file-outline] parse failed: ${filePath} (${config.name}): ${msg}`);
+      console.error(`[file-outline] parse failed: ${filename} (${config.name}): ${msg}`);
       return {
-        filename: filePath,
+        filename: filename,
         language: config.name,
-        totalLines,
+        totalLines: 0,
         symbols: [],
         supported: false,
         error: `AST parse error: ${msg}`,
@@ -520,9 +429,9 @@ export async function extractOutline(filePath: string, content: string): Promise
   }
 
   return {
-    filename: filePath,
+    filename: filename,
     language: ext.slice(1) || "unknown",
-    totalLines,
+    totalLines: 0,
     symbols: [],
     supported: false,
   };
@@ -565,4 +474,12 @@ export function outlineToSummary(outline: FileOutline, maxSymbols = 128): string
   if (outline.symbols.length > maxSymbols)
     l.push(`  ... and ${outline.symbols.length - maxSymbols} more symbols`);
   return l.join("\n");
+}
+
+// ─── Public Interface ────────────────────────────────────────────────────────
+
+export async function fileOutline(options: FileOutlineOptions): Promise<{ outline: string }> {
+  const outline = await extractOutline(options);
+  const summary = outlineToSummary(outline);
+  return { outline: summary };
 }

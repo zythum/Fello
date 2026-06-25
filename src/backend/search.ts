@@ -1,7 +1,4 @@
-import { join, isAbsolute, resolve, relative } from "path";
-import { fileURLToPath } from "url";
-import { readFile } from "fs/promises";
-import { ripgrep } from "ripgrep";
+import { join } from "path";
 import type { SocketServer } from "./socket-server";
 import {
   searchRequestSchema,
@@ -11,130 +8,12 @@ import {
   fileOutlineRequestSchema,
   fileOutlineRespondSchema,
 } from "../shared/zod/mcp-search-schema";
-import { extractOutline, outlineToSummary } from "./file-outline";
+import { fileOutline } from "./file-outline";
+import { search, rg } from "./ripgrep";
 
-// ── Path Normalization ───────────────────────────────────────────────
-
-/**
- * Normalize a search path to an absolute filesystem path.
- *
- * Handles four input formats:
- * 1. `file://` URIs → converted via fileURLToPath
- * 2. POSIX / Windows absolute paths → used as-is
- * 3. Relative paths → resolved against projectDir (or optional cwd override)
- */
-function normalizePath(inputPath: string, cwd?: string): string {
-  // file:// URI
-  if (inputPath.startsWith("file://")) {
-    return fileURLToPath(inputPath);
-  }
-  // Absolute path (POSIX or Windows)
-  if (isAbsolute(inputPath)) {
-    return inputPath;
-  }
-  return resolve(cwd ?? process.cwd(), inputPath);
-}
-
-// ── Effective CWD ────────────────────────────────────────────────────
-
-function effectiveCwd(projectDir: string, cwd?: string): string {
-  return cwd ? resolve(projectDir, cwd) : projectDir;
-}
-
-// ── Search Handler ───────────────────────────────────────────────────
-
-export interface SearchOptions {
-  projectDir: string;
-  pattern: string;
-  path: string;
-  ignoreCase?: boolean;
-  fixedStrings?: boolean;
-  type?: string;
-  glob?: string;
-  context?: number;
-  maxResults?: number;
-  listFiles?: boolean;
-  invertMatch?: boolean;
-  wordMatch?: boolean;
-  cwd?: string;
-}
-
-export async function search(options: SearchOptions): Promise<{ output: string; code: number }> {
-  const args: string[] = [];
-  args.push("--heading");
-  args.push("--line-number");
-
-  if (options.ignoreCase) args.push("-i");
-  if (options.fixedStrings) args.push("-F");
-  if (options.type) args.push("-t", options.type);
-  if (options.glob) args.push("-g", options.glob);
-  if (options.context !== undefined) args.push("-C", String(options.context));
-  if (options.maxResults !== undefined) args.push("-m", String(options.maxResults));
-  if (options.listFiles) args.push("-l");
-  if (options.invertMatch) args.push("-v");
-  if (options.wordMatch) args.push("-w");
-
-  args.push(options.pattern);
-
-  const base = effectiveCwd(options.projectDir, options.cwd);
-  const filename = normalizePath(options.path, base);
-  const relativeFilename = relative(base, filename);
-  args.push((relativeFilename.startsWith("..") ? filename : relativeFilename) || ".");
-
-  const { code, stdout } = await ripgrep(args, {
-    buffer: true,
-    preopens: { ".": base },
-  });
-
-  return { output: stdout || "", code };
-}
-
-// ── Rg Handler ───────────────────────────────────────────────────────
-
-export interface RgOptions {
-  projectDir: string;
-  args: string[];
-  cwd?: string;
-}
-
-export async function rg(
-  options: RgOptions,
-): Promise<{ output: string; code: number; stderr?: string }> {
-  const base = effectiveCwd(options.projectDir, options.cwd);
-
-  const { code, stdout, stderr } = await ripgrep(options.args, {
-    buffer: true,
-    // Map "." to the effective working directory. The ripgrep WASM
-    // resolves relative paths against WASI preopens. Absolute paths
-    // in args are auto-added as preopens by the ripgrep package.
-    preopens: { ".": base },
-  });
-
-  return {
-    output: stdout || "",
-    code,
-    stderr: stderr || undefined,
-  };
-}
-
-// ── FileOutline Handler ────────────────────────────────────────────
-
-export interface FileOutlineOptions {
-  projectDir: string;
-  path: string;
-  cwd?: string;
-}
-
-export async function fileOutline(options: FileOutlineOptions): Promise<{ outline: string }> {
-  const base = effectiveCwd(options.projectDir, options.cwd);
-  const filePath = normalizePath(options.path, base);
-
-  const content = await readFile(filePath, "utf8");
-
-  const outline = await extractOutline(filePath, content);
-  const summary = outlineToSummary(outline);
-  return { outline: summary };
-}
+export type { SearchOptions, RgOptions } from "./ripgrep";
+export type { FileOutlineOptions } from "./file-outline";
+export { search, rg, fileOutline };
 
 // ── Route Registration ──────────────────────────────────────────────
 
