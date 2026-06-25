@@ -11,7 +11,7 @@ It brings local and cloud AI agents into your development workflow — all insid
 
 ---
 
-### 📖 User Manual / 用户手册
+## 📖 User Manual / 用户手册
 
 🚀 [**Fello User Manual**](./guides/README.md) — Getting started, agent configuration, MCP setup, and more.
 

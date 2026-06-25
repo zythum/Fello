@@ -428,12 +428,71 @@ async function parseInChild(config: LangConfig, source: string): Promise<any[]> 
   });
 }
 
+// ─── Markdown Parser (built-in, no WASM needed) ──────────────────────────────
+
+function parseMarkdown(content: string): OutlineSymbol[] {
+  const lines = content.split("\n");
+  const symbols: OutlineSymbol[] = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Toggle fenced code block state
+    if (/^ {0,3}(`{3,}|~{3,})/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    // ATX headings
+    const headingMatch = line.match(/^ {0,3}(#{1,6})\s+(.+)/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const text = headingMatch[2].replace(/\s+#+\s*$/, "").trim();
+      symbols.push({
+        kind: `h${level}`,
+        name: text,
+        startLine: i + 1,
+        endLine: i + 1,
+        depth: level - 1,
+      });
+    }
+  }
+
+  // Compute endLine: each heading extends until the next heading of same or higher level (or EOF)
+  for (let i = 0; i < symbols.length; i++) {
+    const level = symbols[i].depth;
+    let endLine = lines.length;
+    for (let j = i + 1; j < symbols.length; j++) {
+      if (symbols[j].depth <= level) {
+        endLine = symbols[j].startLine - 1;
+        break;
+      }
+    }
+    symbols[i].endLine = endLine;
+  }
+
+  return symbols;
+}
+
 // ─── Main Entry Point ─────────────────────────────────────────────────────────
+
+const MARKDOWN_EXTENSIONS = [".md", ".mdx", ".markdown"];
 
 export async function extractOutline(filePath: string, content: string): Promise<FileOutline> {
   const lines = content.split("\n");
   const totalLines = lines.length;
   const ext = extname(filePath).toLowerCase();
+
+  // Markdown: use built-in parser (tree-sitter-markdown WASM has known limitations)
+  if (MARKDOWN_EXTENSIONS.includes(ext)) {
+    const symbols = parseMarkdown(content);
+    return {
+      filename: filePath,
+      language: "Markdown",
+      totalLines,
+      symbols,
+      supported: true,
+    };
+  }
 
   const config = LANGUAGES.find((c) => c.extensions.includes(ext));
   if (config) {
