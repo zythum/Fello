@@ -1,7 +1,7 @@
 import type { AddressInfo } from "net";
 import { createServer, type Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { networkInterfaces } from "os";
 import { join } from "path";
 import { readFile, stat } from "fs/promises";
@@ -224,20 +224,23 @@ export async function startWebUI(options?: {
         }
       }
 
-      if (encodedPath && encoding) {
-        const content = await readFile(encodedPath);
-        res.writeHead(200, {
-          "Content-Type": mime,
-          "Content-Encoding": encoding,
-        });
-        res.end(content);
-      } else {
-        const content = await readFile(filePath);
-        res.writeHead(200, {
-          "Content-Type": mime,
-        });
-        res.end(content);
+      // ── ETag: 基于文件内容 MD5 hash，用于 304 缓存协商 ──
+      const actualPath = encodedPath && encoding ? encodedPath : filePath;
+      const content = await readFile(actualPath);
+      const etag = `"${createHash("md5").update(content).digest("hex")}"`;
+
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304);
+        res.end();
+        return;
       }
+
+      const headers: Record<string, string> = { "Content-Type": mime, "ETag": etag };
+      if (encodedPath && encoding) {
+        headers["Content-Encoding"] = encoding;
+      }
+      res.writeHead(200, headers);
+      res.end(content);
     } catch (err) {
       console.error("WebUI request error:", err);
       res.writeHead(404, { "Content-Type": "text/plain" });
