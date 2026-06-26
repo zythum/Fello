@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 export const searchRequestSchema = z.object({
-  pattern: z.string().describe("Search pattern (literal text by default, set regex=true for regex)."),
+  pattern: z
+    .string()
+    .describe("Search pattern (literal text by default, set regex=true for regex)."),
   path: z
     .string()
     .describe(

@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "Yet another Agent client based on the ACP protocol",
   "author": {
     "name": "Zythum",
@@ -123,6 +123,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@pierre/diffs": "^1.2.2",
     "@rexa-developer/tiks": "^0.2.0",
+    "@silurus/ooxml": "^0.66.3",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",
@@ -144,7 +145,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
-    "docx-preview": "^0.3.7",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
@@ -158,7 +158,6 @@
     "pdfjs-dist": "^5.7.284",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.5.10",
-    "pptx-viewer": "^0.2.2",
     "pptxgenjs": "^4.0.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
@@ -178,8 +177,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.1.9",
     "vite-plugin-compression": "^0.5.1",
-    "xlsx": "^0.18.5",
-    "xlsx-preview": "^1.0.5",
+    "vite-plugin-wasm": "^3.6.0",
     "zustand": "^5.0.12"
   }
 }

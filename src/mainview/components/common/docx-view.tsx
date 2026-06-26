@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
-import { renderAsync } from "docx-preview";
+import { useEffect, useState } from "react";
+import { DocxDocument } from "@silurus/ooxml/docx";
 import { useTranslation } from "react-i18next";
-import { ScrollArea } from "../ui/scroll-area";
+import { ZoomIn, ZoomOut } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface DocxViewProps {
   data: ArrayBuffer;
@@ -10,48 +11,132 @@ export interface DocxViewProps {
 
 export function DocxView({ data }: DocxViewProps) {
   const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [doc, setDoc] = useState<DocxDocument | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
     let cancelled = false;
+    let instance: DocxDocument | null = null;
 
-    (async () => {
+    async function load() {
       try {
-        await renderAsync(data, container, undefined, {
-          className: "docx-preview",
-          inWrapper: true,
-          ignoreWidth: false,
-          ignoreHeight: false,
-          ignoreFonts: false,
-          breakPages: true,
-          ignoreLastRenderedPageBreak: true,
-          useBase64URL: true,
-        });
-      } catch (err) {
-        if (!cancelled) {
-          console.error("DOCX render error:", err);
-          container.innerHTML = `<div class="text-sm text-muted-foreground text-center mt-10">${t("fileDetail.loadError", "Failed to load document")}</div>`;
+        instance = await DocxDocument.load(data.slice(0));
+        if (cancelled) {
+          instance.destroy();
+          return;
         }
+        setDoc(instance);
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || "Failed to load document");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    })();
+    }
 
+    load();
     return () => {
       cancelled = true;
-      if (container) container.innerHTML = "";
+      instance?.destroy();
+      setDoc(null);
     };
-  }, [data, t]);
+  }, [data]);
+
+  useEffect(() => {
+    if (!container || !doc) return;
+    let cancelled = false;
+
+    while (container.lastChild) container.lastChild.remove();
+
+    async function renderAll() {
+      // pageWidth is in points; convert to CSS px (96dpi): pt / 72 * 96 = pt * 4/3
+      const pageWidthPx = doc!.document.section.pageWidth * (96 / 72);
+      for (let i = 0; i < doc!.pageCount; i++) {
+        if (cancelled) return;
+
+        // Page wrapper
+        const pageDiv = document.createElement("div");
+        pageDiv.className = "shadow-lg bg-white mb-4 mx-auto relative";
+        container!.appendChild(pageDiv);
+
+        // Canvas
+        const canvas = document.createElement("canvas");
+        pageDiv.appendChild(canvas);
+
+        // Text overlay
+        const textLayer = document.createElement("div");
+        textLayer.className = "absolute inset-0 overflow-hidden";
+        textLayer.style.lineHeight = "1";
+        pageDiv.appendChild(textLayer);
+
+        await doc!.renderPage(canvas, i, {
+          width: pageWidthPx * scale,
+          onTextRun(run) {
+            const span = document.createElement("span");
+            span.textContent = run.text;
+            span.style.cssText = `position:absolute;left:${run.x}px;top:${run.y}px;font-size:${run.fontSize}px;font-family:${run.font};color:transparent;white-space:pre;cursor:text;width:${run.w}px;height:${run.h}px;`;
+            textLayer.appendChild(span);
+          },
+        });
+
+        pageDiv.style.width = `${canvas.offsetWidth}px`;
+        pageDiv.style.height = `${canvas.offsetHeight}px`;
+      }
+    }
+
+    renderAll();
+    return () => {
+      cancelled = true;
+      while (container.lastChild) container.lastChild.remove();
+    };
+  }, [container, doc, scale]);
+
+  const zoomIn = () => setScale((s) => Math.min(3, s + 0.2));
+  const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.2));
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        {t("fileDetail.loadError", "Failed to load document")}: {error}
+      </div>
+    );
+  }
 
   return (
-    <ScrollArea className="w-full h-full bg-muted">
-      <style>{`.docx-preview-wrapper { background: var(--muted)!important; padding: 16px!important; }`}</style>
-      <div
-        ref={containerRef}
-        className="min-h-full min-w-full w-max p-0"
-        style={{ padding: "0" }}
-      />
-    </ScrollArea>
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={zoomOut}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomOut", "Zoom out")}
+        >
+          <ZoomOut className="size-4" />
+        </button>
+        <span className="text-xs tabular-nums text-muted-foreground min-w-8 text-center">
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={zoomIn}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomIn", "Zoom in")}
+        >
+          <ZoomIn className="size-4" />
+        </button>
+      </div>
+      <ScrollArea className="flex-1 w-full min-h-0 bg-muted">
+        <div className="p-4">
+          {loading && (
+            <div className="text-sm text-muted-foreground mt-10 text-center">
+              {t("fileDetail.loading")}
+            </div>
+          )}
+          <div ref={setContainer} />
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
+import wasm from "vite-plugin-wasm";
 import compression from "vite-plugin-compression";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
@@ -37,6 +38,7 @@ export default defineConfig({
     root: "src/mainview",
     plugins: [
       react(),
+      wasm(),
       compression({
         algorithm: "brotliCompress",
         ext: ".br",

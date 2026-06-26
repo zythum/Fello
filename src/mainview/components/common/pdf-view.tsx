@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import { TextLayer, setLayerDimensions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import "pdfjs-dist/legacy/web/pdf_viewer.css";
 import PdfWorkerConstructor from "./pdf-worker-wrapper?worker";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface PdfViewProps {
@@ -14,10 +16,8 @@ let pdfWorker: pdfjs.PDFWorker | null = null;
 
 async function getPdfWorker(): Promise<pdfjs.PDFWorker> {
   if (!pdfWorker || pdfWorker.destroyed) {
-    // 用 Vite 打包的 Worker + PDFWorker 封装
     const rawWorker = new PdfWorkerConstructor();
     pdfWorker = pdfjs.PDFWorker.create({ port: rawWorker });
-    // 等待 worker 初始化完成
     await pdfWorker.promise;
   }
   return pdfWorker;
@@ -25,61 +25,32 @@ async function getPdfWorker(): Promise<pdfjs.PDFWorker> {
 
 export function PdfView({ data }: PdfViewProps) {
   const { t } = useTranslation();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [numPages, setNumPages] = useState(0);
-  const [pageNum, setPageNum] = useState(1);
-  const [scale, setScale] = useState(1.2);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
-  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null);
-
-  const renderPage = useCallback(async (pdf: pdfjs.PDFDocumentProxy, num: number, s: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    try {
-      const page = await pdf.getPage(num);
-      const viewport = page.getViewport({ scale: s });
-      const dpr = window.devicePixelRatio || 1;
-
-      canvas.width = viewport.width * dpr;
-      canvas.height = viewport.height * dpr;
-      setCanvasSize({ w: viewport.width, h: viewport.height });
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.scale(dpr, dpr);
-
-      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    } catch (err) {
-      console.error("PDF render error:", err);
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let instance: pdfjs.PDFDocumentProxy | null = null;
 
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        // 复制一份数据，避免原 ArrayBuffer 被 transfer 后 detached
         const pdfData = new Uint8Array(data.slice(0));
         const worker = await getPdfWorker();
         if (cancelled) return;
         const pdf = await pdfjs.getDocument({ data: pdfData, worker }).promise;
-        if (cancelled) return;
-        setPdfDoc(pdf);
-        setNumPages(pdf.numPages);
-        setPageNum(1);
-        // Don't render here — the <canvas> is not yet in the DOM
-        // (loading is still true). The render effect below will
-        // trigger once loading becomes false and the canvas appears.
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message || "Failed to load PDF");
+        if (cancelled) {
+          pdf.destroy();
+          return;
         }
+        instance = pdf;
+        setPdfDoc(pdf);
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || "Failed to load PDF");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -88,18 +59,69 @@ export function PdfView({ data }: PdfViewProps) {
     load();
     return () => {
       cancelled = true;
+      instance?.destroy();
+      setPdfDoc(null);
     };
   }, [data]);
 
-  // Render when: loading completes (canvas appears), page changes, or zoom changes
   useEffect(() => {
-    if (!loading && pdfDoc) {
-      renderPage(pdfDoc, pageNum, scale);
-    }
-  }, [pdfDoc, loading, pageNum, scale]);
+    if (!pdfDoc || !container) return;
+    let cancelled = false;
+    const pdf = pdfDoc;
+    while (container.lastChild) container.lastChild.remove();
 
-  const goToPrev = () => setPageNum((p) => Math.max(1, p - 1));
-  const goToNext = () => setPageNum((p) => Math.min(numPages, p + 1));
+    async function renderAll(container: HTMLDivElement) {
+      const dpr = window.devicePixelRatio || 1;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        if (cancelled) return;
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: scale * (96 / 72) });
+
+        // Page wrapper (relative positioning for text layer overlay)
+        const pageDiv = document.createElement("div");
+        pageDiv.className = "shadow-lg bg-white mb-4 mx-auto relative";
+        pageDiv.style.width = `${viewport.width}px`;
+        pageDiv.style.height = `${viewport.height}px`;
+        container.appendChild(pageDiv);
+
+        // Canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        pageDiv.appendChild(canvas);
+        const ctx = canvas.getContext("2d")!;
+        ctx.scale(dpr, dpr);
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+
+        // Text layer
+        if (cancelled) return;
+        const textContent = await page.getTextContent();
+        if (cancelled) return;
+        const textDiv = document.createElement("div");
+        textDiv.className = "absolute inset-0 textLayer";
+        pageDiv.appendChild(textDiv);
+
+        setLayerDimensions(textDiv, viewport);
+        textDiv.style.setProperty("--total-scale-factor", `${viewport.scale}`);
+
+        const textLayer = new TextLayer({
+          textContentSource: textContent,
+          container: textDiv,
+          viewport,
+        });
+        await textLayer.render();
+      }
+    }
+
+    renderAll(container);
+    return () => {
+      cancelled = true;
+      while (container.lastChild) container.lastChild.remove();
+    };
+  }, [pdfDoc, scale, container]);
+
   const zoomIn = () => setScale((s) => Math.min(3, s + 0.2));
   const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.2));
 
@@ -112,63 +134,36 @@ export function PdfView({ data }: PdfViewProps) {
   }
 
   return (
-    <div className="flex flex-col items-center w-full h-full min-h-0">
-      {numPages > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={zoomOut}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
-            title={t("fileDetail.zoomOut", "Zoom out")}
-          >
-            <ZoomOut className="size-4" />
-          </button>
-          <span className="text-xs tabular-nums text-muted-foreground min-w-8 text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={zoomIn}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
-            title={t("fileDetail.zoomIn", "Zoom in")}
-          >
-            <ZoomIn className="size-4" />
-          </button>
-          <div className="w-px h-4 bg-border mx-1" />
-          <button
-            type="button"
-            onClick={goToPrev}
-            disabled={pageNum <= 1}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title={t("fileDetail.previousPage", "Previous page")}
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <span className="text-xs tabular-nums text-foreground">
-            {pageNum} / {numPages}
-          </span>
-          <button
-            type="button"
-            onClick={goToNext}
-            disabled={pageNum >= numPages}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title={t("fileDetail.nextPage", "Next page")}
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={zoomOut}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomOut", "Zoom out")}
+        >
+          <ZoomOut className="size-4" />
+        </button>
+        <span className="text-xs tabular-nums text-muted-foreground min-w-8 text-center">
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={zoomIn}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomIn", "Zoom in")}
+        >
+          <ZoomIn className="size-4" />
+        </button>
+      </div>
       <ScrollArea className="flex-1 w-full min-h-0 overflow-hidden bg-muted">
         <div className="p-4">
-          {loading ? (
-            <div className="text-sm text-muted-foreground mt-10">{t("fileDetail.loading")}</div>
-          ) : (
-            <canvas
-              ref={canvasRef}
-              className="shadow-lg bg-white m-auto"
-              style={canvasSize ? { width: canvasSize.w, height: canvasSize.h } : undefined}
-            />
+          {loading && (
+            <div className="text-sm text-muted-foreground mt-10 text-center">
+              {t("fileDetail.loading")}
+            </div>
           )}
+          <div ref={setContainer} />
         </div>
       </ScrollArea>
     </div>

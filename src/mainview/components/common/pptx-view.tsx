@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { loadPresentation, renderSlideToElement } from "pptx-viewer";
+import { useEffect, useState } from "react";
+import { PptxPresentation } from "@silurus/ooxml/pptx";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ZoomIn, ZoomOut } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface PptxViewProps {
   data: ArrayBuffer;
@@ -10,57 +11,26 @@ export interface PptxViewProps {
 
 export function PptxView({ data }: PptxViewProps) {
   const { t } = useTranslation();
-  const [container, setContnet] = useState<HTMLDivElement | null>(null);
-  const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
-  const [slideCount, setSlideCount] = useState(0);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [pres, setPres] = useState<PptxPresentation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [presentation, setPresentation] = useState<Awaited<
-    ReturnType<typeof loadPresentation>
-  > | null>(null);
-  const [aspectRatio, setAspectRatio] = useState(16 / 9);
-
-  useEffect(() => {
-    if (!container || !wrapper || !presentation) return;
-
-    container.innerHTML = "";
-
-    const wrapperWidth = wrapper.clientWidth - 32;
-    const renderWidth = Math.min(wrapperWidth, 960);
-    const renderHeight = renderWidth / aspectRatio;
-
-    renderSlideToElement(presentation, currentSlide, container, {
-      width: renderWidth,
-      height: renderHeight,
-    });
-
-    container.style.width = `${renderWidth}px`;
-    container.style.height = `${renderHeight}px`;
-  }, [container, wrapper, aspectRatio, presentation, currentSlide]);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
+    let instance: PptxPresentation | null = null;
 
-    let currentPres: typeof presentation = null;
     async function load() {
-      setLoading(true);
-      setError(null);
       try {
-        const pres = await loadPresentation(data);
+        instance = await PptxPresentation.load(data.slice(0));
         if (cancelled) {
-          pres.cleanup();
+          instance.destroy();
           return;
         }
-        setPresentation((currentPres = pres));
-        const { width, height } = pres.slideSize;
-        setAspectRatio(width / height);
-        setSlideCount(pres.slides.length);
-        setCurrentSlide(0);
+        setPres(instance);
       } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message || "Failed to load presentation");
-        }
+        if (!cancelled) setError(err.message || "Failed to load presentation");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -69,19 +39,57 @@ export function PptxView({ data }: PptxViewProps) {
     load();
     return () => {
       cancelled = true;
-      currentPres?.cleanup();
+      instance?.destroy();
+      setPres(null);
     };
   }, [data]);
 
-  const goToPrev = useCallback(() => {
-    const next = Math.max(0, currentSlide - 1);
-    setCurrentSlide(next);
-  }, [currentSlide]);
+  useEffect(() => {
+    if (!container || !pres) return;
+    let cancelled = false;
 
-  const goToNext = useCallback(() => {
-    const next = Math.min(slideCount - 1, currentSlide + 1);
-    setCurrentSlide(next);
-  }, [currentSlide, slideCount]);
+    while (container.lastChild) container.lastChild.remove();
+
+    async function renderAll() {
+      for (let i = 0; i < pres!.slideCount; i++) {
+        if (cancelled) return;
+
+        const pageDiv = document.createElement("div");
+        pageDiv.className = "shadow-lg bg-white mb-4 mx-auto relative";
+        container!.appendChild(pageDiv);
+
+        const canvas = document.createElement("canvas");
+        pageDiv.appendChild(canvas);
+
+        const textLayer = document.createElement("div");
+        textLayer.className = "absolute inset-0 overflow-hidden";
+        textLayer.style.lineHeight = "1";
+        pageDiv.appendChild(textLayer);
+
+        await pres!.renderSlide(canvas, i, {
+          width: 960 * scale,
+          onTextRun(run) {
+            const span = document.createElement("span");
+            span.textContent = run.text;
+            span.style.cssText = `position:absolute;left:${run.shapeX + run.inShapeX}px;top:${run.shapeY + run.inShapeY}px;font-size:${run.fontSize}px;font-family:${run.font};color:transparent;white-space:pre;cursor:text;width:${run.w}px;height:${run.h}px;`;
+            textLayer.appendChild(span);
+          },
+        });
+
+        pageDiv.style.width = `${canvas.offsetWidth}px`;
+        pageDiv.style.height = `${canvas.offsetHeight}px`;
+      }
+    }
+
+    renderAll();
+    return () => {
+      cancelled = true;
+      while (container.lastChild) container.lastChild.remove();
+    };
+  }, [container, pres, scale]);
+
+  const zoomIn = () => setScale((s) => Math.min(3, s + 0.2));
+  const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.2));
 
   if (error) {
     return (
@@ -92,42 +100,38 @@ export function PptxView({ data }: PptxViewProps) {
   }
 
   return (
-    <div className="flex flex-col items-center w-full h-full min-h-0">
-      {slideCount > 0 && (
-        <div className="flex h-10 items-center gap-3 px-4 py-2 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={goToPrev}
-            disabled={currentSlide <= 0}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title={t("fileDetail.previousSlide", "Previous slide")}
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <span className="text-xs tabular-nums text-foreground">
-            {currentSlide + 1} / {slideCount}
-          </span>
-          <button
-            type="button"
-            onClick={goToNext}
-            disabled={currentSlide >= slideCount - 1}
-            className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title={t("fileDetail.nextSlide", "Next slide")}
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      )}
-      <div
-        ref={setWrapper}
-        className="flex-1 overflow-auto w-full flex justify-center p-4 bg-[#80808020]"
-      >
-        {loading ? (
-          <div className="text-sm text-muted-foreground mt-10">{t("fileDetail.loading")}</div>
-        ) : (
-          <div ref={setContnet} className="shadow-lg bg-white shrink-0" />
-        )}
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={zoomOut}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomOut", "Zoom out")}
+        >
+          <ZoomOut className="size-4" />
+        </button>
+        <span className="text-xs tabular-nums text-muted-foreground min-w-8 text-center">
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={zoomIn}
+          className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          title={t("fileDetail.zoomIn", "Zoom in")}
+        >
+          <ZoomIn className="size-4" />
+        </button>
       </div>
+      <ScrollArea className="flex-1 w-full min-h-0 bg-muted">
+        <div className="p-4">
+          {loading && (
+            <div className="text-sm text-muted-foreground mt-10 text-center">
+              {t("fileDetail.loading")}
+            </div>
+          )}
+          <div ref={setContainer} />
+        </div>
+      </ScrollArea>
     </div>
   );
 }
