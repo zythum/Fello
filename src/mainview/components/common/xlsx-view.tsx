@@ -43,7 +43,7 @@ export function XlsxView({ data }: XlsxViewProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground mt-10 text-center">
         {t("fileDetail.loadError", "Failed to load spreadsheet")}: {error}
       </div>
     );

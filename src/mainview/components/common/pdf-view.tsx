@@ -125,9 +125,17 @@ export function PdfView({ data }: PdfViewProps) {
   const zoomIn = () => setScale((s) => Math.min(3, s + 0.2));
   const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.2));
 
+  if (loading) {
+    return (
+      <div className="text-sm text-muted-foreground mt-10 text-center">
+        {t("fileDetail.loading")}
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground mt-10 text-center">
         {t("fileDetail.loadError", "Failed to load PDF")}: {error}
       </div>
     );
@@ -135,22 +143,30 @@ export function PdfView({ data }: PdfViewProps) {
 
   return (
     <div className="flex flex-col w-full h-full min-h-0">
-      <div className="flex items-center gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
+      <div className="flex items-center justify-end gap-3 px-4 py-2 h-10 shrink-0 border-b border-border w-full bg-background/80 backdrop-blur-sm">
         <button
           type="button"
           onClick={zoomOut}
           className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          aria-label={t("fileDetail.zoomOut", "Zoom out")}
           title={t("fileDetail.zoomOut", "Zoom out")}
         >
           <ZoomOut className="size-4" />
         </button>
-        <span className="text-xs tabular-nums text-muted-foreground min-w-8 text-center">
+        <button
+          type="button"
+          onDoubleClick={() => setScale(1)}
+          className="text-xs tabular-nums text-muted-foreground min-w-8 text-center hover:text-foreground transition-colors"
+          aria-label={t("fileDetail.resetZoom", "Reset")}
+          title={t("fileDetail.resetZoom", "Reset")}
+        >
           {Math.round(scale * 100)}%
-        </span>
+        </button>
         <button
           type="button"
           onClick={zoomIn}
           className="flex items-center justify-center size-7 rounded hover:bg-muted transition-colors"
+          aria-label={t("fileDetail.zoomIn", "Zoom in")}
           title={t("fileDetail.zoomIn", "Zoom in")}
         >
           <ZoomIn className="size-4" />
@@ -158,11 +174,6 @@ export function PdfView({ data }: PdfViewProps) {
       </div>
       <ScrollArea className="flex-1 w-full min-h-0 overflow-hidden bg-muted">
         <div className="p-4">
-          {loading && (
-            <div className="text-sm text-muted-foreground mt-10 text-center">
-              {t("fileDetail.loading")}
-            </div>
-          )}
           <div ref={setContainer} />
         </div>
       </ScrollArea>

@@ -491,6 +491,8 @@
     "fileFormatNotSupported": "File format not supported for preview",
     "errorLoading": "Error loading file",
     "loading": "Loading...",
+    "noChanges": "No changes detected",
+    "resetZoom": "Reset",
     "preview": "Preview",
     "code": "Code",
     "compare": "Compare",

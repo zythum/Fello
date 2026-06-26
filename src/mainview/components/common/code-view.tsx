@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { File } from "@pierre/diffs/react";
 import type { SelectedLineRange, SupportedLanguages } from "@pierre/diffs";
@@ -28,6 +29,7 @@ export interface CodeViewProps {
 
 export function CodeView({ className, content, filename, lang, addLineToChat }: CodeViewProps) {
   const { resolvedTheme } = useTheme();
+  const { t } = useTranslation();
   const isDark = resolvedTheme === "dark";
   const [highlighterReady, setHighlighterReady] = useState(() => isShikiReady());
   const readyRef = useRef(highlighterReady);
@@ -50,13 +52,8 @@ export function CodeView({ className, content, filename, lang, addLineToChat }: 
 
   if (!highlighterReady) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center p-4 text-xs text-muted-foreground",
-          className,
-        )}
-      >
-        Loading syntax highlighter...
+      <div className={cn("text-sm text-muted-foreground mt-10 text-center", className)}>
+        {t("fileDetail.loading")}
       </div>
     );
   }

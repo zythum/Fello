@@ -491,6 +491,8 @@
     "fileFormatNotSupported": "该文件格式不支持预览",
     "errorLoading": "加载文件失败",
     "loading": "加载中...",
+    "noChanges": "无变更",
+    "resetZoom": "重置",
     "preview": "预览",
     "code": "源码",
     "compare": "对比",

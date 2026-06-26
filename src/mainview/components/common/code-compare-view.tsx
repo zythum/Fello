@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
@@ -37,6 +38,7 @@ export function CodeCompareView({
   diffStyle,
 }: CodeCompareViewProps) {
   const { resolvedTheme } = useTheme();
+  const { t } = useTranslation();
   const isDark = resolvedTheme === "dark";
   const [headerEl, setHeaderEl] = useState<HTMLDivElement | null>(null);
   const [fallbackDiffStyle, setFallbackDiffStyle] = useState<"split" | "unified">(
@@ -86,13 +88,16 @@ export function CodeCompareView({
   // so the collapsible panel has content height.
   if (!highlighterReady) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center p-4 text-xs text-muted-foreground",
-          className,
-        )}
-      >
-        Loading syntax highlighter...
+      <div className={cn("text-sm text-muted-foreground mt-10 text-center", className)}>
+        {t("fileDetail.loading")}
+      </div>
+    );
+  }
+
+  if (oldContent === newContent) {
+    return (
+      <div className={cn("text-sm text-muted-foreground mt-10 text-center", className)}>
+        {t("fileDetail.noChanges", "No changes detected")}
       </div>
     );
   }
