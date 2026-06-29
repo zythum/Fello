@@ -688,7 +688,12 @@ export function Sidebar() {
         >
           <div className="flex items-center gap-2">
             <Settings className="size-3.5" />
-            {t("sidebar.settings")}
+            <span>{t("sidebar.settings")}</span>
+            {process.env.NODE_ENV === "development" && (
+              <span className="text-xs text-indigo-400/80 -ml-1.5 inline-block scale-50 origin-left -translate-y-1">
+                [DEV]
+              </span>
+            )}
           </div>
           {webUIStatus.enabled && (
             <div title={t("sidebar.webuiEnabled", "WebUI Enabled")}>

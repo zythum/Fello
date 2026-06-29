@@ -65,9 +65,12 @@ export function Welcome() {
       onMouseLeave={handleMouseLeave}
     >
       {/* Version */}
-      <span className="absolute bottom-3 right-4 text-[11px] text-muted-foreground/40 z-10 pointer-events-none">
-        v{__APP_VERSION__}
-      </span>
+      <div className="absolute bottom-3 right-4 text-[11px] text-muted-foreground/40 z-10 pointer-events-none">
+        <span>v{__APP_VERSION__}</span>
+        {process.env.NODE_ENV === "development" && (
+          <span className="text-indigo-400/80 scale-70 origin-right inline-block -ml-1">[DEV]</span>
+        )}
+      </div>
 
       {/* macOS traffic light drag region */}
       <div
