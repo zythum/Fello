@@ -1,0 +1,256 @@
+import { readFile } from "fs/promises";
+import { omit } from "es-toolkit";
+import { randomUUID } from "crypto";
+import type { SessionNotification, ContentBlock, ToolCallUpdate } from "@agentclientprotocol/sdk";
+import { zContentBlock } from "@agentclientprotocol/sdk/dist/schema/zod.gen.js";
+import type { BackendContext } from "../types";
+import type { SessionNotificationFelloExt } from "../../shared/schema";
+import type { IlinkState } from "../ilink";
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function findContentBlock(object: any): ContentBlock | null {
+  const { data, success } = zContentBlock.safeParse(object);
+  if (success) return data;
+  if (object && typeof object === "object") {
+    for (const name in object) {
+      if (object.hasOwnProperty(name)) {
+        const content = findContentBlock(object[name]);
+        if (content) return content;
+      }
+    }
+  }
+  return null;
+}
+
+function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, update: T): T {
+  const merged: ToolCallUpdate = { ...base };
+  if (Object.prototype.hasOwnProperty.call(update, "title")) merged.title = update.title;
+  if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null)
+    merged.status = update.status;
+  if (Object.prototype.hasOwnProperty.call(update, "content")) merged.content = update.content;
+  if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null)
+    merged.kind = update.kind;
+  if (Object.prototype.hasOwnProperty.call(update, "rawInput")) merged.rawInput = update.rawInput;
+  if (Object.prototype.hasOwnProperty.call(update, "locations"))
+    merged.locations = update.locations;
+  if (Object.prototype.hasOwnProperty.call(update, "rawOutput"))
+    merged.rawOutput = update.rawOutput;
+  if (Object.prototype.hasOwnProperty.call(update, "_meta")) merged._meta = update._meta;
+  return merged as T;
+}
+
+function flushIlinkMedia(
+  bridge: NonNullable<ReturnType<IlinkState["getBridge"]>>,
+  ilinkState: IlinkState,
+) {
+  const items = ilinkState.getMediaBuffer();
+  if (items.length === 0) return;
+  ilinkState.clearMediaBuffer();
+  for (const img of items) {
+    (async () => {
+      try {
+        const buffer = await readFile(img.filePath);
+        if (ilinkState.isImageMimeType(img.mimeType)) {
+          await bridge.sendImageReply(img.toUserId, buffer, img.name);
+        } else {
+          await bridge.sendFileReply(img.toUserId, buffer, img.name);
+        }
+      } catch (err) {
+        console.warn("[iLink] Failed to forward file to WeChat:", err);
+      }
+    })();
+  }
+}
+
+// ── Factory ──────────────────────────────────────────────────────────
+
+export function createNotificationHandler(ctx: BackendContext, deps: { ilink: IlinkState }) {
+  const { sendEvent, storage } = ctx;
+  const restoringSessions = new Set<string>();
+  const pendingToolCalls = new Map<string, ToolCallUpdate>();
+
+  function getPendingToolCallKey(sessionId: string, toolCallId: string) {
+    return `${sessionId}:${toolCallId}`;
+  }
+
+  function addRestoring(sessionId: string) {
+    restoringSessions.add(sessionId);
+  }
+
+  function removeRestoring(sessionId: string) {
+    restoringSessions.delete(sessionId);
+  }
+
+  function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionNotification) {
+    const sessionUpdate = notification.update?.sessionUpdate;
+
+    if (
+      restoringSessions.has(sessionId) &&
+      sessionUpdate !== "available_commands_update" &&
+      sessionUpdate !== "usage_update"
+    ) {
+      return;
+    }
+
+    const enrichedNotification: SessionNotificationFelloExt = {
+      ...notification,
+      update: {
+        ...notification.update,
+        _meta: {
+          ...notification.update?._meta,
+          fello: { receivedAt: Date.now(), displayId: randomUUID() },
+        },
+      },
+    };
+
+    const enrichedUpdate = enrichedNotification.update;
+    const ilinkBridge = deps.ilink.getBridge();
+    const ilinkActiveSessionId = deps.ilink.getActiveSessionId();
+
+    // iLink forwarding: agent response → WeChat
+    if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
+      const userId = ilinkBridge.userId;
+      if (userId) {
+        if (enrichedUpdate.sessionUpdate === "agent_message_chunk") {
+          const content = enrichedUpdate.content;
+          if (content?.type === "text" && content.text) {
+            deps.ilink.appendReplyBuffer(content.text);
+          }
+        }
+      }
+    }
+
+    // Flush buffered text before tool call
+    if (
+      sessionUpdate === "tool_call" &&
+      ilinkBridge?.isConnected &&
+      sessionId === ilinkActiveSessionId
+    ) {
+      const userId = ilinkBridge.userId;
+      const buffer = deps.ilink.getReplyBuffer();
+      if (userId && buffer) {
+        deps.ilink.setReplyBuffer("");
+        ilinkBridge.sendTextReply(userId, buffer).catch((err) => {
+          console.warn("[iLink] Failed to forward pre-tool text to WeChat:", err);
+        });
+      }
+      flushIlinkMedia(ilinkBridge, deps.ilink);
+    }
+
+    if (sessionUpdate === "tool_call_update") {
+      const update = enrichedNotification.update as unknown as ToolCallUpdate;
+      const toolCallId = update.toolCallId;
+      const key = getPendingToolCallKey(sessionId, toolCallId);
+      const base = pendingToolCalls.get(key);
+
+      if (!update.content && update.rawOutput) {
+        const content = findContentBlock(update.rawOutput);
+        if (content) {
+          update.content = [{ type: "content", content }];
+        }
+      }
+
+      if (update.status === "in_progress") {
+        if (base) {
+          pendingToolCalls.set(key, mergeToolCallUpdate(base, update));
+        } else {
+          pendingToolCalls.set(key, { ...update });
+        }
+      } else {
+        if (base) {
+          enrichedNotification.update = mergeToolCallUpdate(
+            base,
+            update,
+          ) as SessionNotificationFelloExt["update"];
+          pendingToolCalls.delete(key);
+        }
+        storage.appendSessionMessage(sessionId, {
+          ...enrichedNotification,
+          update: omit(enrichedNotification.update as any, ["rawInput", "rawOutput"]),
+        } as SessionNotificationFelloExt);
+
+        if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
+          flushIlinkMedia(ilinkBridge, deps.ilink);
+        }
+      }
+    } else {
+      storage.appendSessionMessage(sessionId, enrichedNotification);
+    }
+
+    sendEvent("session-update", { sessionId, notification: enrichedNotification });
+  }
+
+  function mergeNotifications(
+    notifications: SessionNotificationFelloExt[],
+  ): SessionNotificationFelloExt[] {
+    const result: SessionNotificationFelloExt[] = [];
+
+    for (const notification of notifications) {
+      const update = notification.update;
+      if (!update) {
+        result.push(notification);
+        continue;
+      }
+
+      const type = update.sessionUpdate;
+
+      if (type === "agent_message_chunk" || type === "agent_thought_chunk") {
+        const prev = result.length > 0 ? result[result.length - 1] : undefined;
+        if (
+          prev?.update?.sessionUpdate === type &&
+          prev.update.content?.type === "text" &&
+          update.content?.type === "text"
+        ) {
+          result[result.length - 1] = {
+            ...prev,
+            update: {
+              ...prev.update,
+              content: {
+                ...prev.update.content,
+                text: prev.update.content.text + update.content.text,
+              },
+            },
+          };
+          continue;
+        }
+      }
+
+      if (type === "tool_call" || type === "tool_call_update") {
+        const toolCallId = (update as any).toolCallId;
+        const idx = result.findIndex(
+          (n) =>
+            (n.update?.sessionUpdate === "tool_call" ||
+              n.update?.sessionUpdate === "tool_call_update") &&
+            (n.update as any).toolCallId === toolCallId,
+        );
+        if (idx !== -1) {
+          const prev = result[idx];
+          result[idx] = {
+            ...prev,
+            update: { ...prev.update, ...update, sessionUpdate: "tool_call" },
+          } as SessionNotificationFelloExt;
+          continue;
+        }
+      }
+
+      result.push(notification);
+    }
+    return result;
+  }
+
+  function clear() {
+    restoringSessions.clear();
+    pendingToolCalls.clear();
+  }
+
+  return {
+    broadcastAndSaveSessionUpdate,
+    mergeNotifications,
+    addRestoring,
+    removeRestoring,
+    flushIlinkMedia: (bridge: NonNullable<ReturnType<IlinkState["getBridge"]>>) =>
+      flushIlinkMedia(bridge, deps.ilink),
+    clear,
+  };
+}

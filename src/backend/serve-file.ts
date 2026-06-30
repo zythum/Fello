@@ -5,7 +5,7 @@ import * as mimeTypes from "mime-types";
 /**
  * Result of serving a project file.
  */
-export interface ProjectFileResult {
+export interface ServeFileResult {
   status: number;
   body: Uint8Array | string;
   mimeType: string;
@@ -16,11 +16,11 @@ export interface ProjectFileResult {
  * Safely resolve and read a file from a directory.
  * Prevents directory traversal — any path escaping the root is rejected.
  *
- * This function is shared by:
- *   - Electron's custom `fello://` protocol handler (protocol.handle)
- *   - WebUI's HTTP server route (`/project/:projectId/*`)
+ * Shared by:
+ *   - Electron's custom `fello://` protocol handler
+ *   - WebUI/file-routes HTTP handler
  */
-export async function serveFile(filename: string, cwd: string): Promise<ProjectFileResult> {
+export async function serveFile(filename: string, cwd: string): Promise<ServeFileResult> {
   // 1. Resolve the path relative to the root
   const safeCwd = resolve(cwd);
   const fullPath = resolve(safeCwd, filename || "");

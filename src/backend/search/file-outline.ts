@@ -10,9 +10,9 @@ import type {
   NameOfConfig,
   FileOutlineWorkerRequest,
   FileOutlineWorkerResponse,
-} from "../shared/zod/worker-file-outline-schema";
+} from "../../shared/zod/worker-file-outline-schema";
 
-export type { OutlineSymbol, FileOutline } from "../shared/zod/worker-file-outline-schema";
+export type { OutlineSymbol, FileOutline } from "../../shared/zod/worker-file-outline-schema";
 
 // ─── Path Normalization ──────────────────────────────────────────────────────
 

@@ -81,7 +81,7 @@ Always prefer using line/limit to read specific sections, or use the Search MCP'
 
         try {
           const MAX_SIZE_BYTES = 100 * 1024; // 100KB
-          const LIMIT_SIZE_BYTES = 1024 * 1024; // 1024KB
+          const LIMIT_SIZE_BYTES = 300 * 1024; // 300KB
 
           // For targeted reads (line/limit specified), always allow
           const isFullFileRead = !line && !limit;
@@ -96,9 +96,9 @@ Always prefer using line/limit to read specific sections, or use the Search MCP'
           if (output.content) {
             const byteSize = new TextEncoder().encode(output.content).length;
             if (byteSize > LIMIT_SIZE_BYTES) {
-              const sizeMB = (byteSize / 1024 / 1024).toFixed(2);
+              const sizeKB = (byteSize / 1024).toFixed(2);
               throw new Error(
-                `This file is ${sizeMB}MB, over 1 MB limit. Please do not read it directly.`,
+                `This file is ${sizeKB}kB, over 300 kB limit. Please do not read it directly.`,
               );
             }
 

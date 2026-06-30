@@ -4,7 +4,7 @@ import { fork } from "child_process";
 import type {
   RipgrepWorkerRequest,
   RipgrepWorkerResponse,
-} from "../shared/zod/worker-ripgrep-schema";
+} from "../../shared/zod/worker-ripgrep-schema";
 
 // ── Child Process Execution ──────────────────────────────────────────
 

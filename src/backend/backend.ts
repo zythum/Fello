@@ -1,57 +1,31 @@
 import { readdir, rm, readFile } from "fs/promises";
 import { join } from "path";
-import { startWebUI, stopWebUI, getWebUIStatus, broadcastWebUIEvent } from "./webui";
+import type { FelloIPCSchema, Schedule } from "../shared/schema";
+import type { BackendContext, SendEventFn, EventListener, BackendHandlers } from "./types";
 import { storageOps, TEMP_DIR } from "./storage";
-import { initRunner, executeTask, stopAllCrons } from "./automation";
-import * as automationHandlers from "./automation";
-import { initWatcher, syncWatchers } from "./watcher";
-import {
-  getSkillsCatalog,
-  getSkillSystemPathFromId,
-  SKILL_FILENAME,
-  searchSkills,
-  installSkill,
-} from "./skills";
-import { readActiveSessionId } from "./ilink/ilink-bridge";
 import { setLanguage } from "./i18n";
-import type { FelloIPCSchema } from "../shared/schema";
-
-// Domain modules
-import { initPool, bridgePool, clearPool } from "./session-agent-bridge";
-import { initTerminal, killAllTerminals } from "./terminal";
-import * as terminalHandlers from "./terminal";
-import { initAskUser } from "./ask-user";
-import * as askUserHandlers from "./ask-user";
-
-import { markProjectFsDirty } from "./project-filesystem";
-import * as filesystemHandlers from "./project-filesystem";
-import {
-  initSession,
-  broadcastAndSaveSessionUpdate,
-  clearSession,
-  resetAgentSessions,
-  deleteAgentSessions,
-} from "./session";
-import * as sessionHandlers from "./session";
-import { initProject } from "./project";
-import * as projectHandlers from "./project";
-import { initIlinkHandlers, getILinkBridge } from "./ilink-handlers";
-import * as ilinkHandlers from "./ilink-handlers";
-import * as gitHandlers from "./project-git";
-import { setIlinkActiveSessionId } from "./ilink-state";
 import {
   deleteAgentPersistedStorage,
   deleteOrphanedAgentSessionDirectories,
 } from "../agents/storage";
 
-// ── sendEvent ────────────────────────────────────────────────────────
+// ── Module factories ─────────────────────────────────────────────────
 
-let sendEvent: <K extends keyof FelloIPCSchema["events"]>(
-  channel: K,
-  payload: FelloIPCSchema["events"][K],
-) => boolean = () => false;
+import { createWebUIModule } from "./webui";
+import { createWatcherModule } from "./watcher";
+import { createSkillsModule, SKILL_FILENAME } from "./skills";
+import { createSearchModule } from "./search";
+import { createAskUserModule } from "./ask-user";
+import { createShareToUserModule } from "./share-to-user";
+import { createBridgePoolModule } from "./bridge-pool";
+import { createTerminalModule } from "./terminal";
+import { createProjectModule } from "./project";
+import { createSessionModule } from "./session";
+import { createIlinkModule } from "./ilink";
+import { createInferenceModule } from "./inference";
+import { createAutomationModule } from "./automation";
 
-// ── Init / Clear ─────────────────────────────────────────────────────
+// ── Init ─────────────────────────────────────────────────────────────
 
 export function initBackend(
   emitter: <K extends keyof FelloIPCSchema["events"]>(
@@ -59,408 +33,464 @@ export function initBackend(
     payload: FelloIPCSchema["events"][K],
   ) => boolean,
 ) {
-  sendEvent = (channel, payload) => {
-    if (channel === "fs-changed") {
-      markProjectFsDirty((payload as FelloIPCSchema["events"]["fs-changed"]).projectId);
-    }
-    const sentWebUI = broadcastWebUIEvent(channel, payload);
+  // ── Event bus ──
+  const listeners: EventListener[] = [];
+
+  // WebUI must be created before sendEvent (sendEvent broadcasts to WebUI clients)
+  const webui = createWebUIModule();
+
+  const sendEvent: SendEventFn = (channel, payload) => {
+    for (const listener of listeners) listener(channel, payload);
+    const sentWebUI = webui.broadcastEvent(channel, payload);
     const sentNative = emitter(channel, payload);
     return sentWebUI || sentNative;
   };
 
-  // Init all sub-modules
-  initSession(sendEvent);
-  initProject(sendEvent);
-  initPool({
-    sendEvent,
-    broadcastAndSaveSessionUpdate,
+  const onEvent = (listener: EventListener) => {
+    listeners.push(listener);
+  };
+
+  const ctx: BackendContext = { sendEvent, onEvent, storage: storageOps };
+
+  // ── Layer 0: ilink (provides state for ask-user, share-to-user, session) ──
+  const ilink = createIlinkModule(ctx);
+
+  // ── Layer 1: basic modules ──
+  const askUser = createAskUserModule(ctx, { ilink: ilink.state });
+  const shareToUser = createShareToUserModule(ctx, { ilink: ilink.state });
+  const skills = createSkillsModule(ctx);
+  const search = createSearchModule(ctx);
+  const watcher = createWatcherModule(ctx);
+
+  // ── Layer 2: bridge pool (needs askUser) ──
+  const bridgePool = createBridgePoolModule(ctx, { askUser });
+
+  // ── Layer 3: session, project, terminal ──
+  const session = createSessionModule(ctx, {
+    bridgePool,
+    askUser,
+    shareToUser,
+    skills,
+    search,
+    ilink: ilink.state,
   });
-  initTerminal(sendEvent);
-  initAskUser(sendEvent);
-  initIlinkHandlers({ sendEvent, backendHandlers });
-  initWatcher(sendEvent);
+  const project = createProjectModule(ctx, { bridgePool: bridgePool.pool, watcher });
+  const terminal = createTerminalModule(ctx, { bridgePool: bridgePool.pool });
 
-  // Initialize automation runner and restore crons
-  initRunner(sendEvent);
+  // ── Layer 4: inference (standalone) ──
+  const _inference = createInferenceModule(ctx, { skills, search });
 
-  // Try to restore iLink session on startup
-  getILinkBridge()
-    .tryRestore()
-    .then(async (restored) => {
-      if (restored) {
-        const savedId = await readActiveSessionId();
-        if (savedId && storageOps.getSession(savedId)) {
-          setIlinkActiveSessionId(savedId);
-          sendEvent("ilink-active-session-changed", { sessionId: savedId });
-        }
-      }
-    })
-    .catch((err) => {
-      console.warn("[iLink] Failed to restore session:", err);
-    });
-}
+  // ── Late bindings (resolve circular deps) ──
+  ilink.setHandlers({
+    sendPrompt: session.sendPrompt,
+    cancelPrompt: session.cancelPrompt,
+    newSession: session.newSession,
+    getModels: session.getModels,
+    setModel: session.setModel,
+    respondAskUser: askUser.respondAskUser,
+    getPendingAskUserRequests: askUser.getPendingAskUserRequests,
+  });
 
-export async function clearBackend() {
-  stopAllCrons();
-  clearSession();
-  await clearPool();
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  killAllTerminals();
+  // ── Layer 5: automation ──
+  const automation = createAutomationModule(ctx, { inference: _inference });
 
-  for (const file of await readdir(TEMP_DIR)) {
-    await rm(join(TEMP_DIR, file), { recursive: true, force: true });
-  }
-}
+  // Try to restore iLink connection on startup
+  ilink.tryRestore().catch((err) => {
+    console.warn("[iLink] Failed to restore session:", err);
+  });
 
-// ── backendHandlers ──────────────────────────────────────────────────
+  // ── Assemble backendHandlers ───────────────────────────────────────
+  const backendHandlers: BackendHandlers = {
+    // WebUI
+    async getWebUIStatus() {
+      return webui.getStatus();
+    },
+    async startWebUIServer({ port, token }: { port?: number; token?: string }) {
+      const { url } = await webui.start({ port, token });
+      const status = { enabled: true, url };
+      sendEvent("webui-status-changed", { status });
+      return status;
+    },
+    async stopWebUIServer() {
+      webui.stop();
+      const status = { enabled: false, url: null };
+      sendEvent("webui-status-changed", { status });
+      return status;
+    },
 
-export const backendHandlers: {
-  [K in keyof FelloIPCSchema["requests"]]: (
-    params: FelloIPCSchema["requests"][K]["params"],
-  ) => Promise<FelloIPCSchema["requests"][K]["response"]>;
-} = {
-  // WebUI
-  async getWebUIStatus() {
-    return getWebUIStatus();
-  },
-  async startWebUIServer({ port, token }) {
-    const { url } = await startWebUI({ port, token });
-    const status = { enabled: true, url };
-    sendEvent("webui-status-changed", { status });
-    return status;
-  },
-  async stopWebUIServer() {
-    stopWebUI();
-    const status = { enabled: false, url: null };
-    sendEvent("webui-status-changed", { status });
-    return status;
-  },
+    // Settings
+    async getSettings() {
+      return storageOps.getSettings();
+    },
+    async updateSettings(settings: Parameters<typeof storageOps.updateSettings>[0]) {
+      const newAgents = settings.agents;
+      if (newAgents) {
+        const oldAgents = storageOps.getSettings().agents;
+        const oldMap = new Map(oldAgents.map((a) => [a.id, a]));
+        const newMap = new Map(newAgents.map((a) => [a.id, a]));
+        const changedOrRemoved = new Set<string>();
 
-  // Settings
-  async getSettings() {
-    return storageOps.getSettings();
-  },
-  async updateSettings(settings) {
-    const newAgents = settings.agents;
-    if (newAgents) {
-      const oldAgents = storageOps.getSettings().agents;
-
-      // 找出被修改的 Agent（ID 相同但配置不同）和被删除的 Agent
-      const oldMap = new Map(oldAgents.map((a) => [a.id, a]));
-      const newMap = new Map(newAgents.map((a) => [a.id, a]));
-      const changedOrRemoved = new Set<string>();
-
-      for (const [id, oldCfg] of oldMap) {
-        if (!newMap.has(id)) {
-          changedOrRemoved.add(id); // 被删除
-        } else {
-          const newCfg = newMap.get(id)!;
-          if (JSON.stringify(oldCfg) !== JSON.stringify(newCfg)) {
-            changedOrRemoved.add(id); // 配置变更
+        for (const [id, oldCfg] of oldMap) {
+          if (!newMap.has(id)) {
+            changedOrRemoved.add(id);
+          } else {
+            const newCfg = newMap.get(id)!;
+            if (JSON.stringify(oldCfg) !== JSON.stringify(newCfg)) changedOrRemoved.add(id);
           }
         }
-      }
 
-      if (changedOrRemoved.size > 0) {
-        for (const agentId of changedOrRemoved) {
-          const isRemoved = !newMap.has(agentId);
-          if (isRemoved) {
-            // Agent 被删除：关闭会话、删除持久化数据、清理本地存储
-            await deleteAgentSessions(agentId).catch((err) => {
-              console.warn(`[backend] Failed to delete sessions for agent ${agentId}:`, err);
-            });
-            // 仅 API 类型 Agent 有 ~/.fello/api-agents/<agentId>/ 持久化目录，需要清理
-            if (oldMap.get(agentId)?.type === "api") {
-              try {
-                deleteAgentPersistedStorage(agentId);
-              } catch (err) {
-                console.warn(
-                  `[backend] Failed to delete persisted storage for agent ${agentId}:`,
-                  err,
+        if (changedOrRemoved.size > 0) {
+          for (const agentId of changedOrRemoved) {
+            const isRemoved = !newMap.has(agentId);
+            if (isRemoved) {
+              await session.deleteAgentSessions(agentId).catch((err) => {
+                console.warn(`[backend] Failed to delete sessions for agent ${agentId}:`, err);
+              });
+              if (oldMap.get(agentId)?.type === "api") {
+                try {
+                  deleteAgentPersistedStorage(agentId);
+                } catch (err) {
+                  console.warn(
+                    `[backend] Failed to delete persisted storage for agent ${agentId}:`,
+                    err,
+                  );
+                }
+              }
+            } else {
+              await session.resetAgentSessions(agentId).catch((err) => {
+                console.warn(`[backend] Failed to reset sessions for agent ${agentId}:`, err);
+              });
+              if (oldMap.get(agentId)?.type === "api") {
+                const knownResumeIds = new Set(
+                  storageOps
+                    .listSessions()
+                    .filter((s) => s.agentId === agentId)
+                    .map((s) => s.resumeId),
                 );
+                deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
               }
             }
-          } else {
-            // Agent 配置变更：仅关闭会话（保留持久化数据）
-            await resetAgentSessions(agentId).catch((err) => {
-              console.warn(`[backend] Failed to reset sessions for agent ${agentId}:`, err);
-            });
-            // 如果是 API Agent，清理 api-agents 目录下的孤儿会话历史
-            if (oldMap.get(agentId)?.type === "api") {
-              const knownResumeIds = new Set(
-                storageOps
-                  .listSessions()
-                  .filter((s) => s.agentId === agentId)
-                  .map((s) => s.resumeId),
-              );
-              deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
+            const p = bridgePool.pool.get(agentId);
+            if (p) {
+              bridgePool.pool.delete(agentId);
+              p.then((b) => b.kill()).catch(() => {});
             }
-          }
-          // 断连并销毁 bridge
-          const p = bridgePool.get(agentId);
-          if (p) {
-            bridgePool.delete(agentId);
-            p.then((b) => b.kill()).catch(() => {});
           }
         }
       }
-    }
-    storageOps.updateSettings(settings);
-    if (settings.i18n?.language) setLanguage(settings.i18n.language);
-    await syncWatchers();
-  },
+      storageOps.updateSettings(settings);
+      if (settings.i18n?.language) setLanguage(settings.i18n.language);
+      await watcher.syncWatchers();
+    },
 
-  // Skills
-  async getSkillsCatalog({ all, projectId }) {
-    return getSkillsCatalog({
-      projectRoot: projectId ? storageOps.getProject(projectId)?.cwd : undefined,
-      all,
-    });
-  },
-  async readSkillFile({ skillId, projectId }) {
-    return readFile(await this.getSkillFileSystemFilePath({ skillId, projectId }), "utf-8");
-  },
-  async getSkillFileSystemFilePath({ skillId, projectId }) {
-    const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
-    const skillDir = getSkillSystemPathFromId(skillId, { projectRoot });
-    if (!skillDir) throw new Error(`Failed to read skill: ${skillId}`);
-    return join(skillDir, SKILL_FILENAME);
-  },
-  async uninstallSkill({ skillId, projectId }) {
-    const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
-    const skillDir = getSkillSystemPathFromId(skillId, { projectRoot });
-    if (!skillDir) throw new Error(`Failed to read skill: ${skillId}`);
-    await rm(skillDir, { recursive: true, force: true });
-  },
-  async searchSkillsFromSkillsSh({ query }) {
-    return searchSkills(query);
-  },
-  async installSkillFromSkillsSh({ source, slug }) {
-    await installSkill(source, slug);
-  },
-
-  // Projects
-  async listProjects() {
-    return projectHandlers.listProjects();
-  },
-  async addProject(cwd: string) {
-    return projectHandlers.addProject(cwd);
-  },
-  async renameProject(params) {
-    return projectHandlers.renameProject(params);
-  },
-  async deleteProject(projectId: string) {
-    return projectHandlers.deleteProject(projectId);
-  },
-
-  // Sessions
-  async listSessions() {
-    return storageOps.listSessions();
-  },
-  async newSession(params) {
-    return sessionHandlers.newSession(params);
-  },
-  async loadSession(params) {
-    return sessionHandlers.loadSession(params);
-  },
-  async getSessionHistory(params) {
-    return sessionHandlers.getSessionHistory(params);
-  },
-  async sendPrompt(params) {
-    return sessionHandlers.sendPrompt(params);
-  },
-  async cancelPrompt(params) {
-    return sessionHandlers.cancelPrompt(params);
-  },
-  async updateSession(params) {
-    return sessionHandlers.updateSession(params);
-  },
-  async changeWorkDir() {
-    return sessionHandlers.changeWorkDir();
-  },
-  async deleteSession(sessionId) {
-    return sessionHandlers.deleteSession(sessionId);
-  },
-  async resetAgent({ agentId }) {
-    await resetAgentSessions(agentId);
-    // 如果是 API Agent，清理 api-agents 目录下已不存在的孤儿会话历史
-    const agentCfg = storageOps.getSettings().agents.find((a) => a.id === agentId);
-    if (agentCfg?.type === "api") {
-      const knownResumeIds = new Set(
-        storageOps
-          .listSessions()
-          .filter((s) => s.agentId === agentId)
-          .map((s) => s.resumeId),
+    // Skills
+    async getSkillsCatalog({ all, projectId }: { all?: boolean; projectId?: string }) {
+      return skills.getSkillsCatalog({
+        projectRoot: projectId ? storageOps.getProject(projectId)?.cwd : undefined,
+        all,
+      });
+    },
+    async readSkillFile({ skillId, projectId }: { skillId: string; projectId?: string }) {
+      return readFile(
+        await backendHandlers.getSkillFileSystemFilePath({ skillId, projectId }),
+        "utf-8",
       );
-      deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
+    },
+    async getSkillFileSystemFilePath({
+      skillId,
+      projectId,
+    }: {
+      skillId: string;
+      projectId?: string;
+    }) {
+      const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
+      const skillDir = skills.getSkillSystemPathFromId(skillId, { projectRoot });
+      if (!skillDir) throw new Error(`Failed to read skill: ${skillId}`);
+      return join(skillDir, SKILL_FILENAME);
+    },
+    async uninstallSkill({ skillId, projectId }: { skillId: string; projectId?: string }) {
+      const projectRoot = projectId ? storageOps.getProject(projectId)?.cwd : undefined;
+      const skillDir = skills.getSkillSystemPathFromId(skillId, { projectRoot });
+      if (!skillDir) throw new Error(`Failed to read skill: ${skillId}`);
+      await rm(skillDir, { recursive: true, force: true });
+    },
+    async searchSkillsFromSkillsSh({ query }: { query: string }) {
+      return skills.searchSkills(query);
+    },
+    async installSkillFromSkillsSh({ source, slug }: { source: string; slug: string }) {
+      await skills.installSkill(source, slug);
+    },
+
+    // Projects
+    async listProjects() {
+      return project.listProjects();
+    },
+    async addProject(cwd: string) {
+      return project.addProject(cwd);
+    },
+    async renameProject(params: { projectId: string; title: string }) {
+      return project.renameProject(params);
+    },
+    async deleteProject(projectId: string) {
+      return project.deleteProject(projectId);
+    },
+
+    // Sessions
+    async listSessions() {
+      return storageOps.listSessions();
+    },
+    async newSession(params) {
+      return session.newSession(params);
+    },
+    async loadSession(params) {
+      return session.loadSession(params);
+    },
+    async getSessionHistory(params) {
+      return session.getSessionHistory(params);
+    },
+    async sendPrompt(params) {
+      return session.sendPrompt(params);
+    },
+    async cancelPrompt(params) {
+      return session.cancelPrompt(params);
+    },
+    async updateSession(params) {
+      return session.updateSession(params);
+    },
+    async changeWorkDir() {
+      return session.changeWorkDir();
+    },
+    async deleteSession(sessionId: string) {
+      return session.deleteSession(sessionId);
+    },
+    async resetAgent({ agentId }: { agentId: string }) {
+      await session.resetAgentSessions(agentId);
+      const agentCfg = storageOps.getSettings().agents.find((a) => a.id === agentId);
+      if (agentCfg?.type === "api") {
+        const knownResumeIds = new Set(
+          storageOps
+            .listSessions()
+            .filter((s) => s.agentId === agentId)
+            .map((s) => s.resumeId),
+        );
+        deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
+      }
+      const p = bridgePool.pool.get(agentId);
+      if (p) {
+        bridgePool.pool.delete(agentId);
+        p.then((b) => b.kill()).catch(() => {});
+      }
+    },
+    async clearAgentSessions({ agentId }: { agentId: string }) {
+      const deletedSessionIds = await session.deleteAgentSessions(agentId);
+      return { deletedSessionIds };
+    },
+    async getModels(params) {
+      return session.getModels(params);
+    },
+    async setModel(params) {
+      return session.setModel(params);
+    },
+    async getModes(params) {
+      return session.getModes(params);
+    },
+    async setMode(params) {
+      return session.setMode(params);
+    },
+
+    // Ask User
+    async getPendingAskUserRequests(params) {
+      return askUser.getPendingAskUserRequests(params);
+    },
+    async respondAskUser(params) {
+      return askUser.respondAskUser(params);
+    },
+
+    // Filesystem
+    async getSystemFilePath(params) {
+      return project.getSystemFilePath(params);
+    },
+    async copyFileToWorkspace(params) {
+      return project.copyFileToWorkspace(params);
+    },
+    async readUrlAsDataUrl(params) {
+      return project.readUrlAsDataUrl(params);
+    },
+    async searchFiles(params) {
+      return project.searchFiles(params);
+    },
+    async readDir(params) {
+      return project.readDir(params);
+    },
+    async createFile(params) {
+      return project.createFile(params);
+    },
+    async deleteFile(params) {
+      return project.deleteFile(params);
+    },
+    async renameFile(params) {
+      return project.renameFile(params);
+    },
+    async moveFile(params) {
+      return project.moveFile(params);
+    },
+    async readFile(params) {
+      return project.readFile(params);
+    },
+    async getFileInfo(params) {
+      return project.getFileInfo(params);
+    },
+    async writeExternalFile(params) {
+      return project.writeExternalFile(params);
+    },
+    async getPlatform() {
+      return project.getPlatform();
+    },
+
+    // Terminal
+    async registerClient(params) {
+      return terminal.registerClient(params);
+    },
+    async createTerminal(params) {
+      return terminal.createTerminal(params);
+    },
+    async writeTerminal(params) {
+      return terminal.writeTerminal(params);
+    },
+    async killTerminalsByClient(params) {
+      return terminal.killTerminalsByClient(params);
+    },
+    async killTerminal(params) {
+      return terminal.killTerminal(params);
+    },
+    async resizeTerminal(params) {
+      return terminal.resizeTerminal(params);
+    },
+    async getAgentTerminalOutput(params) {
+      return terminal.getAgentTerminalOutput(params);
+    },
+
+    // Git
+    async getGitStatus(params) {
+      return project.getGitStatus(params);
+    },
+    async readGitHeadFile(params) {
+      return project.readGitHeadFile(params);
+    },
+
+    // iLink
+    async getIlinkStatus() {
+      return ilink.getIlinkStatus();
+    },
+    async startIlinkLogin() {
+      return ilink.startIlinkLogin();
+    },
+    async pollIlinkQrcode(params) {
+      return ilink.pollIlinkQrcode(params);
+    },
+    async stopIlink() {
+      return ilink.stopIlink();
+    },
+    async setActiveIlinkSession(params) {
+      return ilink.setActiveIlinkSession(params);
+    },
+    async getActiveIlinkSession() {
+      return ilink.getActiveIlinkSession();
+    },
+
+    // Automation
+    async listSchedules() {
+      return automation.listSchedules();
+    },
+    async getServerTimezone() {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    },
+    async createSchedule(params) {
+      const schedule = automation.createSchedule(params);
+      sendEvent("schedules-changed", undefined);
+      return schedule;
+    },
+    async updateSchedule({
+      scheduleId,
+      updates,
+    }: {
+      scheduleId: string;
+      updates: Partial<Schedule>;
+    }) {
+      const schedule = automation.updateSchedule(scheduleId, updates);
+      sendEvent("schedules-changed", undefined);
+      return schedule;
+    },
+    async deleteSchedule({ scheduleId }: { scheduleId: string }) {
+      automation.deleteSchedule(scheduleId);
+      sendEvent("schedules-changed", undefined);
+    },
+    async triggerSchedule({ scheduleId }: { scheduleId: string }) {
+      return automation.executeTask(scheduleId);
+    },
+    async getTasks({ scheduleId }: { scheduleId: string }) {
+      return automation.listTasks(scheduleId);
+    },
+    async getTaskFiles({ scheduleId, taskId }: { scheduleId: string; taskId: string }) {
+      return automation.listTaskFiles(scheduleId, taskId);
+    },
+    async readTaskFile({
+      scheduleId,
+      taskId,
+      filePath,
+      encoding,
+    }: {
+      scheduleId: string;
+      taskId: string;
+      filePath: string;
+      encoding?: "base64";
+    }) {
+      return automation.readTaskFile(scheduleId, taskId, filePath, encoding);
+    },
+    async getTaskFileSystemPath({
+      scheduleId,
+      taskId,
+      filePath,
+    }: {
+      scheduleId: string;
+      taskId: string;
+      filePath: string;
+    }) {
+      return automation.getTaskFileSystemPath(scheduleId, taskId, filePath);
+    },
+    async getShareFileSystemPath({
+      sessionId,
+      sharePath,
+    }: {
+      sessionId: string;
+      sharePath: string;
+    }) {
+      const shareDir = storageOps.sessionShareDir(sessionId);
+      if (!shareDir) throw new Error("Session not found");
+      return join(shareDir, sharePath);
+    },
+    async deleteTask({ scheduleId, taskId }: { scheduleId: string; taskId: string }) {
+      automation.deleteTask(scheduleId, taskId);
+    },
+  };
+
+  // Inject handlers into webui (after assembly)
+  webui.setHandlers(backendHandlers);
+
+  // ── closeBackend ─────────────────────────────────────────────────
+  async function closeBackend() {
+    automation.stopAllCrons();
+    webui.stop();
+    await ilink.stopIlink();
+    session.clearSession();
+    await bridgePool.clearPool();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    terminal.killAllTerminals();
+    await watcher.stopAll();
+    for (const file of await readdir(TEMP_DIR)) {
+      await rm(join(TEMP_DIR, file), { recursive: true, force: true });
     }
-    // 断连并销毁 bridge
-    const p = bridgePool.get(agentId);
-    if (p) {
-      bridgePool.delete(agentId);
-      p.then((b) => b.kill()).catch(() => {});
-    }
-  },
-  async clearAgentSessions({ agentId }) {
-    const deletedSessionIds = await deleteAgentSessions(agentId);
-    return { deletedSessionIds };
-  },
-  async getModels(params) {
-    return sessionHandlers.getModels(params);
-  },
-  async setModel(params) {
-    return sessionHandlers.setModel(params);
-  },
-  async getModes(params) {
-    return sessionHandlers.getModes(params);
-  },
-  async setMode(params) {
-    return sessionHandlers.setMode(params);
-  },
+  }
 
-  // Ask User
-  async getPendingAskUserRequests(params) {
-    return askUserHandlers.getPendingAskUserRequests(params);
-  },
-  async respondAskUser(params) {
-    return askUserHandlers.respondAskUser(params);
-  },
-
-  // Filesystem
-  async getSystemFilePath(params) {
-    return filesystemHandlers.getSystemFilePath(params);
-  },
-  async copyFileToWorkspace(params) {
-    return filesystemHandlers.copyFileToWorkspace(params);
-  },
-  async readUrlAsDataUrl(params) {
-    return filesystemHandlers.readUrlAsDataUrl(params);
-  },
-  async searchFiles(params) {
-    return filesystemHandlers.searchFiles(params);
-  },
-  async readDir(params) {
-    return filesystemHandlers.readDir(params);
-  },
-  async createFile(params) {
-    return filesystemHandlers.createFile(params);
-  },
-  async deleteFile(params) {
-    return filesystemHandlers.deleteFile(params);
-  },
-  async renameFile(params) {
-    return filesystemHandlers.renameFile(params);
-  },
-  async moveFile(params) {
-    return filesystemHandlers.moveFile(params);
-  },
-  async readFile(params) {
-    return filesystemHandlers.readFile(params);
-  },
-  async getFileInfo(params) {
-    return filesystemHandlers.getFileInfo(params);
-  },
-  async writeExternalFile(params) {
-    return filesystemHandlers.writeExternalFile(params);
-  },
-  async getPlatform() {
-    return filesystemHandlers.getPlatform();
-  },
-
-  // Terminal
-  async registerClient(params) {
-    return terminalHandlers.registerClient(params);
-  },
-  async createTerminal(params) {
-    return terminalHandlers.createTerminal(params);
-  },
-  async writeTerminal(params) {
-    return terminalHandlers.writeTerminal(params);
-  },
-  async killTerminalsByClient(params) {
-    return terminalHandlers.killTerminalsByClient(params);
-  },
-  async killTerminal(params) {
-    return terminalHandlers.killTerminal(params);
-  },
-  async resizeTerminal(params) {
-    return terminalHandlers.resizeTerminal(params);
-  },
-  async getAgentTerminalOutput(params) {
-    return terminalHandlers.getAgentTerminalOutput(params);
-  },
-
-  // Git
-  async getGitStatus(params) {
-    return gitHandlers.getGitStatus(params);
-  },
-  async readGitHeadFile(params) {
-    return gitHandlers.readGitHeadFile(params);
-  },
-
-  // iLink
-  async getIlinkStatus() {
-    return ilinkHandlers.getIlinkStatus();
-  },
-  async startIlinkLogin() {
-    return ilinkHandlers.startIlinkLogin();
-  },
-  async pollIlinkQrcode(params) {
-    return ilinkHandlers.pollIlinkQrcode(params);
-  },
-  async stopIlink() {
-    return ilinkHandlers.stopIlink();
-  },
-  async setActiveIlinkSession(params) {
-    return ilinkHandlers.setActiveIlinkSession(params);
-  },
-  async getActiveIlinkSession() {
-    return ilinkHandlers.getActiveIlinkSession();
-  },
-
-  // Automation
-  async listSchedules() {
-    return automationHandlers.listSchedules();
-  },
-  async getServerTimezone() {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  },
-  async createSchedule(params) {
-    const schedule = automationHandlers.createSchedule(params);
-    sendEvent("schedules-changed", undefined);
-    return schedule;
-  },
-  async updateSchedule({ scheduleId, updates }) {
-    const schedule = automationHandlers.updateSchedule(scheduleId, updates);
-    sendEvent("schedules-changed", undefined);
-    return schedule;
-  },
-  async deleteSchedule({ scheduleId }) {
-    automationHandlers.deleteSchedule(scheduleId);
-    sendEvent("schedules-changed", undefined);
-  },
-  async triggerSchedule({ scheduleId }) {
-    return executeTask(scheduleId);
-  },
-  async getTasks({ scheduleId }) {
-    return automationHandlers.listTasks(scheduleId);
-  },
-  async getTaskFiles({ scheduleId, taskId }) {
-    return automationHandlers.listTaskFiles(scheduleId, taskId);
-  },
-  async readTaskFile({ scheduleId, taskId, filePath, encoding }) {
-    return automationHandlers.readTaskFile(scheduleId, taskId, filePath, encoding);
-  },
-  async getTaskFileSystemPath({ scheduleId, taskId, filePath }) {
-    return automationHandlers.getTaskFileSystemPath(scheduleId, taskId, filePath);
-  },
-
-  async getShareFileSystemPath({ sessionId, sharePath }) {
-    const shareDir = storageOps.sessionShareDir(sessionId);
-    if (!shareDir) throw new Error("Session not found");
-    return join(shareDir, sharePath);
-  },
-  async deleteTask({ scheduleId, taskId }) {
-    automationHandlers.deleteTask(scheduleId, taskId);
-  },
-};
+  return { backendHandlers, closeBackend };
+}

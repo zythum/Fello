@@ -18,22 +18,29 @@ fello/
 │   │   └── utils.ts                     # ContentBlock 转换工具
 │   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
-│   │   ├── backend.ts                # IPC 总入口：注册各领域模块、组装 backendHandlers
-│   │   ├── session.ts                # 会话生命周期管理（new/load/sendPrompt/cancel/delete）
-│   │   ├── session-agent-bridge.ts   # Agent Bridge 池管理（ensureBridge/clearPool）
+│   │   ├── backend.ts                # IPC 总入口：工厂模块实例化、组装 backendHandlers
+│   │   ├── types.ts                  # 共享类型（BackendContext, SendEventFn, EventListener）
+│   │   ├── bridge-pool.ts            # Agent Bridge 池管理（ensureBridge/clearPool）
 │   │   ├── ask-user.ts               # askUser 通用机制（请求/响应/超时/路由注册）
+│   │   ├── share-to-user.ts          # shareToUser 文件分享（iLink 媒体队列）
 │   │   ├── terminal.ts               # PTY 终端管理（创建/销毁/resize/输出）
-│   │   ├── ilink-handlers.ts         # iLink 微信集成处理器（命令路由/消息转发）
-│   │   ├── ilink-state.ts            # iLink 活跃会话状态管理
-│   │   ├── project.ts                # 项目 CRUD 操作
-│   │   ├── project-filesystem.ts     # 文件系统操作（搜索/读写/目录遍历）
-│   │   ├── project-git.ts            # Git 状态查询与 HEAD 文件读取
+│   │   ├── inference.ts              # 无头一次性推理原语（供 automation 使用）
 │   │   ├── serve-file.ts             # 安全文件服务（路径穿越防护、MIME 检测）
+│   │   ├── session/                  # 会话生命周期模块
+│   │   │   ├── index.ts              # 会话管理（new/load/sendPrompt/cancel/delete）
+│   │   │   ├── mcp-config.ts         # MCP Server 配置构建（按 features 注入内置 MCP）
+│   │   │   └── notifications.ts      # 通知合并、广播、iLink 转发、tool_call 状态追踪
+│   │   ├── project/                  # 项目管理模块
+│   │   │   ├── index.ts              # 项目 CRUD + 组合 filesystem/git
+│   │   │   ├── filesystem.ts         # 文件系统操作（搜索/读写/目录遍历）
+│   │   │   └── git.ts                # Git 状态查询与 HEAD 文件读取
+│   │   ├── search/                   # 搜索模块
+│   │   │   ├── index.ts              # 搜索入口 + Socket 路由注册
+│   │   │   ├── ripgrep.ts            # 基于 ripgrep worker 的代码搜索
+│   │   │   └── file-outline.ts       # 基于 tree-sitter WASM 的文件大纲
 │   │   ├── automation/               # 自动化任务计划模块
-│   │   │   ├── index.ts              # 模块导出入口 + 高层 Schedule/Task 处理器
-│   │   │   ├── store.ts              # 文件持久化层（Schedule/Task CRUD，基于 ~/.fello/automations/）
-│   │   │   ├── scheduler.ts          # Cron 计划管理（CronJob 注册/注销/恢复/停止）
-│   │   │   └── runner.ts             # 任务执行器（spawn ACPBridge，MCP/Skills 集成）
+│   │   │   ├── index.ts              # 调度器 + 执行器 + Schedule/Task CRUD（工厂函数）
+│   │   │   └── store.ts              # 文件持久化层（Schedule/Task CRUD，基于 ~/.fello/automations/）
 │   │   ├── agent/                    # Agent 连接与进程管理
 │   │   │   ├── agent-bridge.ts           # Agent 连接封装（类型路由、生命周期管理）
 │   │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
@@ -52,6 +59,7 @@ fello/
 │   │   │   ├── en.json
 │   │   │   └── zh-CN.json
 │   │   └── ilink/                    # 微信 iLink 集成
+│   │       ├── index.ts              # iLink 模块工厂（状态管理、命令路由、消息转发）
 │   │       ├── ilink-bridge.ts       # iLink 连接管理、QR 登录、消息收发
 │   │       ├── ilink-client.ts       # iLink REST API 客户端
 │   │       └── ilink-crypto.ts       # iLink 加密工具
@@ -276,16 +284,17 @@ fello/
 ### `src/backend`
 
 - 面向系统能力的底层实现：文件系统、终端 PTY
-- 模块化设计：`backend.ts` 作为总入口，具体逻辑拆分到领域模块：
-  - `session.ts` — 会话生命周期（new/load/sendPrompt/cancel/delete）
-  - `session-agent-bridge.ts` — Agent Bridge 池管理与复用
+- 工厂模式设计：`backend.ts` 创建 `BackendContext`（sendEvent + onEvent + storage），按层级实例化各 `createXxxModule()` 工厂：
+  - `session/` — 会话生命周期（new/load/sendPrompt/cancel/delete）、通知广播、MCP 配置
+  - `bridge-pool.ts` — Agent Bridge 池管理与复用
   - `ask-user.ts` — askUser 通用请求/响应/超时机制
+  - `share-to-user.ts` — shareToUser 文件分享
   - `terminal.ts` — PTY 终端创建/销毁/resize
-  - `ilink-handlers.ts` — iLink 微信命令路由与消息转发
-  - `ilink-state.ts` — iLink 活跃会话状态
-  - `project.ts` — 项目 CRUD
-  - `project-filesystem.ts` — 文件搜索/读写/目录遍历
-  - `project-git.ts` — Git 状态与 HEAD 文件读取
+  - `ilink/index.ts` — iLink 微信连接、状态、命令路由与消息转发
+  - `project/` — 项目 CRUD + 文件搜索/读写 + Git 状态
+  - `search/` — ripgrep 搜索 + file-outline
+  - `inference.ts` — 无头推理原语（供 automation 使用）
+  - `automation/` — 定时任务调度与执行
   - `serve-file.ts` — 安全文件服务（路径穿越防护）
 - 负责 Agent 进程与会话生命周期管理（`agent/agent-bridge.ts`）
 - Agent 进程 spawner：Stdio（child_process）和 API（in-process）

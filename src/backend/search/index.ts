@@ -1,5 +1,5 @@
 import { join } from "path";
-import type { SocketServer } from "./socket-server";
+import type { SocketServer } from "../socket-server";
 import {
   searchRequestSchema,
   searchRespondSchema,
@@ -7,17 +7,36 @@ import {
   rgRespondSchema,
   fileOutlineRequestSchema,
   fileOutlineRespondSchema,
-} from "../shared/zod/mcp-search-schema";
+} from "../../shared/zod/mcp-search-schema";
 import { fileOutline } from "./file-outline";
 import { search, rg } from "./ripgrep";
+import type { BackendContext } from "../types";
 
 export type { SearchOptions, RgOptions } from "./ripgrep";
 export type { FileOutlineOptions } from "./file-outline";
 export { search, rg, fileOutline };
 
-// ── Route Registration ──────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────
 
-export function registerSearchRoute(server: SocketServer, projectDir: string) {
+export interface SearchModule {
+  registerSearchRoute: (server: SocketServer, projectDir: string) => void;
+  buildSearchMcpServer: (options: { projectDir: string; socketPath: string }) => {
+    name: string;
+    command: string;
+    args: string[];
+    env: { name: string; value: string }[];
+  };
+}
+
+// ── Factory ──────────────────────────────────────────────────────────
+
+export function createSearchModule(_ctx: BackendContext): SearchModule {
+  return { registerSearchRoute, buildSearchMcpServer };
+}
+
+// ── Implementation ───────────────────────────────────────────────────
+
+function registerSearchRoute(server: SocketServer, projectDir: string) {
   server.registry("search/search", async (payload: unknown) => {
     const params = searchRequestSchema.parse(payload);
     const result = await search({ projectDir, ...params });
@@ -37,9 +56,7 @@ export function registerSearchRoute(server: SocketServer, projectDir: string) {
   });
 }
 
-// ── MCP Server Config ───────────────────────────────────────────────
-
-export function buildSearchMcpServer(options: { projectDir: string; socketPath: string }): {
+function buildSearchMcpServer(options: { projectDir: string; socketPath: string }): {
   name: string;
   command: string;
   args: string[];

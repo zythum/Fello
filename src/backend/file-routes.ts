@@ -1,7 +1,7 @@
 import { storageOps } from "./storage";
 import { serveFile } from "./serve-file";
 import { store as autoStore } from "./automation/store";
-import type { ProjectFileResult } from "./serve-file";
+import type { ServeFileResult } from "./serve-file";
 
 // ── Route Types ──────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ export function parseFileRoute(url: URL): FileRoute | null {
 
 // ── Route 执行 ───────────────────────────────────────────────────────
 
-export async function serveRoute(route: FileRoute): Promise<ProjectFileResult> {
+export async function serveRoute(route: FileRoute): Promise<ServeFileResult> {
   switch (route.type) {
     case "project": {
       const project = storageOps.getProject(route.projectId);

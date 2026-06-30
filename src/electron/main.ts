@@ -13,7 +13,7 @@ import {
 import electronUpdater from "electron-updater";
 import { homedir } from "os";
 import { join } from "path";
-import { backendHandlers, initBackend, clearBackend } from "../backend/backend";
+import { initBackend } from "../backend/backend";
 import type { FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
@@ -64,7 +64,7 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
   return true;
 }
 
-initBackend(safeSend);
+const { backendHandlers, closeBackend } = initBackend(safeSend);
 
 for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema["requests"]>) {
   ipcMain.handle(
@@ -260,7 +260,7 @@ async function installDownloadedUpdate() {
   }
 
   isInstallingUpdate = true;
-  await clearBackend().catch(() => {});
+  await closeBackend().catch(() => {});
   autoUpdater.quitAndInstall(false, true);
 }
 
@@ -494,7 +494,7 @@ app.on("before-quit", (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
-  clearBackend()
+  closeBackend()
     .catch(() => {})
     .then(() => {
       app.quit();

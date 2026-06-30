@@ -66,16 +66,23 @@
 
 - **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
 - **`src/scripts/electron-preload/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
-- **`src/backend/backend.ts`**：IPC 总入口，组装各领域模块为统一的 `backendHandlers` 对象
-- **`src/backend/session.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、MCP 配置构建、通知合并与广播
-- **`src/backend/session-agent-bridge.ts`**：Agent Bridge 池管理（`ensureBridge`/`clearPool`）、会话 Socket Server 生命周期
-- **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册（`registerAskUserRoute`）
+- **`src/backend/backend.ts`**：IPC 总入口，创建 BackendContext 与事件总线，按层级实例化各工厂模块，组装统一的 `backendHandlers` 对象并返回 `{ backendHandlers, closeBackend }`
+- **`src/backend/types.ts`**：共享类型定义（`BackendContext`、`SendEventFn`、`EventListener`）
+- **`src/backend/session/index.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、Socket Server 生命周期
+- **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP）
+- **`src/backend/session/notifications.ts`**：通知合并、广播、iLink 转发与 tool_call 状态追踪
+- **`src/backend/bridge-pool.ts`**：Agent Bridge 池管理（`ensureBridge`/`clearPool`），权限请求路由
+- **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册
+- **`src/backend/share-to-user.ts`**：shareToUser 文件分享机制、iLink 媒体队列
 - **`src/backend/terminal.ts`**：PTY 终端管理（创建/销毁/resize/输入输出）
-- **`src/backend/ilink-handlers.ts`**：iLink 微信集成处理器（`getILinkBridge`、命令路由、消息转发）
-- **`src/backend/ilink-state.ts`**：iLink 活跃会话 ID 与回复缓冲状态管理
-- **`src/backend/project.ts`**：项目 CRUD 操作
-- **`src/backend/project-filesystem.ts`**：文件系统操作（搜索/读写/目录遍历/文件信息）
-- **`src/backend/project-git.ts`**：Git 状态查询与 HEAD 文件读取
+- **`src/backend/ilink/index.ts`**：iLink 微信集成（连接管理、状态、命令路由、消息转发），通过 `setHandlers` 延迟绑定解决与 session 的循环依赖
+- **`src/backend/project/index.ts`**：项目 CRUD 操作，组合 filesystem 与 git 子模块
+- **`src/backend/project/filesystem.ts`**：文件系统操作（搜索/读写/目录遍历/文件信息）
+- **`src/backend/project/git.ts`**：Git 状态查询与 HEAD 文件读取
+- **`src/backend/inference.ts`**：无头一次性推理原语（spawn 临时 Agent session → prompt → 收集结果 → 销毁），供 automation 使用
+- **`src/backend/search/index.ts`**：搜索模块入口（ripgrep + file-outline），Socket 路由注册与 MCP Server 构建
+- **`src/backend/search/ripgrep.ts`**：基于 ripgrep worker 子进程的代码搜索
+- **`src/backend/search/file-outline.ts`**：基于 tree-sitter WASM 的文件大纲提取
 - **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback）
 - **`src/backend/agent/agent-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
 - **`src/backend/agent/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
@@ -138,7 +145,7 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 - **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 `list_skills` 和 `activate_skill` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/skills/catalog`、`/skills/detail`）。Skills 本身是会话级 feature flag，可以通过 `features` 参数开关
 - **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/ask-user/ask`），将 Agent 的询问请求转发到 `askUser()` 函数
 
-Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `session.ts` 中的 `buildMcpServersConfig()` 按需注入。
+Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。
 
 MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
 

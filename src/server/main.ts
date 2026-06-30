@@ -1,6 +1,5 @@
 import "./env";
-import { initBackend, clearBackend } from "../backend/backend";
-import { startWebUI, stopWebUI } from "../backend/webui";
+import { initBackend } from "../backend/backend";
 import { version } from "../../package.json";
 
 // ── Parse CLI arguments ─────────────────────────────────────────────
@@ -33,13 +32,11 @@ Options:
 }
 
 // ── Initialize backend ─────────────────────────────────────────────
-// The emitter function sends events to an Electron renderer — in server
-// mode there is none, so we pass a noop. WebSocket clients still receive
-// events via broadcastWebUIEvent (called inside initBackend's sendEvent).
-initBackend(() => false);
+const { backendHandlers, closeBackend } = initBackend(() => false);
 
 // ── Start WEBUI HTTP/WS server ─────────────────────────────────────
-startWebUI({ port, token })
+backendHandlers
+  .startWebUIServer({ port, token })
   .then(({ url }) => {
     const title = `Fello Server v${version}`;
     const pad = 4;
@@ -59,8 +56,8 @@ startWebUI({ port, token })
 // ── Graceful shutdown ──────────────────────────────────────────────
 async function shutdown() {
   console.log("\n[Fello] Shutting down...");
-  stopWebUI();
-  await clearBackend().catch(() => {});
+  await backendHandlers.stopWebUIServer();
+  await closeBackend().catch(() => {});
   process.exit(0);
 }
 
