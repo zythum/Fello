@@ -1032,6 +1032,13 @@ export const storageOps = {
     return join(sessionDir(session.projectId, sessionId), "share");
   },
 
+  /** 获取 session 的存储目录绝对路径 */
+  getSessionDataSystemPath(sessionId: string): string | null {
+    const session = this.getSession(sessionId);
+    if (!session) return null;
+    return sessionDir(session.projectId, sessionId);
+  },
+
   readTerminalOutput(sessionId: string, terminalId: string): string | null {
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(terminalId)) {
       throw new Error("Invalid terminalId");

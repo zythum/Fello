@@ -330,6 +330,8 @@
     }
   },
   "chatHeader": {
+    "sessionId": "会话编号",
+    "openSessionFolder": "打开会话文件夹",
     "refresh": "重启会话",
     "contextWindow": "上下文窗口",
     "used": "已用",

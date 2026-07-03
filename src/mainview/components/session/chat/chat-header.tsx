@@ -2,15 +2,17 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionUsage } from "../../../lib/session-selectors";
 import { useAppStore } from "../../../store";
-import { Settings2, ReceiptTurkishLira } from "lucide-react";
+import { Settings2, ReceiptTurkishLira, Copy, Check, FolderOpen } from "lucide-react";
 import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
-import { request } from "../../../backend";
+import { request, isWebUI } from "../../../backend";
+import { electron } from "../../../electron";
 import { reduceFlushStreaming, reduceSessionUpdate } from "../../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { useMessage } from "../../providers/message";
+import { copyText } from "@/lib/clipboard";
 import type { SessionInfo, Feature } from "../../../../shared/schema";
 import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../../shared/constants";
 
@@ -136,6 +138,24 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
               <PopoverPrimitive.Popup className="z-10 min-w-96 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+                {/* Session & Project ID */}
+                <div className="px-2 py-1.5 space-y-1">
+                  <CopyableRow
+                    label={t("chatHeader.sessionId", "Session")}
+                    value={session.id}
+                    openFolderTitle={t("chatHeader.openSessionFolder", "Open Session Folder")}
+                    onOpenFolder={async () => {
+                      const dirPath = await request.getSessionDataSystemPath({
+                        sessionId: session.id,
+                      });
+                      if (dirPath) electron.revealInFinder(dirPath);
+                    }}
+                  />
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-border/50 my-1" />
+
                 {/* Features toggles */}
                 <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
                   {t("constant.feature.title", "Features")}
@@ -344,6 +364,54 @@ function Row({ label, value, bold }: { label: string; value: number; bold?: bool
       >
         {value.toLocaleString()}
       </span>
+    </div>
+  );
+}
+
+function CopyableRow({
+  label,
+  value,
+  onOpenFolder,
+  openFolderTitle,
+}: {
+  label: string;
+  value: string;
+  onOpenFolder?: () => void;
+  openFolderTitle?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const ok = await copyText(value);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="shrink-0 text-muted-foreground w-12">{label}:</span>
+      <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground/70 select-all">
+        {value}
+      </span>
+      {!isWebUI && onOpenFolder && (
+        <button
+          type="button"
+          className="shrink-0 flex items-center justify-center size-5 rounded hover:bg-accent/50 text-muted-foreground/50 hover:text-muted-foreground transition-colors -mr-1"
+          onClick={onOpenFolder}
+          title={openFolderTitle}
+        >
+          <FolderOpen className="size-3" />
+        </button>
+      )}
+      <button
+        type="button"
+        className="shrink-0 flex items-center justify-center size-5 rounded hover:bg-accent/50 text-muted-foreground/50 hover:text-muted-foreground transition-colors -mr-1"
+        onClick={handleCopy}
+      >
+        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      </button>
     </div>
   );
 }

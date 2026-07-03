@@ -263,6 +263,9 @@ export function initBackend(
     async deleteSession(sessionId: string) {
       return session.deleteSession(sessionId);
     },
+    async getSessionDataSystemPath({ sessionId }: { sessionId: string }) {
+      return session.getSessionDataSystemPath({ sessionId });
+    },
     async resetAgent({ agentId }: { agentId: string }) {
       await session.resetAgentSessions(agentId);
       const agentCfg = storageOps.getSettings().agents.find((a) => a.id === agentId);

@@ -211,7 +211,13 @@ export function createAutomationModule(
           scheduleId,
           taskId,
           "README.md",
-          generateErrorReadme(schedule, [], startedAt, errorMessage, storage.getSettings().i18n?.language),
+          generateErrorReadme(
+            schedule,
+            [],
+            startedAt,
+            errorMessage,
+            storage.getSettings().i18n?.language,
+          ),
         );
       } catch {}
       return task;

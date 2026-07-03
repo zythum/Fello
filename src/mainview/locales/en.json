@@ -330,6 +330,8 @@
     }
   },
   "chatHeader": {
+    "sessionId": "Session",
+    "openSessionFolder": "Open Session Folder",
     "refresh": "Restart Session",
     "contextWindow": "Context Window",
     "used": "Used",

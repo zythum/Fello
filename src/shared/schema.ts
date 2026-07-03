@@ -589,6 +589,8 @@ export type FelloIPCRequests = {
   };
   /** 删除会话 */
   deleteSession: { params: string; response: void };
+  /** 获取会话存储目录的绝对路径 */
+  getSessionDataSystemPath: { params: { sessionId: string }; response: string | null };
   /** 重置 Agent：关闭其所有会话并清理 bridge，不删除持久化数据 */
   resetAgent: { params: { agentId: string }; response: void };
   /** 清理 Agent 的所有会话（关闭 bridge 会话 + 删除本地数据 + 停 socket 服务），不删除 Agent 配置 */

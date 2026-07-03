@@ -58,6 +58,7 @@ export interface SessionModule {
   updateSession: (params: { sessionId: string; [key: string]: unknown }) => Promise<void>;
   changeWorkDir: () => Promise<{ ok: boolean; cwd: null }>;
   deleteSession: (sessionId: string) => Promise<void>;
+  getSessionDataSystemPath: (params: { sessionId: string }) => string | null;
   resetAgentSessions: (agentId: string) => Promise<number>;
   deleteAgentSessions: (agentId: string) => Promise<string[]>;
   getModels: (params: { sessionId: string }) => Promise<SessionModelState | null>;
@@ -501,6 +502,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sendEvent("sessions-changed", undefined);
   }
 
+  function getSessionDataSystemPath({ sessionId }: { sessionId: string }): string | null {
+    return storage.getSessionDataSystemPath(sessionId);
+  }
+
   async function resetAgentSessions(agentId: string): Promise<number> {
     const sessions = storage.listSessions().filter((s) => s.agentId === agentId);
     for (const session of sessions) {
@@ -610,6 +615,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     updateSession,
     changeWorkDir,
     deleteSession,
+    getSessionDataSystemPath,
     resetAgentSessions,
     deleteAgentSessions,
     getModels,

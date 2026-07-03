@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, generateText, type ModelMessage } from "ai";
+import { stepCountIs, streamText, generateText, type ModelMessage, type TextPart } from "ai";
 import type {
   Agent,
   AgentSideConnection,
@@ -10,6 +10,7 @@ import type {
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
+  ContentBlock,
   DeleteSessionRequest,
   DeleteSessionResponse,
   InitializeRequest,
@@ -117,6 +118,40 @@ function applyModelIdTemplate(template: string, modelItem: Record<string, unknow
 }
 
 const AgentDescription = "Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex";
+
+/** 将 ContentBlock 列表转为纯文本版本的 ModelMessage（用于失败恢复，避免非 text block 污染历史） */
+function buildSafeUserMessage(prompt: ContentBlock[]): ModelMessage {
+  const safeContent: TextPart[] = prompt.map((block) => {
+    if (block.type === "text") {
+      return textContentToTextPart(block);
+    }
+    if (block.type === "image") {
+      const desc = block.uri ? `[Image: ${block.uri}]` : `[Image]`;
+      return textContentToTextPart({ text: desc });
+    }
+    if (block.type === "audio") {
+      return textContentToTextPart({ text: `[Audio]` });
+    }
+    if (block.type === "resource") {
+      const resource = block.resource;
+      if ("text" in resource) {
+        return textContentToTextPart({ text: resource.text });
+      }
+      const uri = resource.uri || "";
+      const mime = resource.mimeType || "unknown";
+      return textContentToTextPart({ text: `[Resource: ${uri} (${mime})]` });
+    }
+    if (block.type === "resource_link") {
+      return textContentToTextPart({ text: `[Resource: ${block.uri}]` });
+    }
+    return textContentToTextPart({ text: `[Unknown content]` });
+  });
+  // 保底：空 prompt 给一个占位文本
+  if (safeContent.length === 0) {
+    safeContent.push({ type: "text", text: "[empty message]" });
+  }
+  return { role: "user", content: safeContent };
+}
 
 const AVAILABLE_COMMANDS: AvailableCommand[] = [
   { name: "compact", description: "Compress conversation context" },
@@ -630,10 +665,12 @@ export class OpenaiCompatibleAgent implements Agent {
     }
 
     const userMessage: ModelMessage = { role: "user", content: userContent };
-    session.history.push(userMessage);
-    await this.appendSessionHistory(session.id, userMessage);
+
     const abortController = new AbortController();
     session.abortController = abortController;
+
+    // 用于在失败时保留已产生的 assistant 文本
+    let accumulatedText = "";
 
     try {
       if (!session.modelId) {
@@ -642,7 +679,7 @@ export class OpenaiCompatibleAgent implements Agent {
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
         system: buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories),
-        messages: session.history,
+        messages: [...session.history, userMessage],
         tools: {
           ...session.mcp.tools,
           ...session.acp.tools,
@@ -656,6 +693,7 @@ export class OpenaiCompatibleAgent implements Agent {
 
         if (part.type === "text-delta") {
           if (!part.text) continue;
+          accumulatedText += part.text;
           await this.connection.sessionUpdate({
             sessionId: params.sessionId,
             update: {
@@ -702,9 +740,10 @@ export class OpenaiCompatibleAgent implements Agent {
           });
         }
       }
+
       const response = await result.response;
-      session.history.push(...response.messages);
-      await this.appendSessionHistory(session.id, ...response.messages);
+      session.history.push(userMessage, ...response.messages);
+      await this.appendSessionHistory(session.id, userMessage, ...response.messages);
 
       // Get per-turn usage (sum of all steps) and last-step usage for context tracking
       const [turnUsage, lastStepUsage] = await Promise.all([result.totalUsage, result.usage]);
@@ -739,8 +778,33 @@ export class OpenaiCompatibleAgent implements Agent {
       };
     } catch (err) {
       if (abortController.signal.aborted) {
+        // 用户主动停止时，也要保存已产生的上下文，这样"继续"时有历史
+        const safeUserMessage = buildSafeUserMessage(params.prompt);
+        const historyEntries: ModelMessage[] = [safeUserMessage];
+        if (accumulatedText.trim()) {
+          historyEntries.push({
+            role: "assistant",
+            content: accumulatedText + "\n\n_[Generation stopped by user — continue from user's request]_",
+          });
+        }
+        session.history.push(...historyEntries);
+        await this.appendSessionHistory(session.id, ...historyEntries);
         return { stopReason: "cancelled" };
       }
+
+      // 失败时仍保存用户消息（纯文本版本，不含 image/audio/resource base64），
+      // 以及已产生的 assistant 文本，这样用户说"继续"时 LLM 知道上下文。
+      const safeUserMessage = buildSafeUserMessage(params.prompt);
+      const historyEntries: ModelMessage[] = [safeUserMessage];
+      if (accumulatedText.trim()) {
+        historyEntries.push({
+          role: "assistant",
+          content: accumulatedText + "\n\n_[Generation interrupted — continue from user's request]_",
+        });
+      }
+      session.history.push(...historyEntries);
+      await this.appendSessionHistory(session.id, ...historyEntries);
+
       throw err;
     } finally {
       session.abortController = null;
