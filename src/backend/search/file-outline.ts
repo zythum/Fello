@@ -8,6 +8,7 @@ import type {
   SymbolKindConfig,
   WrapperConfig,
   NameOfConfig,
+  StatementDetailConfig,
   FileOutlineWorkerRequest,
   FileOutlineWorkerResponse,
 } from "../../shared/zod/worker-file-outline-schema";
@@ -35,6 +36,8 @@ interface LangConfig {
   symbols: SymbolKindConfig[];
   wrappers: WrapperConfig[];
   nameOf: NameOfConfig;
+  statementDetail?: StatementDetailConfig;
+  docstrings?: { nodeType: string; prefixes: string[] }[];
 }
 
 const LANGUAGES: LangConfig[] = [
@@ -51,11 +54,13 @@ const LANGUAGES: LangConfig[] = [
       { types: ["method_definition"], label: "method", hasName: true },
       { types: ["class_declaration"], label: "class", hasName: true },
       {
-        types: ["lexical_declaration", "variable_declaration"],
-        label: "const",
+        types: ["lexical_declaration"],
+        label: "variable",
         hasName: true,
         maxDepth: 0,
+        labelByChild: { const: "const", let: "let" },
       },
+      { types: ["variable_declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
     wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
@@ -69,6 +74,13 @@ const LANGUAGES: LangConfig[] = [
         "export_specifier",
       ],
       identifierTypes: ["identifier", "type_identifier"],
+    },
+    statementDetail: {
+      sourceFields: ["source"],
+      sourceTypes: ["string"],
+      clauseTypes: ["import_clause", "named_imports", "named_exports", "export_clause", "namespace_import"],
+      typeKeywordTypes: ["type"],
+      detailAsNameWhenNoSource: true,
     },
   },
   {
@@ -77,28 +89,33 @@ const LANGUAGES: LangConfig[] = [
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-typescript.wasm"),
     symbols: [
       {
-        types: ["function_declaration", "generator_function_declaration"],
+        types: ["function_declaration", "generator_function_declaration", "function_signature"],
         label: "function",
         hasName: true,
       },
-      { types: ["method_definition"], label: "method", hasName: true },
+      { types: ["method_definition", "abstract_method_signature"], label: "method", hasName: true },
       { types: ["class_declaration", "abstract_class_declaration"], label: "class", hasName: true },
       { types: ["interface_declaration"], label: "interface", hasName: true },
       { types: ["type_alias_declaration"], label: "type", hasName: true },
       { types: ["enum_declaration"], label: "enum", hasName: true },
       { types: ["internal_module"], label: "namespace", hasName: true },
-      { types: ["property_signature"], label: "property", hasName: true },
+      { types: ["property_signature"], label: "property", hasName: true, maxDepth: 1 },
+      // object_type acts as a depth barrier to prevent property_signature inside
+      // generic constraints or type arguments from being misidentified as real properties
+      { types: ["object_type"], label: "_", hasName: false, maxDepth: -1 },
       {
-        types: ["lexical_declaration", "variable_declaration"],
-        label: "const",
+        types: ["lexical_declaration"],
+        label: "variable",
         hasName: true,
         maxDepth: 0,
+        labelByChild: { const: "const", let: "let" },
       },
+      { types: ["variable_declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
     wrappers: [
       { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
-      { node: "ambient_declaration", prefix: "declare ", maxDepth: 0 },
+      { node: "ambient_declaration", prefix: "declare ", maxDepth: 0, createStandaloneLabel: "declare", createContainerWhenCovered: true },
     ],
     nameOf: {
       fieldPriority: ["name", "source"],
@@ -111,6 +128,15 @@ const LANGUAGES: LangConfig[] = [
       ],
       identifierTypes: ["identifier", "type_identifier"],
     },
+    statementDetail: {
+      labels: ["import", "export", "declare"],
+      sourceFields: ["source"],
+      sourceTypes: ["string"],
+      clauseTypes: ["import_clause", "named_imports", "named_exports", "export_clause", "namespace_import"],
+      typeKeywordTypes: ["type"],
+      trimPatterns: ["\\s*\\{\\s*$"],
+      detailAsNameWhenNoSource: true,
+    },
   },
   {
     name: "TSX",
@@ -118,7 +144,7 @@ const LANGUAGES: LangConfig[] = [
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-tsx.wasm"),
     symbols: [
       {
-        types: ["function_declaration", "generator_function_declaration"],
+        types: ["function_declaration", "generator_function_declaration", "function_signature"],
         label: "function",
         hasName: true,
       },
@@ -129,11 +155,13 @@ const LANGUAGES: LangConfig[] = [
       { types: ["enum_declaration"], label: "enum", hasName: true },
       { types: ["internal_module"], label: "namespace", hasName: true },
       {
-        types: ["lexical_declaration", "variable_declaration"],
-        label: "const",
+        types: ["lexical_declaration"],
+        label: "variable",
         hasName: true,
         maxDepth: 0,
+        labelByChild: { const: "const", let: "let" },
       },
+      { types: ["variable_declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
     wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
@@ -147,6 +175,13 @@ const LANGUAGES: LangConfig[] = [
         "export_specifier",
       ],
       identifierTypes: ["identifier", "type_identifier"],
+    },
+    statementDetail: {
+      sourceFields: ["source"],
+      sourceTypes: ["string"],
+      clauseTypes: ["import_clause", "named_imports", "named_exports", "export_clause", "namespace_import"],
+      typeKeywordTypes: ["type"],
+      detailAsNameWhenNoSource: true,
     },
   },
   {
@@ -165,23 +200,32 @@ const LANGUAGES: LangConfig[] = [
       recurseTypes: [],
       identifierTypes: ["identifier"],
     },
+    statementDetail: {
+      sourceFields: ["module_name"],
+      clauseTypes: ["dotted_name", "aliased_import", "wildcard_import"],
+      clausesAsSource: true,
+      textFallbackPattern: "^from\\s+(\\S+)\\s+import\\s+(.+)",
+    },
+    docstrings: [{ nodeType: "expression_statement", prefixes: ['"""', "'''"] }],
   },
   {
     name: "Go",
     extensions: [".go"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-go.wasm"),
     symbols: [
+      { types: ["package_clause"], label: "package", hasName: true },
       { types: ["function_declaration"], label: "function", hasName: true },
       { types: ["method_declaration"], label: "method", hasName: true },
       { types: ["type_spec"], label: "type", hasName: true },
       { types: ["field_declaration"], label: "field", hasName: true },
+      { types: ["const_spec"], label: "const", hasName: true },
       { types: ["import_declaration"], label: "import", hasName: false },
     ],
     wrappers: [],
     nameOf: {
       fieldPriority: ["name"],
       recurseTypes: [],
-      identifierTypes: ["identifier", "type_identifier", "field_identifier"],
+      identifierTypes: ["identifier", "type_identifier", "field_identifier", "package_identifier"],
     },
   },
   {
@@ -194,6 +238,7 @@ const LANGUAGES: LangConfig[] = [
       { types: ["union_specifier"], label: "union", hasName: true, maxDepth: 0 },
       { types: ["enum_specifier"], label: "enum", hasName: true, maxDepth: 0 },
       { types: ["type_definition"], label: "typedef", hasName: true },
+      { types: ["declaration"], label: "var", hasName: true, maxDepth: 0 },
     ],
     wrappers: [],
     nameOf: {
@@ -203,6 +248,7 @@ const LANGUAGES: LangConfig[] = [
         "function_declarator",
         "array_declarator",
         "pointer_declarator",
+        "parenthesized_declarator",
         "variable_declarator",
       ],
       identifierTypes: ["identifier", "type_identifier", "field_identifier"],
@@ -219,6 +265,8 @@ const LANGUAGES: LangConfig[] = [
       { types: ["union_specifier"], label: "union", hasName: true, maxDepth: 0 },
       { types: ["enum_specifier"], label: "enum", hasName: true, maxDepth: 0 },
       { types: ["type_definition"], label: "typedef", hasName: true },
+      { types: ["alias_declaration"], label: "using", hasName: true },
+      { types: ["declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["namespace_definition"], label: "namespace", hasName: true },
     ],
     wrappers: [],
@@ -229,8 +277,10 @@ const LANGUAGES: LangConfig[] = [
         "function_declarator",
         "array_declarator",
         "pointer_declarator",
+        "parenthesized_declarator",
         "reference_declarator",
         "variable_declarator",
+        "init_declarator",
       ],
       identifierTypes: ["identifier", "type_identifier", "field_identifier"],
       rawTextTypes: ["destructor_name", "operator_name"],
@@ -245,7 +295,15 @@ const LANGUAGES: LangConfig[] = [
       { types: ["protocol_declaration"], label: "protocol", hasName: true },
       { types: ["function_declaration"], label: "function", hasName: true },
       { types: ["method_declaration"], label: "method", hasName: true },
+      { types: ["init_declaration"], label: "init", hasName: false },
+      { types: ["subscript_declaration"], label: "subscript", hasName: false },
       { types: ["typealias_declaration"], label: "typealias", hasName: true },
+      {
+        types: ["property_declaration"],
+        label: "property",
+        hasName: true,
+        labelByChild: { "let": "let", "var": "var" },
+      },
       { types: ["import_declaration"], label: "import", hasName: true },
     ],
     wrappers: [],
@@ -254,6 +312,7 @@ const LANGUAGES: LangConfig[] = [
       recurseTypes: [],
       identifierTypes: ["identifier", "type_identifier"],
     },
+    statementDetail: {},
   },
   {
     name: "Kotlin",
@@ -264,14 +323,66 @@ const LANGUAGES: LangConfig[] = [
       { types: ["function_declaration"], label: "function", hasName: true },
       { types: ["object_declaration"], label: "object", hasName: true },
       { types: ["type_alias"], label: "typealias", hasName: true },
+      {
+        types: ["property_declaration"],
+        label: "property",
+        hasName: true,
+        labelByChild: { val: "val", var: "var" },
+      },
       { types: ["import_header"], label: "import", hasName: true },
       { types: ["package_header"], label: "package", hasName: true },
     ],
     wrappers: [],
     nameOf: {
       fieldPriority: ["name"],
-      recurseTypes: [],
+      recurseTypes: ["variable_declaration"],
       identifierTypes: ["simple_identifier", "type_identifier"],
+    },
+    statementDetail: {
+      labels: ["import", "package"],
+    },
+  },
+  {
+    name: "Dart",
+    extensions: [".dart"],
+    wasmFile: join(process.treeSitterWasmPath, "tree-sitter-dart.wasm"),
+    symbols: [
+      { types: ["class_definition"], label: "class", hasName: true },
+      { types: ["enum_declaration"], label: "enum", hasName: true },
+      { types: ["mixin_declaration"], label: "mixin", hasName: true },
+      { types: ["extension_declaration"], label: "extension", hasName: true },
+      { types: ["extension_type_declaration"], label: "extension type", hasName: true },
+      { types: ["function_signature"], label: "function", hasName: true, maxDepth: 0 },
+      { types: ["method_signature"], label: "method", hasName: true, labelByChild: { factory_constructor_signature: "factory" } },
+      { types: ["getter_signature"], label: "getter", hasName: true },
+      { types: ["setter_signature"], label: "setter", hasName: true },
+      { types: ["constructor_signature", "constant_constructor_signature"], label: "constructor", hasName: true },
+      { types: ["type_alias"], label: "typedef", hasName: true },
+      { types: ["library_import"], label: "import", hasName: true },
+      { types: ["library_export"], label: "export", hasName: true },
+    ],
+    wrappers: [],
+    nameOf: {
+      fieldPriority: ["name"],
+      recurseTypes: [
+        "function_signature",
+        "factory_constructor_signature",
+        "getter_signature",
+        "setter_signature",
+        "library_import",
+        "library_export",
+        "import_specification",
+        "configurable_uri",
+        "uri",
+      ],
+      identifierTypes: ["identifier", "type_identifier"],
+      rawTextTypes: ["string_literal"],
+    },
+    statementDetail: {
+      labels: ["import", "export", "factory"],
+      sourceTypes: ["configurable_uri", "uri", "import_specification", "string_literal"],
+      clauseTypes: ["combinator"],
+      trimPatterns: ["\\(.*$"],
     },
   },
 ];
@@ -315,6 +426,8 @@ async function parseInChild(
       symbols: config.symbols,
       wrappers: config.wrappers,
       nameOf: config.nameOf,
+      statementDetail: config.statementDetail,
+      docstrings: config.docstrings,
     };
     child.send(request);
   });
@@ -324,7 +437,7 @@ async function parseInChild(
 
 function parseMarkdown(content: string): { symbols: OutlineSymbol[]; totalLines: number } {
   const lines = content.split("\n");
-  const totalLines = lines.length;
+  const totalLines = content.endsWith("\n") ? lines.length - 1 : lines.length;
   const symbols: OutlineSymbol[] = [];
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
@@ -467,9 +580,12 @@ export function outlineToSummary(outline: FileOutline, maxSymbols = 128): string
       sym.startLine === sym.endLine
         ? `line ${sym.startLine}`
         : `lines ${sym.startLine}-${sym.endLine}`;
-    const cmt = sym.comment ? `  // ${sym.comment}` : "";
     const namePart = sym.name ? ` ${sym.name}` : "";
-    l.push(`${indent}${sym.kind}${namePart} (${lr})${cmt}`);
+    const detailPart = sym.detail ? `: ${sym.detail}` : "";
+    if (sym.comment) {
+      l.push(`${indent}# ${sym.comment}`);
+    }
+    l.push(`${indent}${sym.kind}${namePart}${detailPart} (${lr})`);
   }
   if (outline.symbols.length > maxSymbols)
     l.push(`  ... and ${outline.symbols.length - maxSymbols} more symbols`);

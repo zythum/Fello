@@ -40,6 +40,7 @@ export const shikiPreloadPromise = preloadHighlighter({
     "sql",
     "rust",
     "go",
+    "dart",
     "java",
     "dotenv",
     "docker",

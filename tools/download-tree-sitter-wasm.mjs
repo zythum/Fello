@@ -29,6 +29,7 @@ const LANGUAGES = [
   { name: "C++",             wasmFile: "tree-sitter-cpp.wasm",         owner: "tree-sitter",      repo: "tree-sitter-cpp",         asset: "tree-sitter-cpp.wasm" },
   { name: "Swift",           wasmFile: "tree-sitter-swift.wasm",       owner: "alex-pinkus",      repo: "tree-sitter-swift",       asset: "tree-sitter-swift.wasm" },
   { name: "Kotlin",          wasmFile: "tree-sitter-kotlin.wasm",      owner: "fwcd",             repo: "tree-sitter-kotlin",      asset: "tree-sitter-kotlin.wasm" },
+  { name: "Dart",            wasmFile: "tree-sitter-dart.wasm",        owner: "UserNobody14",     repo: "tree-sitter-dart",        asset: "tree-sitter-dart.wasm", build: true },
 ];
 
 function formatSize(bytes) {
@@ -87,6 +88,34 @@ async function downloadTo(lang, url, destPath) {
   console.log(`  ✓ ${lang.wasmFile} (${formatSize(buffer.length)})`);
 }
 
+/**
+ * Build a tree-sitter grammar WASM from source.
+ * Clones the repo and runs `npx tree-sitter-cli build --wasm`.
+ * Requires: git, npm (tree-sitter-cli is fetched via npx).
+ */
+async function buildFromSource(lang, destPath) {
+  const { mkdtemp, rm, copyFile, readdir } = await import("fs/promises");
+  const { tmpdir } = await import("os");
+  const { statSync } = await import("fs");
+  const tmpDir = await mkdtemp(join(tmpdir(), `ts-${lang.repo}-`));
+  try {
+    execSync(`git clone --depth 1 https://github.com/${lang.owner}/${lang.repo}.git "${tmpDir}/repo"`, {
+      stdio: "pipe",
+      timeout: 60000,
+    });
+    execSync(`npx --yes tree-sitter-cli build --wasm -o "${tmpDir}/repo/${lang.wasmFile}"`, {
+      cwd: join(tmpDir, "repo"),
+      stdio: "pipe",
+      timeout: 180000,
+    });
+    await copyFile(join(tmpDir, "repo", lang.wasmFile), destPath);
+    const size = statSync(destPath).size;
+    console.log(`  ✓ ${lang.wasmFile} (${formatSize(size)}) [built from source]`);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function main() {
   const startTime = Date.now();
 
@@ -117,11 +146,15 @@ async function main() {
   let failure = 0;
 
   for (const lang of toDownload) {
-    const url = `https://github.com/${lang.owner}/${lang.repo}/releases/latest/download/${lang.asset}`;
     const destPath = join(OUT_DIR, lang.wasmFile);
     process.stdout.write(`  ${lang.name}... `);
     try {
-      await downloadTo(lang, url, destPath);
+      if (lang.build) {
+        await buildFromSource(lang, destPath);
+      } else {
+        const url = `https://github.com/${lang.owner}/${lang.repo}/releases/latest/download/${lang.asset}`;
+        await downloadTo(lang, url, destPath);
+      }
       success++;
     } catch (error) {
       console.error(`  ✗ ${lang.name}: ${error.message}`);
