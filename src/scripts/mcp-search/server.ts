@@ -143,7 +143,7 @@ Uses tree-sitter WASM parsing to extract function/class/interface/type/property 
 Returns tree-structured metadata only - no code body is included.
 Use this first before ReadFile to understand a file's structure.
 
-Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx), Python (.py), Go (.go), C (.c/.h), C++ (.cpp/.cc/.cxx/.hpp/.hxx/.hh), Swift (.swift), Kotlin (.kt/.kts), Markdown (.md/.mdx/.markdown).
+Supports: TypeScript (.ts), JavaScript/JSX (.js/.jsx/.mjs/.cjs), TSX (.tsx), Python (.py), Go (.go), C (.c/.h), C++ (.cpp/.cc/.cxx/.hpp/.hxx/.hh), Swift (.swift), Kotlin (.kt/.kts), Dart (.dart), Markdown (.md/.mdx/.markdown).
 
 The path parameter accepts:
 - Relative path (relative to project root): "src/app.ts", "./lib/utils.ts"
