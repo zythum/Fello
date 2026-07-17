@@ -1125,6 +1125,30 @@ export const FilePanel = memo(function FilePanel({
 
       if (dragIds.length === 0) return;
       const validIds = dragIds.filter((id) => id !== targetId && !targetId.startsWith(id + "/"));
+      if (validIds.length === 0) {
+        setDragIds([]);
+        return;
+      }
+
+      const targetName = targetId.split("/").pop() || "/";
+      const result = await confirm({
+        title: t("filePanel.moveConfirmTitle"),
+        content:
+          validIds.length === 1
+            ? t("filePanel.moveConfirmSingle", {
+                name: validIds[0].split("/").pop(),
+                dest: targetName,
+              })
+            : t("filePanel.moveConfirmMultiple", {
+                count: validIds.length,
+                dest: targetName,
+              }),
+      });
+      if (!result) {
+        setDragIds([]);
+        return;
+      }
+
       try {
         await Promise.all(
           validIds.map((id) => {
@@ -1144,7 +1168,7 @@ export const FilePanel = memo(function FilePanel({
       setDragIds([]);
       refresh();
     },
-    [dragIds, refresh, isExternalDrag, handleExternalDrop, activeProjectId],
+    [dragIds, refresh, isExternalDrag, handleExternalDrop, activeProjectId, confirm, t],
   );
 
   const revealInFinder = useCallback(async (path: string) => {
@@ -1505,9 +1529,31 @@ export const FilePanel = memo(function FilePanel({
                 }
 
                 if (dragIds.length === 0 || !activeProjectId) return;
+                const validRootIds = dragIds.filter((id) => id.includes("/"));
+                if (validRootIds.length === 0) {
+                  setDragIds([]);
+                  return;
+                }
+
+                const rootResult = await confirm({
+                  title: t("filePanel.moveConfirmTitle"),
+                  content:
+                    validRootIds.length === 1
+                      ? t("filePanel.moveConfirmSingleToRoot", {
+                          name: validRootIds[0].split("/").pop(),
+                        })
+                      : t("filePanel.moveConfirmMultipleToRoot", {
+                          count: validRootIds.length,
+                        }),
+                });
+                if (!rootResult) {
+                  setDragIds([]);
+                  return;
+                }
+
                 try {
                   await Promise.all(
-                    dragIds.map((id) => {
+                    validRootIds.map((id) => {
                       const srcName = id.split("/").pop()!;
                       const newPath = srcName;
                       if (id === newPath) return Promise.resolve();
