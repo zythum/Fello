@@ -71,7 +71,7 @@
 - **`src/backend/session/index.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、Socket Server 生命周期
 - **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP）
 - **`src/backend/session/notifications.ts`**：通知合并、广播、iLink 转发与 tool_call 状态追踪
-- **`src/backend/bridge-pool.ts`**：Agent Bridge 池管理（`ensureBridge`/`clearPool`），权限请求路由
+- **`src/backend/bridge-connect.ts`**：Agent Bridge 连接管理（`ensureBridge`/`rekeyBridge`/`killBridge`/`killBridgesByAgent`/`clearAll`/`setBroadcast`），会话级 Bridge 生命周期、连接状态广播、权限路由
 - **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册
 - **`src/backend/share-to-user.ts`**：shareToUser 文件分享机制、iLink 媒体队列
 - **`src/backend/terminal.ts`**：PTY 终端管理（创建/销毁/resize/输入输出）
@@ -95,11 +95,19 @@
 - **`src/backend/ilink/ilink-bridge.ts`**：微信 iLink 连接管理、QR 登录、长轮询、消息收发
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
-- **`src/backend/storage.ts`**：持久化管理，包括全局配置、项目元数据、API Agent 数据目录、TEMP_DIR（临时文件目录）
+- **`src/backend/storage/index.ts`**：持久化统一入口，组合设置与项目/会话 CRUD，提供消息日志（`appendSessionMessage`/`readSessionMessages`）与终端日志（`appendTerminalOutput`/`readTerminalOutput`）
+- **`src/backend/storage/constant.ts`**：共享常量（`FELLO_DIR`、`SOCKETS_DIR`、`PROJECTS_DIR`、`TEMP_DIR`）
+- **`src/backend/storage/settings.ts`**：全局设置读写（`getSettings`/`updateSettings`），含 Agent、MCP Server、主题、语言、iLink、snippets 等完整配置管理
+- **`src/backend/storage/project-session.ts`**：项目与会话元数据 CRUD（`addProject`/`createSession`/`listProjects`/`listSessions`/`getSession`/`updateSession`/`deleteProject`/`deleteSession`），含内存缓存与磁盘持久化
+- **`src/backend/file-routes.ts`**：统一文件 URL 路由解析与执行（`parseFileRoute`/`serveRoute`），支持项目文件、会话共享文件、自动化任务文件三种路由类型，同时服务于 Electron 自定义协议（`fello://web/`）和 WebUI HTTP 请求
 - **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器 + `generateSocketPath()` 路径生成，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）。详见 [`docs/socket-server.md`](./socket-server.md)
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
 - **`src/shared/zod/mcp-ask-user-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
 - **`src/shared/zod/mcp-skills-schema.ts`**：Shared Zod schema，用于校验 Skills MCP 工具的请求与响应数据结构
+- **`src/shared/zod/mcp-search-schema.ts`**：Search MCP 工具请求与响应数据结构
+- **`src/shared/zod/mcp-share-to-user-schema.ts`**：Share-to-User MCP 工具请求与响应数据结构
+- **`src/shared/zod/worker-ripgrep-schema.ts`**：Ripgrep Worker 子进程 IPC 通信数据结构
+- **`src/shared/zod/worker-file-outline-schema.ts`**：File Outline Worker 子进程 IPC 通信数据结构
 
 ### Agent Session Logic（`src/agents/`）
 
@@ -120,6 +128,8 @@
 - `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页）
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 askUserRequests 队列、iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
+- `lib/session-selectors.ts`：Zustand 细粒度选择器 Hooks（`useSessionMessages`/`useSessionActiveToolCalls`/`useSessionIsLoading` 等），使用 `useShallow` 避免不必要的重渲染
+- `lib/file-url.ts`：`resolveFileUrl(pathname)` 工具函数，根据 Electron/WebUI 环境将路径名解析为完整文件 URL
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
 - 组件层：
@@ -144,10 +154,19 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 
 - **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 `list_skills` 和 `activate_skill` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/skills/catalog`、`/skills/detail`）。Skills 本身是会话级 feature flag，可以通过 `features` 参数开关
 - **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/ask-user/ask`），将 Agent 的询问请求转发到 `askUser()` 函数
+- **`src/scripts/mcp-search/server.ts`**：Search MCP server，提供 `search`、`rg` 和 `file_outline` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/search/search`、`/search/rg`、`/search/file-outline`）
+- **`src/scripts/mcp-share-to-user/server.ts`**：Share-to-User MCP server，提供 `share_to_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/share-to-user/share`），将 Agent 的文件分享请求转发到 `shareToUser()` 函数
 
-Skills 和 ask-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。
+Skills、ask-user、search 和 share-to-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user", "search", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。
 
 MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
+
+### Worker 子进程（非 MCP）
+
+以下 Worker 子进程不是 MCP Server，它们是普通工作子进程，通过 stdin/stdout JSON 消息与后端搜索模块通信：
+
+- **`src/scripts/worker-ripgrep/worker.ts`**：Ripgrep 搜索 Worker，由 `src/backend/search/ripgrep.ts` 以子进程方式启动，通过 stdin/stdout JSON 通信执行文件内容搜索
+- **`src/scripts/worker-file-outline/worker.ts`**：File Outline Worker，由 `src/backend/search/file-outline.ts` 以子进程方式启动，使用 tree-sitter WASM 解析文件结构大纲
 
 ### Agent 进程（两种类型）
 
@@ -337,6 +356,26 @@ Agent 调用 list_skills / activate_skill MCP tool
   → MCP skills server: HTTP POST /skills/catalog 或 /skills/detail over Unix Socket
   → Main SocketServer: 查询 Skills 目录或读取指定 Skill 详情
   → 返回结果给 MCP server
+  → Agent: 收到 tool call 结果
+```
+
+#### Search
+
+```
+Agent 调用 search / rg / file_outline MCP tool
+  → MCP search server: HTTP POST over Unix Socket（/search/search、/search/rg、/search/file-outline）
+  → Main SocketServer: 查询 ripgrep worker 或 file-outline worker
+  → 返回结果给 MCP server
+  → Agent: 收到 tool call 结果
+```
+
+#### Share-to-User
+
+```
+Agent 调用 share_to_user MCP tool
+  → MCP share-to-user server: HTTP POST /share-to-user/share over Unix Socket
+  → Main SocketServer: 执行文件分享逻辑（shareToUser()）
+  → 返回确认给 MCP server
   → Agent: 收到 tool call 结果
 ```
 

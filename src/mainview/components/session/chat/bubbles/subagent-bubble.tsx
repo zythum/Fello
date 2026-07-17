@@ -28,7 +28,7 @@ const statusIcons: Record<SubagentStatus, React.ReactNode> = {
 };
 
 const typographyClasses = cn(
-  "max-w-none wrap-anywhere whitespace-pre-wrap",
+  "w-full max-w-none wrap-anywhere whitespace-pre-wrap",
   "prose dark:prose-invert",
   "prose-p:text-[11px] prose-p:leading-normal prose-p:text-muted-foreground/70 prose-p:m-0 prose-p:mb-1.5",
   "prose-headings:text-muted-foreground/70 prose-headings:font-medium prose-headings:mt-1.5 prose-headings:mb-1",
@@ -91,18 +91,16 @@ export const SubagentBubble = memo(function SubagentBubble({
 
   return (
     <div className="subagent-bubble w-full pointer-events-auto pt-2 my-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Bot className="size-4" />
-          <div>
-            <span className="text-xs">{message.name}</span>
-          </div>
-          <button className="text-muted-foreground/80 hover:text-muted-foreground" onClick={toggle}>
-            {open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
-          </button>
-          <div className="flex-1"></div>
-          <div className="mr-3">{statusIcons[status]}</div>
+      <div className="flex items-center gap-2">
+        <Bot className="size-4" />
+        <div>
+          <span className="text-xs">{message.name}</span>
         </div>
+        <button className="text-muted-foreground/80 hover:text-muted-foreground" onClick={toggle}>
+          {open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
+        </button>
+        <div className="flex-1"></div>
+        <div className="mr-3">{statusIcons[status]}</div>
       </div>
       <div className="pl-4 ml-2 pt-1 border-l border-dashed">
         <div className="flex items-start gap-2 pb-4 mt-2 -mb-2 relative min-h-6">

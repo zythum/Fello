@@ -20,7 +20,7 @@ fello/
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
 │   │   ├── backend.ts                # IPC 总入口：工厂模块实例化、组装 backendHandlers
 │   │   ├── types.ts                  # 共享类型（BackendContext, SendEventFn, EventListener）
-│   │   ├── bridge-pool.ts            # Agent Bridge 池管理（ensureBridge/clearPool）
+│   │   ├── bridge-connect.ts          # Agent Bridge 连接管理（ensureBridge/rekeyBridge/killBridge/killBridgesByAgent/clearAll/setBroadcast）
 │   │   ├── ask-user.ts               # askUser 通用机制（请求/响应/超时/路由注册）
 │   │   ├── share-to-user.ts          # shareToUser 文件分享（iLink 媒体队列）
 │   │   ├── terminal.ts               # PTY 终端管理（创建/销毁/resize/输出）
@@ -48,7 +48,12 @@ fello/
 │   │   │   ├── stdio-agent.ts            # Stdio Agent 进程 spawn（child_process）
 │   │   │   ├── openai-compatible-api-agent.ts # API Agent 进程内启动
 │   │   │   └── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
-│   │   ├── storage.ts                # 项目/会话元数据持久化（project.json / session.json）
+│   │   ├── storage/                  # 持久化管理模块
+│   │   │   ├── index.ts              # 统一入口：组合设置与项目/会话 CRUD + 消息/终端日志
+│   │   │   ├── constant.ts           # 共享路径常量（FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR）
+│   │   │   ├── settings.ts           # 全局设置读写（agents/mcpServers/theme/i18n/ilink/snippets）
+│   │   │   └── project-session.ts    # 项目与会话元数据 CRUD + 内存缓存
+│   │   ├── file-routes.ts            # 统一文件 URL 路由（project/share/automation 三种类型）
 │   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
 │   │   ├── watcher.ts                # 文件系统监控（@parcel/watcher 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
@@ -69,20 +74,32 @@ fello/
 │   │   ├── updater.ts                # 自动更新逻辑
 │   │   └── env.ts                    # 环境变量配置
 │   │
-│   ├── scripts/                      # 构建脚本入口（preload + MCP 子进程）
+│   ├── scripts/                      # 构建脚本入口（preload + MCP 子进程 + Worker 子进程）
 │   │   ├── electron-preload/
 │   │   │   └── preload.ts            # contextBridge 暴露 window.fello.invoke/on/off
 │   │   ├── mcp-skills/
 │   │   │   └── server.ts             # Skills MCP server
-│   │   └── mcp-ask-user/
-│   │       └── server.ts             # Ask User MCP server
+│   │   ├── mcp-ask-user/
+│   │   │   └── server.ts             # Ask User MCP server
+│   │   ├── mcp-search/
+│   │   │   └── server.ts             # Search MCP server（search/rg/file_outline）
+│   │   ├── mcp-share-to-user/
+│   │   │   └── server.ts             # Share-to-User MCP server
+│   │   ├── worker-ripgrep/
+│   │   │   └── worker.ts             # Ripgrep Worker 子进程
+│   │   └── worker-file-outline/
+│   │       └── worker.ts             # File Outline Worker 子进程（tree-sitter WASM）
 │   │
 │   ├── shared/                       # 前后端共享类型与常量
 │   │   ├── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
 │   │   ├── constants.ts              # 共享常量（Feature 列表、i18n key 映射等）
 │   │   └── zod/                      # 共享 Zod schema
 │   │       ├── mcp-ask-user-schema.ts
-│   │       └── mcp-skills-schema.ts
+│   │       ├── mcp-skills-schema.ts
+│   │       ├── mcp-search-schema.ts       # Search MCP 工具请求与响应
+│   │       ├── mcp-share-to-user-schema.ts # Share-to-User MCP 请求与响应
+│   │       ├── worker-ripgrep-schema.ts    # Ripgrep Worker IPC 数据结构
+│   │       └── worker-file-outline-schema.ts # File Outline Worker IPC 数据结构
 │   │
 │   └── mainview/                     # Renderer（React SPA）
 │       ├── App.tsx                   # 根组件，订阅全局事件，挂载路由与全局上下文
@@ -102,12 +119,14 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── clipboard.ts              # 剪贴板工具（HTTP fallback + 粘贴检测）
-│       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage 并推入 store
-│       │   ├── shiki-preload.ts      # Shiki 代码高亮预加载（@pierre/diffs 内置）
-│       │   ├── chat-message.ts       # 多态消息类型定义与 ContentBlock 鉴别器
-│       │   ├── regexp.ts             # 正则表达式工具
-│       │   ├── terminal-manager.ts   # 终端输出管理器
-│       │   └── utils.ts             # cn()、formatSessionTime 等工具函数
+│       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage
+│       │   ├── session-selectors.ts      # Zustand 细粒度选择器 Hooks（避免不必要的重渲染）
+│       │   ├── shiki-preload.ts          # Shiki 代码高亮预加载（@pierre/diffs 内置）
+│       │   ├── chat-message.ts           # 多态消息类型定义与 ContentBlock 鉴别器
+│       │   ├── file-url.ts              # 文件 URL 解析（Electron/WebUI 环境适配）
+│       │   ├── regexp.ts                 # 正则表达式工具
+│       │   ├── terminal-manager.ts       # 终端输出管理器
+│       │   └── utils.ts                  # cn()、formatSessionTime 等工具函数
 │       │
 │       ├── components/
 │       │   ├── automation/           # 自动化任务管理页面
@@ -286,7 +305,7 @@ fello/
 - 面向系统能力的底层实现：文件系统、终端 PTY
 - 工厂模式设计：`backend.ts` 创建 `BackendContext`（sendEvent + onEvent + storage），按层级实例化各 `createXxxModule()` 工厂：
   - `session/` — 会话生命周期（new/load/sendPrompt/cancel/delete）、通知广播、MCP 配置
-  - `bridge-pool.ts` — Agent Bridge 池管理与复用
+  - `bridge-connect.ts` — Agent Bridge 连接管理（生命周期、状态广播、权限路由）
   - `ask-user.ts` — askUser 通用请求/响应/超时机制
   - `share-to-user.ts` — shareToUser 文件分享
   - `terminal.ts` — PTY 终端创建/销毁/resize
