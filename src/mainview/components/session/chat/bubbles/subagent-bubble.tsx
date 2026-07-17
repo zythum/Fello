@@ -90,7 +90,7 @@ export const SubagentBubble = memo(function SubagentBubble({
   }, []);
 
   return (
-    <div className="subagent-bubble w-full pointer-events-auto py-1 my-4">
+    <div className="subagent-bubble w-full pointer-events-auto pt-2 my-4">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <Bot className="size-4" />
@@ -105,16 +105,16 @@ export const SubagentBubble = memo(function SubagentBubble({
         </div>
       </div>
       <div className="pl-4 ml-2 pt-1 border-l border-dashed">
-        <div className="flex items-start gap-2 mt-2 -mb-2 relative">
+        <div className="flex items-start gap-2 pb-4 mt-2 -mb-2 relative min-h-6">
           <MessageSquareQuote className="size-4 absolute top-px -left-6 bg-background text-muted-foreground/70 scale-70" />
           <StreamMarkdown className={typographyClasses} isStreaming={false}>
             {message.prompt}
           </StreamMarkdown>
         </div>
-        {open && (
-          <div className="relative">
-            <MessageSquareMore className="size-4 absolute -left-6 bg-background text-muted-foreground/70 scale-70" />
-            <div className="h-2 my-4 border-b border-dashed" />
+        <div className="relative">
+          <div className="h-2 border-b border-dashed -ml-4 mt-px -mb-1" />
+          {open && (<>
+            <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
             {message.messages.map((message, index) => {
               return (
                 <MessageBubble
@@ -125,8 +125,10 @@ export const SubagentBubble = memo(function SubagentBubble({
                 />
               );
             })}
-          </div>
-        )}
+            <div className="border-b border-dashed -ml-4 -mb-1" />
+          </>
+          )}
+        </div>
       </div>
     </div>
   );

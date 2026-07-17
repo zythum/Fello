@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, generateText, type ModelMessage, type TextPart } from "ai";
+import { stepCountIs, streamText, generateText, type ModelMessage, type TextPart, type ToolSet } from "ai";
 import type {
   Agent,
   AgentSideConnection,
@@ -42,6 +42,7 @@ import {
   savePersistedSessionState,
 } from "./storage";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
+import { createSubagentTool } from "./subagent-tool";
 import {
   embeddedResourceToFilePart,
   audioContentToFilePart,
@@ -676,13 +677,26 @@ export class OpenaiCompatibleAgent implements Agent {
       if (!session.modelId) {
         throw new Error("No model available for current session.");
       }
+      const systemPrompt = buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories);
+      const sharedTools: ToolSet = {
+        ...session.mcp.tools,
+        ...session.acp.tools,
+      };
+      const subagentTool = createSubagentTool({
+        sessionId: params.sessionId,
+        cwd: session.cwd,
+        getConnection: () => this.connection,
+        getModel: () => this.provider.chatModel(session.modelId!),
+        systemPrompt,
+        parentSignal: abortController.signal,
+      });
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
-        system: buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories),
+        system: systemPrompt,
         messages: [...session.history, userMessage],
         tools: {
-          ...session.mcp.tools,
-          ...session.acp.tools,
+          ...sharedTools,
+          ...subagentTool,
         },
         stopWhen: stepCountIs(128),
         abortSignal: abortController.signal,
