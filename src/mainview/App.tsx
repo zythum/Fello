@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
-import { reduceSessionUpdate } from "./lib/session-state-reducer";
+import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
@@ -43,8 +43,8 @@ function AppContent() {
   }, [activeSessionId]);
   const navigate = useNavigate();
   const [isReady, setIsReady] = useState(false);
-  const pendingSessionUpdatesRef = useRef(
-    new Map<string, BackendEvents["session-update"]["notification"]["update"][]>(),
+  const pendingSessionNotificationRef = useRef(
+    new Map<string, BackendEvents["session-update"]["notification"][]>(),
   );
   const sessionUpdateFlushRafIdRef = useRef<number | null>(null);
 
@@ -108,24 +108,24 @@ function AppContent() {
   ]);
 
   useEffect(() => {
-    const flushPendingSessionUpdates = () => {
+    const flushPendingSessioNotificationss = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
       const budgetMs = 8;
       const start = performance.now();
 
-      for (const [sid, updates] of pendingSessionUpdatesRef.current.entries()) {
+      for (const [sid, notifications] of pendingSessionNotificationRef.current.entries()) {
         // Remove from queue first. If we don't finish, we will re-insert it at the end (Round-Robin)
-        pendingSessionUpdatesRef.current.delete(sid);
+        pendingSessionNotificationRef.current.delete(sid);
 
         let processedCount = 0;
 
         // Apply batch of updates securely on top of the freshest state
         store.updateSessionState(sid, (currentState) => {
           let state = currentState;
-          for (let i = 0; i < updates.length; i++) {
-            const update = updates[i];
-            state = reduceSessionUpdate(state, update);
+          for (let i = 0; i < notifications.length; i++) {
+            const notification = notifications[i];
+            state = reduceSessionNotification(sid, state, notification);
             processedCount++;
 
             // Break inner loop if time budget exceeded
@@ -137,9 +137,9 @@ function AppContent() {
         });
 
         // Re-queue unprocessed updates
-        if (processedCount < updates.length) {
+        if (processedCount < notifications.length) {
           // By setting it again, it moves to the end of Map iteration order
-          pendingSessionUpdatesRef.current.set(sid, updates.slice(processedCount));
+          pendingSessionNotificationRef.current.set(sid, notifications.slice(processedCount));
         }
 
         // Break outer loop if time budget exceeded
@@ -149,19 +149,19 @@ function AppContent() {
       }
 
       // Schedule next flush if there are still items in the queue
-      if (pendingSessionUpdatesRef.current.size > 0) {
-        scheduleFlushPendingSessionUpdates();
+      if (pendingSessionNotificationRef.current.size > 0) {
+        scheduleFlushPendingSessioNnotificationss();
       }
     };
 
-    const scheduleFlushPendingSessionUpdates = () => {
+    const scheduleFlushPendingSessioNnotificationss = () => {
       if (sessionUpdateFlushRafIdRef.current != null) return;
-      sessionUpdateFlushRafIdRef.current = requestAnimationFrame(flushPendingSessionUpdates);
+      sessionUpdateFlushRafIdRef.current = requestAnimationFrame(flushPendingSessioNotificationss);
     };
 
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sid = detail.sessionId;
-      const update = detail.notification.update;
+      const notification = detail.notification;
 
       const store = useAppStore.getState();
 
@@ -171,18 +171,20 @@ function AppContent() {
 
       const sessionState = store.sessionStates.get(sid);
       if (sessionState?.isLoading) {
-        store.updateSessionState(sid, (s) => ({ pendingUpdates: [...s.pendingUpdates, update] }));
+        store.updateSessionState(sid, (s) => ({
+          pendingNotifications: [...s.pendingNotifications, notification],
+        }));
         return;
       }
 
-      let pending = pendingSessionUpdatesRef.current.get(sid);
+      let pending = pendingSessionNotificationRef.current.get(sid);
       if (!pending) {
         pending = [];
-        pendingSessionUpdatesRef.current.set(sid, pending);
+        pendingSessionNotificationRef.current.set(sid, pending);
       }
-      pending.push(update);
+      pending.push(notification);
 
-      scheduleFlushPendingSessionUpdates();
+      scheduleFlushPendingSessioNnotificationss();
     };
 
     const handleAskUserRequest = (detail: BackendEvents["ask-user-request"]) => {
@@ -267,9 +269,9 @@ function AppContent() {
       }
 
       // 同步清理 pendingSessionUpdatesRef 中已删除的会话
-      for (const sid of pendingSessionUpdatesRef.current.keys()) {
+      for (const sid of pendingSessionNotificationRef.current.keys()) {
         if (!sessionIds.has(sid)) {
-          pendingSessionUpdatesRef.current.delete(sid);
+          pendingSessionNotificationRef.current.delete(sid);
         }
       }
 
@@ -438,7 +440,7 @@ function AppContent() {
         cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
         sessionUpdateFlushRafIdRef.current = null;
       }
-      pendingSessionUpdatesRef.current.clear();
+      pendingSessionNotificationRef.current.clear();
     };
   }, [isMacApp]);
 

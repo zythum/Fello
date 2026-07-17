@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { useAppStore } from "./store";
 import "@xterm/xterm/css/xterm.css";
 import "./index.css";
 import "./i18n";
@@ -10,3 +11,7 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+if (typeof window === "object") {
+  Object.assign(window, { appStore: useAppStore });
+}

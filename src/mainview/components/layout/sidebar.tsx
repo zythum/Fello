@@ -296,9 +296,8 @@ export function Sidebar() {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             setSessions(store.sessions.filter((s) => s.id !== session.id));
-            const map = new Map(store.sessionStates);
-            map.delete(session.id);
-            useAppStore.setState({ sessionStates: map });
+
+            store.disposeSessionState(session.id);
 
             await request.deleteSession(session.id);
             await refreshData();
@@ -583,7 +582,12 @@ export function Sidebar() {
                           e.stopPropagation();
                         }}
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <div
+                          className={cn(
+                            "flex min-w-0 flex-1 items-center gap-1.5",
+                            session.connectionStatus === "connected" ? "" : "opacity-60",
+                          )}
+                        >
                           {(() => {
                             const state = sessionStates.get(session.id);
                             const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;

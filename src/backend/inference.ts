@@ -70,6 +70,8 @@ export function createInferenceModule(
     const agentInfo = resolveAgentInfo(agentId);
     const bridge = new ACPBridge(agentId, {
       agentInfo,
+      cwd,
+      onSessionConnect: () => {},
       onSessionUpdate: (notification: SessionNotification) => {
         notifications.push(notification);
         if (notification.update?.sessionUpdate === "agent_message_chunk") {
@@ -79,6 +81,7 @@ export function createInferenceModule(
           }
         }
       },
+      onExtNotification: () => {},
       onPermissionRequest: async (request) => {
         const opt =
           request.options.find((o) => o.kind === "allow_always") ??

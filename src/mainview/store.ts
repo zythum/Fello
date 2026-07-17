@@ -1,3 +1,4 @@
+import { enableArrayMethods, enableMapSet, enablePatches } from "immer";
 import { create } from "zustand";
 import { useRef } from "react";
 import type {
@@ -9,8 +10,12 @@ import type {
   SessionNotificationFelloExt,
   AskUserRequest,
 } from "../shared/schema";
-import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
+import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./lib/chat-message";
 import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
+
+enableArrayMethods();
+enableMapSet();
+enablePatches();
 
 export interface TerminalItem {
   id: string;
@@ -51,7 +56,8 @@ export interface SessionState {
   terminalLogs: Record<string, string>;
   askUserRequests: AskUserRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
-  pendingUpdates: SessionNotificationFelloExt["update"][];
+  activeSubagents: Map<string, SubagentMessage>;
+  pendingNotifications: SessionNotificationFelloExt[];
   availableCommands: AvailableCommand[];
   /** 暂存的输入框内容，用于 session 切换时恢复 */
   draftInput: string;
@@ -74,11 +80,12 @@ const emptySessionState = (): SessionState => ({
   messages: [],
   usage: null,
   lastTurnUsage: null,
-  isLoading: false,
+  isLoading: true,
   terminalLogs: {},
   askUserRequests: [],
   activeToolCalls: new Map(),
-  pendingUpdates: [],
+  activeSubagents: new Map(),
+  pendingNotifications: [],
   availableCommands: [],
   draftInput: "",
   draftAttachments: [],
@@ -159,6 +166,7 @@ export interface AppState {
   // Per-session mutators
   // ==========================================================================
   resetSessionState: (sessionId: string) => void;
+  disposeSessionState: (sessionId: string) => void;
   setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   setAskUserRequest: (sessionId: string, req: AskUserRequest | null) => void;
@@ -293,6 +301,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const map = new Map(state.sessionStates);
       map.set(sessionId, emptySessionState());
+      return { sessionStates: map };
+    }),
+  disposeSessionState: (sessionId) =>
+    set((state) => {
+      const map = new Map(state.sessionStates);
+      map.delete(sessionId);
       return { sessionStates: map };
     }),
   setMessages: (sessionId, messages) => get().updateSessionState(sessionId, () => ({ messages })),

@@ -1,29 +1,36 @@
-import type { SessionNotificationFelloExt } from "../../shared/schema";
+import { produce } from "immer";
+import type {
+  ContentChunk,
+  ToolCall,
+  ToolCallUpdate,
+  Plan,
+  UsageUpdate,
+  AvailableCommandsUpdate,
+} from "@agentclientprotocol/sdk";
+import type { SessionNotificationFelloExt, SubagentUpdate } from "../../shared/schema";
 import type { SessionState } from "../store";
-import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
+import type { ToolCallMessage, SubagentMessage, ChatMessage, PlanMessage } from "./chat-message";
 import { generateUUID } from "./utils";
-
-// ---------------------------------------------------------------------------
-// Pure Functions for State Calculation
-// ---------------------------------------------------------------------------
-
-type UpdatePayload<T extends SessionNotificationFelloExt["update"]["sessionUpdate"]> = Extract<
-  SessionNotificationFelloExt["update"],
-  { sessionUpdate: T }
->;
 
 function calculateUserMessageChunk(
   state: SessionState,
-  update: UpdatePayload<"user_message_chunk">,
+  subSessionId: string | null,
+  update: ContentChunk,
+  displayId: string,
+  receivedAt: number,
 ): SessionState {
+  if (subSessionId !== null) {
+    return state;
+  }
+
   const content = update.content;
   const messages = state.messages;
 
   // Optimistic update deduplication
-  const optimisticId = content._meta?.optimistic_id;
-  const displayId = content._meta?.display_id;
-  if (typeof optimisticId === "string" && typeof displayId === "string") {
-    const messageIdx = messages.findIndex((m) => m.displayId === displayId);
+  const _optimisticId = content._meta?.optimistic_id;
+  const _displayId = content._meta?.display_id;
+  if (typeof _optimisticId === "string" && typeof _displayId === "string") {
+    const messageIdx = messages.findIndex((m) => m.displayId === _displayId);
     if (messageIdx !== -1) {
       // We found the optimistically added message!
       // Instead of ignoring the backend's chunk, we replace our fake message
@@ -32,7 +39,7 @@ function calculateUserMessageChunk(
       const existingMsg = messages[messageIdx];
       if (existingMsg.role === "user_message") {
         const contents = existingMsg.contents;
-        const contentIdx = contents.findIndex((c) => c._meta?.optimistic_id === optimisticId);
+        const contentIdx = contents.findIndex((c) => c._meta?.optimistic_id === _optimisticId);
         if (contentIdx !== -1) {
           const newContents = [...contents];
           newContents[contentIdx] = content;
@@ -57,8 +64,8 @@ function calculateUserMessageChunk(
         role: "user_message",
         contents: [content],
         _meta: update._meta,
-        displayId: update._meta?.fello?.displayId ?? generateUUID(),
-        receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
+        displayId,
+        receivedAt,
       },
     ],
   };
@@ -66,178 +73,344 @@ function calculateUserMessageChunk(
 
 function calculateAgentChunk(
   state: SessionState,
+  subSessionId: string | null,
   role: "agent_message" | "agent_thought",
-  update: UpdatePayload<"agent_message_chunk"> | UpdatePayload<"agent_thought_chunk">,
+  update: ContentChunk,
+  displayId: string,
+  receivedAt: number,
 ): SessionState {
-  const block = update.content;
-  const msgs = [...state.messages];
-  const last = msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
+  return produce(state, (state) => {
+    const messages = (() => {
+      if (!subSessionId) {
+        return state.messages;
+      }
+      let subagentMessage = state.activeSubagents.get(subSessionId);
+      if (!subagentMessage) {
+        subagentMessage = {
+          role: "subagent",
+          sessionId: subSessionId,
+          name: "",
+          prompt: "",
+          status: "pending",
+          messages: [],
+          displayId,
+          receivedAt,
+        };
+      }
+      state.activeSubagents.set(subSessionId, subagentMessage);
+      return subagentMessage.messages;
+    })();
 
-  if (last && last.role === role) {
-    const oldContents = last.contents || [];
-    const lastBlock = oldContents[oldContents.length - 1];
-
-    if (lastBlock && lastBlock.type === "text" && block.type === "text") {
-      const newContents = [...oldContents];
-      newContents[newContents.length - 1] = {
-        ...lastBlock,
-        text: lastBlock.text + block.text,
-      };
-      msgs[msgs.length - 1] = { ...last, contents: newContents };
+    const last = messages.length > 0 ? messages[messages.length - 1] : undefined;
+    const block = update.content;
+    if (last && last.role === role) {
+      const lastBlock = last.contents[last.contents.length - 1];
+      if (lastBlock && lastBlock.type === "text" && block.type === "text") {
+        lastBlock.text += block.text;
+      } else {
+        last.contents.push(block);
+      }
     } else {
-      msgs[msgs.length - 1] = { ...last, contents: [...oldContents, block] };
+      messages.push({
+        role,
+        contents: [block],
+        displayId,
+        receivedAt,
+      });
     }
-  } else {
-    msgs.push({
-      role,
-      contents: [block],
-      displayId: update._meta?.fello?.displayId ?? generateUUID(),
-      receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
-    } satisfies ChatMessage);
-  }
-  return { ...state, messages: msgs };
+  });
 }
 
-function calculateToolCall(
+function calculateToolCallUpdate(
   state: SessionState,
-  update: UpdatePayload<"tool_call" | "tool_call_update">,
+  subSessionId: string | null,
+  update: ToolCall | ToolCallUpdate,
+  displayId: string,
+  receivedAt: number,
 ): SessionState {
-  let terminalId: string | null = null;
-  if (Array.isArray(update.content)) {
-    for (const content of update.content) {
-      if (content.type === "terminal") {
-        terminalId = content.terminalId;
+  return produce(state, (state) => {
+    let terminalId: string | null = null;
+    if (Array.isArray(update.content)) {
+      for (const content of update.content) {
+        if (content.type === "terminal") {
+          terminalId = content.terminalId;
+        }
       }
     }
-  }
 
-  const newMap = new Map(state.activeToolCalls);
-  const existing =
-    newMap.get(update.toolCallId) ||
-    ({
-      role: "tool_call",
-      toolCallId: update.toolCallId,
-      title: "",
-      status: "completed",
-      content: [],
-      locations: [],
-      displayId: update._meta?.fello?.displayId ?? generateUUID(),
-      receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
-    } satisfies ToolCallMessage);
+    let message: ToolCallMessage | undefined = state.activeToolCalls.get(update.toolCallId);
+    if (!message) {
+      message = {
+        role: "tool_call",
+        toolCallId: update.toolCallId,
+        title: "",
+        status: "completed",
+        content: [],
+        locations: [],
+        displayId,
+        receivedAt,
+      };
+      state.activeToolCalls.set(update.toolCallId, message);
+    }
 
-  const data: Partial<ToolCallMessage> = {};
-  if (Object.prototype.hasOwnProperty.call(update, "title")) {
-    data.title = update.title ?? "";
-  }
-  if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
-    data.status = update.status;
-  }
-  if (Object.prototype.hasOwnProperty.call(update, "content")) {
-    data.content = update.content ?? [];
-  }
-  if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
-    data.kind = update.kind;
-  }
-  if (Object.prototype.hasOwnProperty.call(update, "rawInput")) {
-    data.rawInput = update.rawInput;
-  }
-  if (Object.prototype.hasOwnProperty.call(update, "locations")) {
-    data.locations = update.locations ?? [];
-  }
-  if (terminalId) data.terminalId = terminalId;
+    if (Object.prototype.hasOwnProperty.call(update, "title")) {
+      message.title = update.title ?? "";
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
+      message.status = update.status;
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "content")) {
+      message.content = update.content ?? [];
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
+      message.kind = update.kind;
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "rawInput")) {
+      message.rawInput = update.rawInput;
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "locations")) {
+      message.locations = update.locations ?? [];
+    }
+    if (terminalId) message.terminalId = terminalId;
 
-  const merged: ToolCallMessage = { ...existing, ...data };
+    const messages = (() => {
+      if (!subSessionId) {
+        return state.messages;
+      }
+      let subagentMessage = state.activeSubagents.get(subSessionId);
+      if (!subagentMessage) {
+        subagentMessage = {
+          role: "subagent",
+          sessionId: subSessionId,
+          name: "",
+          prompt: "",
+          status: "pending",
+          messages: [],
+          displayId,
+          receivedAt,
+        };
+      }
+      state.activeSubagents.set(subSessionId, subagentMessage);
+      return subagentMessage.messages;
+    })();
 
-  newMap.set(update.toolCallId, merged);
+    // Also upsert into messages so tools appear interleaved with other roles
+    const idx = messages.findIndex(
+      (m) => m.role === "tool_call" && m.toolCallId === update.toolCallId,
+    );
 
-  // Also upsert into messages so tools appear interleaved with other roles
-  const msgs = [...state.messages];
-  const idx = msgs.findIndex((m) => m.role === "tool_call" && m.toolCallId === update.toolCallId);
+    if (idx !== -1) {
+      messages[idx] = message;
+    } else {
+      messages.push(message);
+    }
+  });
+}
 
-  if (idx !== -1) {
-    msgs[idx] = merged;
-  } else {
-    msgs.push(merged);
-  }
+function calculatePlan(
+  state: SessionState,
+  subSessionId: string | null,
+  update: Plan,
+  displayId: string,
+  receivedAt: number,
+) {
+  return produce(state, (state) => {
+    const messages = (() => {
+      if (!subSessionId) {
+        return state.messages;
+      }
+      let subagentMessage = state.activeSubagents.get(subSessionId);
+      if (!subagentMessage) {
+        subagentMessage = {
+          role: "subagent",
+          sessionId: subSessionId,
+          name: "",
+          prompt: "",
+          status: "pending",
+          messages: [],
+          displayId,
+          receivedAt,
+        };
+      }
+      state.activeSubagents.set(subSessionId, subagentMessage);
+      return subagentMessage.messages;
+    })();
 
-  return { ...state, activeToolCalls: newMap, messages: msgs };
+    const message: PlanMessage = {
+      role: "plan",
+      entries: update.entries,
+      displayId,
+      receivedAt,
+    };
+    messages.push(message);
+  });
+}
+
+function calculateSubagent(
+  state: SessionState,
+  update: SubagentUpdate,
+  displayId: string,
+  receivedAt: number,
+): SessionState {
+  return produce(state, (state) => {
+    let message: SubagentMessage | undefined = state.activeSubagents.get(update.sessionId);
+    if (!message) {
+      message = {
+        role: "subagent",
+        sessionId: update.sessionId,
+        name: update.name ?? "",
+        prompt: update.prompt ?? "",
+        status: "pending",
+        messages: [],
+        displayId,
+        receivedAt,
+      };
+      state.activeSubagents.set(update.sessionId, message);
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "name")) {
+      message.name = update.name ?? "";
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "prompt")) {
+      message.prompt = update.prompt ?? "";
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
+      message.status = update.status;
+    }
+
+    state.activeSubagents.set(update.sessionId, message);
+
+    const messages = state.messages;
+    const idx = messages.findIndex(
+      (m) => m.role === "subagent" && m.sessionId === update.sessionId,
+    );
+    if (idx !== -1) {
+      messages[idx] = message;
+    } else {
+      messages.push(message);
+    }
+  });
 }
 
 function calculateUsageUpdate(
   state: SessionState,
-  update: UpdatePayload<"usage_update">,
+  subSessionId: string | null,
+  update: UsageUpdate,
 ): SessionState {
-  return {
-    ...state,
-    usage: {
+  if (subSessionId) {
+    return state;
+  }
+  return produce(state, (state) => {
+    state.usage = {
       size: update.size ?? 0,
       used: update.used ?? 0,
       cost: update.cost ?? null,
-      _meta: update._meta,
-    },
-  };
+    };
+  });
+}
+
+function calculateAvailableCommands(
+  state: SessionState,
+  subSessionId: string | null,
+  update: AvailableCommandsUpdate,
+): SessionState {
+  if (subSessionId) {
+    return state;
+  }
+  return produce(state, (state) => {
+    state.availableCommands = update.availableCommands ?? [];
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Main Reducer Logic
 // ---------------------------------------------------------------------------
 
-export function reduceSessionUpdate(
+export function reduceSessionNotification(
+  sessionId: string,
   currentState: SessionState,
-  update: SessionNotificationFelloExt["update"],
+  notification: SessionNotificationFelloExt,
 ): SessionState {
+  const update = notification.update;
+  const displayId = notification.update._meta?.fello?.displayId ?? generateUUID();
+  const receivedAt = notification.update._meta?.fello?.receivedAt ?? Date.now();
+
+  // sessionId format is `${agentId}:${resumeId}`, extract resumeId
+  const resumeId = sessionId.slice(sessionId.indexOf(":") + 1);
+  const subSessionId = resumeId === notification.sessionId ? null : notification.sessionId;
+
   let nextState: SessionState = currentState;
   switch (update.sessionUpdate) {
     case "user_message_chunk":
-      if (update.content) {
-        nextState = calculateUserMessageChunk(currentState, update);
-      }
+      nextState = calculateUserMessageChunk(
+        currentState,
+        subSessionId,
+        update,
+        displayId,
+        receivedAt,
+      );
       break;
 
     case "agent_message_chunk":
-      if (update.content) {
-        nextState = calculateAgentChunk(currentState, "agent_message", update);
-      }
+      nextState = calculateAgentChunk(
+        currentState,
+        subSessionId,
+        "agent_message",
+        update,
+        displayId,
+        receivedAt,
+      );
       break;
 
     case "agent_thought_chunk":
-      if (update.content) {
-        nextState = calculateAgentChunk(currentState, "agent_thought", update);
-      }
+      nextState = calculateAgentChunk(
+        currentState,
+        subSessionId,
+        "agent_thought",
+        update,
+        displayId,
+        receivedAt,
+      );
       break;
 
     case "tool_call":
     case "tool_call_update":
-      nextState = calculateToolCall(currentState, update);
+      nextState = calculateToolCallUpdate(
+        currentState,
+        subSessionId,
+        update,
+        displayId,
+        receivedAt,
+      );
       break;
 
     case "plan":
-      nextState = {
-        ...currentState,
-        messages: [
-          ...currentState.messages,
-          {
-            role: "plan",
-            entries: update.entries ?? [],
-            _meta: update._meta,
-            displayId: update._meta?.fello?.displayId ?? generateUUID(),
-            receivedAt: update._meta?.fello?.receivedAt ?? Date.now(),
-          } satisfies PlanMessage,
-        ],
-      };
-      break;
-
-    case "usage_update":
-      nextState = calculateUsageUpdate(currentState, update);
+      nextState = calculatePlan(currentState, subSessionId, update, displayId, receivedAt);
       break;
 
     case "session_info_update":
+      if (
+        update._meta &&
+        update._meta.fello &&
+        typeof update._meta.fello === "object" &&
+        update._meta.fello.update &&
+        typeof update._meta.fello.update === "object"
+      ) {
+        const addonUpdate = update._meta.fello.update;
+        if (addonUpdate.sessionUpdate === "subagent_update") {
+          nextState = calculateSubagent(currentState, addonUpdate, displayId, receivedAt);
+        }
+      }
+      break;
     case "current_mode_update":
       // modes state is now updated via session-changed IPC
       break;
 
+    case "usage_update":
+      nextState = calculateUsageUpdate(currentState, subSessionId, update);
+      break;
+
     case "available_commands_update":
-      nextState = { ...currentState, availableCommands: update.availableCommands ?? [] };
+      nextState = calculateAvailableCommands(currentState, subSessionId, update);
       break;
 
     default:
@@ -258,6 +431,5 @@ export function reduceFlushStreaming(currentState: SessionState): SessionState {
   return {
     ...currentState,
     messages: newMessages,
-    activeToolCalls: new Map(), // clearToolCalls logic
   };
 }

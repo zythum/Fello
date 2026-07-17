@@ -170,7 +170,14 @@ export function createAutomationModule(
         ...n,
         update: {
           ...n.update,
-          _meta: { ...n.update?._meta, fello: { receivedAt: Date.now(), displayId: `auto-${i}` } },
+          _meta: {
+            ...n.update?._meta,
+            fello: {
+              ...(n.update?._meta?.fello as {}),
+              receivedAt: Date.now(),
+              displayId: `auto-${i}`,
+            },
+          },
         },
       }));
       const messages = reduceNotificationsToMessages(notifications);

@@ -784,7 +784,8 @@ export class OpenaiCompatibleAgent implements Agent {
         if (accumulatedText.trim()) {
           historyEntries.push({
             role: "assistant",
-            content: accumulatedText + "\n\n_[Generation stopped by user — continue from user's request]_",
+            content:
+              accumulatedText + "\n\n_[Generation stopped by user — continue from user's request]_",
           });
         }
         session.history.push(...historyEntries);
@@ -799,7 +800,8 @@ export class OpenaiCompatibleAgent implements Agent {
       if (accumulatedText.trim()) {
         historyEntries.push({
           role: "assistant",
-          content: accumulatedText + "\n\n_[Generation interrupted — continue from user's request]_",
+          content:
+            accumulatedText + "\n\n_[Generation interrupted — continue from user's request]_",
         });
       }
       session.history.push(...historyEntries);

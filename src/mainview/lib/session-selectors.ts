@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore, type StagedAttachmentInfo } from "../store";
-import type { ChatMessage, ToolCallMessage } from "./chat-message";
+import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./chat-message";
 import type { AskUserRequest } from "../../shared/schema";
 import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
@@ -29,6 +29,16 @@ export function useSessionActiveToolCalls(
   });
 }
 
+/** 只订阅 activeSubagents map */
+export function useSessionActiveSubagents(
+  sessionId: string | null,
+): Map<string, SubagentMessage> | null {
+  return useAppStore((s) => {
+    const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
+    return state?.activeSubagents ?? null;
+  });
+}
+
 /** 只订阅 isLoading boolean */
 export function useSessionIsLoading(sessionId: string | null): boolean {
   return useAppStore((s) => {
@@ -39,10 +49,21 @@ export function useSessionIsLoading(sessionId: string | null): boolean {
 
 /** 只订阅 askUserRequests 数组 */
 export function useSessionAskUserRequests(sessionId: string | null): AskUserRequest[] | null {
-  return useAppStore((s) => {
-    const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
-    return state?.askUserRequests ?? null;
-  });
+  return useAppStore(
+    useShallow((s) => {
+      if (!sessionId) {
+        return null;
+      }
+      const session = s.sessions.find((session) => session.id === sessionId);
+      if (session) {
+        const state = s.sessionStates.get(session.id);
+        if (state && state.askUserRequests.length > 0) {
+          return state.askUserRequests;
+        }
+      }
+      return null;
+    }),
+  );
 }
 
 /** 只订阅 draftInput 字符串 */
@@ -55,10 +76,12 @@ export function useSessionDraftInput(sessionId: string | null): string {
 
 /** 只订阅 draftAttachments 数组 */
 export function useSessionDraftAttachments(sessionId: string | null): StagedAttachmentInfo[] {
-  return useAppStore((s) => {
-    const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
-    return state?.draftAttachments ?? [];
-  });
+  return useAppStore(
+    useShallow((s) => {
+      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
+      return state?.draftAttachments ?? [];
+    }),
+  );
 }
 
 /** 订阅 usage & lastTurnUsage（用 useShallow 做浅比较，避免因对象重建而误触发重渲染） */
@@ -77,8 +100,10 @@ export function useSessionUsage(sessionId: string | null): {
 
 /** 只订阅 availableCommands 数组 */
 export function useSessionAvailableCommands(sessionId: string | null): AvailableCommand[] {
-  return useAppStore((s) => {
-    const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
-    return state?.availableCommands ?? [];
-  });
+  return useAppStore(
+    useShallow((s) => {
+      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
+      return state?.availableCommands ?? [];
+    }),
+  );
 }

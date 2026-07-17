@@ -1,4 +1,5 @@
 import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotocol/sdk";
+import { SubagentStatus } from "../../shared/schema";
 
 /**
  * 所有聊天消息的基础接口。
@@ -52,6 +53,19 @@ export interface ToolCallMessage extends BaseMessage<"tool_call">, ToolCall {
 export interface PlanMessage extends BaseMessage<"plan">, Plan {}
 
 /**
+ * 表示 Subagent 返回的标准响应消息。
+ */
+export interface SubagentMessage extends BaseMessage<"subagent"> {
+  sessionId: string;
+  /** 在 UI 中展示的工具标题 */
+  name: string;
+  prompt: string;
+  /** 执行状态 */
+  status?: SubagentStatus;
+  messages: (AgentMessage | AgentThoughtMessage | ToolCallMessage | PlanMessage)[];
+}
+
+/**
  * 表示系统生成的消息（例如网络错误、超时提示、Token 用量统计）。
  * 由客户端本地创建，不从服务器流式传输。
  */
@@ -69,6 +83,7 @@ export type ChatMessage =
   | AgentThoughtMessage
   | ToolCallMessage
   | PlanMessage
+  | SubagentMessage
   | SystemMessage;
 
 /**

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionMessages, useSessionActiveToolCalls } from "../../../lib/session-selectors";
+import { useSessionMessages } from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
 import { MessageBubble } from "./bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
@@ -28,7 +28,6 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
   const messages = useSessionMessages(sessionId);
-  const activeToolCalls = useSessionActiveToolCalls(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,7 +58,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
         timeoutId = null;
       }
     };
-  }, [messages, activeToolCalls, isStreaming]);
+  }, [messages, isStreaming]);
 
   const getViewport = useCallback(() => {
     return scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
@@ -324,7 +323,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     if (!userHasScrolledUpRef.current && (isAtBottom || isStreaming)) {
       scrollToBottomAuto();
     }
-  }, [messages, activeToolCalls?.size, isAtBottom, isStreaming, scrollToBottomAuto]);
+  }, [messages, isAtBottom, isStreaming, scrollToBottomAuto]);
 
   const setUserMessageElement = useCallback((displayId: string, el: HTMLElement | null) => {
     if (!el) {

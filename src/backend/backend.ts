@@ -17,7 +17,7 @@ import { createSkillsModule, SKILL_FILENAME } from "./skills";
 import { createSearchModule } from "./search";
 import { createAskUserModule } from "./ask-user";
 import { createShareToUserModule } from "./share-to-user";
-import { createBridgePoolModule } from "./bridge-pool";
+import { createBridgeConnectModule } from "./bridge-connect";
 import { createTerminalModule } from "./terminal";
 import { createProjectModule } from "./project";
 import { createSessionModule } from "./session";
@@ -62,20 +62,20 @@ export function initBackend(
   const search = createSearchModule(ctx);
   const watcher = createWatcherModule(ctx);
 
-  // ── Layer 2: bridge pool (needs askUser) ──
-  const bridgePool = createBridgePoolModule(ctx, { askUser });
+  // ── Layer 2: bridge connect (needs askUser) ──
+  const bridgeConnect = createBridgeConnectModule(ctx, { askUser });
 
   // ── Layer 3: session, project, terminal ──
   const session = createSessionModule(ctx, {
-    bridgePool,
+    bridgeConnect,
     askUser,
     shareToUser,
     skills,
     search,
     ilink: ilink.state,
   });
-  const project = createProjectModule(ctx, { bridgePool: bridgePool.pool, watcher });
-  const terminal = createTerminalModule(ctx, { bridgePool: bridgePool.pool });
+  const project = createProjectModule(ctx, { session, watcher });
+  const terminal = createTerminalModule(ctx, { bridges: bridgeConnect.bridges });
 
   // ── Layer 4: inference (standalone) ──
   const _inference = createInferenceModule(ctx, { skills, search });
@@ -170,11 +170,7 @@ export function initBackend(
                 deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
               }
             }
-            const p = bridgePool.pool.get(agentId);
-            if (p) {
-              bridgePool.pool.delete(agentId);
-              p.then((b) => b.kill()).catch(() => {});
-            }
+            await bridgeConnect.killBridgesByAgent(agentId);
           }
         }
       }
@@ -278,11 +274,7 @@ export function initBackend(
         );
         deleteOrphanedAgentSessionDirectories(agentId, knownResumeIds);
       }
-      const p = bridgePool.pool.get(agentId);
-      if (p) {
-        bridgePool.pool.delete(agentId);
-        p.then((b) => b.kill()).catch(() => {});
-      }
+      await bridgeConnect.killBridgesByAgent(agentId);
     },
     async clearAgentSessions({ agentId }: { agentId: string }) {
       const deletedSessionIds = await session.deleteAgentSessions(agentId);
@@ -391,8 +383,8 @@ export function initBackend(
     async pollIlinkQrcode(params) {
       return ilink.pollIlinkQrcode(params);
     },
-    async stopIlink() {
-      return ilink.stopIlink();
+    async stopIlink(params) {
+      return ilink.stopIlink(params);
     },
     async setActiveIlinkSession(params) {
       return ilink.setActiveIlinkSession(params);
@@ -484,9 +476,9 @@ export function initBackend(
   async function closeBackend() {
     automation.stopAllCrons();
     webui.stop();
-    await ilink.stopIlink();
+    await ilink.stopIlink({ logout: false });
     session.clearSession();
-    await bridgePool.clearPool();
+    await bridgeConnect.clearAll();
     await new Promise((resolve) => setTimeout(resolve, 100));
     terminal.killAllTerminals();
     await watcher.stopAll();

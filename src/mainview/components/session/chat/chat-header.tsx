@@ -6,7 +6,10 @@ import { Settings2, ReceiptTurkishLira, Copy, Check, FolderOpen } from "lucide-r
 import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
-import { reduceFlushStreaming, reduceSessionUpdate } from "../../../lib/session-state-reducer";
+import {
+  reduceFlushStreaming,
+  reduceSessionNotification,
+} from "../../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -66,22 +69,21 @@ export function ChatHeader({ session }: ChatHeaderProps) {
       if (!result) return;
 
       let state = useAppStore.getState().getSessionState(session.id);
-      state = { ...state, messages: [], activeToolCalls: new Map() };
+      state = { ...state, messages: [], activeToolCalls: new Map(), activeSubagents: new Map() };
       for (const notification of result.messages) {
-        if (!notification?.update) continue;
-        state = reduceSessionUpdate(state, notification.update);
+        state = reduceSessionNotification(session.id, state, notification);
       }
 
       const displayIds = new Set(
         result.messages.map((m) => m?.update?._meta?.fello?.displayId).filter(Boolean),
       );
-      for (const update of state.pendingUpdates) {
-        const did = update._meta?.fello?.displayId;
+      for (const notification of state.pendingNotifications) {
+        const did = notification.update._meta?.fello?.displayId;
         if (did && displayIds.has(did)) continue;
-        state = reduceSessionUpdate(state, update);
+        state = reduceSessionNotification(session.id, state, notification);
       }
 
-      state.pendingUpdates = [];
+      state.pendingNotifications = [];
       state.isLoading = false;
 
       updateSessionState(session.id, () => state);

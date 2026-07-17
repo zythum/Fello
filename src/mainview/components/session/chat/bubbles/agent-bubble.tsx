@@ -3,7 +3,7 @@ import { ContentBlocks } from "../../../content-blocks/content-blocks";
 import type { AgentMessage } from "../../../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
 
-export const AgentBubble = memo(function AssistantBubble({
+export const AgentBubble = memo(function AgentBubble({
   session,
   message,
   isStreaming,

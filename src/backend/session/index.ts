@@ -6,7 +6,7 @@ import type {
   Usage,
 } from "@agentclientprotocol/sdk";
 import type { BackendContext } from "../types";
-import type { BridgePoolModule } from "../bridge-pool";
+import type { BridgeConnectModule } from "../bridge-connect";
 import type { AskUserModule } from "../ask-user";
 import type { ShareToUserModule } from "../share-to-user";
 import type { SkillsModule } from "../skills";
@@ -68,7 +68,7 @@ export interface SessionModule {
 }
 
 export interface SessionDeps {
-  bridgePool: BridgePoolModule;
+  bridgeConnect: BridgeConnectModule;
   askUser: AskUserModule;
   shareToUser: ShareToUserModule;
   skills: SkillsModule;
@@ -80,13 +80,13 @@ export interface SessionDeps {
 
 export function createSessionModule(ctx: BackendContext, deps: SessionDeps): SessionModule {
   const { sendEvent, storage } = ctx;
-  const { bridgePool, askUser, shareToUser, skills, search, ilink: ilinkState } = deps;
+  const { bridgeConnect, askUser, shareToUser, skills, search, ilink: ilinkState } = deps;
 
   const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search };
   const notif = createNotificationHandler(ctx, { ilink: ilinkState });
 
-  // Wire broadcastAndSaveSessionUpdate into bridgePool
-  bridgePool.setBroadcast(notif.broadcastAndSaveSessionUpdate);
+  // Wire broadcastAndSaveSessionUpdate into bridgeConnect
+  bridgeConnect.setBroadcast(notif.broadcastAndSaveSessionUpdate);
 
   // ── Session Socket Servers ─────────────────────────────────────────
 
@@ -140,7 +140,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }) {
     const project = storage.getProject(projectId);
     if (!project) throw new Error("Project does not exist");
-    const b = await bridgePool.ensureBridge(agentId);
+
+    // Use a temporary key for the bridge; will be re-keyed to sessionInfo.id after
+    const tempKey = `pending:${randomUUID()}`;
+    const b = await bridgeConnect.ensureBridge(tempKey, agentId, project.cwd);
 
     const socketPath = generateSocketPath(randomUUID());
     const sessionMcpIds =
@@ -168,6 +171,12 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       initializeInfo: b.initializeInfo,
     });
 
+    // Bridge is already connected at this point (onSessionConnect fired during b.newSession)
+    storage.updateSession(sessionInfo.id, { connectionStatus: "connected" }, false);
+
+    // Re-key bridge from tempKey to the real sessionId
+    bridgeConnect.rekeyBridge(tempKey, sessionInfo.id);
+
     await createSessionSocketServer(sessionInfo.id, { socketPath, project });
     sendEvent("sessions-changed", undefined);
     return {
@@ -184,7 +193,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const project = storage.getProject(session.projectId);
     if (!project) throw new Error("Project does not exist");
 
-    const b = await bridgePool.ensureBridge(session.agentId);
+    const b = await bridgeConnect.ensureBridge(session.id, session.agentId, session.cwd);
 
     if (b.isSessionLoaded(session.resumeId) && !force) {
       return {
@@ -265,7 +274,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
 
     const freshSession = storage.getSession(session.id);
     if (freshSession) sendEvent("session-changed", { session: freshSession });
-
     return {
       sessionId: session.id,
       initializeInfo: b.initializeInfo,
@@ -296,7 +304,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       console.log(
         `[Fello] Session ${sessionId} is already streaming, cancelling previous generation...`,
       );
-      const connectPromise = bridgePool.pool.get(session.agentId);
+      const connectPromise = bridgeConnect.bridges.get(sessionId);
       if (connectPromise) {
         // Cancel pending ask-user requests
         const pending = await askUser.getPendingAskUserRequests({ sessionId });
@@ -336,7 +344,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       }
     }
 
-    const b = await bridgePool.ensureBridge(session.agentId);
+    const b = await bridgeConnect.ensureBridge(sessionId, session.agentId, session.cwd);
 
     if (!b.isSessionLoaded(session.resumeId)) {
       console.log(`[Fello] Session ${session.resumeId} not loaded in Agent, lazy loading...`);
@@ -445,7 +453,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         console.warn("[CancelPrompt] Respond Previous Ask User Error", err);
       }
     }
-    const connectPromise = bridgePool.pool.get(session.agentId);
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (connectPromise) {
       const b = await connectPromise;
       await b.cancel({ sessionId: session.resumeId });
@@ -475,14 +483,18 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const session = storage.getSession(sessionId);
     if (session) {
       try {
-        const b = await bridgePool.ensureBridge(session.agentId);
-        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
-        await b.deleteSession(session.resumeId);
+        const connectPromise = bridgeConnect.bridges.get(sessionId);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+          await b.deleteSession(session.resumeId);
+        }
       } catch (error) {
         console.warn(
           `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      await bridgeConnect.killBridge(sessionId);
     }
 
     storage.deleteSession(sessionId);
@@ -510,7 +522,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const sessions = storage.listSessions().filter((s) => s.agentId === agentId);
     for (const session of sessions) {
       try {
-        const connectPromise = bridgePool.pool.get(session.agentId);
+        const connectPromise = bridgeConnect.bridges.get(session.id);
         if (connectPromise) {
           const b = await connectPromise;
           if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
@@ -520,6 +532,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
           `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      await bridgeConnect.killBridge(session.id);
       stopSessionSocketServer(session.id);
     }
     if (sessions.length > 0) sendEvent("sessions-changed", undefined);
@@ -531,14 +544,18 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const ids = sessions.map((s) => s.id);
     for (const session of sessions) {
       try {
-        const b = await bridgePool.ensureBridge(session.agentId);
-        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
-        await b.deleteSession(session.resumeId);
+        const connectPromise = bridgeConnect.bridges.get(session.id);
+        if (connectPromise) {
+          const b = await connectPromise;
+          if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
+          await b.deleteSession(session.resumeId);
+        }
       } catch (error) {
         console.warn(
           `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      await bridgeConnect.killBridge(session.id);
       storage.deleteSession(session.id);
       stopSessionSocketServer(session.id);
 
@@ -559,7 +576,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   async function getModels({ sessionId }: { sessionId: string }) {
     const session = storage.getSession(sessionId);
     if (!session) return null;
-    const connectPromise = bridgePool.pool.get(session.agentId);
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (!connectPromise) return null;
     const b = await connectPromise;
     return b.getModelState(session.resumeId);
@@ -568,7 +585,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   async function setModel({ sessionId, modelId }: { sessionId: string; modelId: string }) {
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const connectPromise = bridgePool.pool.get(session.agentId);
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     await b.setSessionModel({ sessionId: session.resumeId, modelId });
@@ -583,7 +600,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   async function getModes({ sessionId }: { sessionId: string }) {
     const session = storage.getSession(sessionId);
     if (!session) return null;
-    const connectPromise = bridgePool.pool.get(session.agentId);
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (!connectPromise) return null;
     const b = await connectPromise;
     return b.getModeState(session.resumeId);
@@ -592,7 +609,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   async function setMode({ sessionId, modeId }: { sessionId: string; modeId: string }) {
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    const connectPromise = bridgePool.pool.get(session.agentId);
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (!connectPromise) throw new Error("Agent bridge not found for session");
     const b = await connectPromise;
     await b.setSessionMode({ sessionId: session.resumeId, modeId });

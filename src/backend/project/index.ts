@@ -1,6 +1,6 @@
 import type { BackendContext } from "../types";
-import type { ACPBridge } from "../agent/agent-bridge";
 import type { WatcherModule } from "../watcher";
+import type { SessionModule } from "../session";
 import { createFilesystemState } from "./filesystem";
 import { createGitHandlers } from "./git";
 
@@ -32,7 +32,7 @@ export interface ProjectModule {
 export function createProjectModule(
   ctx: BackendContext,
   deps: {
-    bridgePool: Map<string, Promise<ACPBridge>>;
+    session: SessionModule;
     watcher: WatcherModule;
   },
 ): ProjectModule {
@@ -47,12 +47,6 @@ export function createProjectModule(
       fs.markProjectFsDirty((payload as { projectId: string }).projectId);
     }
   });
-
-  async function ensureBridge(agentId: string): Promise<ACPBridge> {
-    const p = deps.bridgePool.get(agentId);
-    if (!p) throw new Error(`No bridge for agent ${agentId}`);
-    return p;
-  }
 
   // ── Project CRUD ───────────────────────────────────────────────────
 
@@ -75,20 +69,12 @@ export function createProjectModule(
 
   async function deleteProject(projectId: string) {
     const projectSessions = storage.listSessions().filter((s) => s.projectId === projectId);
-    storage.deleteProject(projectId);
 
     for (const session of projectSessions) {
-      try {
-        const b = await ensureBridge(session.agentId);
-        if (b.isSessionLoaded(session.resumeId)) await b.closeSession(session.resumeId);
-        await b.deleteSession(session.resumeId);
-      } catch (error) {
-        console.warn(
-          `[backend] Failed to close/delete session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      await deps.session.deleteSession(session.id);
     }
 
+    storage.deleteProject(projectId);
     fs.clearProjectSearchState(projectId);
     await deps.watcher.syncWatchers();
     sendEvent("projects-changed", undefined);

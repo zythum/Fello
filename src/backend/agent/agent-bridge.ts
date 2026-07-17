@@ -4,7 +4,6 @@ import {
   Client,
   ClientSideConnection,
   PROTOCOL_VERSION,
-  AvailableCommand,
 } from "@agentclientprotocol/sdk";
 import type {
   SessionNotification,
@@ -41,7 +40,9 @@ import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
-import { WORKSPACE_TEMP_DIR } from "../storage";
+
+// Set to true to enable ACP message logging
+const ACP_VERBOSE_LOG = false;
 
 export interface SetSessionModelRequest {
   sessionId: string;
@@ -49,7 +50,13 @@ export interface SetSessionModelRequest {
 }
 export type SetSessionModelResponse = Record<string, never>;
 
+export type SessionConnection = {
+  sessionId: string;
+};
+
+export type SessionConnectCallback = (connection: SessionConnection) => void;
 export type SessionUpdateCallback = (update: SessionNotification) => void;
+export type SessionExtNotificationCallback = (method: string, params: unknown) => void;
 export type PermissionRequestCallback = (
   params: RequestPermissionRequest,
 ) => Promise<RequestPermissionResponse>;
@@ -61,7 +68,10 @@ export type AgentTerminalOutputCallback = (
 
 export interface ACPBridgeOptions {
   agentInfo: AgentInfo;
+  cwd: string;
+  onSessionConnect: SessionConnectCallback;
   onSessionUpdate: SessionUpdateCallback;
+  onExtNotification: SessionExtNotificationCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
 }
@@ -80,7 +90,9 @@ export interface ACPBridgeOptions {
 export class ACPBridge {
   private process: AgentProcess | null = null;
   private connection: ClientSideConnection | null = null;
+  private onSessionConnect: SessionConnectCallback;
   private onSessionUpdate: SessionUpdateCallback;
+  private onExtNotification: SessionExtNotificationCallback;
   private onPermissionRequest: PermissionRequestCallback;
   private _isConnected = false;
   private _initializeInfo: InitializeResponse | null = null;
@@ -96,7 +108,9 @@ export class ACPBridge {
     public id: string,
     private options: ACPBridgeOptions,
   ) {
+    this.onSessionConnect = options.onSessionConnect;
     this.onSessionUpdate = options.onSessionUpdate;
+    this.onExtNotification = options.onExtNotification;
     this.onPermissionRequest = options.onPermissionRequest;
     this.terminalManager = new AgentTerminalManager(options.onAgentTerminalOutput);
   }
@@ -210,12 +224,10 @@ export class ACPBridge {
   }
 
   async connect(): Promise<InitializeResponse> {
-    const ACP_VERBOSE_LOG = false; // Set to true to enable ACP message logging
-
     const acpId = this.id;
     const proc =
       this.options.agentInfo.type === "stdio"
-        ? spawnStdioAgent(this.options.agentInfo)
+        ? spawnStdioAgent({ ...this.options.agentInfo, cwd: this.options.cwd })
         : this.options.agentInfo.provider === "openai-compatible"
           ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
           : (() => {
@@ -256,6 +268,7 @@ export class ACPBridge {
 
     const onPermission = this.onPermissionRequest;
     const onUpdate = this.onSessionUpdate;
+    const onExtNotification = this.onExtNotification;
     const applyConfigOptions = this.applyConfigOptions.bind(this);
     const terminalManager = this.terminalManager;
     const sessionsCwdMap = this._sessionsCwdMap;
@@ -284,7 +297,7 @@ export class ACPBridge {
           params.sessionId,
           params.command,
           params.args || [],
-          params.cwd || sessionsCwdMap.get(params.sessionId) || WORKSPACE_TEMP_DIR,
+          params.cwd || sessionsCwdMap.get(params.sessionId) || process.cwd(),
           params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
           params.outputByteLimit || 1048576,
         );
@@ -322,59 +335,7 @@ export class ACPBridge {
         if (ACP_VERBOSE_LOG && process.env.NODE_ENV === "development") {
           console.log(`[ACP Ext Notification] Method: ${method}`);
         }
-        if (
-          typeof params === "object" &&
-          params &&
-          "sessionId" in params &&
-          typeof params.sessionId === "string"
-        ) {
-          // 兼容 kiro
-          // kiro 只给了比例，没有给具体数值。所以这边如果size = 1 时，认为只有比例正确，数值忽略处理
-          if (method === "_kiro.dev/metadata") {
-            if (
-              "contextUsagePercentage" in params &&
-              typeof params.contextUsagePercentage === "number"
-            ) {
-              onUpdate({
-                sessionId: params.sessionId,
-                update: {
-                  sessionUpdate: "usage_update",
-                  used: params.contextUsagePercentage / 100,
-                  size: 1,
-                },
-              });
-            }
-            return;
-          }
-          if (method === "_kiro.dev/commands/available") {
-            if ("commands" in params && Array.isArray(params.commands)) {
-              const commands: AvailableCommand[] = [];
-              for (const item of params.commands) {
-                if (
-                  typeof item === "object" &&
-                  item &&
-                  "name" in item &&
-                  typeof item.name === "string"
-                ) {
-                  commands.push({
-                    name: item.name.replace(/^\//, ""),
-                    description: item.description ? String(item.description) : "",
-                  });
-                }
-              }
-              if (commands.length) {
-                onUpdate({
-                  sessionId: params.sessionId,
-                  update: {
-                    sessionUpdate: "available_commands_update",
-                    availableCommands: commands,
-                  },
-                });
-              }
-            }
-            return;
-          }
-        }
+        onExtNotification(method, params);
       },
     };
 
@@ -448,6 +409,7 @@ export class ACPBridge {
     this.applyConfigOptions(result.sessionId, result.configOptions);
     this._loadedSessions.add(result.sessionId);
     this._sessionsCwdMap.set(result.sessionId, params.cwd);
+    this.onSessionConnect({ sessionId: result.sessionId });
     return Object.assign(result, { models, modes });
   }
 
@@ -554,6 +516,7 @@ export class ACPBridge {
     this.applyConfigOptions(params.sessionId, result.configOptions);
     this._loadedSessions.add(params.sessionId);
     this._sessionsCwdMap.set(params.sessionId, params.cwd);
+    this.onSessionConnect({ sessionId: params.sessionId });
     return Object.assign(result, { models, modes });
   }
 

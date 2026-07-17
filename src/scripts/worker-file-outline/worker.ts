@@ -81,7 +81,11 @@ function extractImportExportDetail(
     } else if (sourceTypes.has(type)) {
       // Type-based source extraction — try direct text first, then recurse
       if (!source) {
-        if (type === "string" || type === "string_literal" || type === "interpreted_string_literal") {
+        if (
+          type === "string" ||
+          type === "string_literal" ||
+          type === "interpreted_string_literal"
+        ) {
           source = stripQuotes(text);
         } else {
           // Container type (e.g. configurable_uri): recurse to find string
@@ -115,7 +119,10 @@ function extractImportExportDetail(
   // Build detail string (collapse multiline to single line)
   let detail: string | undefined;
   if (clauses.length > 0) {
-    const clauseText = clauses.join(", ").replace(/\s*\n\s*/g, " ").replace(/\s{2,}/g, " ");
+    const clauseText = clauses
+      .join(", ")
+      .replace(/\s*\n\s*/g, " ")
+      .replace(/\s{2,}/g, " ");
     detail = hasTypeKeyword && !clauseText.startsWith("type") ? `type ${clauseText}` : clauseText;
   }
 
@@ -194,7 +201,9 @@ function scanName(cursor: TreeCursor, nameOf: NameOfConfig): string {
   // Pass 2: fallback to identifierTypes if no name found
   if (!name) {
     cursor.gotoParent();
-    if (!cursor.gotoFirstChild()) { return ""; }
+    if (!cursor.gotoFirstChild()) {
+      return "";
+    }
     do {
       const t = cursor.nodeType;
       if (idTypes.has(t)) {
@@ -209,7 +218,10 @@ function scanName(cursor: TreeCursor, nameOf: NameOfConfig): string {
   return name;
 }
 
-function collectComments(tree: Tree, docstrings?: { nodeType: string; prefixes: string[] }[]): { text: string; startLine: number; endLine: number }[] {
+function collectComments(
+  tree: Tree,
+  docstrings?: { nodeType: string; prefixes: string[] }[],
+): { text: string; startLine: number; endLine: number }[] {
   const comments: { text: string; startLine: number; endLine: number }[] = [];
   const cursor = tree.walk();
   let descend = true;
@@ -315,7 +327,9 @@ async function parse(
   parser.setLanguage(lang);
 
   const source = readFileSync(req.filePath, "utf8");
-  const totalLines = source.endsWith("\n") ? source.split("\n").length - 1 : source.split("\n").length;
+  const totalLines = source.endsWith("\n")
+    ? source.split("\n").length - 1
+    : source.split("\n").length;
   const tree = parser.parse(source);
   if (!tree) throw new Error("Failed to parse");
 
@@ -343,7 +357,12 @@ async function parse(
             let useContentEndLine = false;
             if (sym.hasName) {
               if (detailLabels?.has(kind)) {
-                const info = extractImportExportDetail(cursor, cursor.nodeText, kind, req.statementDetail!);
+                const info = extractImportExportDetail(
+                  cursor,
+                  cursor.nodeText,
+                  kind,
+                  req.statementDetail!,
+                );
                 name = info.name;
                 detail = info.detail;
                 useContentEndLine = true;
@@ -409,7 +428,9 @@ async function parse(
               let effectivePrefix = wrapper.prefix;
               const wNodeFirstLine = wCursor.nodeText.split("\n")[0];
               const prefixKeyword = wrapper.prefix.trim();
-              const afterKeyword = wNodeFirstLine.slice(wNodeFirstLine.indexOf(prefixKeyword) + prefixKeyword.length).trimStart();
+              const afterKeyword = wNodeFirstLine
+                .slice(wNodeFirstLine.indexOf(prefixKeyword) + prefixKeyword.length)
+                .trimStart();
               if (afterKeyword.startsWith("default ") || afterKeyword.startsWith("default\n")) {
                 effectivePrefix = wrapper.prefix + "default ";
               }
@@ -447,7 +468,12 @@ async function parse(
                   let containerName: string;
                   let containerDetail: string | undefined;
                   if (detailLabels?.has(label)) {
-                    const info = extractImportExportDetail(wCursor, wCursor.nodeText, label, req.statementDetail!);
+                    const info = extractImportExportDetail(
+                      wCursor,
+                      wCursor.nodeText,
+                      label,
+                      req.statementDetail!,
+                    );
                     containerName = info.name;
                     containerDetail = info.detail;
                   } else {
@@ -473,7 +499,12 @@ async function parse(
                 let exportName: string;
                 let exportDetail: string | undefined;
                 if (detailLabels?.has(label)) {
-                  const info = extractImportExportDetail(wCursor, wCursor.nodeText, label, req.statementDetail!);
+                  const info = extractImportExportDetail(
+                    wCursor,
+                    wCursor.nodeText,
+                    label,
+                    req.statementDetail!,
+                  );
                   exportName = info.name;
                   exportDetail = info.detail;
                 } else {

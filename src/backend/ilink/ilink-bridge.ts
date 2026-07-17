@@ -320,12 +320,14 @@ export class ILinkBridge {
   /**
    * Stop the bridge and disconnect.
    */
-  async stop(): Promise<void> {
+  async stop({ logout }: { logout: boolean }): Promise<void> {
     this.stopPollLoop();
     this.stopKeepalive();
 
-    await clearCredentials();
-    await clearCursor();
+    if (logout) {
+      await clearCredentials();
+      await clearCursor();
+    }
 
     this.client = null;
     this.creds = null;

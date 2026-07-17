@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { reduceFlushStreaming, reduceSessionUpdate } from "../../lib/session-state-reducer";
+import { reduceFlushStreaming, reduceSessionNotification } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { Detail, type DetailType } from "./detail/detail";
@@ -17,10 +17,9 @@ export function Session({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const sessionId = session.id;
+  const sessionConnected = session.connectionStatus;
   const isCreatingSession = useAppStore((s) => s.isCreatingSession);
-  const isLoading = useAppStore((s) =>
-    sessionId ? (s.sessionStates.get(sessionId)?.isLoading ?? false) : false,
-  );
+  const isLoading = useAppStore((s) => s.sessionStates.get(sessionId)?.isLoading ?? true);
   const currentProjectId = session.projectId;
 
   // Panel state — defaults to "files" so Panel always shows content
@@ -91,8 +90,6 @@ export function Session({ session }: { session: SessionInfo }) {
   // Auto load session if not loaded
   const fetchingRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!sessionId) return;
-
     // Always call loadSession to ensure backend bridge state is synced (fast-path if already loaded)
     request.loadSession({ sessionId }).catch((err) => {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -114,7 +111,7 @@ export function Session({ session }: { session: SessionInfo }) {
       try {
         const result = await request.getSessionHistory({ sessionId });
         let state = useAppStore.getState().getSessionState(sessionId);
-        state = { ...state, messages: [], activeToolCalls: new Map() };
+        state = { ...state, messages: [], activeToolCalls: new Map(), activeSubagents: new Map() };
 
         const displayIds = new Set<string>();
         for (const notification of result.messages) {
@@ -123,20 +120,23 @@ export function Session({ session }: { session: SessionInfo }) {
             displayIds.add(displayId);
           }
           if (!notification?.update) continue;
-          state = reduceSessionUpdate(state, notification.update);
+          state = reduceSessionNotification(sessionId, state, notification);
         }
 
-        for (const update of state.pendingUpdates) {
-          const did = update._meta?.fello?.displayId;
+        for (const notification of state.pendingNotifications) {
+          const did = notification.update._meta?.fello?.displayId;
           if (did && displayIds.has(did)) {
             continue;
           }
-          state = reduceSessionUpdate(state, update);
+          state = reduceSessionNotification(sessionId, state, notification);
         }
 
-        state.isLoading = false;
-        state.pendingUpdates = [];
-        state.loadedAt = Date.now();
+        state = {
+          ...state,
+          isLoading: false,
+          pendingNotifications: [],
+          loadedAt: Date.now(),
+        };
 
         useAppStore.getState().updateSessionState(sessionId, () => state);
       } catch (err) {
@@ -154,7 +154,7 @@ export function Session({ session }: { session: SessionInfo }) {
 
   return (
     <main ref={setMainEl} className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
-      {!sessionId && (isLoading || isCreatingSession) ? (
+      {isLoading || sessionConnected !== "connected" || isCreatingSession ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
           <Loader2 className="size-8 animate-spin text-primary" />

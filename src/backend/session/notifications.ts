@@ -99,7 +99,11 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
         ...notification.update,
         _meta: {
           ...notification.update?._meta,
-          fello: { receivedAt: Date.now(), displayId: randomUUID() },
+          fello: {
+            ...(notification.update?._meta?.fello as {}),
+            receivedAt: Date.now(),
+            displayId: randomUUID(),
+          },
         },
       },
     };
@@ -187,49 +191,37 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
     const result: SessionNotificationFelloExt[] = [];
 
     for (const notification of notifications) {
+      const sessionId = notification.sessionId;
       const update = notification.update;
-      if (!update) {
-        result.push(notification);
-        continue;
-      }
-
       const type = update.sessionUpdate;
 
-      if (type === "agent_message_chunk" || type === "agent_thought_chunk") {
-        const prev = result.length > 0 ? result[result.length - 1] : undefined;
+      if (
+        (type === "agent_message_chunk" || type === "agent_thought_chunk") &&
+        update.content.type === "text"
+      ) {
+        const prev = result[result.length - 1];
         if (
-          prev?.update?.sessionUpdate === type &&
-          prev.update.content?.type === "text" &&
-          update.content?.type === "text"
+          prev &&
+          prev.sessionId === sessionId &&
+          prev.update.sessionUpdate === type &&
+          prev.update.content.type === "text"
         ) {
-          result[result.length - 1] = {
-            ...prev,
-            update: {
-              ...prev.update,
-              content: {
-                ...prev.update.content,
-                text: prev.update.content.text + update.content.text,
-              },
-            },
-          };
+          prev.update.content.text += update.content.text;
           continue;
         }
       }
 
-      if (type === "tool_call" || type === "tool_call_update") {
-        const toolCallId = (update as any).toolCallId;
-        const idx = result.findIndex(
-          (n) =>
-            (n.update?.sessionUpdate === "tool_call" ||
-              n.update?.sessionUpdate === "tool_call_update") &&
-            (n.update as any).toolCallId === toolCallId,
-        );
-        if (idx !== -1) {
-          const prev = result[idx];
-          result[idx] = {
-            ...prev,
-            update: { ...prev.update, ...update, sessionUpdate: "tool_call" },
-          } as SessionNotificationFelloExt;
+      if (type === "tool_call_update") {
+        const toolCallId = update.toolCallId;
+        const prev = result.find((n) => {
+          return (
+            n.sessionId === sessionId &&
+            n.update.sessionUpdate === type &&
+            n.update.toolCallId === toolCallId
+          );
+        });
+        if (prev && prev.update.sessionUpdate === type) {
+          prev.update = { ...prev.update, ...update };
           continue;
         }
       }

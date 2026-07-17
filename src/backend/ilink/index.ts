@@ -44,7 +44,7 @@ export interface IlinkModule {
   getIlinkStatus: () => Promise<ILinkStatus>;
   startIlinkLogin: () => Promise<{ qrcode: string; qrcodeImgUrl: string }>;
   pollIlinkQrcode: (params: { qrcode: string }) => Promise<{ status: IlinkQrcodeState }>;
-  stopIlink: () => Promise<void>;
+  stopIlink: (params: { logout: boolean }) => Promise<void>;
   setActiveIlinkSession: (params: { sessionId: string | null }) => Promise<void>;
   getActiveIlinkSession: () => Promise<{ sessionId: string | null }>;
   // Lifecycle
@@ -541,15 +541,18 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     return { status };
   }
 
-  async function stopIlink() {
+  async function stopIlink({ logout }: { logout: boolean }) {
     if (bridge) {
-      await bridge.stop();
+      await bridge.stop({ logout });
       bridge = null;
     }
     activeSessionId = null;
     replyBuffer = "";
-    await writeActiveSessionId(null);
-    sendEvent("ilink-active-session-changed", { sessionId: null });
+
+    if (logout) {
+      await writeActiveSessionId(null);
+      sendEvent("ilink-active-session-changed", { sessionId: null });
+    }
   }
 
   async function setActiveIlinkSession({ sessionId }: { sessionId: string | null }) {

@@ -136,7 +136,7 @@ export function SettingsILink() {
 
   const handleLogout = async () => {
     try {
-      await request.stopIlink();
+      await request.stopIlink({ logout: true });
       setIlinkStatus({ connected: false });
     } catch (err) {
       console.warn("[iLink] Logout error:", err);

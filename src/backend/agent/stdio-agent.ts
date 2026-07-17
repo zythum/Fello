@@ -1,9 +1,9 @@
 import { spawn, ChildProcess, execFileSync } from "child_process";
 import type { AgentProcess } from "./base-agent";
-import { WORKSPACE_TEMP_DIR } from "../storage";
 import { Writable, Readable } from "stream";
 
 interface StdioAgentOptions {
+  cwd: string;
   command: string;
   args: string[];
   env?: Record<string, string>;
@@ -13,7 +13,7 @@ export function spawnStdioAgent(options: StdioAgentOptions): AgentProcess {
   const shouldDetach = process.platform !== "win32";
   const proc = spawn(options.command, options.args, {
     stdio: ["pipe", "pipe", "inherit"],
-    cwd: WORKSPACE_TEMP_DIR,
+    cwd: options.cwd,
     env: { ...process.env, ...options.env },
     detached: shouldDetach,
   });

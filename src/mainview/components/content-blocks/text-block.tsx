@@ -25,10 +25,11 @@ const typographyClasses: Record<string, string> = {
     "prose-a:text-blue-500/70 dark:prose-a:text-blue-400/70 prose-a:underline-offset-4",
     "prose-code:text-muted-foreground/70 prose-code:bg-muted/30 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal prose-code:text-[11px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-    "prose-li:marker:text-muted-foreground/50 prose-li:text-[11px] prose-li:text-muted-foreground/60 prose-li:py-[px]",
+    "prose-li:marker:text-muted-foreground/50 prose-li:text-[11px] prose-li:text-muted-foreground/60 prose-li:py-px",
     "prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-ul:pl-1 prose-ol:pl-1",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
     "prose-blockquote:border-l-border prose-blockquote:text-muted-foreground/60 prose-blockquote:text-[11px]",
+    "prose-hr:my-4",
   ),
   user_message: cn(
     baseClasses,

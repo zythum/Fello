@@ -18,6 +18,7 @@ import {
   Check,
   X,
   Loader2,
+  Ellipsis,
   FileText,
   Pencil,
   Trash2,
@@ -71,7 +72,7 @@ const kindIcons: Record<string, React.ReactNode> = {
 };
 
 const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
-  pending: <Loader2 className="size-3 text-muted-foreground" />,
+  pending: <Ellipsis className="size-3 text-muted-foreground" />,
   in_progress: <Loader2 className="size-3 animate-spin text-primary" />,
   completed: <Check className="size-3 text-green-400" />,
   failed: <X className="size-3 text-destructive" />,

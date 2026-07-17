@@ -45,7 +45,7 @@ export interface TerminalModule {
 
 export function createTerminalModule(
   ctx: BackendContext,
-  deps: { bridgePool: Map<string, Promise<ACPBridge>> },
+  deps: { bridges: Map<string, Promise<ACPBridge>> },
 ): TerminalModule {
   const { sendEvent, storage } = ctx;
   const terminals = new Map<string, ManagedTerminal>();
@@ -255,7 +255,7 @@ export function createTerminalModule(
     sessionId: string;
     terminalId: string;
   }) {
-    for (const connectPromise of deps.bridgePool.values()) {
+    for (const connectPromise of deps.bridges.values()) {
       try {
         const b = await connectPromise;
         const output = b.terminalManager.getOutput(terminalId);

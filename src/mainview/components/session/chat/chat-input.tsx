@@ -792,7 +792,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   }, []);
 
   const hasActiveAskUser = askUserRequests ? askUserRequests.length > 0 : false;
-  const disabled = !session.id || isLoading || hasActiveAskUser;
+  const disabled =
+    !session.id || session.connectionStatus !== "connected" || isLoading || hasActiveAskUser;
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {

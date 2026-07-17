@@ -5,6 +5,16 @@ import type {
   Usage,
 } from "@agentclientprotocol/sdk";
 
+export type SubagentStatus = "pending" | "in_progress" | "completed" | "failed";
+export type SubagentUpdate = {
+  sessionId: string;
+  name?: string;
+  prompt?: string;
+  status?: SubagentStatus;
+};
+
+export type AddonSessionUpdate = SubagentUpdate & { sessionUpdate: "subagent_update" };
+
 /**
  * 扩展 SessionNotification 结构
  * 包含 Fello 注入的元数据，用于前后端消息去重、时间戳等功能
@@ -18,6 +28,8 @@ export interface SessionNotificationFelloExt extends SessionNotification {
         receivedAt: number;
         /** 前端用于渲染与去重的稳定显示 ID */
         displayId: string;
+        /** 只有 sessionUpdate=session_info_update 才有，属于自定义事件 */
+        update?: AddonSessionUpdate;
       };
     };
   };
@@ -354,6 +366,8 @@ export interface SessionInfo {
   initializeInfo: InitializeResponse | null;
   /** 是否在输出中 */
   isStreaming: boolean;
+  /** 后端 agent-bridge 连接状态 */
+  connectionStatus: "disconnected" | "connecting" | "connected";
 }
 
 /**
@@ -742,7 +756,7 @@ export type FelloIPCRequests = {
   };
   /** iLink: 断开连接 */
   stopIlink: {
-    params: void;
+    params: { logout: boolean };
     response: void;
   };
   /** iLink: 设置活跃 session（传空字符串清除） */
