@@ -202,22 +202,55 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     };
   }, [getViewport]);
 
-  // ── ResizeObserver: auto-scroll when content grows (handles code-block, mermaid, shiki etc.) ──
+  // ── ResizeObserver: auto-scroll when content/viewport size changes ──
+  // Observes the viewport (to catch container resize from panel layout shifts)
+  // and all direct children (to catch content growth from async rendering like
+  // shiki highlighting, mermaid diagrams, image loads, etc.).
   useEffect(() => {
     const viewport = getViewport();
     if (!viewport) return;
 
-    const contentEl = viewport.firstElementChild;
-    if (!contentEl) return;
+    let rafPending = false;
+    const scrollIfNeeded = () => {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        if (!userHasScrolledUpRef.current) {
+          scrollToBottomNow(bottomRef.current);
+        }
+      });
+    };
 
-    const observer = new ResizeObserver(() => {
-      if (!userHasScrolledUpRef.current) {
-        scrollToBottomNow(bottomRef.current);
+    // Observe viewport itself — fires when the container is resized (e.g. panel layout shifts)
+    const observer = new ResizeObserver(scrollIfNeeded);
+    observer.observe(viewport);
+
+    // Also observe all direct children to catch content height changes
+    // (e.g. async shiki highlighting, mermaid rendering, image loads)
+    for (const child of viewport.children) {
+      observer.observe(child);
+    }
+
+    // Watch for new children being added (React re-renders may add/remove message groups)
+    const mo = new MutationObserver((mutations) => {
+      let contentChanged = false;
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            observer.observe(node);
+            contentChanged = true;
+          }
+        }
       }
+      if (contentChanged) scrollIfNeeded();
     });
+    mo.observe(viewport, { childList: true });
 
-    observer.observe(contentEl);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      mo.disconnect();
+    };
   }, [getViewport]);
 
   const renderedMessages = useMemo(() => {
