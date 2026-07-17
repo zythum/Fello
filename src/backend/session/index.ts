@@ -187,7 +187,22 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     };
   }
 
+  const sessionLoadPromiseMap = new Map<string, ReturnType<typeof _loadSession>>();
   async function loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
+    const last = sessionLoadPromiseMap.get(sessionId);
+    if (last) {
+      if (force) throw new Error("Session is already loading");
+      return last;
+    }
+    const current = _loadSession({ sessionId, force });
+    sessionLoadPromiseMap.set(sessionId, current);
+    current.finally(() => {
+      sessionLoadPromiseMap.delete(sessionId);
+    });
+    return current;
+  }
+
+  async function _loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const project = storage.getProject(session.projectId);

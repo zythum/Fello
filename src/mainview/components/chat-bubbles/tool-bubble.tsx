@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { FileIcon as FileTypeIcon } from "../../../common/file-icon";
-import { isWebUI, request } from "../../../../backend";
-import { electron } from "../../../../electron";
-import { resolveFileUrl } from "../../../../lib/file-url";
+import { FileIcon as FileTypeIcon } from "../common/file-icon";
+import { isWebUI, request } from "../../backend";
+import { electron } from "../../electron";
+import { resolveFileUrl } from "../../lib/file-url";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,19 +44,19 @@ import {
   ItemActions,
 } from "@/components/ui/item";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
-import { AgentTerminalOutput } from "../../../common/agent-terminal-output";
-import { ContentBlocks } from "../../../content-blocks/content-blocks";
-import { CodeView } from "../../../common/code-view";
-import { CodeCompareView } from "../../../common/code-compare-view";
-import type { ToolCallMessage } from "../../../../lib/chat-message";
+import { AgentTerminalOutput } from "../common/agent-terminal-output";
+import { ContentBlocks } from "../content-blocks/content-blocks";
+import { CodeView } from "../common/code-view";
+import { CodeCompareView } from "../common/code-compare-view";
+import type { ToolCallMessage } from "../../lib/chat-message";
 import type { ToolCallStatus } from "@agentclientprotocol/sdk";
-import type { SessionInfo } from "../../../../../shared/schema";
+import type { SessionInfo } from "../../../shared/schema";
 import type { BaseBubbleProps } from "./base-bubble";
 import {
   shareToUserRespondSchema,
   isImageMimeType,
   type ShareToUserRespond,
-} from "../../../../../shared/zod/mcp-share-to-user-schema";
+} from "../../../shared/zod/mcp-share-to-user-schema";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,

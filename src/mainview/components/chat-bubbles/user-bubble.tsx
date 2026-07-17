@@ -5,9 +5,9 @@ import { copyText } from "@/lib/clipboard";
 import { ChevronsUpDown, ChevronsDownUp, Copy, Check, ArrowUpToLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ContentBlocks } from "../../../content-blocks/content-blocks";
+import { ContentBlocks } from "../content-blocks/content-blocks";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { UserMessage } from "../../../../lib/chat-message";
+import type { UserMessage } from "../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
 
 /** 转义 markdown 特殊字符，使文本原样显示，不触发 markdown / HTML 渲染 */

@@ -179,7 +179,9 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
         }
       }
     } else {
-      storage.appendSessionMessage(sessionId, enrichedNotification);
+      if (sessionUpdate !== "available_commands_update" && sessionUpdate !== "usage_update") {
+        storage.appendSessionMessage(sessionId, enrichedNotification);
+      }
     }
 
     sendEvent("session-update", { sessionId, notification: enrichedNotification });

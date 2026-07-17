@@ -10,6 +10,7 @@ import { DocxDetail } from "./docx-detail/docx-detail";
 import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
+import { ConversationDetail } from "./conversation-detail/conversation-detail";
 import { FileText, FolderOpen } from "lucide-react";
 
 interface FileDetailProps {
@@ -96,7 +97,9 @@ export function FileDetail({
 
       {/* Content */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
-        {fileKind === "image" ? (
+        {fileKind === "conversation" ? (
+          <ConversationDetail {...contextProps} />
+        ) : fileKind === "image" ? (
           <ImageDetail {...contextProps} />
         ) : fileKind === "markdown" ? (
           <MarkdownDetail {...contextProps} />

@@ -3,8 +3,8 @@ import { Lightbulb } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ContentBlocks } from "../../../content-blocks/content-blocks";
-import type { AgentThoughtMessage } from "../../../../lib/chat-message";
+import { ContentBlocks } from "../content-blocks/content-blocks";
+import type { AgentThoughtMessage } from "../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
 
 export const ThinkingBubble = memo(function ThinkingBubble({

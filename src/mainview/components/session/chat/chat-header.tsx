@@ -83,8 +83,11 @@ export function ChatHeader({ session }: ChatHeaderProps) {
         state = reduceSessionNotification(session.id, state, notification);
       }
 
-      state.pendingNotifications = [];
-      state.isLoading = false;
+      state = {
+        ...state,
+        pendingNotifications: [],
+        isLoading: false,
+      };
 
       updateSessionState(session.id, () => state);
 

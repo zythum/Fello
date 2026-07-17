@@ -41,6 +41,7 @@ export interface InferenceRequest {
 export interface InferenceResult {
   text: string;
   notifications: SessionNotification[];
+  terminalLogs: Record<string, string>;
   stopReason?: string;
 }
 
@@ -66,6 +67,7 @@ export function createInferenceModule(
 
     const notifications: SessionNotification[] = [];
     const textChunks: string[] = [];
+    const terminalLogs: Record<string, string> = {};
 
     const agentInfo = resolveAgentInfo(agentId);
     const bridge = new ACPBridge(agentId, {
@@ -89,7 +91,9 @@ export function createInferenceModule(
           request.options[0];
         return { outcome: { outcome: "selected", optionId: opt?.optionId ?? "allow" } };
       },
-      onAgentTerminalOutput: () => {},
+      onAgentTerminalOutput: (_sessionId, terminalId, data) => {
+        terminalLogs[terminalId] = (terminalLogs[terminalId] ?? "") + data;
+      },
     });
 
     const servers: SocketServer[] = [];
@@ -144,7 +148,7 @@ export function createInferenceModule(
       await bridge.closeSession(sessionId);
       await bridge.deleteSession(sessionId);
 
-      return { text: textChunks.join(""), notifications, stopReason };
+      return { text: textChunks.join(""), notifications, terminalLogs, stopReason };
     } finally {
       await bridge.kill().catch(() => {});
       for (const s of servers) s.stop();

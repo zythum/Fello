@@ -11,14 +11,14 @@ import {
   MessageSquareMore,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { SubagentMessage } from "../../../../lib/chat-message";
-import type { SubagentStatus } from "../../../../../shared/schema";
+import type { SubagentMessage } from "../../lib/chat-message";
+import type { SubagentStatus } from "../../../shared/schema";
 import { ToolBubble } from "./tool-bubble";
 import { ThinkingBubble } from "./thinking-bubble";
 import { AgentBubble } from "./agent-bubble";
 import { PlanBubble } from "./plan-bubble";
 import type { BaseBubbleProps } from "./base-bubble";
-import { StreamMarkdown } from "../../../common/stream-markdown";
+import { StreamMarkdown } from "../common/stream-markdown";
 
 const statusIcons: Record<SubagentStatus, React.ReactNode> = {
   pending: <Ellipsis className="size-3 text-muted-foreground" />,
@@ -111,20 +111,21 @@ export const SubagentBubble = memo(function SubagentBubble({
         </div>
         <div className="relative">
           <div className="h-2 border-b border-dashed -ml-4 mt-px -mb-1" />
-          {open && (<>
-            <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
-            {message.messages.map((message, index) => {
-              return (
-                <MessageBubble
-                  key={index}
-                  session={session}
-                  message={message}
-                  isStreaming={status !== "completed"}
-                />
-              );
-            })}
-            <div className="border-b border-dashed -ml-4 -mb-1" />
-          </>
+          {open && (
+            <>
+              <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
+              {message.messages.map((message, index) => {
+                return (
+                  <MessageBubble
+                    key={index}
+                    session={session}
+                    message={message}
+                    isStreaming={status !== "completed"}
+                  />
+                );
+              })}
+              <div className="border-b border-dashed -ml-4 -mb-1" />
+            </>
           )}
         </div>
       </div>

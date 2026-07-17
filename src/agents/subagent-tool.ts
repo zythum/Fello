@@ -76,8 +76,6 @@ function createSubsessionConnectionProxy(
   };
 }
 
-
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -263,9 +261,7 @@ Each task gets a name (short identifier) and a prompt (detailed instructions).
 Sub-agents do NOT have access to the parent conversation history — include all necessary context in the prompt.
 Results from all sub-agents are returned when they all complete.`,
       inputSchema: z.object({
-        purpose: z
-          .string()
-          .describe("Brief description of the purpose for spawning sub-agents."),
+        purpose: z.string().describe("Brief description of the purpose for spawning sub-agents."),
         tasks: z
           .array(
             z.object({
@@ -288,7 +284,6 @@ Results from all sub-agents are returned when they all complete.`,
         }
 
         // Broadcast tool_call start
-        const taskNames = tasks.map((t) => t.name).join(", ");
         const title = `Subagent: ${purpose}`;
         await connection.sessionUpdate({
           sessionId: params.sessionId,
@@ -349,8 +344,7 @@ Results from all sub-agents are returned when they all complete.`,
           return {
             name: sa.name,
             status: "failed" as const,
-            result:
-              result.reason instanceof Error ? result.reason.message : String(result.reason),
+            result: result.reason instanceof Error ? result.reason.message : String(result.reason),
           };
         });
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionMessages } from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
-import { MessageBubble } from "./bubbles/message-bubble";
+import { MessageBubble } from "../../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";

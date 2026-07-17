@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, Hammer, CircleSmall, ChevronUp, ChevronDown, Minus, Notebook } from "lucide-react";
 import type { BaseBubbleProps } from "./base-bubble";
-import type { PlanMessage } from "../../../../lib/chat-message";
+import type { PlanMessage } from "../../lib/chat-message";
 
 export const PlanBubble = memo(function PlanBubble({
   session: _session,

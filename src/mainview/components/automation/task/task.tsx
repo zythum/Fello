@@ -20,8 +20,10 @@ export function Task() {
     try {
       const files = await request.getTaskFiles({ scheduleId, taskId });
       setTaskFiles(files ?? []);
-      const readme = (files ?? []).find((f: string) => f.toLowerCase() === "readme.md");
-      setSelectedFile(readme ?? null);
+      const defaultFile =
+        (files ?? []).find((f: string) => f.toLowerCase() === ".fello-conversation.json") ??
+        (files ?? []).find((f: string) => f.toLowerCase() === "readme.md");
+      setSelectedFile(defaultFile ?? null);
     } catch {
       setTaskFiles([]);
     } finally {

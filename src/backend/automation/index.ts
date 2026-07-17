@@ -180,19 +180,28 @@ export function createAutomationModule(
           },
         },
       }));
-      const messages = reduceNotificationsToMessages(notifications);
 
       store.writeTaskFile(
         scheduleId,
         taskId,
-        "conversation.json",
-        JSON.stringify(messages, null, 2),
-      );
-      store.writeTaskFile(
-        scheduleId,
-        taskId,
-        "README.md",
-        generateReadme(schedule, messages, startedAt, null, storage.getSettings().i18n?.language),
+        ".fello-conversation.json",
+        JSON.stringify(
+          {
+            __type: "fello-conversation",
+            meta: {
+              name: schedule.name,
+              agentId: schedule.agentId,
+              modelId: schedule.modelId ?? null,
+              prompt: schedule.prompt,
+              startedAt,
+              completedAt: Date.now(),
+            },
+            notifications,
+            terminalLogs: result.terminalLogs,
+          },
+          null,
+          2,
+        ),
       );
 
       schedule.lastRunAt = Date.now();
@@ -213,20 +222,6 @@ export function createAutomationModule(
       store.saveTask(scheduleId, task);
       sendEvent("task-update", { scheduleId, task });
       console.error(`[Automation] Task failed:`, errorMessage);
-      try {
-        store.writeTaskFile(
-          scheduleId,
-          taskId,
-          "README.md",
-          generateErrorReadme(
-            schedule,
-            [],
-            startedAt,
-            errorMessage,
-            storage.getSettings().i18n?.language,
-          ),
-        );
-      } catch {}
       return task;
     } finally {
       runningTasks.delete(scheduleId);
@@ -304,109 +299,4 @@ export function createAutomationModule(
     deleteTask,
     stopAllCrons,
   };
-}
-
-// ── Helpers (pure, no state) ─────────────────────────────────────────
-
-interface ReducedMessage {
-  role: "user" | "assistant" | "thought" | "tool_call";
-  text: string;
-  toolTitle?: string;
-}
-
-function reduceNotificationsToMessages(
-  notifications: SessionNotificationFelloExt[],
-): ReducedMessage[] {
-  const messages: ReducedMessage[] = [];
-  for (const n of notifications) {
-    const update = n.update;
-    if (!update) continue;
-    switch (update.sessionUpdate) {
-      case "user_message_chunk": {
-        const content = update.content;
-        if (!content || content.type !== "text") break;
-        const last = messages[messages.length - 1];
-        if (last && last.role === "user") last.text += content.text ?? "";
-        else messages.push({ role: "user", text: content.text ?? "" });
-        break;
-      }
-      case "agent_message_chunk": {
-        const content = update.content;
-        if (!content || content.type !== "text") break;
-        const last = messages[messages.length - 1];
-        if (last && last.role === "assistant") last.text += content.text ?? "";
-        else messages.push({ role: "assistant", text: content.text ?? "" });
-        break;
-      }
-      case "agent_thought_chunk": {
-        const content = update.content;
-        if (!content || content.type !== "text") break;
-        const last = messages[messages.length - 1];
-        if (last && last.role === "thought") last.text += content.text ?? "";
-        else messages.push({ role: "thought", text: content.text ?? "" });
-        break;
-      }
-      case "tool_call":
-      case "tool_call_update": {
-        const title = update.title ?? "";
-        const content = update.content;
-        let text = "";
-        if (Array.isArray(content)) {
-          for (const block of content) {
-            if (block.type === "content") text += block.content.type ?? "";
-          }
-        }
-        messages.push({ role: "tool_call", text, toolTitle: title });
-        break;
-      }
-    }
-  }
-  return messages;
-}
-
-function renderMessages(lines: string[], messages: ReducedMessage[]): void {
-  for (const msg of messages) {
-    if (msg.role === "user" || msg.role === "assistant") {
-      const text = msg.text.trim();
-      if (text) lines.push(text + "\n");
-    }
-  }
-}
-
-function generateErrorReadme(
-  schedule: Schedule,
-  messages: ReducedMessage[],
-  startedAt: number,
-  errorMessage: string,
-  locale?: string,
-): string {
-  const lines: string[] = [
-    `# ${schedule.name}`,
-    `> Run at ${new Date(startedAt).toLocaleString(locale)}`,
-    "",
-    `> ❌ Task failed: ${errorMessage}`,
-    "",
-  ];
-  renderMessages(lines, messages);
-  return lines.join("\n");
-}
-
-function generateReadme(
-  schedule: Schedule,
-  messages: ReducedMessage[],
-  startedAt: number,
-  modelError: string | null,
-  locale?: string,
-): string {
-  const lines: string[] = [
-    `# ${schedule.name}`,
-    `> Run at ${new Date(startedAt).toLocaleString(locale)}`,
-  ];
-  if (modelError) {
-    lines.push("", `> ⚠️ ${modelError}`);
-    lines.push("", `> The task continued with the agent's default model.`);
-  }
-  lines.push("");
-  renderMessages(lines, messages);
-  return lines.join("\n");
 }

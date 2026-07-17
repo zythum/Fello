@@ -2,7 +2,14 @@ import { randomUUID } from "crypto";
 import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, generateText, type ModelMessage, type TextPart, type ToolSet } from "ai";
+import {
+  stepCountIs,
+  streamText,
+  generateText,
+  type ModelMessage,
+  type TextPart,
+  type ToolSet,
+} from "ai";
 import type {
   Agent,
   AgentSideConnection,
