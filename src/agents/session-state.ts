@@ -1,4 +1,5 @@
-import type { AgentSideConnection, McpServer } from "@agentclientprotocol/sdk";
+import type { McpServer } from "@agentclientprotocol/sdk";
+import type { AgentClientProxy } from "./agent-client-proxy";
 import type { ModelMessage } from "ai";
 import { createACPClientTools, type ACPSessionTools } from "./acp-client-tools";
 import { createMCPSessionTools, type MCPSessionTools } from "./mcp-tools";
@@ -32,7 +33,7 @@ export async function createSessionState(params: {
   additionalDirectories: string[] | undefined;
   mcpServers: McpServer[] | undefined;
   modelId: string | null;
-  getConnection: () => AgentSideConnection | null;
+  getConnection: () => AgentClientProxy | null;
   history?: ModelMessage[];
   allowedToolKinds?: PermissionKind[];
   onAllowedToolKindsChanged?: (allowedToolKinds: AllowedToolKinds) => Promise<void> | void;

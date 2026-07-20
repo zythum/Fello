@@ -3,13 +3,13 @@ import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ContentBlockSchema } from "@modelcontextprotocol/sdk/types.js";
 import type {
-  AgentSideConnection,
   ContentBlock,
   McpServer,
   ToolCall,
   ToolCallUpdate,
   ToolKind,
 } from "@agentclientprotocol/sdk";
+import type { AgentClientProxy } from "./agent-client-proxy";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import {} from "./utils";
 
@@ -22,7 +22,7 @@ export type CreateMCPSessionToolsParams = {
   sessionId: string;
   mcpServers: McpServer[];
   cwd: string;
-  getConnection: () => AgentSideConnection | null;
+  getConnection: () => AgentClientProxy | null;
   permissionMemory?: ToolPermissionMemory;
 };
 

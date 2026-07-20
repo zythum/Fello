@@ -1,8 +1,8 @@
 import type {
-  AgentSideConnection,
   RequestPermissionResponse,
   ToolCall,
 } from "@agentclientprotocol/sdk";
+import type { AgentClientProxy } from "./agent-client-proxy";
 
 export type ToolPermissionMemory = {
   isAlwaysAllowed: (kind: ToolCall["kind"]) => boolean;
@@ -48,7 +48,7 @@ function isPermissionAllowed(response: RequestPermissionResponse): boolean {
 }
 
 async function requestToolPermission(
-  connection: AgentSideConnection,
+  connection: AgentClientProxy,
   sessionId: string,
   toolCall: ToolCall,
 ): Promise<RequestPermissionResponse> {
@@ -64,7 +64,7 @@ async function requestToolPermission(
 }
 
 export async function ensureToolPermission(
-  connection: AgentSideConnection,
+  connection: AgentClientProxy,
   sessionId: string,
   toolCall: ToolCall,
   memory?: ToolPermissionMemory,

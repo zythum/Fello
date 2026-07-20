@@ -94,7 +94,7 @@
     ]
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^0.26.0",
+    "@agentclientprotocol/sdk": "^1.2.1",
     "@ai-sdk/mcp": "^1.0.41",
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@modelcontextprotocol/sdk": "^1.29.0",

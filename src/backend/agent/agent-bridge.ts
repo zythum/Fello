@@ -1,28 +1,13 @@
 import { writeFile, readFile } from "fs/promises";
 import {
   ndJsonStream,
-  Client,
-  ClientSideConnection,
+  client,
+  methods,
   PROTOCOL_VERSION,
+  type ClientConnection,
 } from "@agentclientprotocol/sdk";
 import type {
   SessionNotification,
-  RequestPermissionRequest,
-  RequestPermissionResponse,
-  WriteTextFileRequest,
-  WriteTextFileResponse,
-  ReadTextFileRequest,
-  ReadTextFileResponse,
-  CreateTerminalRequest,
-  CreateTerminalResponse,
-  TerminalOutputRequest,
-  TerminalOutputResponse,
-  WaitForTerminalExitRequest,
-  WaitForTerminalExitResponse,
-  KillTerminalRequest,
-  KillTerminalResponse,
-  ReleaseTerminalRequest,
-  ReleaseTerminalResponse,
   InitializeResponse,
   NewSessionRequest,
   NewSessionResponse,
@@ -34,6 +19,8 @@ import type {
   PromptResponse,
   CancelNotification,
   SessionConfigOption,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
 import type { AgentInfo, SessionModelState, SessionModeState } from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
@@ -89,7 +76,7 @@ export interface ACPBridgeOptions {
  */
 export class ACPBridge {
   private process: AgentProcess | null = null;
-  private connection: ClientSideConnection | null = null;
+  private connection: ClientConnection | null = null;
   private onSessionConnect: SessionConnectCallback;
   private onSessionUpdate: SessionUpdateCallback;
   private onExtNotification: SessionExtNotificationCallback;
@@ -272,42 +259,44 @@ export class ACPBridge {
     const applyConfigOptions = this.applyConfigOptions.bind(this);
     const terminalManager = this.terminalManager;
     const sessionsCwdMap = this._sessionsCwdMap;
-    const client: Client = {
-      async requestPermission(
-        params: RequestPermissionRequest,
-      ): Promise<RequestPermissionResponse> {
-        return onPermission(params);
-      },
-      async sessionUpdate(params: SessionNotification): Promise<void> {
+
+    const clientApp = client({ name: "Fello" })
+      .onRequest(methods.client.session.requestPermission, (ctx) => {
+        return onPermission(ctx.params);
+      })
+      .onNotification(methods.client.session.update, (ctx) => {
+        const params = ctx.params;
         if (params.update.sessionUpdate === "config_option_update") {
           applyConfigOptions(params.sessionId, params.update.configOptions);
         }
         onUpdate(params);
-      },
-      async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
-        await writeFile(params.path, params.content, "utf8");
+      })
+      .onRequest(methods.client.fs.writeTextFile, async (ctx) => {
+        await writeFile(ctx.params.path, ctx.params.content, "utf8");
         return {};
-      },
-      async readTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
-        const content = await readFile(params.path, "utf8");
+      })
+      .onRequest(methods.client.fs.readTextFile, async (ctx) => {
+        const content = await readFile(ctx.params.path, "utf8");
         return { content };
-      },
-      async createTerminal(params: CreateTerminalRequest): Promise<CreateTerminalResponse> {
+      })
+      .onRequest(methods.client.terminal.create, (ctx) => {
+        const params = ctx.params;
         const id = terminalManager.create(
           params.sessionId,
           params.command,
           params.args || [],
           params.cwd || sessionsCwdMap.get(params.sessionId) || process.cwd(),
-          params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
+          params.env?.reduce(
+            (acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }),
+            {},
+          ) || {},
           params.outputByteLimit || 1048576,
         );
         return { terminalId: id };
-      },
-      async terminalOutput(params: TerminalOutputRequest): Promise<TerminalOutputResponse> {
+      })
+      .onRequest(methods.client.terminal.output, (ctx) => {
+        const params = ctx.params;
         const { output, truncated } = terminalManager.getOutput(params.terminalId);
-        // SDK doesn't define exitStatus if it hasn't exited, so we shouldn't add it unless finished
-        // We'll leave it out for now as AgentTerminalManager doesn't return exitStatus in getOutput yet
-        // Wait, let's fix getOutput in AgentTerminalManager to return exitStatus if finished.
         const term = terminalManager.getTerminal(params.terminalId);
         return {
           output,
@@ -316,31 +305,32 @@ export class ACPBridge {
             ? { exitStatus: { exitCode: term.exitCode, signal: term.signal } }
             : {}),
         };
-      },
-      async waitForTerminalExit(
-        params: WaitForTerminalExitRequest,
-      ): Promise<WaitForTerminalExitResponse> {
-        const { exitCode, signal } = await terminalManager.waitForExit(params.terminalId);
+      })
+      .onRequest(methods.client.terminal.waitForExit, async (ctx) => {
+        const { exitCode, signal } = await terminalManager.waitForExit(ctx.params.terminalId);
         return { exitCode: exitCode ?? undefined, signal: signal ?? undefined };
-      },
-      async killTerminal(params: KillTerminalRequest): Promise<KillTerminalResponse> {
-        terminalManager.kill(params.terminalId);
+      })
+      .onRequest(methods.client.terminal.kill, (ctx) => {
+        terminalManager.kill(ctx.params.terminalId);
         return {};
-      },
-      async releaseTerminal(params: ReleaseTerminalRequest): Promise<ReleaseTerminalResponse> {
-        terminalManager.release(params.terminalId);
+      })
+      .onRequest(methods.client.terminal.release, (ctx) => {
+        terminalManager.release(ctx.params.terminalId);
         return {};
-      },
-      async extNotification(method: string, params: unknown): Promise<void> {
-        if (ACP_VERBOSE_LOG && process.env.NODE_ENV === "development") {
-          console.log(`[ACP Ext Notification] Method: ${method}`);
-        }
-        onExtNotification(method, params);
-      },
-    };
+      })
+      .onNotification("_kiro.dev/metadata", (p: unknown) => p, (ctx) => {
+        onExtNotification("_kiro.dev/metadata", ctx.params);
+      })
+      .onNotification("_kiro.dev/commands/available", (p: unknown) => p, (ctx) => {
+        onExtNotification("_kiro.dev/commands/available", ctx.params);
+      })
+      .onNotification("_kiro.dev/subagent/list_update", (p: unknown) => p, (ctx) => {
+        onExtNotification("_kiro.dev/subagent/list_update", ctx.params);
+      });
 
-    this.connection = new ClientSideConnection((_agent) => client, stream);
-    const initResult = await this.connection.initialize({
+    this.connection = clientApp.connect(stream);
+
+    const initResult = await this.connection.agent.request(methods.agent.initialize, {
       protocolVersion: PROTOCOL_VERSION,
       clientInfo: { name: "Fello", version: "0.1.0" },
       clientCapabilities: {
@@ -397,7 +387,7 @@ export class ACPBridge {
     params: NewSessionRequest,
   ): Promise<NewSessionResponse & { models: SessionModelState | null }> {
     if (!this.connection) throw new Error("Not connected");
-    const result = await this.connection.newSession(params);
+    const result = await this.connection.agent.request(methods.agent.session.new, params);
     const { models: configModels, modes: configModes } = result.configOptions
       ? this.parseSessionConfigOptions(result.configOptions)
       : { models: null, modes: null };
@@ -414,11 +404,8 @@ export class ACPBridge {
   }
 
   async hack_setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
-    return (
-      this.connection as unknown as {
-        connection: { sendRequest: (method: string, params: any) => Promise<any> };
-      }
-    ).connection.sendRequest("session/set_model", params);
+    if (!this.connection) throw new Error("Not connected");
+    return this.connection.agent.request<SetSessionModelResponse>("session/set_model", params);
   }
 
   async setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
@@ -427,7 +414,7 @@ export class ACPBridge {
     const configId = this.getConfigOptionId(params.sessionId, "model");
     if (configId) {
       try {
-        const cfg = await this.connection.setSessionConfigOption({
+        const cfg = await this.connection.agent.request(methods.agent.session.setConfigOption, {
           sessionId: params.sessionId,
           configId,
           value: params.modelId,
@@ -455,7 +442,7 @@ export class ACPBridge {
   async closeSession(sessionId: string): Promise<void> {
     if (this.connection) {
       try {
-        await this.connection.closeSession({ sessionId }).catch(() => {});
+        await this.connection.agent.request(methods.agent.session.close, { sessionId }).catch(() => {});
       } catch {}
     }
     this._modelStates.delete(sessionId);
@@ -473,7 +460,7 @@ export class ACPBridge {
   async deleteSession(sessionId: string): Promise<void> {
     if (!this.connection) return;
     try {
-      await this.connection.deleteSession({ sessionId });
+      await this.connection.agent.request(methods.agent.session.delete, { sessionId });
     } catch {}
     this._modelStates.delete(sessionId);
     this._modeStates.delete(sessionId);
@@ -498,9 +485,9 @@ export class ACPBridge {
 
     let result: ResumeSessionResponse;
     try {
-      result = await this.connection.resumeSession(params);
+      result = await this.connection.agent.request(methods.agent.session.resume, params);
     } catch {
-      result = await this.connection.loadSession({
+      result = await this.connection.agent.request(methods.agent.session.load, {
         ...params,
         mcpServers: params.mcpServers ?? [],
       });
@@ -526,7 +513,7 @@ export class ACPBridge {
     const configId = this.getConfigOptionId(params.sessionId, "mode");
     if (configId) {
       try {
-        const cfg = await this.connection.setSessionConfigOption({
+        const cfg = await this.connection.agent.request(methods.agent.session.setConfigOption, {
           sessionId: params.sessionId,
           configId,
           value: params.modeId,
@@ -534,10 +521,10 @@ export class ACPBridge {
         this.applyConfigOptions(params.sessionId, cfg.configOptions);
         result = {};
       } catch {
-        result = await this.connection.setSessionMode(params);
+        result = await this.connection.agent.request(methods.agent.session.setMode, params);
       }
     } else {
-      result = await this.connection.setSessionMode(params);
+      result = await this.connection.agent.request(methods.agent.session.setMode, params);
     }
     const state = this._modeStates.get(params.sessionId);
     if (state) {
@@ -548,12 +535,12 @@ export class ACPBridge {
 
   async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
     if (!this.connection) throw new Error("Not connected");
-    return this.connection.prompt(params);
+    return this.connection.agent.request(methods.agent.session.prompt, params);
   }
 
   async cancel(params: CancelNotification): Promise<void> {
     if (!this.connection) return;
-    await this.connection.cancel(params);
+    await this.connection.agent.notify(methods.agent.session.cancel, params);
   }
 
   async kill(): Promise<void> {
@@ -561,7 +548,7 @@ export class ACPBridge {
       const sessionIds = new Set([...this._modelStates.keys(), ...this._modeStates.keys()]);
       for (const sid of sessionIds) {
         try {
-          await this.connection.closeSession({ sessionId: sid }).catch(() => {});
+          await this.connection.agent.request(methods.agent.session.close, { sessionId: sid }).catch(() => {});
         } catch {}
       }
     }

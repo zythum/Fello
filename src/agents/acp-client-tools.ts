@@ -1,14 +1,8 @@
 import { resolve } from "path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import type {
-  AgentSideConnection,
-  TerminalHandle,
-  ToolCall,
-  ToolCallUpdate,
-  Plan,
-  PlanEntry,
-} from "@agentclientprotocol/sdk";
+import type { ToolCall, ToolCallUpdate, Plan, PlanEntry } from "@agentclientprotocol/sdk";
+import { AgentClientProxy, TerminalHandle } from "./agent-client-proxy";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { toEnvVariables } from "./utils";
 
@@ -21,7 +15,7 @@ export type ACPSessionTools = {
 export type CreateACPClientToolsParams = {
   cwd: string;
   sessionId: string;
-  getConnection: () => AgentSideConnection | null;
+  getConnection: () => AgentClientProxy | null;
   permissionMemory?: ToolPermissionMemory;
 };
 

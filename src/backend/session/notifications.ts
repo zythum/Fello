@@ -2,16 +2,41 @@ import { readFile } from "fs/promises";
 import { omit } from "es-toolkit";
 import { randomUUID } from "crypto";
 import type { SessionNotification, ContentBlock, ToolCallUpdate } from "@agentclientprotocol/sdk";
-import { zContentBlock } from "@agentclientprotocol/sdk/dist/schema/zod.gen.js";
 import type { BackendContext } from "../types";
 import type { SessionNotificationFelloExt } from "../../shared/schema";
 import type { IlinkState } from "../ilink";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+const CONTENT_BLOCK_TYPES = new Set(["text", "image", "audio", "resource_link", "resource"]);
+
+/**
+ * Lightweight check for whether an object is a valid ContentBlock.
+ * Replaces the previous zContentBlock.safeParse() from the SDK's internal zod schema.
+ */
+function isContentBlock(obj: unknown): obj is ContentBlock {
+  if (typeof obj !== "object" || obj === null) return false;
+  const typed = obj as Record<string, unknown>;
+  if (typeof typed.type !== "string" || !CONTENT_BLOCK_TYPES.has(typed.type)) return false;
+  // Minimal field check per type
+  switch (typed.type) {
+    case "text":
+      return typeof typed.text === "string";
+    case "image":
+      return typeof typed.data === "string" || typeof typed.url === "string";
+    case "audio":
+      return typeof typed.data === "string" || typeof typed.url === "string";
+    case "resource_link":
+      return typeof typed.uri === "string";
+    case "resource":
+      return typeof typed.resource === "object" && typed.resource !== null;
+    default:
+      return false;
+  }
+}
+
 function findContentBlock(object: any): ContentBlock | null {
-  const { data, success } = zContentBlock.safeParse(object);
-  if (success) return data;
+  if (isContentBlock(object)) return object;
   if (object && typeof object === "object") {
     for (const name in object) {
       if (object.hasOwnProperty(name)) {

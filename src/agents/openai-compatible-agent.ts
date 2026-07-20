@@ -12,7 +12,6 @@ import {
 } from "ai";
 import type {
   Agent,
-  AgentSideConnection,
   AvailableCommand,
   CancelNotification,
   CloseSessionRequest,
@@ -36,6 +35,8 @@ import type {
   Usage,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
+import type { AgentContext } from "@agentclientprotocol/sdk";
+import { AgentClientProxy } from "./agent-client-proxy";
 import type { ApiAgentInfo, ModelInfo, SessionModelState } from "../shared/schema";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
@@ -168,7 +169,7 @@ const AVAILABLE_COMMANDS: AvailableCommand[] = [
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
   private provider: ReturnType<typeof createOpenAICompatible>;
-  private connection: AgentSideConnection | null = null;
+  private connection: AgentClientProxy | null = null;
   private agentId: string;
   private baseUrl: string;
   private apiKey: string;
@@ -201,8 +202,8 @@ export class OpenaiCompatibleAgent implements Agent {
     });
   }
 
-  setConnection(connection: AgentSideConnection): void {
-    this.connection = connection;
+  setConnection(ctx: AgentContext): void {
+    this.connection = new AgentClientProxy(ctx);
   }
 
   async initialize(_request: InitializeRequest): Promise<InitializeResponse> {

@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { streamText, stepCountIs, type ToolSet } from "ai";
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentSideConnection } from "@agentclientprotocol/sdk";
+import type { AgentClientProxy } from "./agent-client-proxy";
 import type { AddonSessionUpdate, SubagentStatus } from "../shared/schema";
 import { createACPClientTools, closeACPClientTools } from "./acp-client-tools";
 import type { ToolPermissionMemory } from "./permission";
@@ -17,7 +17,7 @@ export type SubagentToolParams = {
   /** Session cwd */
   cwd: string;
   /** Get the current ACP connection */
-  getConnection: () => AgentSideConnection | null;
+  getConnection: () => AgentClientProxy | null;
   /** Get the AI model instance */
   getModel: () => ReturnType<
     ReturnType<typeof import("@ai-sdk/openai-compatible").createOpenAICompatible>["chatModel"]
@@ -35,17 +35,17 @@ export type SubagentToolParams = {
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a proxy around AgentSideConnection that rewrites sessionId
+ * Creates a proxy around AgentClientProxy that rewrites sessionId
  * in sessionUpdate and requestPermission calls to the sub-session ID.
  *
  * This ensures all tool_call updates from subagent tools appear inside
  * the subagent bubble in the UI rather than in the parent session.
  */
 function createSubsessionConnectionProxy(
-  getConnection: () => AgentSideConnection | null,
+  getConnection: () => AgentClientProxy | null,
   parentSessionId: string,
   subSessionId: string,
-): () => AgentSideConnection | null {
+): () => AgentClientProxy | null {
   return () => {
     const real = getConnection();
     if (!real) return null;
@@ -81,7 +81,7 @@ function createSubsessionConnectionProxy(
 // ---------------------------------------------------------------------------
 
 function sendSubagentStatusUpdate(
-  connection: AgentSideConnection,
+  connection: AgentClientProxy,
   sessionId: string,
   subSessionId: string,
   name: string,

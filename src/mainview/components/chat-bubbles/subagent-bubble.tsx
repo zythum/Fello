@@ -96,9 +96,11 @@ export const SubagentBubble = memo(function SubagentBubble({
         <div>
           <span className="text-xs">{message.name}</span>
         </div>
-        <button className="text-muted-foreground/80 hover:text-muted-foreground" onClick={toggle}>
-          {open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
-        </button>
+        {message.messages.length > 0 && (
+          <button className="text-muted-foreground/80 hover:text-muted-foreground" onClick={toggle}>
+            {open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
+          </button>
+        )}
         <div className="flex-1"></div>
         <div className="mr-3">{statusIcons[status]}</div>
       </div>
@@ -111,7 +113,7 @@ export const SubagentBubble = memo(function SubagentBubble({
         </div>
         <div className="relative">
           <div className="h-2 border-b border-dashed -ml-4 mt-px -mb-1" />
-          {open && (
+          {open && message.messages.length > 0 && (
             <>
               <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
               {message.messages.map((message, index) => {
