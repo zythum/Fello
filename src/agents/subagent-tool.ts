@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { streamText, stepCountIs, type ToolSet } from "ai";
+import { streamText, isStepCount, type ToolSet } from "ai";
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentClientProxy } from "./agent-client-proxy";
@@ -158,11 +158,11 @@ async function executeSubagent(
       tools: {
         ...subAcp.tools,
       },
-      stopWhen: stepCountIs(64),
+      stopWhen: isStepCount(64),
       abortSignal: signal,
     });
 
-    for await (const part of result.fullStream) {
+    for await (const part of result.stream) {
       const conn = params.getConnection();
       if (!conn) continue;
 

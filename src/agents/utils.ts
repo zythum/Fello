@@ -75,14 +75,46 @@ export function resourceLinkToFilePart(resourceLink: ResourceLink): FilePart {
 }
 export function filePartToEmbeddedResourceResource(filePart: FilePart): EmbeddedResource {
   let blob: string;
-  if (typeof filePart.data === "string") {
-    blob = filePart.data;
-  } else if (filePart.data instanceof URL) {
-    blob = filePart.data.toString();
-  } else if (filePart.data instanceof ArrayBuffer) {
-    blob = Buffer.from(new Uint8Array(filePart.data)).toString("base64");
+  const data = filePart.data;
+  if (typeof data === "string") {
+    blob = data;
+  } else if (data instanceof URL) {
+    blob = data.toString();
+  } else if (data instanceof ArrayBuffer) {
+    blob = Buffer.from(new Uint8Array(data)).toString("base64");
+  } else if (data instanceof Uint8Array) {
+    blob = Buffer.from(data).toString("base64");
+  } else if (typeof data === "object" && data !== null && "type" in data) {
+    // Handle tagged file data types from AI SDK v7
+    const tagged = data as {
+      type: string;
+      data?: unknown;
+      url?: URL;
+      text?: string;
+      reference?: unknown;
+    };
+    switch (tagged.type) {
+      case "data":
+        if (typeof tagged.data === "string") {
+          blob = tagged.data;
+        } else if (tagged.data instanceof Uint8Array) {
+          blob = Buffer.from(tagged.data).toString("base64");
+        } else {
+          blob = String(tagged.data ?? "");
+        }
+        break;
+      case "url":
+        blob = tagged.url?.toString() ?? "";
+        break;
+      case "text":
+        blob = tagged.text ?? "";
+        break;
+      default:
+        blob = JSON.stringify(data);
+        break;
+    }
   } else {
-    blob = Buffer.from(filePart.data).toString("base64");
+    blob = JSON.stringify(data);
   }
 
   return {

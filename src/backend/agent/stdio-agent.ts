@@ -12,14 +12,18 @@ interface StdioAgentOptions {
 export function spawnStdioAgent(options: StdioAgentOptions): AgentProcess {
   const shouldDetach = process.platform !== "win32";
   const proc = spawn(options.command, options.args, {
-    stdio: ["pipe", "pipe", "inherit"],
+    stdio: ["pipe", "pipe", "pipe"],
     cwd: options.cwd,
     env: { ...process.env, ...options.env },
     detached: shouldDetach,
+    windowsHide: true,
   });
   if (shouldDetach) {
     proc.unref();
   }
+
+  // Consume stderr to prevent pipe buffer from filling up and blocking the child process
+  proc.stderr?.resume();
 
   let closed = false;
 

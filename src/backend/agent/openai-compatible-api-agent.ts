@@ -1,9 +1,4 @@
-import {
-  agent,
-  ndJsonStream,
-  methods,
-  type AgentConnection,
-} from "@agentclientprotocol/sdk";
+import { agent, ndJsonStream, methods, type AgentConnection } from "@agentclientprotocol/sdk";
 import { OpenaiCompatibleAgent } from "../../agents/openai-compatible-agent";
 import type { ApiAgentInfo } from "../../shared/schema";
 import type { AgentProcess } from "./base-agent";
@@ -22,7 +17,9 @@ export function spawnOpenaiCompatibleApiAgent(options: ApiAgentInfo): AgentProce
     .onRequest(methods.agent.session.load, (ctx) => impl.loadSession(ctx.params))
     .onRequest(methods.agent.session.close, (ctx) => impl.closeSession(ctx.params))
     .onRequest(methods.agent.session.delete, (ctx) => impl.deleteSession(ctx.params))
-    .onRequest(methods.agent.session.setConfigOption, (ctx) => impl.setSessionConfigOption(ctx.params))
+    .onRequest(methods.agent.session.setConfigOption, (ctx) =>
+      impl.setSessionConfigOption(ctx.params),
+    )
     .onRequest(methods.agent.session.prompt, (ctx) => impl.prompt(ctx.params))
     .onNotification(methods.agent.session.cancel, (ctx) => impl.cancel(ctx.params));
 

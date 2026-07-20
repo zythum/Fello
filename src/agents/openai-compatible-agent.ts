@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
-  stepCountIs,
+  isStepCount,
   streamText,
   generateText,
   type ModelMessage,
@@ -706,11 +706,11 @@ export class OpenaiCompatibleAgent implements Agent {
           ...sharedTools,
           ...subagentTool,
         },
-        stopWhen: stepCountIs(128),
+        stopWhen: isStepCount(128),
         abortSignal: abortController.signal,
       });
 
-      for await (const part of result.fullStream) {
+      for await (const part of result.stream) {
         if (!this.connection) continue;
 
         if (part.type === "text-delta") {

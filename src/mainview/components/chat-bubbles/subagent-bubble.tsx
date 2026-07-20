@@ -90,7 +90,7 @@ export const SubagentBubble = memo(function SubagentBubble({
   }, []);
 
   return (
-    <div className="subagent-bubble w-full pointer-events-auto pt-2 my-4">
+    <div className="subagent-bubble w-full pointer-events-auto pt-4 my-4">
       <div className="flex items-center gap-2">
         <Bot className="size-4" />
         <div>

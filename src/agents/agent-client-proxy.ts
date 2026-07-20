@@ -74,9 +74,7 @@ export class AgentClientProxy {
     await this.ctx.notify(methods.client.session.update, params);
   }
 
-  async requestPermission(
-    params: RequestPermissionRequest,
-  ): Promise<RequestPermissionResponse> {
+  async requestPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
     return this.ctx.request(methods.client.session.requestPermission, params);
   }
 

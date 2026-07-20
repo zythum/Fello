@@ -286,10 +286,7 @@ export class ACPBridge {
           params.command,
           params.args || [],
           params.cwd || sessionsCwdMap.get(params.sessionId) || process.cwd(),
-          params.env?.reduce(
-            (acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }),
-            {},
-          ) || {},
+          params.env?.reduce((acc, envVar) => ({ ...acc, [envVar.name]: envVar.value }), {}) || {},
           params.outputByteLimit || 1048576,
         );
         return { terminalId: id };
@@ -318,15 +315,27 @@ export class ACPBridge {
         terminalManager.release(ctx.params.terminalId);
         return {};
       })
-      .onNotification("_kiro.dev/metadata", (p: unknown) => p, (ctx) => {
-        onExtNotification("_kiro.dev/metadata", ctx.params);
-      })
-      .onNotification("_kiro.dev/commands/available", (p: unknown) => p, (ctx) => {
-        onExtNotification("_kiro.dev/commands/available", ctx.params);
-      })
-      .onNotification("_kiro.dev/subagent/list_update", (p: unknown) => p, (ctx) => {
-        onExtNotification("_kiro.dev/subagent/list_update", ctx.params);
-      });
+      .onNotification(
+        "_kiro.dev/metadata",
+        (p: unknown) => p,
+        (ctx) => {
+          onExtNotification("_kiro.dev/metadata", ctx.params);
+        },
+      )
+      .onNotification(
+        "_kiro.dev/commands/available",
+        (p: unknown) => p,
+        (ctx) => {
+          onExtNotification("_kiro.dev/commands/available", ctx.params);
+        },
+      )
+      .onNotification(
+        "_kiro.dev/subagent/list_update",
+        (p: unknown) => p,
+        (ctx) => {
+          onExtNotification("_kiro.dev/subagent/list_update", ctx.params);
+        },
+      );
 
     this.connection = clientApp.connect(stream);
 
@@ -442,7 +451,9 @@ export class ACPBridge {
   async closeSession(sessionId: string): Promise<void> {
     if (this.connection) {
       try {
-        await this.connection.agent.request(methods.agent.session.close, { sessionId }).catch(() => {});
+        await this.connection.agent
+          .request(methods.agent.session.close, { sessionId })
+          .catch(() => {});
       } catch {}
     }
     this._modelStates.delete(sessionId);
@@ -548,7 +559,9 @@ export class ACPBridge {
       const sessionIds = new Set([...this._modelStates.keys(), ...this._modeStates.keys()]);
       for (const sid of sessionIds) {
         try {
-          await this.connection.agent.request(methods.agent.session.close, { sessionId: sid }).catch(() => {});
+          await this.connection.agent
+            .request(methods.agent.session.close, { sessionId: sid })
+            .catch(() => {});
         } catch {}
       }
     }

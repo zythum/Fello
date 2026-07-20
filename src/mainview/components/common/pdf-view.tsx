@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { TextLayer, setLayerDimensions } from "pdfjs-dist/legacy/build/pdf.mjs";
 import "pdfjs-dist/legacy/web/pdf_viewer.css";
 import PdfWorkerConstructor from "./pdf-worker-wrapper?worker";
 import { useTranslation } from "react-i18next";
@@ -44,7 +43,7 @@ export function PdfView({ data }: PdfViewProps) {
         if (cancelled) return;
         const pdf = await pdfjs.getDocument({ data: pdfData, worker }).promise;
         if (cancelled) {
-          pdf.destroy();
+          pdf.cleanup();
           return;
         }
         instance = pdf;
@@ -59,7 +58,7 @@ export function PdfView({ data }: PdfViewProps) {
     load();
     return () => {
       cancelled = true;
-      instance?.destroy();
+      instance?.cleanup();
       setPdfDoc(null);
     };
   }, [data]);
@@ -103,10 +102,10 @@ export function PdfView({ data }: PdfViewProps) {
         textDiv.className = "absolute inset-0 textLayer";
         pageDiv.appendChild(textDiv);
 
-        setLayerDimensions(textDiv, viewport);
+        pdfjs.setLayerDimensions(textDiv, viewport);
         textDiv.style.setProperty("--total-scale-factor", `${viewport.scale}`);
 
-        const textLayer = new TextLayer({
+        const textLayer = new pdfjs.TextLayer({
           textContentSource: textContent,
           container: textDiv,
           viewport,

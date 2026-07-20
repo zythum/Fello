@@ -2,6 +2,8 @@ import { join } from "path";
 
 import { mkdirSync, appendFileSync, existsSync, readFileSync } from "fs";
 
+import "./prepare";
+
 import { getSettings, updateSettings } from "./settings";
 
 import {
@@ -24,12 +26,6 @@ import {
 import { FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR } from "./constant";
 
 import { SessionNotificationFelloExt } from "../../shared/schema";
-
-// 确保所有基础目录在模块初始化时创建
-mkdirSync(FELLO_DIR, { recursive: true });
-mkdirSync(PROJECTS_DIR, { recursive: true });
-mkdirSync(SOCKETS_DIR, { recursive: true });
-mkdirSync(TEMP_DIR, { recursive: true });
 
 function appendSessionMessage(
   sessionIdOrSubSessionId: string,

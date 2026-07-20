@@ -33,6 +33,7 @@ export class AgentTerminalManager {
       cwd,
       env: { ...process.env, ...env },
       shell: true, // Use shell to support commands like 'npm' easily on Windows
+      windowsHide: true,
     });
 
     const terminal: AgentTerminalProcess = {

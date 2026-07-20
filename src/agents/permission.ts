@@ -1,7 +1,4 @@
-import type {
-  RequestPermissionResponse,
-  ToolCall,
-} from "@agentclientprotocol/sdk";
+import type { RequestPermissionResponse, ToolCall } from "@agentclientprotocol/sdk";
 import type { AgentClientProxy } from "./agent-client-proxy";
 
 export type ToolPermissionMemory = {
