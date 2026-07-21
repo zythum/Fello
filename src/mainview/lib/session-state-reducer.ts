@@ -118,6 +118,19 @@ function calculateAgentChunk(
         receivedAt,
       });
     }
+
+    // Touch state.messages so that the selector picks up subagent content changes.
+    // Immer does not track cross-references: mutating activeSubagents alone won't
+    // produce a new state.messages reference, so the chat list won't re-render.
+    if (subSessionId) {
+      const subagentMessage = state.activeSubagents.get(subSessionId)!;
+      const idx = state.messages.findIndex(
+        (m) => m.role === "subagent" && m.sessionId === subSessionId,
+      );
+      if (idx !== -1) {
+        state.messages[idx] = subagentMessage;
+      }
+    }
   });
 }
 
@@ -204,6 +217,17 @@ function calculateToolCallUpdate(
     } else {
       messages.push(message);
     }
+
+    // Sync subagent reference in state.messages for re-render (same reason as calculateAgentChunk)
+    if (subSessionId) {
+      const subagentMessage = state.activeSubagents.get(subSessionId)!;
+      const subIdx = state.messages.findIndex(
+        (m) => m.role === "subagent" && m.sessionId === subSessionId,
+      );
+      if (subIdx !== -1) {
+        state.messages[subIdx] = subagentMessage;
+      }
+    }
   });
 }
 
@@ -243,6 +267,17 @@ function calculatePlan(
       receivedAt,
     };
     messages.push(message);
+
+    // Sync subagent reference in state.messages for re-render
+    if (subSessionId) {
+      const subagentMessage = state.activeSubagents.get(subSessionId)!;
+      const idx = state.messages.findIndex(
+        (m) => m.role === "subagent" && m.sessionId === subSessionId,
+      );
+      if (idx !== -1) {
+        state.messages[idx] = subagentMessage;
+      }
+    }
   });
 }
 

@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { SubagentMessage } from "../../lib/chat-message";
 import type { SubagentStatus } from "../../../shared/schema";
+import { ScrollArea } from "../../components/ui/scroll-area";
 import { ToolBubble } from "./tool-bubble";
 import { ThinkingBubble } from "./thinking-bubble";
 import { AgentBubble } from "./agent-bubble";
@@ -90,7 +91,7 @@ export const SubagentBubble = memo(function SubagentBubble({
   }, []);
 
   return (
-    <div className="subagent-bubble w-full pointer-events-auto pt-4 my-4">
+    <div className="subagent-bubble w-full pointer-events-auto py-4 my-4">
       <div className="flex items-center gap-2">
         <Bot className="size-4" />
         <div>
@@ -98,31 +99,35 @@ export const SubagentBubble = memo(function SubagentBubble({
         </div>
         {message.messages.length > 0 && (
           <button className="text-muted-foreground/80 hover:text-muted-foreground" onClick={toggle}>
-            {open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
+            {!open ? <ChevronsUpDown className="size-3" /> : <ChevronsDownUp className="size-3" />}
           </button>
         )}
         <div className="flex-1"></div>
         <div className="mr-3">{statusIcons[status]}</div>
       </div>
       <div className="pl-4 ml-2 pt-1 border-l border-dashed">
-        <div className="flex items-start gap-2 pb-4 mt-2 -mb-2 relative min-h-6">
+        <div className="mt-2 relative min-h-6">
           <MessageSquareQuote className="size-4 absolute top-px -left-6 bg-background text-muted-foreground/70 scale-70" />
-          <StreamMarkdown className={typographyClasses} isStreaming={false}>
-            {message.prompt}
-          </StreamMarkdown>
+          <ScrollArea viewportClassName={cn("pb-4", { "max-h-50": !open })}>
+            <StreamMarkdown className={typographyClasses} isStreaming={false}>
+              {message.prompt}
+            </StreamMarkdown>
+          </ScrollArea>
         </div>
+        <div className="border-t border-dashed -ml-4 mt-px -mb-1" />
         <div className="relative">
-          <div className="h-2 border-b border-dashed -ml-4 mt-px -mb-1" />
           {open && message.messages.length > 0 && (
             <>
               <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
-              {message.messages.map((message, index) => {
+              {message.messages.map((message, index, list) => {
                 return (
                   <MessageBubble
                     key={index}
                     session={session}
                     message={message}
-                    isStreaming={status !== "completed"}
+                    isStreaming={
+                      status !== "completed" && status !== "failed" && index === list.length - 1
+                    }
                   />
                 );
               })}
