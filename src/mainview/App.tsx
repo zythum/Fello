@@ -28,6 +28,7 @@ function AppContent() {
     setEditor,
     setSnippets,
     isMacApp,
+    isWinApp,
     setIsFullScreen,
     setIlinkStatus,
     setActiveIlinkSessionId,
@@ -452,6 +453,7 @@ function AppContent() {
     <TooltipProvider>
       <AppRouter />
       <GlobalTextContextMenu />
+      {isWinApp && <div className="border-t border-border fixed top-0 left-0 right-0"></div>}
     </TooltipProvider>
   );
 }

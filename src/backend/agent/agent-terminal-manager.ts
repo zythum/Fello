@@ -29,7 +29,10 @@ export class AgentTerminalManager {
   ): string {
     const terminalId = "term_" + randomBytes(6).toString("hex");
 
-    const proc = spawn(command, args, {
+    // Windows: prepend chcp 65001 to force UTF-8 code page for child process output
+    const actualCommand = process.platform === "win32" ? `chcp 65001 >nul && ${command}` : command;
+
+    const proc = spawn(actualCommand, args, {
       cwd,
       env: { ...process.env, ...env },
       shell: true, // Use shell to support commands like 'npm' easily on Windows

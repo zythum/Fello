@@ -140,6 +140,7 @@ export interface AppState {
   };
   activeIlinkSessionId: string | null;
   isMacApp: boolean;
+  isWinApp: boolean;
   isFullScreen: boolean;
 
   // ==========================================================================
@@ -239,6 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
   isMacApp: window.fello?.isMacApp ?? false,
+  isWinApp: window.fello?.isWinApp ?? false,
   isFullScreen: false,
 
   // ==========================================================================

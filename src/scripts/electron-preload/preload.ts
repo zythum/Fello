@@ -27,6 +27,7 @@ const wrappedListeners = new Map<
 
 contextBridge.exposeInMainWorld("fello", {
   isMacApp: process.platform === "darwin",
+  isWinApp: process.platform === "win32",
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
     const handler = (_event: unknown, isFullScreen: boolean) => callback(isFullScreen);

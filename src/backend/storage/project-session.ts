@@ -80,56 +80,63 @@ const sessionMetaMemo = (() => {
 
   for (const [_, project] of Array.from(projectMetaMemo)) {
     const dir = join(dirname(project.filename), "sessions");
-    const scopes = readdirSync(dir);
-    for (const scope of scopes) {
-      const filename = join(dir, scope, "session.json");
-      try {
-        const raw: SessionMeta = JSON.parse(readFileSync(filename, "utf-8"));
-        if (!raw) continue;
-        const id = String(raw.id);
-        const title = String(raw.title || "");
-        const agent_id = String(raw.agent_id);
-        const resume_id = String(raw.resume_id);
-        const project_id = String(raw.project_id);
-        const created_at = typeof raw.created_at === "number" ? raw.created_at : Date.now();
-        const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
-        const mcp_servers = Array.isArray(raw.mcp_servers)
-          ? raw.mcp_servers.filter((v) => typeof v === "string")
-          : undefined;
-        const permission_mode =
-          raw.permission_mode === "allow-all" || raw.permission_mode === "ask"
-            ? raw.permission_mode
-            : "ask";
-        const features: Feature[] = Array.isArray(raw.features)
-          ? raw.features.filter((v): v is Feature => ALL_FEATURES.includes(v))
-          : ALL_FEATURES;
-        const models = raw.models ?? null;
-        const modes = raw.modes ?? null;
-        const initialize_info = raw.initialize_info ?? null;
-        if (!id || !agent_id || !resume_id || !project_id) continue;
+    if (!existsSync(dir)) {
+      continue;
+    }
+    try {
+      const scopes = readdirSync(dir);
+      for (const scope of scopes) {
+        const filename = join(dir, scope, "session.json");
+        try {
+          const raw: SessionMeta = JSON.parse(readFileSync(filename, "utf-8"));
+          if (!raw) continue;
+          const id = String(raw.id);
+          const title = String(raw.title || "");
+          const agent_id = String(raw.agent_id);
+          const resume_id = String(raw.resume_id);
+          const project_id = String(raw.project_id);
+          const created_at = typeof raw.created_at === "number" ? raw.created_at : Date.now();
+          const updated_at = typeof raw.updated_at === "number" ? raw.updated_at : created_at;
+          const mcp_servers = Array.isArray(raw.mcp_servers)
+            ? raw.mcp_servers.filter((v) => typeof v === "string")
+            : undefined;
+          const permission_mode =
+            raw.permission_mode === "allow-all" || raw.permission_mode === "ask"
+              ? raw.permission_mode
+              : "ask";
+          const features: Feature[] = Array.isArray(raw.features)
+            ? raw.features.filter((v): v is Feature => ALL_FEATURES.includes(v))
+            : ALL_FEATURES;
+          const models = raw.models ?? null;
+          const modes = raw.modes ?? null;
+          const initialize_info = raw.initialize_info ?? null;
+          if (!id || !agent_id || !resume_id || !project_id) continue;
 
-        const meta: SessionMeta = {
-          filename,
-          isStreaming: false,
-          connectionStatus: "disconnected",
-          id,
-          title,
-          agent_id,
-          resume_id,
-          project_id,
-          created_at,
-          updated_at,
-          mcp_servers,
-          features,
-          permission_mode,
-          models,
-          modes,
-          initialize_info,
-        };
-        memo.set(id, meta);
-      } catch (error) {
-        console.error(`load session error ${filename}`, error);
+          const meta: SessionMeta = {
+            filename,
+            isStreaming: false,
+            connectionStatus: "disconnected",
+            id,
+            title,
+            agent_id,
+            resume_id,
+            project_id,
+            created_at,
+            updated_at,
+            mcp_servers,
+            features,
+            permission_mode,
+            models,
+            modes,
+            initialize_info,
+          };
+          memo.set(id, meta);
+        } catch (error) {
+          console.error(`load session error ${filename}`, error);
+        }
       }
+    } catch (error) {
+      console.error(`load session error ${dir}`, error);
     }
   }
   return memo;
