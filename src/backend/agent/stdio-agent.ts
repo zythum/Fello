@@ -17,6 +17,7 @@ export function spawnStdioAgent(options: StdioAgentOptions): AgentProcess {
     env: { ...process.env, ...options.env },
     detached: shouldDetach,
     windowsHide: true,
+    shell: !shouldDetach && process.platform === "win32", // Windows 上用 shell 解析命令
   });
   if (shouldDetach) {
     proc.unref();
