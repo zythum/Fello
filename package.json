@@ -102,6 +102,7 @@
     "ai": "^7.0.31",
     "cron": "^4.4.0",
     "cronstrue": "^3.24.0",
+    "custom-electron-titlebar": "^4.4.1",
     "electron-updater": "^6.8.9",
     "es-toolkit": "^1.49.0",
     "fix-path": "^5.0.0",

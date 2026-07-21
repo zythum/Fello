@@ -11,6 +11,7 @@ import {
   MenuItemConstructorOptions,
 } from "electron";
 import electronUpdater from "electron-updater";
+import { setupTitlebarAndAttachToWindow } from "custom-electron-titlebar/main";
 import { homedir } from "os";
 import { join } from "path";
 import { initBackend } from "../backend/backend";
@@ -339,7 +340,10 @@ function createMainWindow() {
             y: 15,
           },
         }
-      : {}),
+      : {
+          titleBarStyle: "hidden",
+          titleBarOverlay: true,
+        }),
     webPreferences: {
       preload: join(process.scriptsPath, "electron-preload/preload.mjs"),
       contextIsolation: true,
@@ -347,6 +351,10 @@ function createMainWindow() {
       sandbox: false,
     },
   });
+
+  if (process.platform !== "darwin") {
+    setupTitlebarAndAttachToWindow(win);
+  }
 
   if (process.platform === "darwin") {
     win.on("enter-full-screen", () => {

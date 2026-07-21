@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
@@ -28,11 +29,11 @@ function AppContent() {
     setEditor,
     setSnippets,
     isMacApp,
-    isWinApp,
     setIsFullScreen,
     setIlinkStatus,
     setActiveIlinkSessionId,
   } = useAppStore();
+  const { resolvedTheme } = useTheme();
   const { i18n, t } = useTranslation();
   const { toast } = useMessage();
   const location = useLocation();
@@ -48,6 +49,12 @@ function AppContent() {
     new Map<string, BackendEvents["session-update"]["notification"][]>(),
   );
   const sessionUpdateFlushRafIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (resolvedTheme === "light" || resolvedTheme === "dark") {
+      electron.updateTheme(resolvedTheme);
+    }
+  }, [resolvedTheme]);
 
   useEffect(() => {
     async function loadData() {
@@ -453,7 +460,6 @@ function AppContent() {
     <TooltipProvider>
       <AppRouter />
       <GlobalTextContextMenu />
-      {isWinApp && <div className="border-t border-border fixed top-0 left-0 right-0"></div>}
     </TooltipProvider>
   );
 }

@@ -62,6 +62,10 @@ export const electron = {
     return window.fello!.invoke("installUpdate");
   },
 
+  updateTheme: (theme: "dark" | "light") => {
+    if (isWebUI || !window.fello) return;
+    return window.fello.updateTheme(theme);
+  },
   onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
     if (isWebUI || !window.fello) return () => {};
     const handler = (isFullScreen: boolean) => callback(isFullScreen);

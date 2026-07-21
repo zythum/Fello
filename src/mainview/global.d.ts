@@ -21,6 +21,7 @@ declare global {
     fello?: {
       isMacApp: boolean;
       isWinApp: boolean;
+      updateTheme: (theme: "light" | "dark") => void;
       getPathForFile: (file: File) => string;
       onMacFullScreen: (callback: (isFullScreen: boolean) => void) => () => void;
       onUpdater: (callback: (updaterEvent: UpdaterEvent) => void) => () => void;

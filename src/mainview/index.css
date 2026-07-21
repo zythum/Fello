@@ -208,3 +208,6 @@ input[type="number"] {
   color: #000;
 }
 
+.cet-titlebar {
+  @apply border-b border-border;
+}

@@ -43,7 +43,7 @@ function SessionWrapper() {
 
 export function AppRouter() {
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-full bg-background text-foreground">
       <Sidebar />
       <Routes>
         {" "}

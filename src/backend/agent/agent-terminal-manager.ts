@@ -15,16 +15,16 @@ export interface AgentTerminalProcess {
   outputDecoder: InstanceType<typeof TextDecoder>;
 }
 
-function detectTerminalOutputEncoding(): 'utf-8' | 'gbk' {
-  if (process.platform !== 'win32') {
-    return 'utf-8';
+function detectTerminalOutputEncoding(): "utf-8" | "gbk" {
+  if (process.platform !== "win32") {
+    return "utf-8";
   }
   try {
     const output = execFileSync("cmd", ["/d", "/s", "/c", "chcp"], {
       encoding: "buffer",
       windowsHide: true,
     });
-    const codePage = Number.parseInt(output.toString('latin1').match(/(\d+)/)?.[1] ?? "936", 10);
+    const codePage = Number.parseInt(output.toString("latin1").match(/(\d+)/)?.[1] ?? "936", 10);
     if (codePage === 65001) return "utf-8";
     if (codePage === 936 || codePage === 54936) return "gbk";
   } catch {}

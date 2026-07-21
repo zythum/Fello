@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex relative h-screen w-full flex-col items-center justify-center bg-background text-foreground p-4">
+        <div className="flex relative h-full w-full flex-col items-center justify-center bg-background text-foreground p-4">
           <div
             className={"absolute left-0 top-0 right-0 h-12"}
             style={{ WebkitAppRegion: "drag" }}

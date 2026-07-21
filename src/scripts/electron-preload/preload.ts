@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { createTitlebarOnDOMContentLoaded, type Titlebar } from "custom-electron-titlebar";
 import type { FelloIPCSchema } from "../../shared/schema";
 import type { UpdaterEvent } from "../../electron/updater";
 
@@ -25,9 +26,28 @@ const wrappedListeners = new Map<
   WeakMap<EventListener<any>, (_event: unknown, payload: unknown) => void>
 >();
 
+let titlebar: Promise<Titlebar> | null = null;
+if (process.platform !== "darwin") {
+  titlebar = createTitlebarOnDOMContentLoaded();
+}
+
 contextBridge.exposeInMainWorld("fello", {
   isMacApp: process.platform === "darwin",
   isWinApp: process.platform === "win32",
+  updateTheme: (theme: "light" | "dark") => {
+    titlebar?.then((titlebar) => {
+      //@ts-ignore
+      titlebar.applyThemeConfig(
+        {
+          colors: {
+            titlebar: theme === "light" ? "#ffffff" : "#09090b",
+            titlebarForeground: theme === "light" ? "#09090b" : "#ffffff",
+          },
+        },
+        "inline",
+      );
+    });
+  },
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onMacFullScreen: (callback: (isFullScreen: boolean) => void) => {
     const handler = (_event: unknown, isFullScreen: boolean) => callback(isFullScreen);
