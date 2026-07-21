@@ -7,7 +7,9 @@ import { electron } from "@/electron";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -162,13 +164,24 @@ export function SettingsILink() {
     }
   };
 
-  const ilinkSessionItems = useMemo(
-    () => [
-      { value: "", label: t("settings.ilink.none", "-- None --") },
-      ...sessions.map((s) => ({ value: s.id, label: s.title || s.id })),
-    ],
-    [sessions, t],
-  );
+  const ilinkSessionGroups = useMemo(() => {
+    const groups: { projectTitle: string; items: { value: string; label: string }[] }[] = [];
+    const groupMap = new Map<
+      string,
+      { projectTitle: string; items: { value: string; label: string }[] }
+    >();
+    for (const s of sessions) {
+      const key = s.projectId;
+      let group = groupMap.get(key);
+      if (!group) {
+        group = { projectTitle: s.projectTitle || s.projectId, items: [] };
+        groupMap.set(key, group);
+        groups.push(group);
+      }
+      group.items.push({ value: s.id, label: s.title || s.id });
+    }
+    return groups;
+  }, [sessions]);
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -275,20 +288,29 @@ export function SettingsILink() {
                 )}
               </p>
               <Select
-                items={ilinkSessionItems}
                 value={activeIlinkSessionId ?? ""}
                 onValueChange={(v) => handleSelectSession(v as string)}
               >
                 <SelectTrigger size="sm" className="w-full">
                   <SelectValue
                     placeholder={t("settings.ilink.selectSession", "-- Select a session --")}
-                  />
+                  >
+                    {sessions.find((session) => session.id === activeIlinkSessionId)?.title}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {ilinkSessionItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="">{t("settings.ilink.none", "-- None --")}</SelectItem>
+                  </SelectGroup>
+                  {ilinkSessionGroups.map((group) => (
+                    <SelectGroup key={group.projectTitle}>
+                      <SelectLabel>{group.projectTitle}</SelectLabel>
+                      {group.items.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
