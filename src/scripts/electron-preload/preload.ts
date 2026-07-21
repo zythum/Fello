@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld("fello", {
           colors: {
             titlebar: theme === "light" ? "#ffffff" : "#09090b",
             titlebarForeground: theme === "light" ? "#09090b" : "#ffffff",
+            menuBar: theme === "light" ? "#ffffff" : "#09090b",
+            menuItemSelection: theme === "light" ? "#eeeeee" : "#333333",
           },
         },
         "inline",

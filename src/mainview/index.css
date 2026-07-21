@@ -209,5 +209,5 @@ input[type="number"] {
 }
 
 .cet-titlebar {
-  @apply border-b border-border;
+  @apply ring-1 ring-border;
 }
