@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execFileSync, type ChildProcess } from "child_process";
 import { randomBytes } from "crypto";
 
 export interface AgentTerminalProcess {
@@ -12,6 +12,23 @@ export interface AgentTerminalProcess {
   isFinished: boolean;
   onData: (data: string) => void;
   onExit: (exitCode: number | null, signal: string | null) => void;
+  outputDecoder: InstanceType<typeof TextDecoder>;
+}
+
+function detectTerminalOutputEncoding(): 'utf-8' | 'gbk' {
+  if (process.platform !== 'win32') {
+    return 'utf-8';
+  }
+  try {
+    const output = execFileSync("cmd", ["/d", "/s", "/c", "chcp"], {
+      encoding: "buffer",
+      windowsHide: true,
+    });
+    const codePage = Number.parseInt(output.toString('latin1').match(/(\d+)/)?.[1] ?? "936", 10);
+    if (codePage === 65001) return "utf-8";
+    if (codePage === 936 || codePage === 54936) return "gbk";
+  } catch {}
+  return "utf-8";
 }
 
 export class AgentTerminalManager {
@@ -29,10 +46,7 @@ export class AgentTerminalManager {
   ): string {
     const terminalId = "term_" + randomBytes(6).toString("hex");
 
-    // Windows: prepend chcp 65001 to force UTF-8 code page for child process output
-    const actualCommand = process.platform === "win32" ? `chcp 65001 >nul && ${command}` : command;
-
-    const proc = spawn(actualCommand, args, {
+    const proc = spawn(command, args, {
       cwd,
       env: { ...process.env, ...env },
       shell: true, // Use shell to support commands like 'npm' easily on Windows
@@ -50,6 +64,7 @@ export class AgentTerminalManager {
       isFinished: false,
       onData: () => {},
       onExit: () => {},
+      outputDecoder: new TextDecoder(detectTerminalOutputEncoding(), { fatal: false }),
     };
 
     const handleData = (chunk: Buffer) => {
@@ -59,7 +74,8 @@ export class AgentTerminalManager {
         newBuffer = newBuffer.subarray(newBuffer.length - terminal.outputByteLimit);
       }
       terminal.outputBuffer = newBuffer;
-      this.emitOutput(sessionId, terminalId, chunk.toString("utf-8"));
+      const text = terminal.outputDecoder.decode(chunk, { stream: true });
+      this.emitOutput(sessionId, terminalId, text);
     };
 
     proc.stdout?.on("data", handleData);
@@ -88,7 +104,7 @@ export class AgentTerminalManager {
     // We don't track true truncated state perfectly yet, but we can assume if buffer equals limit it might be truncated.
     // For now, return false or check if we ever truncated. Let's just say false for simplicity unless we add a flag.
     return {
-      output: terminal.outputBuffer.toString("utf-8"),
+      output: terminal.outputDecoder.decode(terminal.outputBuffer),
       truncated: false, // Simplification
     };
   }
