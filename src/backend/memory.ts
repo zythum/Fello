@@ -160,8 +160,8 @@ ${factsFormatted}
 
 ## Rules
 - Preserve the original language of each fact (don't translate)
-- You MUST call memo_save(content) with the final result — this is required
-- You may output reasoning text, but the tool call is mandatory
+- You MUST call memo_save(content) — this is non-negotiable. The task is incomplete without it.
+- After memo_save() succeeds, reply briefly with the result (e.g. "Saved N entries."). No lengthy explanation needed.
 - The content passed to memo_save must be a valid JSON object string`;
 }
 
