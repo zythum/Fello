@@ -115,7 +115,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   return (
     <div
       className={cn(
-        "relative flex h-12 items-center border-b border-border gap-2 pr-2.5 bg-background shrink-0",
+        "relative flex h-12 items-center border-b border-border gap-2 pr-2.5 bg-background shrink-0 transition-[padding] duration-200",
         sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
       )}
       style={{ WebkitAppRegion: "drag" }}

@@ -405,7 +405,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto",
+        "flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto transition-[margin] duration-200",
         {
           "-ml-60": !sidebarOpen,
         },
