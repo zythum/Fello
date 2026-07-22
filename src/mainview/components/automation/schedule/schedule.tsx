@@ -268,7 +268,7 @@ export function Schedule() {
             id="taskList"
             groupResizeBehavior="preserve-pixel-size"
             defaultSize={200}
-            minSize={180}
+            minSize={190}
             maxSize={400}
           >
             <div className="h-full flex flex-col">

@@ -432,7 +432,7 @@ export function ToolBubble({
   return (
     <div
       className={cn(
-        "tool-bubble border-x border-t border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto",
+        "tool-bubble border-x border-t border-border bg-secondary/40 rounded-none overflow-hidden pointer-events-auto mbe-0",
         "[&:not(.tool-bubble+.tool-bubble)]:rounded-t-md [&:not(.tool-bubble+.tool-bubble)]:mt-4 [&:not(:has(+.tool-bubble))]:rounded-b-md",
         "[&:not(:has(+.tool-bubble))]:mb-4 [&:not(:has(+.tool-bubble))]:border-b",
       )}

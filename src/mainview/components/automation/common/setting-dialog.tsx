@@ -28,7 +28,7 @@ import { useMessage } from "../../providers/message";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { CronEditor } from "./cron-editor";
 
-const DISABLED_FEATURES: Feature[] = ["ask_user", "share_to_user"];
+const DISABLED_FEATURES: Feature[] = ["ask_user", "share_to_user", "memory"];
 
 interface Props {
   schedule?: Schedule;
