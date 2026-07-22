@@ -168,12 +168,19 @@ export function ParticleBackground() {
       resize();
       initParticles();
     };
-    window.addEventListener("resize", handleResize);
+
+    // Use ResizeObserver on parent to handle sidebar toggle and window resize
+    const parent = canvas.parentElement;
+    let resizeObserver: ResizeObserver | undefined;
+    if (parent) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(parent);
+    }
 
     return () => {
       cancelAnimationFrame(animIdRef.current);
       canvas.removeEventListener("click", handleClick);
-      window.removeEventListener("resize", handleResize);
+      resizeObserver?.disconnect();
     };
   }, [resize, initParticles]);
 
