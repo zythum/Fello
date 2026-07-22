@@ -251,7 +251,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
 
   return (
     <ScrollArea className="h-full">
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="max-w-3xl mx-auto p-4">
         {data?.meta && <MetaHeader meta={data.meta} />}
         <div className="space-y-1">
           {messages.filter(isValidMessageToDisplay).map((msg, i) => (
