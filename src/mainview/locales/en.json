@@ -41,6 +41,8 @@
     "chatActions": "Chat actions for {{title}}",
     "ilinkSetActive": "Set WeChat Active",
     "ilinkUnsetActive": "Unset WeChat Active",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
     "newSessionDialog": {
       "title": "Create session",
       "agent": "Agent",

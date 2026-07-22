@@ -337,7 +337,7 @@ function createMainWindow() {
           titleBarStyle: "hidden",
           trafficLightPosition: {
             x: 14,
-            y: 15,
+            y: 16,
           },
         }
       : {

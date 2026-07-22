@@ -28,6 +28,11 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   const { toast } = useMessage();
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
   const projects = useAppStore((s) => s.projects);
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
+
   const currentProjectId = session.projectId;
   const currentProjectInfo = projects.find((project) => project.id === currentProjectId);
 
@@ -109,7 +114,10 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
   return (
     <div
-      className="relative flex h-12 items-center border-b border-border gap-2 pl-2.5 pr-2.5 bg-background shrink-0"
+      className={cn(
+        "relative flex h-12 items-center border-b border-border gap-2 pr-2.5 bg-background shrink-0",
+        sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
+      )}
       style={{ WebkitAppRegion: "drag" }}
     >
       <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">

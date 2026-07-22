@@ -6,7 +6,9 @@ export const memoryQueryRequestSchema = z.object({
   query: z
     .string()
     .min(1)
-    .describe("What to search for in memory. Describe what you need to recall (e.g. 'tech stack', 'user preferences', 'build commands')."),
+    .describe(
+      "What to search for in memory. Describe what you need to recall (e.g. 'tech stack', 'user preferences', 'build commands').",
+    ),
 });
 
 export type MemoryQueryRequest = z.infer<typeof memoryQueryRequestSchema>;

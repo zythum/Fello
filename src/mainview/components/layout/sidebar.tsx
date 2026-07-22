@@ -107,6 +107,7 @@ export function Sidebar() {
     setProjects,
     setSessions,
     sidebarOpen,
+    setSidebarOpen,
     configuredAgents,
     configuredMcpServers,
     sessionStates,
@@ -153,8 +154,6 @@ export function Sidebar() {
   const { prompt, confirm, toast } = useMessage();
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
-
-  if (!sidebarOpen) return null;
 
   const refreshData = async () => {
     const [nextProjects, nextSessions] = await Promise.all([
@@ -404,7 +403,14 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto">
+    <aside
+      className={cn(
+        "flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto",
+        {
+          "-ml-60": !sidebarOpen,
+        },
+      )}
+    >
       <div
         className={showMacTrafficLightSpace ? "h-10" : "h-0"}
         style={{ WebkitAppRegion: "drag" }}

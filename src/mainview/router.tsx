@@ -3,6 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/layout/sidebar";
 import { useAppStore } from "./store";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Layouts
 import { SettingsLayout } from "./components/settings/settings-layout";
@@ -43,6 +46,12 @@ function SessionWrapper() {
 }
 
 export function AppRouter() {
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
+
   return (
     <div className="flex h-full bg-background text-foreground">
       <Sidebar />
@@ -68,6 +77,29 @@ export function AppRouter() {
           <Route path="task/:taskId" element={<Task />} />
         </Route>
       </Routes>
+      <div
+        className={cn(
+          "flex h-12 w-12 fixed z-10 top-0 items-center justify-center",
+          sidebarOpen ? "left-49" : showMacTrafficLightSpace ? "left-16" : "left-0",
+        )}
+        style={{ WebkitAppRegion: "no-drag" }}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "size-6 hover:bg-sidebar-accent hover:text-sidebar-foreground/70",
+            sidebarOpen ? "text-sidebar-foreground/60" : "text-sidebar-foreground/70",
+          )}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          {sidebarOpen ? (
+            <PanelLeftClose className="size-4" />
+          ) : (
+            <PanelLeftOpen className="size-4" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

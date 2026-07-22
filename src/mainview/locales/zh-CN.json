@@ -41,6 +41,8 @@
     "chatActions": "会话操作：{{title}}",
     "ilinkSetActive": "设为微信活跃会话",
     "ilinkUnsetActive": "取消微信活跃",
+    "collapse": "收起侧边栏",
+    "expand": "展开侧边栏",
     "newSessionDialog": {
       "title": "新建会话",
       "agent": "智能体",
