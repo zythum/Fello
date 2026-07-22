@@ -412,7 +412,7 @@ export function Sidebar() {
       )}
     >
       <div
-        className={showMacTrafficLightSpace ? "h-10" : "h-0"}
+        className={cn("transition-[height] duration-200", showMacTrafficLightSpace ? "h-10" : "h-0")}
         style={{ WebkitAppRegion: "drag" }}
       ></div>
       <div className="px-2 pt-2 pb-1">
