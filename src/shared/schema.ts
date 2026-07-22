@@ -209,7 +209,7 @@ export interface SseMcpServerInfo extends BaseMcpServerInfo {
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo | SseMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
-export type Feature = "skills" | "ask_user" | "share_to_user" | "search";
+export type Feature = "skills" | "ask_user" | "share_to_user" | "search" | "memory";
 
 /**
  * 应用的主题配置信息
@@ -840,6 +840,26 @@ export type FelloIPCRequests = {
   getShareFileSystemPath: {
     params: { sessionId: string; sharePath: string };
     response: string;
+  };
+
+  // ── Memory ─────────────────────────────────────────────────────────
+  /** 获取指定项目的记忆条目 */
+  getMemory: {
+    params: { projectId: string };
+    response: {
+      version: number;
+      entries: Array<{ weight: number; text: string; date: string; tags: string[] }>;
+    } | null;
+  };
+  /** 清除指定项目的记忆（删除 memory.json） */
+  clearMemory: {
+    params: { projectId: string };
+    response: void;
+  };
+  /** 获取指定项目 memory.json 的系统文件路径 */
+  getMemorySystemFilePath: {
+    params: { projectId: string };
+    response: string | null;
   };
 };
 

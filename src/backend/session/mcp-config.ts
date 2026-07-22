@@ -6,12 +6,14 @@ import type { SkillsModule } from "../skills";
 import type { AskUserModule } from "../ask-user";
 import type { ShareToUserModule } from "../share-to-user";
 import type { SearchModule } from "../search";
+import type { MemoryModule } from "../memory";
 
 export interface McpConfigDeps {
   skills: SkillsModule;
   askUser: AskUserModule;
   shareToUser: ShareToUserModule;
   search: SearchModule;
+  memory: MemoryModule;
 }
 
 export function buildMcpServersConfig(
@@ -39,6 +41,10 @@ export function buildMcpServersConfig(
 
   if (socketPath && features.includes("search")) {
     servers.push(deps.search.buildSearchMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("memory")) {
+    servers.push(deps.memory.buildMemoryMcpServer({ projectDir: project.cwd, socketPath }));
   }
 
   const globalSettings = ctx.storage.getSettings();

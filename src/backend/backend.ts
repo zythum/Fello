@@ -24,6 +24,7 @@ import { createSessionModule } from "./session";
 import { createIlinkModule } from "./ilink";
 import { createInferenceModule } from "./inference";
 import { createAutomationModule } from "./automation";
+import { createMemoryModule } from "./memory";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -65,20 +66,22 @@ export function initBackend(
   // ── Layer 2: bridge connect (needs askUser) ──
   const bridgeConnect = createBridgeConnectModule(ctx, { askUser });
 
-  // ── Layer 3: session, project, terminal ──
+  // ── Layer 3: inference + memory (inference standalone, memory needs inference) ──
+  const _inference = createInferenceModule(ctx, { skills, search });
+  const memory = createMemoryModule(ctx, { inference: _inference });
+
+  // ── Layer 4: session, project, terminal ──
   const session = createSessionModule(ctx, {
     bridgeConnect,
     askUser,
     shareToUser,
     skills,
     search,
+    memory,
     ilink: ilink.state,
   });
   const project = createProjectModule(ctx, { session, watcher });
   const terminal = createTerminalModule(ctx, { bridges: bridgeConnect.bridges });
-
-  // ── Layer 4: inference (standalone) ──
-  const _inference = createInferenceModule(ctx, { skills, search });
 
   // ── Late bindings (resolve circular deps) ──
   ilink.setHandlers({
@@ -466,6 +469,17 @@ export function initBackend(
     },
     async deleteTask({ scheduleId, taskId }: { scheduleId: string; taskId: string }) {
       automation.deleteTask(scheduleId, taskId);
+    },
+
+    // Memory
+    async getMemory({ projectId }: { projectId: string }) {
+      return memory.getEntries(projectId);
+    },
+    async clearMemory({ projectId }: { projectId: string }) {
+      memory.clearMemory(projectId);
+    },
+    async getMemorySystemFilePath({ projectId }: { projectId: string }) {
+      return memory.getFilePath(projectId);
     },
   };
 

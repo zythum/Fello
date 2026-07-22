@@ -51,6 +51,9 @@ const projectMetaMemo = (() => {
   const memo = new Map<string, ProjectMeta>();
   const scopes = readdirSync(PROJECTS_DIR);
   for (const scope of scopes) {
+    if (scope.startsWith(".")) {
+      continue;
+    }
     const filename = join(PROJECTS_DIR, scope, "project.json");
     try {
       const raw: ProjectMeta = JSON.parse(readFileSync(filename, "utf-8"));
@@ -86,6 +89,9 @@ const sessionMetaMemo = (() => {
     try {
       const scopes = readdirSync(dir);
       for (const scope of scopes) {
+        if (scope.startsWith(".")) {
+          continue;
+        }
         const filename = join(dir, scope, "session.json");
         try {
           const raw: SessionMeta = JSON.parse(readFileSync(filename, "utf-8"));
@@ -132,11 +138,11 @@ const sessionMetaMemo = (() => {
           };
           memo.set(id, meta);
         } catch (error) {
-          console.error(`load session error ${filename}`, error);
+          console.error(`[storage] load session error ${filename}`, error);
         }
       }
     } catch (error) {
-      console.error(`load session error ${dir}`, error);
+      console.error(`[storage] load session error ${dir}`, error);
     }
   }
   return memo;

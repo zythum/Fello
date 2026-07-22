@@ -1,6 +1,14 @@
 import { useTranslation } from "react-i18next";
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
-import { Bot, Globe, MessageCircle, SlidersHorizontal, Wrench, Clipboard } from "lucide-react";
+import {
+  Bot,
+  Globe,
+  MessageCircle,
+  SlidersHorizontal,
+  Wrench,
+  Clipboard,
+  Brain,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SettingsLayout() {
@@ -35,6 +43,12 @@ export function SettingsLayout() {
       href: "/settings/snippets",
       icon: <Clipboard className="size-4" />,
       label: t("settings.snippets.title", "Snippets"),
+    },
+    {
+      id: "memory",
+      href: "/settings/memory",
+      icon: <Brain className="size-4" />,
+      label: t("settings.memory.title", "Memory"),
     },
     {
       id: "webui",

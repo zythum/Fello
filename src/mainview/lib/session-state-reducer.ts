@@ -157,7 +157,7 @@ function calculateToolCallUpdate(
         role: "tool_call",
         toolCallId: update.toolCallId,
         title: "",
-        status: "completed",
+        status: "in_progress",
         content: [],
         locations: [],
         displayId,

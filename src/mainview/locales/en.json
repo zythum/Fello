@@ -300,6 +300,22 @@
         "enterTitle": "Please enter a title.",
         "enterContent": "Please enter content."
       }
+    },
+    "memory": {
+      "title": "Memory",
+      "desc": "View and manage persistent project-level memory.",
+      "projectMemories": "Project Memories",
+      "refresh": "Refresh",
+      "clear": "Clear",
+      "cleared": "Memory cleared.",
+      "clearFailed": "Failed to clear memory.",
+      "confirmClearTitle": "Clear Memory",
+      "confirmClearDesc": "Are you sure you want to clear all memory for project \"{{title}}\"? This cannot be undone.",
+      "revealInFinder": "Reveal in Finder",
+      "revealFailed": "Failed to reveal file.",
+      "noFile": "No memory file found.",
+      "noProjects": "No projects found.",
+      "empty": "No memories stored."
     }
   },
   "chat": {
@@ -326,7 +342,8 @@
       "askUser": "Ask Me",
       "skills": "Skills",
       "shareToUser": "Share to User",
-      "search": "Search"
+      "search": "Search",
+      "memory": "Memory"
     }
   },
   "chatHeader": {

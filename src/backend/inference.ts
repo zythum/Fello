@@ -62,7 +62,7 @@ export function createInferenceModule(
       model,
       cwd = process.cwd(),
       features = [],
-      timeout = 5 * 60 * 1000,
+      timeout = 30 * 60 * 1000,
     } = req;
 
     const notifications: SessionNotification[] = [];

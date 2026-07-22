@@ -67,12 +67,15 @@ export interface SessionModule {
   setMode: (params: { sessionId: string; modeId: string }) => Promise<void>;
 }
 
+import type { MemoryModule } from "../memory";
+
 export interface SessionDeps {
   bridgeConnect: BridgeConnectModule;
   askUser: AskUserModule;
   shareToUser: ShareToUserModule;
   skills: SkillsModule;
   search: SearchModule;
+  memory: MemoryModule;
   ilink: IlinkState;
 }
 
@@ -80,9 +83,9 @@ export interface SessionDeps {
 
 export function createSessionModule(ctx: BackendContext, deps: SessionDeps): SessionModule {
   const { sendEvent, storage } = ctx;
-  const { bridgeConnect, askUser, shareToUser, skills, search, ilink: ilinkState } = deps;
+  const { bridgeConnect, askUser, shareToUser, skills, search, memory, ilink: ilinkState } = deps;
 
-  const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search };
+  const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search, memory };
   const notif = createNotificationHandler(ctx, { ilink: ilinkState });
 
   // Wire broadcastAndSaveSessionUpdate into bridgeConnect
@@ -94,7 +97,11 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
 
   async function createSessionSocketServer(
     sessionId: string,
-    options: { socketPath: string; project: ProjectInfo },
+    options: {
+      socketPath: string;
+      project: ProjectInfo;
+      sessionContext?: { agentId: string; modelId?: string | null };
+    },
   ): Promise<SocketServer> {
     const existing = sessionSocketServers.get(sessionId);
     if (existing && existing.socketPath === options.socketPath) return existing;
@@ -107,6 +114,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     skills.registerSkillsRoute(server, options.project.cwd);
     shareToUser.registerShareToUserRoute(server, sessionId);
     search.registerSearchRoute(server, options.project.cwd);
+    if (options.sessionContext) {
+      memory.registerMemoryRoute(server, options.project.id, options.sessionContext);
+    }
     sessionSocketServers.set(sessionId, server);
     return server;
   }
@@ -177,7 +187,11 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     // Re-key bridge from tempKey to the real sessionId
     bridgeConnect.rekeyBridge(tempKey, sessionInfo.id);
 
-    await createSessionSocketServer(sessionInfo.id, { socketPath, project });
+    await createSessionSocketServer(sessionInfo.id, {
+      socketPath,
+      project,
+      sessionContext: { agentId, modelId: models?.currentModelId },
+    });
     sendEvent("sessions-changed", undefined);
     return {
       sessionId: sessionInfo.id,
@@ -250,7 +264,11 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         cwd: session.cwd,
         mcpServers: activeMcpServers,
       });
-      await createSessionSocketServer(session.id, { socketPath, project });
+      await createSessionSocketServer(session.id, {
+        socketPath,
+        project,
+        sessionContext: { agentId: session.agentId, modelId: session.models?.currentModelId },
+      });
     } finally {
       notif.removeRestoring(session.id);
     }
@@ -375,7 +393,11 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         cwd: session.cwd,
         mcpServers: activeMcpServers,
       });
-      await createSessionSocketServer(session.id, { socketPath, project });
+      await createSessionSocketServer(session.id, {
+        socketPath,
+        project,
+        sessionContext: { agentId: session.agentId, modelId: session.models?.currentModelId },
+      });
     }
 
     storage.updateSession(sessionId, { isStreaming: true });
