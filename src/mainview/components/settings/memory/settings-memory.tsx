@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { Ban } from "lucide-react";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
 import { electron } from "../../../electron";
@@ -152,9 +153,11 @@ export function SettingsMemory() {
             {memories.map((pm) => (
               <div key={pm.projectId} className="border border-border rounded-lg overflow-hidden">
                 {/* Project header */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
-                  <span className="text-sm font-medium truncate">{pm.projectTitle}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border">
+                  <span className="text-xs font-medium truncate uppercase text-foreground/80">
+                    {pm.projectTitle}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0 -mr-1">
                     <Button
                       variant="ghost"
                       size="xs"
@@ -178,34 +181,41 @@ export function SettingsMemory() {
 
                 {/* Entries table */}
                 {pm.entries === null || pm.entries.length === 0 ? (
-                  <div className="px-4 py-3 text-xs text-muted-foreground">
-                    {t("settings.memory.empty", "No memories stored.")}
+                  <div className="flex gap-3 px-4 py-3 text-xs text-muted-foreground items-center">
+                    <div className="w-4 flex items-center justify-center">
+                      <Ban className="size-3" />
+                    </div>
+                    <div className="flex-1">
+                      {t("settings.memory.empty", "No memories stored.")}
+                    </div>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
                     {pm.entries.map((entry, idx) => (
                       <div key={idx} className="flex items-start gap-3 px-4 py-2 text-xs">
                         <div
-                          className={`shrink-0 font-mono font-medium ${weightColor(entry.weight)}`}
-                          title={weightLabel(entry.weight)}
+                          className={`w-4 text-center shrink-0 font-mono font-medium ${weightColor(entry.weight)}`}
+                          aria-label={weightLabel(entry.weight)}
                         >
                           <span>+{entry.weight}</span>
                         </div>
-                        <span className="flex-1 min-w-0 wrap-break-word text-foreground/80">
-                          <span>{entry.text}</span>
-                        </span>
-                        <div className="shrink-0 flex gap-1">
-                          {entry.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="shrink-0 text-muted-foreground text-[10px] py-0.5 ">
-                          <span>{entry.date}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-foreground/80">{entry.text}</div>
+                          <div className="flex mt-2 items-center">
+                            <div className="shrink-0 flex gap-1 flex-1">
+                              {entry.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="shrink-0 text-muted-foreground/80 text-[10px]">
+                              <span>{entry.date}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
