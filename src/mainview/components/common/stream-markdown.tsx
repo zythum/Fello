@@ -64,7 +64,7 @@ function CodeBlock({
   }, [codeText]);
 
   return (
-    <div className="pt-4 pb-2">
+    <div className="py-2">
       <div className="rounded-md border border-foreground/20 overflow-hidden relative">
         <div className="h-8 flex items-center justify-between px-1 border-b border-foreground/10 relative">
           <div className="text-muted-foreground text-xs flex items-center gap-1.5 ml-1">

@@ -520,9 +520,9 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 </div>
                 <div
                   className={cn(
-                    "text-[11px] text-muted-foreground/50 mt-4 uppercase tracking-widest",
+                    "text-[11px] text-muted-foreground/50 mt-4 h-4 -mb-8 uppercase tracking-widest",
                     {
-                      invisible: !(isLastGroup && showThinking),
+                      invisible: !(isLastGroup && showThinking) || !isStreaming,
                     },
                   )}
                 >
