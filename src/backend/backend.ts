@@ -25,6 +25,7 @@ import { createIlinkModule } from "./ilink";
 import { createInferenceModule } from "./inference";
 import { createAutomationModule } from "./automation";
 import { createMemoryModule } from "./memory";
+import { createImageGenerationModule } from "./image-generation";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ export function initBackend(
   // ── Layer 3: inference + memory (inference standalone, memory needs inference) ──
   const _inference = createInferenceModule(ctx, { skills, search });
   const memory = createMemoryModule(ctx, { inference: _inference });
+  const imageGeneration = createImageGenerationModule(ctx, { ilink: ilink.state });
 
   // ── Layer 4: session, project, terminal ──
   const session = createSessionModule(ctx, {
@@ -78,6 +80,7 @@ export function initBackend(
     skills,
     search,
     memory,
+    imageGeneration,
     ilink: ilink.state,
   });
   const project = createProjectModule(ctx, { session, watcher });

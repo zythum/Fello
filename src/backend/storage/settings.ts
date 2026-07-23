@@ -55,6 +55,18 @@ type McpServerMeta = StdioMcpServerMeta | HttpMcpServerMeta | SseMcpServerMeta;
 
 type AgentMeta = StdioAgentMeta | ApiAgentMeta;
 
+interface ImageGenerationProviderMeta {
+  id: string;
+  name: string;
+  provider: "openai-compatible";
+  baseUrl: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+  extraBody?: Record<string, unknown>;
+  model: string;
+  active: boolean;
+}
+
 interface SettingsMeta {
   agents: {
     [id: string]: AgentMeta;
@@ -83,6 +95,7 @@ interface SettingsMeta {
     theme: "soft" | "crisp";
   };
   snippets?: SnippetInfo[];
+  imageGeneration?: ImageGenerationProviderMeta[];
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -291,6 +304,40 @@ function readSettings(): SettingsMeta {
         )
       : [];
 
+    const imageGeneration: ImageGenerationProviderMeta[] = Array.isArray(rawObj?.imageGeneration)
+      ? (rawObj.imageGeneration as unknown[])
+          .filter(
+            (p): p is ImageGenerationProviderMeta =>
+              isObject(p) &&
+              typeof p.id === "string" &&
+              typeof p.name === "string" &&
+              typeof p.baseUrl === "string" &&
+              typeof p.apiKey === "string" &&
+              typeof p.model === "string",
+          )
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            provider: "openai-compatible" as const,
+            baseUrl: p.baseUrl,
+            apiKey: p.apiKey,
+            headers: (() => {
+              const raw = (p as any).headers;
+              if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+              const h: Record<string, string> = {};
+              for (const [k, v] of Object.entries(raw)) h[k] = String(v);
+              return h;
+            })(),
+            extraBody: (() => {
+              const raw = (p as any).extraBody;
+              if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+              return raw as Record<string, unknown>;
+            })(),
+            model: p.model,
+            active: typeof p.active === "boolean" ? p.active : false,
+          }))
+      : [];
+
     const editor: SettingsMeta["editor"] = (() => {
       const raw = rawObj && isObject(rawObj.editor) ? rawObj.editor : null;
       if (raw && typeof raw.name === "string" && raw.name.trim()) {
@@ -299,7 +346,18 @@ function readSettings(): SettingsMeta {
       return DEFAULT_SETTINGS.editor;
     })();
 
-    return { agents, theme, i18n, mcpServers, fileWatcher, ilink, editor, sound, snippets };
+    return {
+      agents,
+      theme,
+      i18n,
+      mcpServers,
+      fileWatcher,
+      ilink,
+      editor,
+      sound,
+      snippets,
+      imageGeneration,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -394,6 +452,17 @@ export function getSettings(): SettingsInfo {
       theme: meta.sound.theme,
     },
     snippets: meta.snippets ?? [],
+    imageGeneration: (meta.imageGeneration ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      provider: p.provider,
+      baseUrl: p.baseUrl,
+      apiKey: p.apiKey,
+      headers: Object.assign({}, p.headers || {}),
+      extraBody: p.extraBody ?? undefined,
+      model: p.model,
+      active: p.active,
+    })),
   };
 }
 
@@ -536,6 +605,19 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
       };
     })(),
     snippets: settings.snippets ?? prevMeta.snippets,
+    imageGeneration: settings.imageGeneration
+      ? settings.imageGeneration.map((p) => ({
+          id: p.id,
+          name: p.name,
+          provider: p.provider,
+          baseUrl: p.baseUrl,
+          apiKey: p.apiKey,
+          headers: Object.assign({}, p.headers || {}),
+          extraBody: p.extraBody ?? undefined,
+          model: p.model,
+          active: p.active,
+        }))
+      : prevMeta.imageGeneration,
   };
   writeSettings(meta);
 }

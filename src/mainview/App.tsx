@@ -28,6 +28,7 @@ function AppContent() {
     setI18n,
     setEditor,
     setSnippets,
+    setImageGeneration,
     isMacApp,
     setIsFullScreen,
     setIlinkStatus,
@@ -81,6 +82,7 @@ function AppContent() {
       }
       if (settings.editor) setEditor(settings.editor);
       if (settings.snippets) setSnippets(settings.snippets);
+      if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
       // 恢复所有 session 中 pending 的 askUser 请求
       for (const session of sessions ?? []) {
         try {

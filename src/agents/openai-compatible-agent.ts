@@ -738,7 +738,7 @@ export class OpenaiCompatibleAgent implements Agent {
           openaiCompatible: {
             ...(session.thoughtLevel && session.thoughtLevel !== "auto"
               ? { reasoningEffort: session.thoughtLevel }
-              : {}),
+              : undefined),
           },
         },
       });

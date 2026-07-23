@@ -32,6 +32,7 @@ import {
   ImageIcon,
   FolderOpen,
   CopyPlus,
+  Download,
   EllipsisVertical,
   SquareChartGantt,
 } from "lucide-react";
@@ -42,6 +43,8 @@ import {
   ItemTitle,
   ItemDescription,
   ItemActions,
+  ItemHeader,
+  ItemFooter,
 } from "@/components/ui/item";
 import { stringify as toYamlString } from "json-to-pretty-yaml";
 import { AgentTerminalOutput } from "../common/agent-terminal-output";
@@ -57,6 +60,10 @@ import {
   isImageMimeType,
   type ShareToUserRespond,
 } from "../../../shared/zod/mcp-share-to-user-schema";
+import {
+  imageGenerationRespondSchema,
+  type ImageGenerationRespond,
+} from "../../../shared/zod/mcp-image-generation-schema";
 
 const kindIcons: Record<string, React.ReactNode> = {
   read: <FileText className="size-3 text-blue-400" />,
@@ -89,7 +96,10 @@ interface ToolItemProps {
  */
 export function parseFelloTools(
   message: ToolCallMessage,
-): { type: "shareToUser"; respond: ShareToUserRespond } | null {
+):
+  | { type: "shareToUser"; respond: ShareToUserRespond }
+  | { type: "imageGeneration"; respond: ImageGenerationRespond }
+  | null {
   if (!message.content) return null;
   if (!message.content.length) return null;
   if (message.content[0].type !== "content") return null;
@@ -104,6 +114,17 @@ export function parseFelloTools(
         );
         if (shareToUserRespondResult.success) {
           return { type: "shareToUser", respond: shareToUserRespondResult.data };
+        }
+      }
+      if (json.fello["image-generation"]) {
+        const raw = json.fello["image-generation"];
+        // Normalize: old format (single image with sharePath) → new format (images array)
+        if (raw.sharePath && !raw.images) {
+          raw.images = [{ sharePath: raw.sharePath, name: raw.name, mimeType: raw.mimeType }];
+        }
+        const imageGenRespondResult = imageGenerationRespondSchema.safeParse(raw);
+        if (imageGenRespondResult.success) {
+          return { type: "imageGeneration", respond: imageGenRespondResult.data };
         }
       }
     }
@@ -332,6 +353,14 @@ function ShareToUserBubble({
     );
   }, [session.projectId, projectPath]);
 
+  const handleDownload = useCallback(() => {
+    const url = resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+  }, [session]);
+
   const previewButton = isProject ? (
     <Button
       variant="ghost"
@@ -364,6 +393,12 @@ function ShareToUserBubble({
             {t("shareToUser.reveal", "Reveal in Finder")}
           </DropdownMenuItem>
         )}
+        {isWebUI && (
+          <DropdownMenuItem onClick={handleDownload}>
+            <Download />
+            {t("shareToUser.download", "Download")}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -392,7 +427,7 @@ function ShareToUserBubble({
             <img
               src={url}
               alt={name}
-              className="max-w-full max-h-[60vh] object-contain"
+              className="max-w-full max-h-[80vh] object-contain"
               onError={() => setError(true)}
             />
           )}
@@ -418,6 +453,129 @@ function ShareToUserBubble({
   );
 }
 
+function ImageGenerationBubble({
+  session,
+  respond,
+}: {
+  session: SessionInfo;
+  respond: ImageGenerationRespond;
+}) {
+  const { images, model, size, prompt } = respond;
+  const { t } = useTranslation();
+  const [errorSet, setErrorSet] = useState<Set<number>>(new Set());
+
+  const handleDownload = useCallback(
+    (img: { sharePath: string; name: string }) => {
+      const url = resolveFileUrl(`/share/${session.projectId}/${session.id}/${img.sharePath}`);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = img.name;
+      a.click();
+    },
+    [session],
+  );
+
+  const handleCopyToProject = useCallback(
+    async (img: { sharePath: string }) => {
+      try {
+        const absPath = await request.getShareFileSystemPath({
+          sessionId: session.id,
+          sharePath: img.sharePath,
+        });
+        await request.copyFileToWorkspace({ projectId: session.projectId, sourcePath: absPath });
+      } catch (err) {
+        console.error("Failed to copy to project:", err);
+      }
+    },
+    [session],
+  );
+
+  const handleReveal = useCallback(
+    async (img: { sharePath: string }) => {
+      try {
+        const absPath = await request.getShareFileSystemPath({
+          sessionId: session.id,
+          sharePath: img.sharePath,
+        });
+        electron.revealInFinder(absPath);
+      } catch (err) {
+        console.error("Failed to reveal in finder:", err);
+      }
+    },
+    [session],
+  );
+
+  return (
+    <>
+      {images.map((img, idx) => (
+        <div
+          key={idx}
+          className="border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4"
+        >
+          <Item variant="muted" size="xs" className="border-0 rounded-none">
+            <ItemHeader>
+              <div className="flex items-center gap-2">
+                <ImageIcon className="size-4 text-violet-500" />
+                <ItemTitle className="text-xs">
+                  {img.name}
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    {model}
+                    {size ? ` · ${size}` : ""}
+                  </span>
+                </ItemTitle>
+              </div>
+              <ItemActions className="gap-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="icon" className="size-7 shrink-0" />}
+                  >
+                    <EllipsisVertical className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-40">
+                    <DropdownMenuItem onClick={() => handleCopyToProject(img)}>
+                      <CopyPlus />
+                      {t("imageGeneration.copyToProject", "Copy to project")}
+                    </DropdownMenuItem>
+                    {!isWebUI && (
+                      <DropdownMenuItem onClick={() => handleReveal(img)}>
+                        <FolderOpen />
+                        {t("imageGeneration.reveal", "Reveal in Finder")}
+                      </DropdownMenuItem>
+                    )}
+                    {isWebUI && (
+                      <DropdownMenuItem onClick={() => handleDownload(img)}>
+                        <Download />
+                        {t("imageGeneration.download", "Download")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ItemActions>
+            </ItemHeader>
+            <ItemFooter>
+              <ItemDescription className="text-[10px]!">{prompt}</ItemDescription>
+            </ItemFooter>
+          </Item>
+          <div className="flex items-center justify-center bg-muted/10 min-h-32">
+            {errorSet.has(idx) ? (
+              <p className="text-xs text-muted-foreground p-4">
+                {t("imageGeneration.loadFailed", "Failed to load image")}
+              </p>
+            ) : (
+              <img
+                src={resolveFileUrl(`/share/${session.projectId}/${session.id}/${img.sharePath}`)}
+                alt={prompt}
+                className="max-w-full max-h-[60vh] object-contain"
+                onError={() => setErrorSet((prev) => new Set([...prev, idx]))}
+              />
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function ToolBubble({
   session,
   message,
@@ -427,6 +585,10 @@ export function ToolBubble({
 
   if (felloTool?.type === "shareToUser") {
     return <ShareToUserBubble session={session} respond={felloTool.respond} />;
+  }
+
+  if (felloTool?.type === "imageGeneration") {
+    return <ImageGenerationBubble session={session} respond={felloTool.respond} />;
   }
 
   return (

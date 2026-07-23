@@ -8,6 +8,7 @@ import {
   Wrench,
   Clipboard,
   Brain,
+  ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,12 @@ export function SettingsLayout() {
       href: "/settings/mcp",
       icon: <Wrench className="size-4" />,
       label: t("settings.mcp.title", "MCP Servers"),
+    },
+    {
+      id: "image-generation",
+      href: "/settings/image-generation",
+      icon: <ImageIcon className="size-4" />,
+      label: t("settings.imageGeneration.title", "Image Generation"),
     },
     {
       id: "snippets",

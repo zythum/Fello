@@ -107,7 +107,6 @@ export function Sidebar() {
     setProjects,
     setSessions,
     sidebarOpen,
-    setSidebarOpen,
     configuredAgents,
     configuredMcpServers,
     sessionStates,

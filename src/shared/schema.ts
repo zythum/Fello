@@ -220,7 +220,13 @@ export interface SseMcpServerInfo extends BaseMcpServerInfo {
 export type McpServerInfo = StdioMcpServerInfo | HttpMcpServerInfo | SseMcpServerInfo;
 
 /** 会话级别的 feature 枚举 */
-export type Feature = "skills" | "ask_user" | "share_to_user" | "search" | "memory";
+export type Feature =
+  | "skills"
+  | "ask_user"
+  | "share_to_user"
+  | "search"
+  | "memory"
+  | "image_generation";
 
 /**
  * 应用的主题配置信息
@@ -284,6 +290,30 @@ export interface SnippetInfo {
 }
 
 /**
+ * 图片生成 Provider 配置信息
+ */
+export interface ImageGenerationProviderInfo {
+  /** Provider 唯一标识符 */
+  id: string;
+  /** 用户自定义名称，如 "OpenAI GPT-Image" */
+  name: string;
+  /** Provider 类型，目前只支持 openai-compatible */
+  provider: "openai-compatible";
+  /** API 基础地址，如 https://api.openai.com/v1 */
+  baseUrl: string;
+  /** API 鉴权密钥 */
+  apiKey: string;
+  /** 可选的额外请求头（如组织 ID、自定义鉴权等） */
+  headers?: Record<string, string>;
+  /** 可选的额外请求体参数（如 quality、watermark_enabled 等厂商特有参数） */
+  extraBody?: Record<string, unknown>;
+  /** 模型标识，如 gpt-image-2 */
+  model: string;
+  /** 是否激活 */
+  active: boolean;
+}
+
+/**
  * 应用的全局设置信息
  */
 export interface SettingsInfo {
@@ -305,6 +335,8 @@ export interface SettingsInfo {
   sound: SettingSoundInfo;
   /** Snippets 列表 */
   snippets: SnippetInfo[];
+  /** 图片生成 Provider 列表 */
+  imageGeneration: ImageGenerationProviderInfo[];
 }
 
 /**

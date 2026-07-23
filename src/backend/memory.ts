@@ -195,11 +195,7 @@ function buildMemoQueryPrompt(query: string): string {
 
 export interface MemoryModule {
   /** Register Socket routes for Session Agent's mcp-memory */
-  registerMemoryRoute: (
-    server: SocketServer,
-    projectId: string,
-    sessionContext: SessionContext,
-  ) => void;
+  registerMemoryRoute: (server: SocketServer, projectId: string, sessionId: string) => void;
   /** Build the mcp-memory MCP server config for Session Agent */
   buildMemoryMcpServer: (options: { projectDir: string; socketPath: string }) => {
     name: string;
@@ -332,11 +328,14 @@ export function createMemoryModule(
 
   // ── Socket Route Handlers ───────────────────────────────────────────
 
-  function registerMemoryRoute(
-    server: SocketServer,
-    projectId: string,
-    sessionContext: SessionContext,
-  ): void {
+  function registerMemoryRoute(server: SocketServer, projectId: string, sessionId: string): void {
+    function getSessionContext(): SessionContext {
+      const session = _ctx.storage.getSession(sessionId);
+      return {
+        agentId: session?.agentId ?? "default",
+        modelId: session?.models?.currentModelId ?? null,
+      };
+    }
     // memory_query: use Memo Inference Agent for semantic retrieval
     server.registry("memory/query", async (payload) => {
       const { query } = memoryQueryRequestSchema.parse(payload);
@@ -351,7 +350,7 @@ export function createMemoryModule(
         const result = await runMemoAgent({
           projectId,
           prompt: buildMemoQueryPrompt(query),
-          sessionContext,
+          sessionContext: getSessionContext(),
           writable: false,
         });
         return { content: result || "(no relevant memories found)" };
@@ -370,7 +369,7 @@ export function createMemoryModule(
           await runMemoAgent({
             projectId,
             prompt: buildMemoWritePrompt(facts),
-            sessionContext,
+            sessionContext: getSessionContext(),
             writable: true,
           });
         } catch (err) {

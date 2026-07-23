@@ -7,6 +7,7 @@ import type { AskUserModule } from "../ask-user";
 import type { ShareToUserModule } from "../share-to-user";
 import type { SearchModule } from "../search";
 import type { MemoryModule } from "../memory";
+import type { ImageGenerationModule } from "../image-generation";
 
 export interface McpConfigDeps {
   skills: SkillsModule;
@@ -14,6 +15,7 @@ export interface McpConfigDeps {
   shareToUser: ShareToUserModule;
   search: SearchModule;
   memory: MemoryModule;
+  imageGeneration: ImageGenerationModule;
 }
 
 export function buildMcpServersConfig(
@@ -45,6 +47,12 @@ export function buildMcpServersConfig(
 
   if (socketPath && features.includes("memory")) {
     servers.push(deps.memory.buildMemoryMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("image_generation")) {
+    servers.push(
+      deps.imageGeneration.buildImageGenerationMcpServer({ projectDir: project.cwd, socketPath }),
+    );
   }
 
   const globalSettings = ctx.storage.getSettings();

@@ -22,7 +22,12 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { AgentInfo, SessionModelState, SessionModeState, SessionThoughtLevelState } from "../../shared/schema";
+import type {
+  AgentInfo,
+  SessionModelState,
+  SessionModeState,
+  SessionThoughtLevelState,
+} from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
@@ -228,7 +233,10 @@ export class ACPBridge {
     }
   }
 
-  private getConfigOptionId(sessionId: string, category: "model" | "mode" | "thought_level"): string | null {
+  private getConfigOptionId(
+    sessionId: string,
+    category: "model" | "mode" | "thought_level",
+  ): string | null {
     const options = this._configOptions.get(sessionId);
     if (!options) return null;
     const found = options.find(
@@ -436,12 +444,19 @@ export class ACPBridge {
     return { models, modes, thoughtLevels };
   }
 
-  async newSession(
-    params: NewSessionRequest,
-  ): Promise<NewSessionResponse & { models: SessionModelState | null; thoughtLevels: SessionThoughtLevelState | null }> {
+  async newSession(params: NewSessionRequest): Promise<
+    NewSessionResponse & {
+      models: SessionModelState | null;
+      thoughtLevels: SessionThoughtLevelState | null;
+    }
+  > {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.agent.request(methods.agent.session.new, params);
-    const { models: configModels, modes: configModes, thoughtLevels: configThoughtLevels } = result.configOptions
+    const {
+      models: configModels,
+      modes: configModes,
+      thoughtLevels: configThoughtLevels,
+    } = result.configOptions
       ? this.parseSessionConfigOptions(result.configOptions)
       : { models: null, modes: null, thoughtLevels: null };
     const models =
@@ -528,9 +543,12 @@ export class ACPBridge {
     this._sessionsCwdMap.delete(sessionId);
   }
 
-  async loadSession(
-    params: ResumeSessionRequest,
-  ): Promise<ResumeSessionResponse & { models: SessionModelState | null; thoughtLevels: SessionThoughtLevelState | null }> {
+  async loadSession(params: ResumeSessionRequest): Promise<
+    ResumeSessionResponse & {
+      models: SessionModelState | null;
+      thoughtLevels: SessionThoughtLevelState | null;
+    }
+  > {
     if (!this.connection) throw new Error("Not connected");
 
     // If already loaded, return cached state without calling agent
@@ -552,7 +570,11 @@ export class ACPBridge {
         mcpServers: params.mcpServers ?? [],
       });
     }
-    const { models: configModels, modes: configModes, thoughtLevels: configThoughtLevels } = result.configOptions
+    const {
+      models: configModels,
+      modes: configModes,
+      thoughtLevels: configThoughtLevels,
+    } = result.configOptions
       ? this.parseSessionConfigOptions(result.configOptions)
       : { models: null, modes: null, thoughtLevels: null };
     const models =

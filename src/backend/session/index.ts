@@ -27,6 +27,7 @@ import { t } from "../i18n";
 import { buildMcpServersConfig, type McpConfigDeps } from "./mcp-config";
 import { createNotificationHandler } from "./notifications";
 import type { IlinkState } from "../ilink";
+import type { ImageGenerationModule } from "../image-generation";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export interface SessionDeps {
   skills: SkillsModule;
   search: SearchModule;
   memory: MemoryModule;
+  imageGeneration: ImageGenerationModule;
   ilink: IlinkState;
 }
 
@@ -87,9 +89,18 @@ export interface SessionDeps {
 
 export function createSessionModule(ctx: BackendContext, deps: SessionDeps): SessionModule {
   const { sendEvent, storage } = ctx;
-  const { bridgeConnect, askUser, shareToUser, skills, search, memory, ilink: ilinkState } = deps;
+  const {
+    bridgeConnect,
+    askUser,
+    shareToUser,
+    skills,
+    search,
+    memory,
+    imageGeneration,
+    ilink: ilinkState,
+  } = deps;
 
-  const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search, memory };
+  const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search, memory, imageGeneration };
   const notif = createNotificationHandler(ctx, { ilink: ilinkState });
 
   // Wire broadcastAndSaveSessionUpdate into bridgeConnect
@@ -104,7 +115,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     options: {
       socketPath: string;
       project: ProjectInfo;
-      sessionContext?: { agentId: string; modelId?: string | null };
     },
   ): Promise<SocketServer> {
     const existing = sessionSocketServers.get(sessionId);
@@ -118,9 +128,8 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     skills.registerSkillsRoute(server, options.project.cwd);
     shareToUser.registerShareToUserRoute(server, sessionId);
     search.registerSearchRoute(server, options.project.cwd);
-    if (options.sessionContext) {
-      memory.registerMemoryRoute(server, options.project.id, options.sessionContext);
-    }
+    imageGeneration.registerImageGenerationRoute(server, sessionId);
+    memory.registerMemoryRoute(server, options.project.id, sessionId);
     sessionSocketServers.set(sessionId, server);
     return server;
   }
@@ -196,7 +205,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     await createSessionSocketServer(sessionInfo.id, {
       socketPath,
       project,
-      sessionContext: { agentId, modelId: models?.currentModelId },
     });
     sendEvent("sessions-changed", undefined);
     return {
@@ -275,7 +283,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       await createSessionSocketServer(session.id, {
         socketPath,
         project,
-        sessionContext: { agentId: session.agentId, modelId: session.models?.currentModelId },
       });
     } finally {
       notif.removeRestoring(session.id);
@@ -319,7 +326,12 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     if (shouldUpdateCache || b.initializeInfo) {
       storage.updateSession(
         session.id,
-        { models: finalModels, modes: finalModes, thoughtLevels: finalThoughtLevels, initializeInfo: b.initializeInfo },
+        {
+          models: finalModels,
+          modes: finalModes,
+          thoughtLevels: finalThoughtLevels,
+          initializeInfo: b.initializeInfo,
+        },
         false,
       );
     }
@@ -416,7 +428,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       await createSessionSocketServer(session.id, {
         socketPath,
         project,
-        sessionContext: { agentId: session.agentId, modelId: session.models?.currentModelId },
       });
     }
 
