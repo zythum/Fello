@@ -510,10 +510,11 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
               typeof agent.modelIdTemplate === "string" && agent.modelIdTemplate.trim()
                 ? agent.modelIdTemplate.trim()
                 : undefined,
-            models:
-              Array.isArray(agent.models) && agent.models.length > 0
-                ? agent.models
-                : undefined,
+            models: (() => {
+              if (!Array.isArray(agent.models)) return undefined;
+              const cleaned = agent.models.map((s) => s.trim()).filter(Boolean);
+              return cleaned.length > 0 ? cleaned : undefined;
+            })(),
           };
         } else {
           throw new Error("Invalid agent type.");
