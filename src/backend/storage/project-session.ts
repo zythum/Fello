@@ -7,6 +7,7 @@ import type {
   SessionInfo,
   SessionModelState,
   SessionModeState,
+  SessionThoughtLevelState,
   Feature,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
@@ -44,6 +45,7 @@ interface SessionMeta {
   permission_mode?: "ask" | "allow-all";
   models?: SessionModelState | null;
   modes?: SessionModeState | null;
+  thought_levels?: SessionThoughtLevelState | null;
   initialize_info?: InitializeResponse | null;
 }
 
@@ -246,6 +248,7 @@ export function createSession(
     permissionMode: "ask" | "allow-all";
     models: SessionModelState | null;
     modes: SessionModeState | null;
+    thoughtLevels: SessionThoughtLevelState | null;
     initializeInfo: InitializeResponse | null;
   }>,
 ): SessionInfo {
@@ -274,6 +277,7 @@ export function createSession(
     permission_mode: updates?.permissionMode ?? "ask",
     models: updates?.models ?? null,
     modes: updates?.modes ?? null,
+    thought_levels: updates?.thoughtLevels ?? null,
     initialize_info: updates?.initializeInfo ?? null,
   };
   writeSessionMeta(sessionMeta);
@@ -289,6 +293,7 @@ export function updateSession(
     permissionMode: "ask" | "allow-all";
     models: SessionModelState | null;
     modes: SessionModeState | null;
+    thoughtLevels: SessionThoughtLevelState | null;
     initializeInfo: InitializeResponse | null;
     isStreaming: boolean;
     connectionStatus: "disconnected" | "connecting" | "connected";
@@ -305,6 +310,7 @@ export function updateSession(
   if (updates.permissionMode !== undefined) meta.permission_mode = updates.permissionMode;
   if (updates.models !== undefined) meta.models = updates.models;
   if (updates.modes !== undefined) meta.modes = updates.modes;
+  if (updates.thoughtLevels !== undefined) meta.thought_levels = updates.thoughtLevels;
   if (updates.initializeInfo !== undefined) meta.initialize_info = updates.initializeInfo;
 
   if (updateTime) {
@@ -345,6 +351,7 @@ export function listSessions(): SessionInfo[] {
         permissionMode: meta.permission_mode ?? "ask",
         models: meta.models ?? null,
         modes: meta.modes ?? null,
+        thoughtLevels: meta.thought_levels ?? null,
         initializeInfo: meta.initialize_info ?? null,
         isStreaming: meta.isStreaming,
         connectionStatus: meta.connectionStatus,
@@ -376,6 +383,7 @@ export function getSession(sessionId: string): SessionInfo | null {
     permissionMode: meta.permission_mode ?? "ask",
     models: meta.models ?? null,
     modes: meta.modes ?? null,
+    thoughtLevels: meta.thought_levels ?? null,
     initializeInfo: meta.initialize_info ?? null,
     isStreaming: meta.isStreaming,
     connectionStatus: meta.connectionStatus,

@@ -520,7 +520,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                 </div>
                 <div
                   className={cn(
-                    "text-[11px] text-muted-foreground/50 mt-4 h-4 -mb-8 uppercase tracking-widest",
+                    "text-[11px] text-muted-foreground/50 mt-4 h-4 uppercase tracking-widest",
                     {
                       invisible: !(isLastGroup && showThinking) || !isStreaming,
                     },
@@ -533,7 +533,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
               </div>
 
               {(isLastGroup ? !isStreaming : true) && (
-                <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed pt-1.5 my-4 group/separator pointer-events-auto">
+                <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed -mt-8 mb-4 group/separator pointer-events-auto">
                   <div className="flex-1 flex items-center">
                     {durationMs !== null && (
                       <span className="text-xs text-muted-foreground/50 select-none">

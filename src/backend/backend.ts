@@ -295,6 +295,12 @@ export function initBackend(
     async setMode(params) {
       return session.setMode(params);
     },
+    async getThoughtLevels(params) {
+      return session.getThoughtLevels(params);
+    },
+    async setThoughtLevel(params) {
+      return session.setThoughtLevel(params);
+    },
 
     // Ask User
     async getPendingAskUserRequests(params) {

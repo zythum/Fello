@@ -16,6 +16,7 @@ import type {
   ProjectInfo,
   SessionModelState,
   SessionModeState,
+  SessionThoughtLevelState,
   SessionNotificationFelloExt,
   FelloIPCSchema,
 } from "../../shared/schema";
@@ -34,6 +35,7 @@ export interface SessionResult {
   initializeInfo: InitializeResponse | null;
   models: SessionModelState | null;
   modes: SessionModeState | null;
+  thoughtLevels: SessionThoughtLevelState | null;
 }
 
 export interface SessionModule {
@@ -65,6 +67,8 @@ export interface SessionModule {
   setModel: (params: { sessionId: string; modelId: string }) => Promise<void>;
   getModes: (params: { sessionId: string }) => Promise<SessionModeState | null>;
   setMode: (params: { sessionId: string; modeId: string }) => Promise<void>;
+  getThoughtLevels: (params: { sessionId: string }) => Promise<SessionThoughtLevelState | null>;
+  setThoughtLevel: (params: { sessionId: string; thoughtLevelId: string }) => Promise<void>;
 }
 
 import type { MemoryModule } from "../memory";
@@ -171,6 +175,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       sessionId: resumeId,
       models,
       modes,
+      thoughtLevels,
     } = await b.newSession({ cwd: project.cwd, mcpServers: activeMcpServers });
     const sessionInfo = storage.createSession(project.id, resumeId, agentId, {
       mcpServers: sessionMcpIds,
@@ -178,6 +183,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       permissionMode: permissionMode ?? "ask",
       models: models ?? null,
       modes: modes ?? null,
+      thoughtLevels: thoughtLevels ?? null,
       initializeInfo: b.initializeInfo,
     });
 
@@ -198,6 +204,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       initializeInfo: b.initializeInfo,
       models: models ?? null,
       modes: modes ?? null,
+      thoughtLevels: thoughtLevels ?? null,
     };
   }
 
@@ -230,6 +237,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         initializeInfo: b.initializeInfo,
         models: b.getModelState(session.resumeId) ?? session.models,
         modes: b.getModeState(session.resumeId) ?? session.modes,
+        thoughtLevels: b.getThoughtLevelState(session.resumeId) ?? session.thoughtLevels,
       };
     }
 
@@ -275,6 +283,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
 
     let finalModels = loadResult?.models ?? null;
     let finalModes = loadResult?.modes ?? null;
+    let finalThoughtLevels = loadResult?.thoughtLevels ?? null;
     let shouldUpdateCache = false;
 
     if (finalModels) {
@@ -297,10 +306,20 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       } else finalModes = session.modes;
     }
 
+    if (finalThoughtLevels) {
+      shouldUpdateCache = true;
+    } else {
+      const c = b.getThoughtLevelState(session.resumeId);
+      if (c) {
+        finalThoughtLevels = c;
+        shouldUpdateCache = true;
+      } else finalThoughtLevels = session.thoughtLevels;
+    }
+
     if (shouldUpdateCache || b.initializeInfo) {
       storage.updateSession(
         session.id,
-        { models: finalModels, modes: finalModes, initializeInfo: b.initializeInfo },
+        { models: finalModels, modes: finalModes, thoughtLevels: finalThoughtLevels, initializeInfo: b.initializeInfo },
         false,
       );
     }
@@ -312,6 +331,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       initializeInfo: b.initializeInfo,
       models: finalModels,
       modes: finalModes,
+      thoughtLevels: finalThoughtLevels,
     };
   }
 
@@ -658,6 +678,36 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     }
   }
 
+  async function getThoughtLevels({ sessionId }: { sessionId: string }) {
+    const session = storage.getSession(sessionId);
+    if (!session) return null;
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
+    if (!connectPromise) return null;
+    const b = await connectPromise;
+    return b.getThoughtLevelState(session.resumeId);
+  }
+
+  async function setThoughtLevel({
+    sessionId,
+    thoughtLevelId,
+  }: {
+    sessionId: string;
+    thoughtLevelId: string;
+  }) {
+    const session = storage.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const connectPromise = bridgeConnect.bridges.get(sessionId);
+    if (!connectPromise) throw new Error("Agent bridge not found for session");
+    const b = await connectPromise;
+    await b.setThoughtLevel({ sessionId: session.resumeId, thoughtLevelId });
+    if (session.thoughtLevels) {
+      session.thoughtLevels.currentThoughtLevelId = thoughtLevelId;
+      storage.updateSession(session.id, { thoughtLevels: session.thoughtLevels });
+      const updated = storage.getSession(session.id);
+      if (updated) sendEvent("session-changed", { session: updated });
+    }
+  }
+
   return {
     broadcastAndSaveSessionUpdate: notif.broadcastAndSaveSessionUpdate,
     clearSession,
@@ -676,5 +726,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     setModel,
     getModes,
     setMode,
+    getThoughtLevels,
+    setThoughtLevel,
   };
 }

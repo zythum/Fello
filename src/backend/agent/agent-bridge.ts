@@ -22,7 +22,7 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { AgentInfo, SessionModelState, SessionModeState } from "../../shared/schema";
+import type { AgentInfo, SessionModelState, SessionModeState, SessionThoughtLevelState } from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
@@ -85,6 +85,7 @@ export class ACPBridge {
   private _initializeInfo: InitializeResponse | null = null;
   private _modelStates = new Map<string, SessionModelState>();
   private _modeStates = new Map<string, SessionModeState>();
+  private _thoughtLevelStates = new Map<string, SessionThoughtLevelState>();
   private _loadedSessions = new Set<string>();
   private _sessionsCwdMap = new Map<string, string>();
   private _configOptions = new Map<string, SessionConfigOption[]>();
@@ -128,6 +129,14 @@ export class ACPBridge {
    */
   getModeState(sessionId: string): SessionModeState | null {
     return this._modeStates.get(sessionId) ?? null;
+  }
+
+  /**
+   * ⚠️ 获取指定会话的思考级别状态
+   * @param sessionId ACP 侧的会话标识（即 Fello 业务中的 SessionInfo.resumeId）
+   */
+  getThoughtLevelState(sessionId: string): SessionThoughtLevelState | null {
+    return this._thoughtLevelStates.get(sessionId) ?? null;
   }
 
   private normalizeSelectOptions(
@@ -199,9 +208,27 @@ export class ACPBridge {
         availableModes,
       });
     }
+
+    const thoughtLevelOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "thought_level",
+    );
+    if (thoughtLevelOption) {
+      const selectOption = thoughtLevelOption as Extract<SessionConfigOption, { type: "select" }>;
+      const availableThoughtLevels = this.normalizeSelectOptions(selectOption.options).map(
+        (item) => ({
+          id: item.value,
+          name: item.name,
+          description: item.description,
+        }),
+      );
+      this._thoughtLevelStates.set(sessionId, {
+        currentThoughtLevelId: selectOption.currentValue,
+        availableThoughtLevels,
+      });
+    }
   }
 
-  private getConfigOptionId(sessionId: string, category: "model" | "mode"): string | null {
+  private getConfigOptionId(sessionId: string, category: "model" | "mode" | "thought_level"): string | null {
     const options = this._configOptions.get(sessionId);
     if (!options) return null;
     const found = options.find(
@@ -355,9 +382,11 @@ export class ACPBridge {
   parseSessionConfigOptions(configOptions: SessionConfigOption[]): {
     models: SessionModelState | null;
     modes: SessionModeState | null;
+    thoughtLevels: SessionThoughtLevelState | null;
   } {
     let models: SessionModelState | null = null;
     let modes: SessionModeState | null = null;
+    let thoughtLevels: SessionThoughtLevelState | null = null;
 
     const modelOption = configOptions.find(
       (option) => option.type === "select" && option.category === "model",
@@ -389,27 +418,44 @@ export class ACPBridge {
       };
     }
 
-    return { models, modes };
+    const thoughtLevelOption = configOptions.find(
+      (option) => option.type === "select" && option.category === "thought_level",
+    );
+    if (thoughtLevelOption) {
+      const selectOption = thoughtLevelOption as Extract<SessionConfigOption, { type: "select" }>;
+      thoughtLevels = {
+        currentThoughtLevelId: selectOption.currentValue,
+        availableThoughtLevels: this.normalizeSelectOptions(selectOption.options).map((item) => ({
+          id: item.value,
+          name: item.name,
+          description: item.description,
+        })),
+      };
+    }
+
+    return { models, modes, thoughtLevels };
   }
 
   async newSession(
     params: NewSessionRequest,
-  ): Promise<NewSessionResponse & { models: SessionModelState | null }> {
+  ): Promise<NewSessionResponse & { models: SessionModelState | null; thoughtLevels: SessionThoughtLevelState | null }> {
     if (!this.connection) throw new Error("Not connected");
     const result = await this.connection.agent.request(methods.agent.session.new, params);
-    const { models: configModels, modes: configModes } = result.configOptions
+    const { models: configModels, modes: configModes, thoughtLevels: configThoughtLevels } = result.configOptions
       ? this.parseSessionConfigOptions(result.configOptions)
-      : { models: null, modes: null };
+      : { models: null, modes: null, thoughtLevels: null };
     const models =
       configModels ?? (result as unknown as { models: SessionModelState | null }).models ?? null;
     const modes = configModes ?? result.modes ?? null;
+    const thoughtLevels = configThoughtLevels ?? null;
     if (models) this._modelStates.set(result.sessionId, models);
     if (modes) this._modeStates.set(result.sessionId, modes);
+    if (thoughtLevels) this._thoughtLevelStates.set(result.sessionId, thoughtLevels);
     this.applyConfigOptions(result.sessionId, result.configOptions);
     this._loadedSessions.add(result.sessionId);
     this._sessionsCwdMap.set(result.sessionId, params.cwd);
     this.onSessionConnect({ sessionId: result.sessionId });
-    return Object.assign(result, { models, modes });
+    return Object.assign(result, { models, modes, thoughtLevels });
   }
 
   async hack_setSessionModel(params: SetSessionModelRequest): Promise<SetSessionModelResponse> {
@@ -458,6 +504,7 @@ export class ACPBridge {
     }
     this._modelStates.delete(sessionId);
     this._modeStates.delete(sessionId);
+    this._thoughtLevelStates.delete(sessionId);
     this._configOptions.delete(sessionId);
     this._loadedSessions.delete(sessionId);
     this._sessionsCwdMap.delete(sessionId);
@@ -475,6 +522,7 @@ export class ACPBridge {
     } catch {}
     this._modelStates.delete(sessionId);
     this._modeStates.delete(sessionId);
+    this._thoughtLevelStates.delete(sessionId);
     this._configOptions.delete(sessionId);
     this._loadedSessions.delete(sessionId);
     this._sessionsCwdMap.delete(sessionId);
@@ -482,7 +530,7 @@ export class ACPBridge {
 
   async loadSession(
     params: ResumeSessionRequest,
-  ): Promise<ResumeSessionResponse & { models: SessionModelState | null }> {
+  ): Promise<ResumeSessionResponse & { models: SessionModelState | null; thoughtLevels: SessionThoughtLevelState | null }> {
     if (!this.connection) throw new Error("Not connected");
 
     // If already loaded, return cached state without calling agent
@@ -490,6 +538,7 @@ export class ACPBridge {
       return {
         models: this._modelStates.get(params.sessionId) ?? null,
         modes: this._modeStates.get(params.sessionId) ?? null,
+        thoughtLevels: this._thoughtLevelStates.get(params.sessionId) ?? null,
         configOptions: this._configOptions.get(params.sessionId) ?? null,
       };
     }
@@ -503,19 +552,21 @@ export class ACPBridge {
         mcpServers: params.mcpServers ?? [],
       });
     }
-    const { models: configModels, modes: configModes } = result.configOptions
+    const { models: configModels, modes: configModes, thoughtLevels: configThoughtLevels } = result.configOptions
       ? this.parseSessionConfigOptions(result.configOptions)
-      : { models: null, modes: null };
+      : { models: null, modes: null, thoughtLevels: null };
     const models =
       configModels ?? (result as unknown as { models: SessionModelState | null }).models ?? null;
     const modes = configModes ?? result.modes ?? null;
+    const thoughtLevels = configThoughtLevels ?? null;
     if (models) this._modelStates.set(params.sessionId, models);
     if (modes) this._modeStates.set(params.sessionId, modes);
+    if (thoughtLevels) this._thoughtLevelStates.set(params.sessionId, thoughtLevels);
     this.applyConfigOptions(params.sessionId, result.configOptions);
     this._loadedSessions.add(params.sessionId);
     this._sessionsCwdMap.set(params.sessionId, params.cwd);
     this.onSessionConnect({ sessionId: params.sessionId });
-    return Object.assign(result, { models, modes });
+    return Object.assign(result, { models, modes, thoughtLevels });
   }
 
   async setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse> {
@@ -544,6 +595,23 @@ export class ACPBridge {
     return result;
   }
 
+  async setThoughtLevel(params: { sessionId: string; thoughtLevelId: string }): Promise<void> {
+    if (!this.connection) throw new Error("Not connected");
+    const configId = this.getConfigOptionId(params.sessionId, "thought_level");
+    if (configId) {
+      const cfg = await this.connection.agent.request(methods.agent.session.setConfigOption, {
+        sessionId: params.sessionId,
+        configId,
+        value: params.thoughtLevelId,
+      });
+      this.applyConfigOptions(params.sessionId, cfg.configOptions);
+    }
+    const state = this._thoughtLevelStates.get(params.sessionId);
+    if (state) {
+      state.currentThoughtLevelId = params.thoughtLevelId;
+    }
+  }
+
   async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
     if (!this.connection) throw new Error("Not connected");
     return this.connection.agent.request(methods.agent.session.prompt, params);
@@ -569,6 +637,7 @@ export class ACPBridge {
     this._isConnected = false;
     this._modelStates.clear();
     this._modeStates.clear();
+    this._thoughtLevelStates.clear();
     this._configOptions.clear();
     this._loadedSessions.clear();
     this._sessionsCwdMap.clear();

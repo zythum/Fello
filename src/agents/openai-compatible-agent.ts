@@ -61,6 +61,14 @@ import {
 } from "./utils";
 
 const MODEL_CONFIG_ID = "model";
+const THOUGHT_LEVEL_CONFIG_ID = "thought_level";
+const DEFAULT_THOUGHT_LEVEL = "auto";
+const THOUGHT_LEVEL_OPTIONS = [
+  { value: "auto", name: "Auto" },
+  { value: "max", name: "Max" },
+  { value: "high", name: "High" },
+  { value: "low", name: "Low" },
+];
 
 /** Default context window tokens when none is configured. */
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
@@ -303,6 +311,7 @@ export class OpenaiCompatibleAgent implements Agent {
 
   private async buildConfigOptions(
     currentModelId: string | null,
+    currentThoughtLevel?: string,
   ): Promise<SessionConfigOption[] | null> {
     const modelState = await this.getModels();
     if (modelState.availableModels.length === 0) return null;
@@ -319,6 +328,14 @@ export class OpenaiCompatibleAgent implements Agent {
           name: model.name,
         })),
       },
+      {
+        id: THOUGHT_LEVEL_CONFIG_ID,
+        category: "thought_level",
+        name: "Thought Level",
+        type: "select",
+        currentValue: currentThoughtLevel || DEFAULT_THOUGHT_LEVEL,
+        options: THOUGHT_LEVEL_OPTIONS,
+      },
     ];
   }
 
@@ -330,6 +347,7 @@ export class OpenaiCompatibleAgent implements Agent {
         modelId: session.modelId,
         allowedToolKinds: Array.from(session.allowedToolKinds),
         contextUsedTokens: session.contextUsedTokens,
+        thoughtLevel: session.thoughtLevel,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -380,6 +398,7 @@ export class OpenaiCompatibleAgent implements Agent {
       additionalDirectories: params.additionalDirectories,
       mcpServers: params.mcpServers,
       modelId,
+      thoughtLevel: DEFAULT_THOUGHT_LEVEL,
       getConnection: () => this.connection,
       onAllowedToolKindsChanged: async () => {
         if (!sessionRef) return;
@@ -395,7 +414,7 @@ export class OpenaiCompatibleAgent implements Agent {
     }, 500);
     return {
       sessionId,
-      configOptions: await this.buildConfigOptions(modelId),
+      configOptions: await this.buildConfigOptions(modelId, session.thoughtLevel),
     };
   }
 
@@ -428,6 +447,7 @@ export class OpenaiCompatibleAgent implements Agent {
         modelState.currentModelId ??
         modelState.availableModels[0]?.modelId ??
         null,
+      thoughtLevel: persistedState?.thoughtLevel ?? DEFAULT_THOUGHT_LEVEL,
       getConnection: () => this.connection,
       history: persistedHistory,
       allowedToolKinds: persistedState?.allowedToolKinds,
@@ -461,7 +481,7 @@ export class OpenaiCompatibleAgent implements Agent {
     await this.persistSessionState(active);
     await this.pushAvailableCommands(params.sessionId);
     return {
-      configOptions: await this.buildConfigOptions(active.modelId),
+      configOptions: await this.buildConfigOptions(active.modelId, active.thoughtLevel),
     };
   }
 
@@ -486,8 +506,14 @@ export class OpenaiCompatibleAgent implements Agent {
       session.modelId = value;
       await this.persistSessionState(session);
     }
+    if (params.configId === THOUGHT_LEVEL_CONFIG_ID && typeof value === "string") {
+      const isValid = THOUGHT_LEVEL_OPTIONS.some((o) => o.value === value);
+      if (!isValid) throw new Error(`Unknown thought level: ${value}`);
+      session.thoughtLevel = value;
+      await this.persistSessionState(session);
+    }
     return {
-      configOptions: (await this.buildConfigOptions(session.modelId)) || [],
+      configOptions: (await this.buildConfigOptions(session.modelId, session.thoughtLevel)) || [],
     };
   }
 
@@ -652,7 +678,7 @@ export class OpenaiCompatibleAgent implements Agent {
               openaiCompatible: {
                 thinking: { type: "disabled" },
                 enable_thinking: false,
-                reasoning_effort: "low",
+                reasoningEffort: "low",
               },
             },
           });
@@ -708,6 +734,13 @@ export class OpenaiCompatibleAgent implements Agent {
         },
         stopWhen: isStepCount(128),
         abortSignal: abortController.signal,
+        providerOptions: {
+          openaiCompatible: {
+            ...(session.thoughtLevel && session.thoughtLevel !== "auto"
+              ? { reasoningEffort: session.thoughtLevel }
+              : {}),
+          },
+        },
       });
 
       for await (const part of result.stream) {

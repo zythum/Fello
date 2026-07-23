@@ -78,6 +78,17 @@ export interface SessionModeState {
   currentModeId: string;
 }
 
+export interface ThoughtLevelInfo {
+  description?: string | null;
+  id: string;
+  name: string;
+}
+
+export interface SessionThoughtLevelState {
+  availableThoughtLevels: ThoughtLevelInfo[];
+  currentThoughtLevelId: string;
+}
+
 /**
  * 代理（Agent）的配置信息
  * 描述了如何启动或连接到一个特定的代理
@@ -362,6 +373,8 @@ export interface SessionInfo {
   models: SessionModelState | null;
   /** 缓存的 Mode 配置状态，用于离线降级恢复 */
   modes: SessionModeState | null;
+  /** 缓存的 ThoughtLevel 配置状态 */
+  thoughtLevels: SessionThoughtLevelState | null;
   /** 缓存的代理初始化信息 */
   initializeInfo: InitializeResponse | null;
   /** 是否在输出中 */
@@ -538,6 +551,8 @@ export type FelloIPCRequests = {
       models: SessionModelState | null;
       /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
+      /** 该会话当前可用的思考级别状态 */
+      thoughtLevels: SessionThoughtLevelState | null;
     };
   };
   /** 加载已有会话 */
@@ -552,6 +567,8 @@ export type FelloIPCRequests = {
       models: SessionModelState | null;
       /** 该会话当前可用的模式状态（列表及选中项） */
       modes: SessionModeState | null;
+      /** 该会话当前可用的思考级别状态 */
+      thoughtLevels: SessionThoughtLevelState | null;
     };
   };
   /** 获取会话历史记录 */
@@ -634,6 +651,14 @@ export type FelloIPCRequests = {
   };
   /** 设置当前会话使用的工作模式 */
   setMode: { params: { sessionId: string; modeId: string }; response: void };
+
+  /** 获取当前会话可用的思考级别状态 */
+  getThoughtLevels: {
+    params: { sessionId: string };
+    response: SessionThoughtLevelState | null;
+  };
+  /** 设置当前会话使用的思考级别 */
+  setThoughtLevel: { params: { sessionId: string; thoughtLevelId: string }; response: void };
 
   /**
    * 搜索项目中的文件

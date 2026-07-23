@@ -171,6 +171,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
       permissionMode: "allow-all",
       models: null,
       modes: null,
+      thoughtLevels: null,
       initializeInfo: null,
       isStreaming: false,
       connectionStatus: "connected",

@@ -228,8 +228,28 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     [session],
   );
 
+  const handleThoughtLevelChange = useCallback(
+    async (thoughtLevelId: string) => {
+      const sid = session.id;
+      if (!sid) return;
+      useAppStore.getState().updateSession({
+        ...session,
+        thoughtLevels: { ...session.thoughtLevels!, currentThoughtLevelId: thoughtLevelId },
+      });
+      try {
+        await request.setThoughtLevel({ sessionId: sid, thoughtLevelId });
+      } catch (err) {
+        console.error("Failed to set thought level:", err);
+        useAppStore.getState().updateSession(session);
+      }
+    },
+    [session],
+  );
+
   const availableModes = session.modes?.availableModes ?? [];
   const currentModeId = session.modes?.currentModeId ?? null;
+  const availableThoughtLevels = session.thoughtLevels?.availableThoughtLevels ?? [];
+  const currentThoughtLevelId = session.thoughtLevels?.currentThoughtLevelId ?? null;
   const initializeInfo = session.initializeInfo;
   const isLoading = useSessionIsLoading(session.id);
   const askUserRequests = useSessionAskUserRequests(session.id);
@@ -1321,6 +1341,49 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}
+              {availableThoughtLevels.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-32"
+                      />
+                    }
+                  >
+                    <span className="truncate">
+                      {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ??
+                        "Thought"}
+                    </span>
+                    <ChevronDown className="size-3 opacity-60 shrink-0" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-auto! max-h-none! max-w-60 min-w-(--anchor-width)"
+                  >
+                    {availableThoughtLevels.map((level) => (
+                      <DropdownMenuItem
+                        key={level.id}
+                        onClick={() => handleThoughtLevelChange(level.id)}
+                        className="gap-2"
+                      >
+                        <Check
+                          className={`size-3 shrink-0 ${level.id === currentThoughtLevelId ? "opacity-100" : "opacity-0"}`}
+                        />
+                        <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                          <span>{level.name}</span>
+                          {level.description && (
+                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                              {level.description}
+                            </span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               {isStreaming ? (
                 <Button
                   variant="destructive"

@@ -9,12 +9,14 @@ type SessionJson = {
   modelId: string | null;
   allowedToolKinds: string[];
   contextUsedTokens?: number;
+  thoughtLevel?: string;
 };
 
 type PersistedSessionState = {
   modelId: string | null;
   allowedToolKinds: PermissionKind[];
   contextUsedTokens: number;
+  thoughtLevel?: string;
 };
 
 function toSafePathSegment(value: string): string {
@@ -67,6 +69,7 @@ export async function loadPersistedSessionState(params: {
   let modelId: string | null = null;
   let allowedToolKinds: PermissionKind[] = [];
   let contextUsedTokens = 0;
+  let thoughtLevel: string | undefined;
   try {
     const parsed = JSON.parse(sessionRaw) as Partial<SessionJson>;
     modelId = typeof parsed.modelId === "string" ? parsed.modelId : null;
@@ -76,13 +79,15 @@ export async function loadPersistedSessionState(params: {
           .map((value) => value as PermissionKind)
       : [];
     contextUsedTokens = typeof parsed.contextUsedTokens === "number" ? parsed.contextUsedTokens : 0;
+    thoughtLevel = typeof parsed.thoughtLevel === "string" ? parsed.thoughtLevel : undefined;
   } catch {
     modelId = null;
     allowedToolKinds = [];
     contextUsedTokens = 0;
+    thoughtLevel = undefined;
   }
 
-  return { modelId, allowedToolKinds, contextUsedTokens };
+  return { modelId, allowedToolKinds, contextUsedTokens, thoughtLevel };
 }
 
 export async function loadPersistedSessionHistory(params: {
@@ -114,6 +119,7 @@ export async function savePersistedSessionState(params: {
   modelId: string | null;
   allowedToolKinds: PermissionKind[];
   contextUsedTokens?: number;
+  thoughtLevel?: string;
 }): Promise<void> {
   ensureSessionDirSync(params.agentId, params.sessionId);
 
@@ -121,6 +127,7 @@ export async function savePersistedSessionState(params: {
     modelId: params.modelId,
     allowedToolKinds: params.allowedToolKinds,
     contextUsedTokens: params.contextUsedTokens,
+    thoughtLevel: params.thoughtLevel,
   };
   writeFileSync(
     sessionJsonPath(params.agentId, params.sessionId),

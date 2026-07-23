@@ -10,6 +10,7 @@ export type SessionState = {
   cwd: string;
   additionalDirectories: string[];
   modelId: string | null;
+  thoughtLevel: string;
   history: ModelMessage[];
   abortController: AbortController | null;
   allowedToolKinds: AllowedToolKinds;
@@ -33,6 +34,7 @@ export async function createSessionState(params: {
   additionalDirectories: string[] | undefined;
   mcpServers: McpServer[] | undefined;
   modelId: string | null;
+  thoughtLevel?: string;
   getConnection: () => AgentClientProxy | null;
   history?: ModelMessage[];
   allowedToolKinds?: PermissionKind[];
@@ -64,6 +66,7 @@ export async function createSessionState(params: {
     cwd: params.cwd,
     additionalDirectories: normalizeAdditionalDirectories(params.additionalDirectories),
     modelId: params.modelId,
+    thoughtLevel: params.thoughtLevel ?? "auto",
     history: params.history || [],
     abortController: null,
     allowedToolKinds,
