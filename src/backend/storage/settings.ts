@@ -25,6 +25,7 @@ interface ApiAgentMeta extends BaseAgentMeta {
   headers: Record<string, string>;
   contextWindowTokens?: number;
   modelIdTemplate?: string;
+  models?: string[];
 }
 
 interface BaseMcpServerMeta {
@@ -177,6 +178,10 @@ function readSettings(): SettingsMeta {
             typeof cfg?.modelIdTemplate === "string" && cfg.modelIdTemplate.trim()
               ? cfg.modelIdTemplate.trim()
               : undefined;
+          const models =
+            Array.isArray(cfg?.models) && cfg.models.every((v: unknown) => typeof v === "string")
+              ? (cfg.models as string[]).filter((s: string) => s.trim().length > 0)
+              : undefined;
           next[id] = {
             type,
             provider,
@@ -187,6 +192,7 @@ function readSettings(): SettingsMeta {
             order,
             contextWindowTokens,
             modelIdTemplate,
+            models: models && models.length > 0 ? models : undefined,
           };
         }
       }
@@ -393,6 +399,7 @@ export function getSettings(): SettingsInfo {
             disabled: agentMeta.disabled,
             contextWindowTokens: agentMeta.contextWindowTokens,
             modelIdTemplate: agentMeta.modelIdTemplate,
+            models: agentMeta.models,
           };
         }
         throw new Error("Invalid agent type.");
@@ -502,6 +509,10 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
             modelIdTemplate:
               typeof agent.modelIdTemplate === "string" && agent.modelIdTemplate.trim()
                 ? agent.modelIdTemplate.trim()
+                : undefined,
+            models:
+              Array.isArray(agent.models) && agent.models.length > 0
+                ? agent.models
                 : undefined,
           };
         } else {

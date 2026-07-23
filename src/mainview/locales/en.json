@@ -150,6 +150,8 @@
       "apiHeaders": "Headers (JSON)",
       "contextWindowTokens": "Context Window (tokens)",
       "modelIdTemplate": "Model Id Template",
+      "models": "Models (one per line)",
+      "modelsHint": "Usually not needed — models are fetched automatically. Only specify if the API doesn't return the models you need",
       "command": "Command",
       "args": "Arguments",
       "envVars": "Environment Variables (JSON)",

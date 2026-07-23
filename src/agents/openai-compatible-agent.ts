@@ -184,6 +184,7 @@ export class OpenaiCompatibleAgent implements Agent {
   private headers: Record<string, string>;
   private contextWindowTokens: number;
   private modelIdTemplate: string | undefined;
+  private userModels: string[] | undefined;
   private modelsCache: SessionModelState | null = null;
   private modelsFetchedAt = 0;
   private modelsPending: Promise<SessionModelState> | null = null;
@@ -199,6 +200,7 @@ export class OpenaiCompatibleAgent implements Agent {
     this.headers = options.headers || {};
     this.contextWindowTokens = options.contextWindowTokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
     this.modelIdTemplate = options.modelIdTemplate;
+    this.userModels = options.models;
     this.provider = createOpenAICompatible({
       name: "openai-compatible",
       baseURL: this.baseUrl,
@@ -286,6 +288,12 @@ export class OpenaiCompatibleAgent implements Agent {
   }
 
   private async getModels(forceRefresh = false): Promise<SessionModelState> {
+    // If user has manually configured models, use them directly
+    if (this.userModels && this.userModels.length > 0) {
+      const models: ModelInfo[] = this.userModels.map((id) => ({ modelId: id, name: id }));
+      return this.toSessionModelState(models);
+    }
+
     const isCacheValid =
       !forceRefresh &&
       this.modelsCache &&

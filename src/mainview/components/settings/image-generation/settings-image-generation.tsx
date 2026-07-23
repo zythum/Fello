@@ -161,7 +161,7 @@ function ImageGenerationDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>

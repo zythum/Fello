@@ -137,6 +137,12 @@ export interface ApiAgentInfo extends BaseAgentInfo {
    * 如果设置且非空，则使用模版拼接 modelId；否则直接使用 API 返回的 id。
    */
   modelIdTemplate?: string;
+  /**
+   * 用户手动指定的模型列表（每行一个模型 ID）。
+   * 如果填写则直接使用该列表，不再调用 /models 接口。
+   * 如果为空则回退到 /models 接口自动获取。
+   */
+  models?: string[];
 }
 
 /** 代理配置联合类型：本地 stdio / 远程 api */
