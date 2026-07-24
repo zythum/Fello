@@ -512,7 +512,9 @@
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
     "usageSummaryCached": "  ↻ {{cached}}",
-    "connecting": "Connecting to agent..."
+    "connecting": "Connecting to agent...",
+    "connectionFailed": "Failed to connect to agent",
+    "retry": "Retry"
   },
   "terminalPanel": {
     "title": "Terminal",

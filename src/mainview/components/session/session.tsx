@@ -5,9 +5,10 @@ import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { Detail, type DetailType } from "./detail/detail";
 import { Panel, type PanelTab } from "./panel/panel";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 import { request } from "../../backend";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
 import type { SessionInfo } from "../../../shared/schema";
 import { useMessage } from "../providers/message";
 
@@ -89,9 +90,12 @@ export function Session({ session }: { session: SessionInfo }) {
 
   // Auto load session if not loaded
   const fetchingRef = useRef<string | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
   useEffect(() => {
+    setConnectionError(false);
     // Always call loadSession to ensure backend bridge state is synced (fast-path if already loaded)
     request.loadSession({ sessionId }).catch((err) => {
+      setConnectionError(true);
       toast.error(err instanceof Error ? err.message : String(err));
     });
 
@@ -157,8 +161,30 @@ export function Session({ session }: { session: SessionInfo }) {
       {isLoading || sessionConnected !== "connected" || isCreatingSession ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-sm font-normal text-muted-foreground/60">{t("session.connecting")}</p>
+          {connectionError && sessionConnected !== "connected" && !isCreatingSession ? (
+            <>
+              <p className="text-sm font-normal text-muted-foreground">{t("session.connectionFailed")}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConnectionError(false);
+                  request.loadSession({ sessionId, force: true }).catch((err) => {
+                    setConnectionError(true);
+                    toast.error(err instanceof Error ? err.message : String(err));
+                  });
+                }}
+              >
+                <RotateCw className="mr-1.5 size-3.5" />
+                {t("session.retry")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="size-8 animate-spin text-primary" />
+              <p className="text-sm font-normal text-muted-foreground/60">{t("session.connecting")}</p>
+            </>
+          )}
         </div>
       ) : sessionId ? (
         <div key={sessionId} className="relative flex h-full flex-col flex-1 min-h-0">
