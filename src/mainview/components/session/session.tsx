@@ -161,7 +161,7 @@ export function Session({ session }: { session: SessionInfo }) {
           <p className="text-sm font-normal text-muted-foreground/60">{t("session.connecting")}</p>
         </div>
       ) : sessionId ? (
-        <div className="relative flex h-full flex-col flex-1 min-h-0">
+        <div key={sessionId} className="relative flex h-full flex-col flex-1 min-h-0">
           {/* Outer: always 2 panels → Panel width stable */}
           <ResizablePanelGroup className="flex h-full min-h-0">
             {/* Left: chat + optional detail (inner resizable group) */}

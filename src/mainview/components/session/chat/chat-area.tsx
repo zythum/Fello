@@ -426,7 +426,11 @@ export function ChatArea({ session }: { session: SessionInfo }) {
         />
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className="flex-1 w-full transform-gpu">
+      <ScrollArea
+        ref={scrollAreaRef}
+        className="flex-1 w-full transform-gpu"
+        viewportClassName="animate-in fade-in duration-500"
+      >
         {hasMore && (
           <div className="flex items-center gap-3 px-10 py-3 max-w-5xl mx-auto">
             <div className="flex-1 border-b border-dashed border-muted-foreground/30" />

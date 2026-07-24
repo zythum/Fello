@@ -237,7 +237,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const project = storage.getProject(session.projectId);
     if (!project) throw new Error("Project does not exist");
 
-    const b = await bridgeConnect.ensureBridge(session.id, session.agentId, session.cwd);
+    let b = await bridgeConnect.ensureBridge(session.id, session.agentId, session.cwd);
 
     if (b.isSessionLoaded(session.resumeId) && !force) {
       return {
@@ -255,6 +255,16 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       sendEvent("session-changed", { session });
     }
 
+    // Force: kill the entire bridge connection and re-establish
+    if (force) {
+      if (b.isSessionLoaded(session.resumeId)) {
+        await b.closeSession(session.resumeId);
+      }
+      await bridgeConnect.killBridge(session.id);
+      await stopSessionSocketServer(session.id);
+      b = await bridgeConnect.ensureBridge(session.id, session.agentId, session.cwd);
+    }
+
     const existingSocketServer = sessionSocketServers.get(session.id);
     const socketPath = existingSocketServer
       ? existingSocketServer.socketPath
@@ -265,12 +275,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       ctx,
       mcpDeps,
     );
-
-    if (b.isSessionLoaded(session.resumeId)) {
-      console.log(`[Fello] Session ${session.resumeId} force reloading...`);
-      await b.closeSession(session.resumeId);
-      await stopSessionSocketServer(session.id);
-    }
 
     notif.addRestoring(session.id);
     let loadResult;

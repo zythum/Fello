@@ -255,7 +255,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                   return (
                     <div
                       key={feature}
-                      className={`flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 ${!isDisabled ? "cursor-default" : ""} hover:bg-accent transition-colors`}
+                      className={`flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 ${!isDisabled ? "cursor-default" : "hidden"} hover:bg-accent transition-colors`}
                       onClick={
                         !isDisabled
                           ? () =>
