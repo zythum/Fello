@@ -8,6 +8,7 @@ import type { ShareToUserModule } from "../share-to-user";
 import type { SearchModule } from "../search";
 import type { MemoryModule } from "../memory";
 import type { ImageGenerationModule } from "../image-generation";
+import type { ToolboxModule } from "../toolbox";
 
 export interface McpConfigDeps {
   skills: SkillsModule;
@@ -16,6 +17,7 @@ export interface McpConfigDeps {
   search: SearchModule;
   memory: MemoryModule;
   imageGeneration: ImageGenerationModule;
+  toolbox: ToolboxModule;
 }
 
 export function buildMcpServersConfig(
@@ -27,8 +29,27 @@ export function buildMcpServersConfig(
   const { project, socketPath, features = ALL_FEATURES } = options;
   const servers: McpServer[] = [];
 
+  // Toolbox is always loaded (not a user-configurable feature)
+  if (socketPath) {
+    servers.push(deps.toolbox.buildToolboxMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
   if (socketPath && features.includes("skills")) {
     servers.push(deps.skills.buildSkillsMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("search")) {
+    servers.push(deps.search.buildSearchMcpServer({ projectDir: project.cwd, socketPath }));
+  }
+
+  if (socketPath && features.includes("image_generation")) {
+    servers.push(
+      deps.imageGeneration.buildImageGenerationMcpServer({ projectDir: project.cwd, socketPath }),
+    );
+  }
+
+  if (socketPath && features.includes("memory")) {
+    servers.push(deps.memory.buildMemoryMcpServer({ projectDir: project.cwd, socketPath }));
   }
 
   if (socketPath && features.includes("ask_user")) {
@@ -38,20 +59,6 @@ export function buildMcpServersConfig(
   if (socketPath && features.includes("share_to_user")) {
     servers.push(
       deps.shareToUser.buildShareToUserMcpServer({ projectDir: project.cwd, socketPath }),
-    );
-  }
-
-  if (socketPath && features.includes("search")) {
-    servers.push(deps.search.buildSearchMcpServer({ projectDir: project.cwd, socketPath }));
-  }
-
-  if (socketPath && features.includes("memory")) {
-    servers.push(deps.memory.buildMemoryMcpServer({ projectDir: project.cwd, socketPath }));
-  }
-
-  if (socketPath && features.includes("image_generation")) {
-    servers.push(
-      deps.imageGeneration.buildImageGenerationMcpServer({ projectDir: project.cwd, socketPath }),
     );
   }
 

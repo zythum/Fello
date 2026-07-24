@@ -26,6 +26,7 @@ import { createInferenceModule } from "./inference";
 import { createAutomationModule } from "./automation";
 import { createMemoryModule } from "./memory";
 import { createImageGenerationModule } from "./image-generation";
+import { createToolboxModule } from "./toolbox";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -63,12 +64,13 @@ export function initBackend(
   const skills = createSkillsModule(ctx);
   const search = createSearchModule(ctx);
   const watcher = createWatcherModule(ctx);
+  const toolbox = createToolboxModule(ctx);
 
   // ── Layer 2: bridge connect (needs askUser) ──
   const bridgeConnect = createBridgeConnectModule(ctx, { askUser });
 
   // ── Layer 3: inference + memory (inference standalone, memory needs inference) ──
-  const _inference = createInferenceModule(ctx, { skills, search });
+  const _inference = createInferenceModule(ctx, { skills, search, toolbox });
   const memory = createMemoryModule(ctx, { inference: _inference });
   const imageGeneration = createImageGenerationModule(ctx, { ilink: ilink.state });
 
@@ -81,6 +83,7 @@ export function initBackend(
     search,
     memory,
     imageGeneration,
+    toolbox,
     ilink: ilink.state,
   });
   const project = createProjectModule(ctx, { session, watcher });

@@ -17,12 +17,12 @@ export function isImageMimeType(mimeType?: string): boolean {
 
 /** 所有可用的 feature 列表，也作为默认值 */
 export const ALL_FEATURES: Feature[] = [
-  "search",
   "skills",
+  "search",
+  "image_generation",
+  "memory",
   "ask_user",
   "share_to_user",
-  "memory",
-  "image_generation",
 ];
 
 /** feature → i18n key 映射 */

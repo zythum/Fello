@@ -28,6 +28,7 @@ import { buildMcpServersConfig, type McpConfigDeps } from "./mcp-config";
 import { createNotificationHandler } from "./notifications";
 import type { IlinkState } from "../ilink";
 import type { ImageGenerationModule } from "../image-generation";
+import type { ToolboxModule } from "../toolbox";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ export interface SessionDeps {
   search: SearchModule;
   memory: MemoryModule;
   imageGeneration: ImageGenerationModule;
+  toolbox: ToolboxModule;
   ilink: IlinkState;
 }
 
@@ -97,10 +99,19 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     search,
     memory,
     imageGeneration,
+    toolbox,
     ilink: ilinkState,
   } = deps;
 
-  const mcpDeps: McpConfigDeps = { skills, askUser, shareToUser, search, memory, imageGeneration };
+  const mcpDeps: McpConfigDeps = {
+    skills,
+    askUser,
+    shareToUser,
+    search,
+    memory,
+    imageGeneration,
+    toolbox,
+  };
   const notif = createNotificationHandler(ctx, { ilink: ilinkState });
 
   // Wire broadcastAndSaveSessionUpdate into bridgeConnect
@@ -124,12 +135,13 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       sessionSocketServers.delete(sessionId);
     }
     const server = await startSocketServer(options.socketPath);
-    askUser.registerAskUserRoute(server, sessionId);
+    toolbox.registerToolboxRoute(server, options.project.cwd);
     skills.registerSkillsRoute(server, options.project.cwd);
-    shareToUser.registerShareToUserRoute(server, sessionId);
     search.registerSearchRoute(server, options.project.cwd);
     imageGeneration.registerImageGenerationRoute(server, sessionId);
     memory.registerMemoryRoute(server, options.project.id, sessionId);
+    askUser.registerAskUserRoute(server, sessionId);
+    shareToUser.registerShareToUserRoute(server, sessionId);
     sessionSocketServers.set(sessionId, server);
     return server;
   }

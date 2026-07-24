@@ -1,10 +1,12 @@
 import { randomUUID } from "crypto";
 import { streamText, isStepCount, type ToolSet } from "ai";
+import type { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentClientProxy } from "./agent-client-proxy";
 import type { AddonSessionUpdate, SubagentStatus } from "../shared/schema";
 import { createACPClientTools, closeACPClientTools } from "./acp-client-tools";
+import { createImageAnalysisTool } from "./image-tools";
 import type { ToolPermissionMemory } from "./permission";
 
 // ---------------------------------------------------------------------------
@@ -19,9 +21,7 @@ export type SubagentToolParams = {
   /** Get the current ACP connection */
   getConnection: () => AgentClientProxy | null;
   /** Get the AI model instance */
-  getModel: () => ReturnType<
-    ReturnType<typeof import("@ai-sdk/openai-compatible").createOpenAICompatible>["chatModel"]
-  >;
+  getModel: () => ReturnType<ReturnType<typeof createOpenAICompatible>["chatModel"]>;
   /** System prompt for subagents */
   systemPrompt: string;
   /** Shared permission memory so subagents respect "always allow" choices */
@@ -148,6 +148,14 @@ async function executeSubagent(
     permissionMemory: params.permissionMemory,
   });
 
+  const subImageAnalysis = createImageAnalysisTool({
+    sessionId: subSessionId,
+    cwd: params.cwd,
+    getConnection: proxyGetConnection,
+    getModel: params.getModel,
+    parentSignal: signal,
+  });
+
   let accumulatedText = "";
 
   try {
@@ -157,6 +165,7 @@ async function executeSubagent(
       prompt: taskPrompt,
       tools: {
         ...subAcp.tools,
+        ...subImageAnalysis,
       },
       stopWhen: isStepCount(64),
       abortSignal: signal,

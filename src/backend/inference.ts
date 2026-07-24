@@ -19,6 +19,7 @@ import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import { startSocketServer, generateSocketPath, type SocketServer } from "./socket-server";
 import type { SkillsModule } from "./skills";
 import type { SearchModule } from "./search";
+import type { ToolboxModule } from "./toolbox";
 import type { BackendContext } from "./types";
 import type { Feature } from "../shared/schema";
 
@@ -53,7 +54,7 @@ export interface InferenceModule {
 
 export function createInferenceModule(
   _ctx: BackendContext,
-  deps: { skills: SkillsModule; search: SearchModule },
+  deps: { skills: SkillsModule; search: SearchModule; toolbox: ToolboxModule },
 ): InferenceModule {
   async function runInference(req: InferenceRequest): Promise<InferenceResult> {
     const {
@@ -104,10 +105,14 @@ export function createInferenceModule(
       const mcpServers: McpServer[] = [...(req.mcpServers ?? [])];
 
       // Set up built-in feature MCP servers based on features[]
-      if (features.length > 0) {
+      {
         const socketPath = generateSocketPath(`inf-${randomUUID()}`);
         const socketServer = await startSocketServer(socketPath);
         servers.push(socketServer);
+
+        // Toolbox is always loaded (not a user-configurable feature)
+        deps.toolbox.registerToolboxRoute(socketServer, cwd);
+        mcpServers.push(deps.toolbox.buildToolboxMcpServer({ projectDir: cwd, socketPath }));
 
         if (features.includes("skills")) {
           deps.skills.registerSkillsRoute(socketServer, cwd);

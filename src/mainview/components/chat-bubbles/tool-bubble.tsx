@@ -411,9 +411,14 @@ function ShareToUserBubble({
             <ImageIcon className="size-5 text-sky-500" />
           </ItemMedia>
           <ItemContent>
-            <ItemTitle className="text-xs">{name}</ItemTitle>
+            <ItemTitle className="text-xs">
+              {name}
+            </ItemTitle>
           </ItemContent>
           <ItemActions className="gap-0">
+            <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground mr-2">
+              {t("constant.feature.shareToUser")}
+            </span>
             {previewButton}
             {menuActions}
           </ItemActions>
@@ -442,10 +447,15 @@ function ShareToUserBubble({
         <FileTypeIcon name={name} className="size-7" />
       </ItemMedia>
       <ItemContent>
-        <ItemTitle>{name}</ItemTitle>
+        <ItemTitle>
+          {name}
+        </ItemTitle>
         {mimeType && <ItemDescription className="text-xs">{mimeType}</ItemDescription>}
       </ItemContent>
       <ItemActions className="gap-0">
+        <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground mr-2">
+          {t("constant.feature.shareToUser")}
+        </span>
         {previewButton}
         {menuActions}
       </ItemActions>
@@ -525,6 +535,9 @@ function ImageGenerationBubble({
                 </ItemTitle>
               </div>
               <ItemActions className="gap-0">
+                <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground mr-2">
+                  {t("constant.feature.imageGeneration")}
+                </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={<Button variant="ghost" size="icon" className="size-7 shrink-0" />}
