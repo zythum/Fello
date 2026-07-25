@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PackageSearch, Search, Download, Loader2 } from "lucide-react";
 import { request } from "../../../backend";
@@ -43,6 +43,23 @@ export function SkillsSh() {
       .catch(console.error);
   }, []);
 
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
+      setIsLoading(true);
+      setHasSearched(true);
+      try {
+        const data = await request.searchSkillsFromSkillsSh({ query: searchQuery });
+        setResults(data);
+      } catch (error) {
+        console.error("Search failed:", error);
+        toast.error(t("skills.skillsSh.noResults"));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [t],
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.trim()) {
@@ -54,21 +71,7 @@ export function SkillsSh() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query]);
-
-  const performSearch = async (searchQuery: string) => {
-    setIsLoading(true);
-    setHasSearched(true);
-    try {
-      const data = await request.searchSkillsFromSkillsSh({ query: searchQuery });
-      setResults(data);
-    } catch (error) {
-      console.error("Search failed:", error);
-      toast.error(t("skills.skillsSh.noResults"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [query, performSearch]);
 
   const handleInstall = async (item: SearchResult) => {
     setInstallingId(item.skillId);

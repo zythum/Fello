@@ -388,29 +388,26 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     return () => document.removeEventListener("fello-scroll-to-message", handleScrollToMessage);
   }, [scrollToUserMessage]);
 
-  const getAgentText = useCallback(
-    (groupMessages: typeof renderedMessages) => {
-      const parts: string[] = [];
-      for (const msg of groupMessages) {
-        if (msg.role !== "agent_message") {
-          continue;
-        }
-        if (!("contents" in msg)) continue;
-        const contents = msg.contents;
-        if (!Array.isArray(contents)) continue;
-        for (const block of contents) {
-          if (block.type === "text") {
-            const text = block.text.trim();
-            if (text) {
-              parts.push(text);
-            }
+  const getAgentText = useCallback((groupMessages: typeof renderedMessages) => {
+    const parts: string[] = [];
+    for (const msg of groupMessages) {
+      if (msg.role !== "agent_message") {
+        continue;
+      }
+      if (!("contents" in msg)) continue;
+      const contents = msg.contents;
+      if (!Array.isArray(contents)) continue;
+      for (const block of contents) {
+        if (block.type === "text") {
+          const text = block.text.trim();
+          if (text) {
+            parts.push(text);
           }
         }
       }
-      return parts.join("\n");
-    },
-    [renderedMessages],
-  );
+    }
+    return parts.join("\n");
+  }, []);
 
   const copyText = useCallback(async (text: string) => {
     return clipboardCopyText(text);

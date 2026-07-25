@@ -154,7 +154,7 @@ export function Session({ session }: { session: SessionInfo }) {
     }
 
     void fetchHistory();
-  }, [sessionId, isCreatingSession]);
+  }, [sessionId, isCreatingSession, toast]);
 
   return (
     <main ref={setMainEl} className="flex min-w-0 flex-1 flex-col relative overflow-hidden">

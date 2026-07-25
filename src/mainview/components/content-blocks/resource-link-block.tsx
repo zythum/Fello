@@ -69,7 +69,7 @@ export const ResourceLinkBlock = memo(function ResourceLinkBlock({
         console.error("Failed to copy file", err);
       }
     }
-  }, [uri, projectId, sessionCwd, t]);
+  }, [uri, projectId, sessionCwd, t, toast]);
 
   const path = isFile ? decodeURIComponent(uri.slice(7)) : null;
   const showCopyToWorkspace =

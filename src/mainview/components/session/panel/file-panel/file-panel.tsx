@@ -704,7 +704,7 @@ export const FilePanel = memo(function FilePanel({
           });
       }
     },
-    [cwd],
+    [activeProjectId],
   );
 
   const collapseAll = useCallback(() => {
@@ -1015,7 +1015,7 @@ export const FilePanel = memo(function FilePanel({
       };
       e.target.addEventListener("dragend", cleanup);
     },
-    [selectedIds, data, t],
+    [selectedIds, data, t, cwd],
   );
 
   const readFileAsBase64 = useCallback((file: File): Promise<string> => {
@@ -1392,7 +1392,7 @@ export const FilePanel = memo(function FilePanel({
         )}
       </DropdownMenu>
     );
-  }, [gitStatus, cwd, activeProjectId, onPreviewFile]);
+  }, [gitStatus, activeProjectId, onPreviewFile]);
 
   const getSelectedFolder = (): string | null => {
     if (selectedIds.size !== 1) return null;

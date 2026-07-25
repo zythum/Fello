@@ -99,7 +99,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setFeatures(["skills"]);
       setMcpServerIds(enabledMcpServers.map((s) => s.id));
     }
-  }, [schedule, open]);
+  }, [schedule, open, enabledMcpServers, enabledAgents]);
 
   const handleSave = async () => {
     if (!name.trim())

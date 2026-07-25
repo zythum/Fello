@@ -141,7 +141,7 @@ export function Sidebar() {
         completedAtTimerRef.current = null;
       }
     };
-  }, [activeSessionId, sessionStates]);
+  }, [activeSessionId, sessionStates, sessions]);
 
   const enabledAgents = useMemo(
     () => configuredAgents.filter((a) => !a.disabled),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionAskUserRequests } from "../../../lib/session-selectors";
 import * as backend from "../../../backend";
@@ -44,7 +44,7 @@ export function AskUserDialog({ sessionId }: Props) {
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [askUserRequests, askUserRequests?.length, activeIndex]);
+  }, [askUserRequests, askUserRequests?.length, activeIndex, animState]);
 
   const currentRequest = askUserRequests ? askUserRequests[activeIndex] : null;
 
@@ -142,16 +142,19 @@ function AskUserOptions({
   const [inputValue, setInputValue] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
-  const handleSelectOption = (value: string) => {
-    backend.request
-      .respondAskUser({
-        sessionId: request.sessionId,
-        askUserId: request.askUserId,
-        value,
-      })
-      .catch(() => {})
-      .then(() => onResolved());
-  };
+  const handleSelectOption = useCallback(
+    (value: string) => {
+      backend.request
+        .respondAskUser({
+          sessionId: request.sessionId,
+          askUserId: request.askUserId,
+          value,
+        })
+        .catch(() => {})
+        .then(() => onResolved());
+    },
+    [request, onResolved],
+  );
 
   // 数字键快捷键选择选项（仅在选项模式且无输入框聚焦时触发）
   useEffect(() => {
@@ -172,7 +175,7 @@ function AskUserOptions({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [mode, hasOptions, request.options]);
+  }, [mode, hasOptions, request.options, handleSelectOption]);
 
   // 否则作为自定义回复
   const handleSubmitInput = () => {

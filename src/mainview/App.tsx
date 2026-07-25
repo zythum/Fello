@@ -115,9 +115,15 @@ function AppContent() {
     setTheme,
     setI18n,
     i18n,
+    setEditor,
+    setSnippets,
+    setImageGeneration,
+    setIlinkStatus,
+    setActiveIlinkSessionId,
   ]);
 
   useEffect(() => {
+    const map = pendingSessionNotificationRef.current;
     const flushPendingSessioNotificationss = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
@@ -450,9 +456,9 @@ function AppContent() {
         cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
         sessionUpdateFlushRafIdRef.current = null;
       }
-      pendingSessionNotificationRef.current.clear();
+      map.clear();
     };
-  }, [isMacApp]);
+  }, [isMacApp, setIsFullScreen, toast, t, navigate]);
 
   if (!isReady) {
     return null; // Don't render anything until initial data and theme are loaded

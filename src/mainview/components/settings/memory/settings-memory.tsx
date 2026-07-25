@@ -9,11 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, Trash2, FolderOpen, ChevronRight } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface MemoryEntry {
   weight: number;
@@ -215,9 +211,7 @@ export function SettingsMemory() {
                         <span className="font-medium uppercase">
                           {t("settings.memory.entries", "Entries")}
                         </span>
-                        <span className="text-muted-foreground/60">
-                          ({pm.entries.length})
-                        </span>
+                        <span className="text-muted-foreground/60">({pm.entries.length})</span>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="divide-y divide-border border-t border-border">

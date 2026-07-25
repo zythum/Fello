@@ -177,7 +177,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const { addMessage, updateSession } = useAppStore();
   const snippets = useAppStore((s) => s.snippets);
   const isStreaming = session.isStreaming;
-  const availableModels = session.models?.availableModels ?? [];
+  const availableModels = useMemo(
+    () => session.models?.availableModels ?? [],
+    [session.models?.availableModels],
+  );
   const currentModelId = session.models?.currentModelId ?? null;
 
   // Group models by prefix (e.g. "openai/gpt-4o" → group "openai")
@@ -605,7 +608,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       updateSession({ ...session, isStreaming: false });
     }
-  }, [session, isStreaming, addMessage, localInput]);
+  }, [session, isStreaming, addMessage, localInput, updateSessionState, t, toast, updateSession]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -732,30 +735,32 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         // ignore malformed data
       }
     },
-    [initializeInfo?.agentCapabilities?.promptCapabilities, session.projectId],
+    [
+      initializeInfo?.agentCapabilities?.promptCapabilities,
+      session.projectId,
+      session.cwd,
+      updateSessionState,
+    ],
   );
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent) => {
-      // Must always preventDefault on dragover to allow drop
-      if (
-        e.dataTransfer.types.includes("application/x-fello-tree-nodes") ||
-        e.dataTransfer.types.includes("Files") ||
-        e.dataTransfer.types.includes("text/uri-list")
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = "copy";
-        // Clear any pending drag-leave timeout (child→child transitions fire leave+enter)
-        if (dragLeaveTimer.current) {
-          clearTimeout(dragLeaveTimer.current);
-          dragLeaveTimer.current = null;
-        }
-        setIsDragOver(true);
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    // Must always preventDefault on dragover to allow drop
+    if (
+      e.dataTransfer.types.includes("application/x-fello-tree-nodes") ||
+      e.dataTransfer.types.includes("Files") ||
+      e.dataTransfer.types.includes("text/uri-list")
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      // Clear any pending drag-leave timeout (child→child transitions fire leave+enter)
+      if (dragLeaveTimer.current) {
+        clearTimeout(dragLeaveTimer.current);
+        dragLeaveTimer.current = null;
       }
-    },
-    [initializeInfo?.agentCapabilities?.promptCapabilities],
-  );
+      setIsDragOver(true);
+    }
+  }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -922,7 +927,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         })();
       }
     },
-    [session, initializeInfo?.agentCapabilities?.promptCapabilities],
+    [session, initializeInfo?.agentCapabilities?.promptCapabilities, updateSessionState],
   );
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
 import { useTranslation } from "react-i18next";
@@ -28,7 +28,7 @@ export function SkillsInstalled() {
   const [skillContent, setSkillContent] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const fetchSkills = async () => {
+  const fetchSkills = useCallback(async () => {
     setIsLoading(true);
     try {
       const catalog = await request.getSkillsCatalog({ all: true });
@@ -38,11 +38,11 @@ export function SkillsInstalled() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t, toast]);
 
   useEffect(() => {
     fetchSkills();
-  }, []);
+  }, [fetchSkills]);
 
   const groups = useMemo(() => {
     const grouped: Record<string, SkillInfo[]> = {

@@ -50,14 +50,6 @@ export function CodeView({ className, content, filename, lang, addLineToChat }: 
     };
   }, []);
 
-  if (!highlighterReady) {
-    return (
-      <div className={cn("text-sm text-muted-foreground mt-10 text-center", className)}>
-        {t("fileDetail.loading")}
-      </div>
-    );
-  }
-
   const onGutterUtilityClick = useCallback(
     (range: SelectedLineRange) => {
       if (addLineToChat && filename) {
@@ -73,6 +65,14 @@ export function CodeView({ className, content, filename, lang, addLineToChat }: 
     },
     [addLineToChat, filename],
   );
+
+  if (!highlighterReady) {
+    return (
+      <div className={cn("text-sm text-muted-foreground mt-10 text-center", className)}>
+        {t("fileDetail.loading")}
+      </div>
+    );
+  }
 
   return (
     <File

@@ -84,6 +84,22 @@ export function CodeCompareView({
     [oldContent, newContent, filename],
   );
 
+  const onGutterUtilityClick = useCallback(
+    (range: SelectedLineRange) => {
+      if (addLineToChat && filename) {
+        const position =
+          range.start === range.end ? `:${range.start}` : `:${range.start}-${range.end}`;
+
+        document.dispatchEvent(
+          new CustomEvent("fello-add-to-chat", {
+            detail: [{ id: filename, name: filename + position, isFolder: false }],
+          }),
+        );
+      }
+    },
+    [addLineToChat, filename],
+  );
+
   // While Shiki is still loading, render a minimal placeholder
   // so the collapsible panel has content height.
   if (!highlighterReady) {
@@ -101,22 +117,6 @@ export function CodeCompareView({
       </div>
     );
   }
-
-  const onGutterUtilityClick = useCallback(
-    (range: SelectedLineRange) => {
-      if (addLineToChat && filename) {
-        const position =
-          range.start === range.end ? `:${range.start}` : `:${range.start}-${range.end}`;
-
-        document.dispatchEvent(
-          new CustomEvent("fello-add-to-chat", {
-            detail: [{ id: filename, name: filename + position, isFolder: false }],
-          }),
-        );
-      }
-    },
-    [addLineToChat, filename],
-  );
 
   return (
     <FileDiff

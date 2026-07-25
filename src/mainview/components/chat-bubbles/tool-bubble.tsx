@@ -359,7 +359,7 @@ function ShareToUserBubble({
     a.href = url;
     a.download = name;
     a.click();
-  }, [session]);
+  }, [session, name, sharePath]);
 
   const previewButton = isProject ? (
     <Button
@@ -590,7 +590,7 @@ export function ToolBubble({
   message,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<ToolCallMessage>) {
-  const felloTool = useMemo(() => parseFelloTools(message), [message.content]);
+  const felloTool = useMemo(() => parseFelloTools(message), [message]);
 
   if (felloTool?.type === "shareToUser") {
     return <ShareToUserBubble session={session} respond={felloTool.respond} />;
