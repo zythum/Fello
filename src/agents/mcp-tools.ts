@@ -129,7 +129,7 @@ export async function createMCPSessionTools(
       for (const [toolName, toolDef] of Object.entries(serverTools)) {
         const qualifiedName = `mcp_${prefix}__${toolName}`;
         const details = definitionsByName.get(toolName);
-        const title = details?.title || `${server.name}: ${toolName}`;
+        const title = details?.title || `Running: @${server.name}/${toolName}`;
         const kind = inferToolKind(toolName);
 
         if (typeof toolDef.execute !== "function") {
