@@ -61,6 +61,7 @@ export interface SessionModule {
   cancelPrompt: (params: { sessionId: string }) => Promise<void>;
   updateSession: (params: { sessionId: string; [key: string]: unknown }) => Promise<void>;
   changeWorkDir: () => Promise<{ ok: boolean; cwd: null }>;
+  closeSession: (params: { sessionId: string }) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   getSessionDataSystemPath: (params: { sessionId: string }) => string | null;
   resetAgentSessions: (agentId: string) => Promise<number>;
@@ -229,7 +230,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   const sessionLoadPromiseMap = new Map<string, ReturnType<typeof _loadSession>>();
+  const closingSessionIds = new Set<string>();
   async function loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
+    if (closingSessionIds.has(sessionId)) throw new Error("Session is closing");
     const last = sessionLoadPromiseMap.get(sessionId);
     if (last) {
       if (force) throw new Error("Session is already loading");
@@ -563,6 +566,50 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     return { ok: false, cwd: null };
   }
 
+  async function closeSession({ sessionId }: { sessionId: string }) {
+    const session = storage.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    if (closingSessionIds.has(sessionId)) return;
+
+    closingSessionIds.add(sessionId);
+    try {
+      // Finish an in-flight load before closing, so it cannot recreate the bridge afterwards.
+      const loading = sessionLoadPromiseMap.get(sessionId);
+      if (loading) {
+        try {
+          await loading;
+        } catch {
+          // A failed load still needs its bridge and socket resources cleaned up.
+        }
+      }
+
+      try {
+        await cancelPrompt({ sessionId });
+      } catch (error) {
+        console.warn(
+          `[backend] Failed to cancel prompt before closing ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      const connectPromise = bridgeConnect.bridges.get(sessionId);
+      if (connectPromise) {
+        try {
+          const bridge = await connectPromise;
+          await bridge.closeSession(session.resumeId);
+        } catch (error) {
+          console.warn(
+            `[backend] Failed to close session on agent for ${session.agentId}:${session.resumeId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    } finally {
+      storage.updateSession(sessionId, { isStreaming: false }, false);
+      stopSessionSocketServer(sessionId);
+      await bridgeConnect.killBridge(sessionId);
+      closingSessionIds.delete(sessionId);
+    }
+  }
+
   async function deleteSession(sessionId: string) {
     const session = storage.getSession(sessionId);
     if (session) {
@@ -745,6 +792,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     cancelPrompt,
     updateSession,
     changeWorkDir,
+    closeSession,
     deleteSession,
     getSessionDataSystemPath,
     resetAgentSessions,

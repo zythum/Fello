@@ -265,6 +265,9 @@ export function initBackend(
     async changeWorkDir() {
       return session.changeWorkDir();
     },
+    async closeSession({ sessionId }: { sessionId: string }) {
+      return session.closeSession({ sessionId });
+    },
     async deleteSession(sessionId: string) {
       return session.deleteSession(sessionId);
     },

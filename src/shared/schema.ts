@@ -656,6 +656,8 @@ export type FelloIPCRequests = {
     params: { url: string; mimeType?: string };
     response: string;
   };
+  /** 关闭会话及其 Agent bridge，但保留本地会话和历史记录 */
+  closeSession: { params: { sessionId: string }; response: void };
   /** 删除会话 */
   deleteSession: { params: string; response: void };
   /** 获取会话存储目录的绝对路径 */

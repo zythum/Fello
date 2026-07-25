@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useSessionUsage } from "../../../lib/session-selectors";
 import { useAppStore } from "../../../store";
-import { Settings2, ReceiptTurkishLira, Copy, Check, FolderOpen } from "lucide-react";
+import { Settings2, ReceiptTurkishLira, Copy, Check, FolderOpen, Loader2 } from "lucide-react";
 import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
@@ -26,6 +27,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ session }: ChatHeaderProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
+  const navigate = useNavigate();
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
   const projects = useAppStore((s) => s.projects);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -39,6 +41,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   // Local state: only used while the popover is open, synced from session on open
   const [localMcpServers, setLocalMcpServers] = useState<string[]>([]);
   const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
+  const [isClosing, setIsClosing] = useState(false);
 
   const handleToggle = useCallback((mcpId: string) => {
     setLocalMcpServers((prev) =>
@@ -109,6 +112,22 @@ export function ChatHeader({ session }: ChatHeaderProps) {
       toast.error(message);
     } finally {
       useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: false }));
+    }
+  };
+
+  const handleCloseSession = async () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    try {
+      await request.closeSession({ sessionId: session.id });
+      navigate("/");
+    } catch (err) {
+      console.error("Failed to close session:", err);
+      toast.error(
+        extractErrorMessage(err) || t("chatHeader.failedToCloseSession", "Failed to close session."),
+      );
+    } finally {
+      setIsClosing(false);
     }
   };
 
@@ -252,14 +271,30 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                   </>
                 )}
 
-                {/* 重启会话：始终可点，清空 store 缓存并从 backend 重新拉取 */}
-                <Button
-                  size="xs"
-                  className="flex w-full items-center gap-2 h-7 mt-1 text-xs font-normal"
-                  onClick={handleSyncAndRefresh}
-                >
-                  <span>{t("chatHeader.refresh", "Restart Session")}</span>
-                </Button>
+                <div className="mt-1 flex gap-1">
+                  <Button
+                    size="xs"
+                    className="flex flex-[3] items-center gap-2 h-7 text-xs font-normal"
+                    onClick={handleSyncAndRefresh}
+                    disabled={isClosing}
+                  >
+                    <span>{t("chatHeader.refresh", "Restart Session")}</span>
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    className="flex flex-1 items-center gap-1.5 h-7 text-xs font-normal"
+                    onClick={handleCloseSession}
+                    disabled={isClosing}
+                  >
+                    {isClosing && <Loader2 className="size-3 animate-spin" />}
+                    <span>
+                      {isClosing
+                        ? t("chatHeader.closingSession", "Closing…")
+                        : t("chatHeader.closeSession", "Close Session")}
+                    </span>
+                  </Button>
+                </div>
               </PopoverPrimitive.Popup>
             </PopoverPrimitive.Positioner>
           </PopoverPrimitive.Portal>
