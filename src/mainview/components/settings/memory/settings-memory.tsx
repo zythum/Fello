@@ -6,9 +6,14 @@ import { request } from "../../../backend";
 import { electron } from "../../../electron";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RefreshCw, Trash2, FolderOpen } from "lucide-react";
+import { RefreshCw, Trash2, FolderOpen, ChevronRight } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 
 interface MemoryEntry {
   weight: number;
@@ -21,6 +26,7 @@ interface ProjectMemory {
   projectId: string;
   projectTitle: string;
   entries: MemoryEntry[] | null;
+  summary?: string;
 }
 
 export function SettingsMemory() {
@@ -41,12 +47,14 @@ export function SettingsMemory() {
             projectId: project.id,
             projectTitle: project.title,
             entries: data?.entries ?? null,
+            summary: data?.summary,
           });
         } catch {
           results.push({
             projectId: project.id,
             projectTitle: project.title,
             entries: null,
+            summary: undefined,
           });
         }
       }
@@ -191,34 +199,59 @@ export function SettingsMemory() {
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {pm.entries.map((entry, idx) => (
-                      <div key={idx} className="flex items-start gap-3 px-4 py-2 text-xs">
-                        <div
-                          className={`w-4 text-center shrink-0 font-mono font-medium ${weightColor(entry.weight)}`}
-                          aria-label={weightLabel(entry.weight)}
-                        >
-                          <span>+{entry.weight}</span>
+                    {pm.summary && (
+                      <div className="px-4 py-2.5 bg-muted/20">
+                        <div className="text-[10px] font-medium uppercase text-foreground/40 mb-1">
+                          {t("settings.memory.summary", "Summary")}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-foreground/80">{entry.text}</div>
-                          <div className="flex mt-2 items-center">
-                            <div className="shrink-0 flex gap-1 flex-1">
-                              {entry.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                            <div className="shrink-0 text-muted-foreground/80 text-[10px]">
-                              <span>{entry.date}</span>
-                            </div>
-                          </div>
+                        <div className="text-xs text-foreground/70 whitespace-pre-wrap leading-relaxed">
+                          {pm.summary}
                         </div>
                       </div>
-                    ))}
+                    )}
+                    <Collapsible>
+                      <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-foreground/50 hover:bg-muted/30 [&[data-panel-open]_svg]:rotate-90">
+                        <ChevronRight className="size-3 transition-transform -ml-1" />
+                        <span className="font-medium uppercase">
+                          {t("settings.memory.entries", "Entries")}
+                        </span>
+                        <span className="text-muted-foreground/60">
+                          ({pm.entries.length})
+                        </span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="divide-y divide-border border-t border-border">
+                          {pm.entries.map((entry, idx) => (
+                            <div key={idx} className="flex items-start gap-3 px-4 py-2 text-xs">
+                              <div
+                                className={`w-4 text-center shrink-0 font-mono font-medium ${weightColor(entry.weight)}`}
+                                aria-label={weightLabel(entry.weight)}
+                              >
+                                <span>+{entry.weight}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-foreground/80">{entry.text}</div>
+                                <div className="flex mt-2 items-center">
+                                  <div className="shrink-0 flex gap-1 flex-1">
+                                    {entry.tags.map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="shrink-0 text-muted-foreground/80 text-[10px]">
+                                    <span>{entry.date}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
                 )}
               </div>

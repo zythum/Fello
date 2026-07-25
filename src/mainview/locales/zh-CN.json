@@ -319,7 +319,9 @@
       "revealFailed": "显示文件失败。",
       "noFile": "未找到记忆文件。",
       "noProjects": "未找到项目。",
-      "empty": "暂无记忆。"
+      "empty": "暂无记忆。",
+      "summary": "概要",
+      "entries": "条目"
     },
     "imageGeneration": {
       "title": "图片生成",

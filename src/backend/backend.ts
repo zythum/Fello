@@ -485,7 +485,7 @@ export function initBackend(
 
     // Memory
     async getMemory({ projectId }: { projectId: string }) {
-      return memory.getEntries(projectId);
+      return memory.getMemory(projectId);
     },
     async clearMemory({ projectId }: { projectId: string }) {
       memory.clearMemory(projectId);

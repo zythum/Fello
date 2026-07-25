@@ -62,8 +62,9 @@ server.registerTool(
   "memo_save",
   {
     description: `Save the complete organized memory content as a JSON string. This replaces the entire memory file.
-The JSON must be an object with: { "version": 1, "entries": [...] }
+The JSON must be an object with: { "version": 1, "entries": [...], "summary": "..." }
 Each entry has fields: weight (number), text (string), date (string), tags (string[]).
+The "summary" field is a concise Markdown overview of important entries, grouped by category. Include it only if there are notable entries worth summarizing.
 Entries must be sorted by weight descending. You MUST include all entries you want to keep.`,
     inputSchema: memoSaveRequestSchema,
   },

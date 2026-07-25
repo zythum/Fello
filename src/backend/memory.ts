@@ -8,7 +8,8 @@
  * - Per-project write queue ensures atomic operations
  * - memory.json lives at ~/.fello/projects/<project_id>/memory.json
  *
- * Storage format: JSON array of { weight, text, date, tags } sorted by weight desc.
+ * Storage format: JSON object of { version, entries: [{ weight, text, date, tags }], summary? }
+ *   sorted by weight desc. Summary is LLM-generated Markdown, grouped by category.
  */
 
 import { join } from "path";
@@ -52,32 +53,36 @@ function getMemoryPath(projectId: string): string {
   return join(PROJECTS_DIR, projectId, MEMORY_FILENAME);
 }
 
-function readMemoryEntries(projectId: string): MemoryEntry[] {
+function readMemoryFile(projectId: string): MemoryFile {
   const memoryPath = getMemoryPath(projectId);
-  if (!existsSync(memoryPath)) return [];
+  if (!existsSync(memoryPath)) return { version: MEMORY_FILE_VERSION, entries: [] };
   try {
     const raw = readFileSync(memoryPath, "utf-8");
     const parsed = JSON.parse(raw);
-    const file = memoryFileSchema.parse(parsed);
-    return file.entries;
+    return memoryFileSchema.parse(parsed);
   } catch {
-    return [];
+    return { version: MEMORY_FILE_VERSION, entries: [] };
   }
 }
 
-function writeMemoryEntries(projectId: string, entries: MemoryEntry[]): void {
+function writeMemoryFile(projectId: string, file: MemoryFile): void {
   const dir = join(PROJECTS_DIR, projectId);
   mkdirSync(dir, { recursive: true });
   // Sort by weight desc; within the same weight, newest date first —
   // so capping evicts lowest-weight + oldest entries first.
-  const sorted = [...entries].sort((a, b) => {
+  const sorted = [...file.entries].sort((a, b) => {
     if (b.weight !== a.weight) return b.weight - a.weight;
     return b.date.localeCompare(a.date);
   });
   // Enforce max entries
   const capped = sorted.slice(0, MAX_ENTRIES);
-  const file: MemoryFile = { version: MEMORY_FILE_VERSION, entries: capped };
-  writeFileSync(getMemoryPath(projectId), JSON.stringify(file, null, 2), "utf-8");
+  const outFile: MemoryFile = {
+    version: MEMORY_FILE_VERSION,
+    entries: capped,
+    // Preserve summary if present (undefined → omitted by JSON.stringify)
+    summary: file.summary,
+  };
+  writeFileSync(getMemoryPath(projectId), JSON.stringify(outFile, null, 2), "utf-8");
 }
 
 /** Serialize entries to a human-readable text format for prompt injection */
@@ -120,14 +125,16 @@ function buildMemoWritePrompt(newFacts: { text: string; reason?: string }[]): st
 
 ## Storage Format
 
-The memory file is a JSON object with this structure:
+The memory file is a JSON object in this format (example):
 
 \`\`\`json
 {
   "version": 1,
   "entries": [
-    { "weight": 3, "text": "The fact to remember", "date": "YYYY-MM-DD", "tags": ["category"] }
-  ]
+    { "weight": 3, "text": "Always use npm run (not pnpm) to execute project scripts", "date": "2025-01-15", "tags": ["commands", "preferences"] },
+    { "weight": 2, "text": "Run typecheck + lint after changes, do not run format", "date": "2025-01-15", "tags": ["commands"] }
+  ],
+  "summary": "## Preferences\\n- **Always use npm run** (not pnpm)\\n\\n## Commands\\n- Run typecheck + lint after changes"
 }
 \`\`\`
 
@@ -138,12 +145,24 @@ The memory file is a JSON object with this structure:
   - **text**: Concise fact, under 100 characters when possible. Self-contained.
   - **date**: Today's date for new/updated entries: ${today}
   - **tags**: One or more from: preferences, architecture, commands, corrections, context
+- **summary**: A concise Markdown overview of important entries, grouped by category. Injected into tool description as a quick briefing for agents — keep it to highlights, not exhaustive detail. For specifics, agents should use memory_query.
 
 ## Weight Assignment
 Ask yourself: "Would knowing this change how I work on this project?"
 - 3: Must-follow rules. Violating these causes friction. Signals: user corrected you, or used "always"/"never"/"一定"/"必须". When in doubt, don't use 3.
 - 2: Yes — knowing this changes what I would do. Examples: which command to run, which style to follow, how to structure code.
 - 1: No — informative but doesn't change my actions. Includes deferred decisions ("先观察", "后续再定"). When in doubt between 1 and 2, choose 1.
+
+## Summary Generation
+Generate or update the "summary" field as a brief briefing of what matters most in this project:
+- Pick the entries you deem important — there is no strict weight threshold
+- Group related entries under headings. Common groups: **Preferences**, **Architecture**, **Commands**, **Corrections**, **Context** — but feel free to use any heading that fits
+- Every important entry must appear in the summary — if one doesn't fit a named group, put it under a **General** or appropriate heading
+- Use bullet points (- ...) within each group
+- Bold (**...**) must-follow rules to make them stand out
+- Aim for 300-800 characters — concise, not exhaustive
+- Preserve the original language of each fact (don't translate)
+- If nothing is worth summarizing, omit the field
 
 ## Your Task
 1. Call memo_get_current() to read current memory
@@ -161,8 +180,9 @@ ${factsFormatted}
    - Remove outdated/negated entries entirely
    - Keep total entries ≤ 50
    - If over 50: remove lowest weight + oldest date first
-6. Call memo_save(content) with the COMPLETE JSON object as a string
-   - Must include "version": 1 and "entries" array
+6. Generate/update the "summary" field per "Summary Generation" above
+7. Call memo_save(content) with the COMPLETE JSON object as a string
+   - Must include "version": 1, "entries" array, and "summary" field if applicable
    - Entries must be sorted by weight descending
    - Output valid JSON only — no markdown fences, no explanation
 
@@ -217,10 +237,8 @@ export interface MemoryModule {
     args: string[];
     env: { name: string; value: string }[];
   };
-  /** Get memory summary for system prompt injection */
-  getMemorySummary: (projectId: string) => string;
-  /** Get all memory entries for a project (for UI display) */
-  getEntries: (projectId: string) => { version: number; entries: MemoryEntry[] } | null;
+  /** Get full memory file (entries + summary) for a project (for UI display) */
+  getMemory: (projectId: string) => MemoryFile | null;
   /** Clear all memory for a project (delete the file) */
   clearMemory: (projectId: string) => void;
   /** Get the file system path of memory.json for a project */
@@ -263,25 +281,24 @@ export function createMemoryModule(
 
       // Always register read route
       memoSocketServer.registry("memo/read", async () => {
-        const entries = readMemoryEntries(projectId);
-        const file: MemoryFile = { version: MEMORY_FILE_VERSION, entries };
+        const file = readMemoryFile(projectId);
         return { content: JSON.stringify(file, null, 2) };
       });
 
       // Always register touch route (updates date of accessed entries)
       memoSocketServer.registry("memo/touch", async (payload) => {
         const { indices } = memoTouchRequestSchema.parse(payload);
-        const entries = readMemoryEntries(projectId);
+        const file = readMemoryFile(projectId);
         const today = new Date().toISOString().slice(0, 10);
         let touched = 0;
         for (const idx of indices) {
-          if (idx >= 0 && idx < entries.length) {
-            entries[idx].date = today;
+          if (idx >= 0 && idx < file.entries.length) {
+            file.entries[idx].date = today;
             touched++;
           }
         }
         if (touched > 0) {
-          writeMemoryEntries(projectId, entries);
+          writeMemoryFile(projectId, file);
         }
         return { ok: true, touched };
       });
@@ -292,7 +309,7 @@ export function createMemoryModule(
           try {
             const { content } = memoSaveRequestSchema.parse(payload);
             const file = memoryFileSchema.parse(JSON.parse(content));
-            writeMemoryEntries(projectId, file.entries);
+            writeMemoryFile(projectId, file);
             return { ok: true, entries: file.entries.length };
           } catch (err: any) {
             console.warn("[memory] memo_save received invalid JSON:", err.message);
@@ -353,9 +370,9 @@ export function createMemoryModule(
     // memory_query: use Memo Inference Agent for semantic retrieval
     server.registry("memory/query", async (payload) => {
       const { query } = memoryQueryRequestSchema.parse(payload);
-      const entries = readMemoryEntries(projectId);
+      const file = readMemoryFile(projectId);
 
-      if (entries.length === 0) {
+      if (file.entries.length === 0) {
         return { content: "(no project memories stored yet)" };
       }
 
@@ -429,23 +446,26 @@ export function createMemoryModule(
   // ── System Prompt Summary ───────────────────────────────────────────
 
   function getMemorySummary(projectId: string): string {
-    const entries = readMemoryEntries(projectId);
-    if (entries.length === 0) return "";
+    const file = readMemoryFile(projectId);
+    if (file.entries.length === 0) return "";
 
-    // File is already sorted by weight desc, just take top N
-    const top = entries.slice(0, SUMMARY_MAX_ENTRIES);
+    // Use LLM-generated summary if available; otherwise fall back to extraction
+    if (file.summary) return file.summary;
+
+    // Fallback: top N entries by weight (file is already sorted)
+    const top = file.entries.slice(0, SUMMARY_MAX_ENTRIES);
     return entriesToText(top);
   }
 
   // ── UI Helpers ───────────────────────────────────────────────────────
 
-  function getEntries(projectId: string): { version: number; entries: MemoryEntry[] } | null {
-    const entries = readMemoryEntries(projectId);
-    if (entries.length === 0) {
+  function getMemory(projectId: string): MemoryFile | null {
+    const file = readMemoryFile(projectId);
+    if (file.entries.length === 0) {
       const memoryPath = getMemoryPath(projectId);
       if (!existsSync(memoryPath)) return null;
     }
-    return { version: MEMORY_FILE_VERSION, entries };
+    return file;
   }
 
   function clearMemory(projectId: string): void {
@@ -463,8 +483,7 @@ export function createMemoryModule(
   return {
     registerMemoryRoute,
     buildMemoryMcpServer,
-    getMemorySummary,
-    getEntries,
+    getMemory,
     clearMemory,
     getFilePath,
   };

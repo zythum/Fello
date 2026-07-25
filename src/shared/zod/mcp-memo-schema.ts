@@ -23,6 +23,13 @@ export type MemoryEntry = z.infer<typeof memoryEntrySchema>;
 export const memoryFileSchema = z.object({
   version: z.number().int().describe("Schema version for future migration"),
   entries: z.array(memoryEntrySchema).describe("Memory entries sorted by weight descending"),
+  summary: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe(
+      "LLM-generated Markdown summary of all entries, grouped by category. Used for system prompt injection.",
+    ),
 });
 
 export type MemoryFile = z.infer<typeof memoryFileSchema>;
