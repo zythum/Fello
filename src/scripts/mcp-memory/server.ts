@@ -89,10 +89,19 @@ server.registerTool(
   {
     description: `Store facts into persistent project memory for future sessions.
 
-Use this when:
-- The user states a preference or corrects your behavior
-- You discover a project convention or architectural decision
-- The user explicitly asks you to remember something
+Proactively store facts worth remembering for future sessions. Common triggers:
+- User states a preference, makes a choice, or corrects your behavior (even subtly)
+- You discover a project convention, tech stack detail, or architectural decision
+- User emphasizes something with "always", "never", "remember", "一定", "不要"
+- User explicitly asks you to remember something
+
+Also store when:
+- User explains why they do something a certain way
+- User mentions a tool, framework, or library choice
+- You make a decision during the conversation that affects future work
+- User tells you to skip or avoid something
+
+When in doubt about whether to store — store it. Forgetting costs more than duplicating.
 
 Each fact should be a concise, self-contained statement. Include a reason when the context helps determine importance (e.g. if the user strongly emphasized something, or corrected you).`,
     inputSchema: memoryStoreRequestSchema,

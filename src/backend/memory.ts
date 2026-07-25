@@ -68,8 +68,12 @@ function readMemoryEntries(projectId: string): MemoryEntry[] {
 function writeMemoryEntries(projectId: string, entries: MemoryEntry[]): void {
   const dir = join(PROJECTS_DIR, projectId);
   mkdirSync(dir, { recursive: true });
-  // Sort by weight desc before writing
-  const sorted = [...entries].sort((a, b) => b.weight - a.weight);
+  // Sort by weight desc; within the same weight, newest date first —
+  // so capping evicts lowest-weight + oldest entries first.
+  const sorted = [...entries].sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    return b.date.localeCompare(a.date);
+  });
   // Enforce max entries
   const capped = sorted.slice(0, MAX_ENTRIES);
   const file: MemoryFile = { version: MEMORY_FILE_VERSION, entries: capped };
@@ -130,15 +134,16 @@ The memory file is a JSON object with this structure:
 ## Fields
 - **version**: Always 1
 - **entries**: Array sorted by weight descending. Each entry:
-  - **weight**: Priority (3=critical, 2=important, 1=general). Never use negative values in output; just remove outdated entries.
+  - **weight**: Priority (3=must-follow, 2=shapes how you work, 1=good to know). Never use negative values in output; just remove outdated entries.
   - **text**: Concise fact, under 100 characters when possible. Self-contained.
   - **date**: Today's date for new/updated entries: ${today}
   - **tags**: One or more from: preferences, architecture, commands, corrections, context
 
 ## Weight Assignment
-- 3: Critical rule. User strongly emphasized (keywords: "always", "never", "remember", "一定", "永远不要", "必须")
-- 2: Important preference or decision
-- 1: General info (default for new facts)
+Ask yourself: "Would knowing this change how I work on this project?"
+- 3: Must-follow rules. Violating these causes friction. Signals: user corrected you, or used "always"/"never"/"一定"/"必须". When in doubt, don't use 3.
+- 2: Yes — knowing this changes what I would do. Examples: which command to run, which style to follow, how to structure code.
+- 1: No — informative but doesn't change my actions. Includes deferred decisions ("先观察", "后续再定"). When in doubt between 1 and 2, choose 1.
 
 ## Your Task
 1. Call memo_get_current() to read current memory
@@ -146,9 +151,12 @@ The memory file is a JSON object with this structure:
 3. Integrate the following new facts (use the "reason" to help determine weight and tags):
 ${factsFormatted}
 4. Integration rules:
+   Make quick judgment calls — do not deliberate over borderline cases.
+   When a fact partially overlaps an existing one, merge them into one entry rather than keeping both.
    - If a new fact contradicts an existing one: remove the old, add the new
    - If a new fact reinforces an existing one: upgrade weight (max 3)
    - If a new fact is a duplicate: skip it
+   - If uncertain whether duplicate: treat as duplicate and skip
 5. Maintenance:
    - Remove outdated/negated entries entirely
    - Keep total entries ≤ 50
@@ -159,9 +167,11 @@ ${factsFormatted}
    - Output valid JSON only — no markdown fences, no explanation
 
 ## Rules
+- Think only about semantic relationship between new and existing facts (contradict/reinforce/duplicate/merge).
+  Do NOT over-analyze the "reason" field, rephrase entries for elegance, or second-guess your weight assignment.
 - Preserve the original language of each fact (don't translate)
 - You MUST call memo_save(content) — this is non-negotiable. The task is incomplete without it.
-- After memo_save() succeeds, reply briefly with the result (e.g. "Saved N entries."). No lengthy explanation needed.
+- After memo_save() succeeds, reply with exactly one line: "Saved N entries." — no reasoning, no summary of changes.
 - The content passed to memo_save must be a valid JSON object string`;
 }
 
@@ -176,6 +186,10 @@ function buildMemoQueryPrompt(query: string): string {
 3. Call memo_touch({ indices: [...] }) with the indices of all relevant entries (to mark them as active)
 4. Summarize the relevant memories in natural language, organized and easy to understand
 5. If no entries are relevant, respond with: (no relevant memories found)
+
+## Efficiency
+- This is a simple lookup. If an entry might be relevant, include it — do not agonize over relevance.
+- Read once, touch once, summarize once.
 
 ## Response Style
 - Use natural language, not raw data format
