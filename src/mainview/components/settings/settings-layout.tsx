@@ -11,10 +11,15 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "../../store";
 
 export function SettingsLayout() {
   const { t } = useTranslation();
   const location = useLocation();
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
   if (location.pathname === "/settings" || location.pathname === "/settings/") {
     return <Navigate to="/settings/general" replace />;
@@ -74,7 +79,10 @@ export function SettingsLayout() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background relative">
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center px-6"
+        className={cn(
+          "h-12 shrink-0 border-b border-border flex items-center pr-2 transition-[padding] duration-200",
+          sidebarOpen ? "pl-6" : showMacTrafficLightSpace ? "pl-27" : "pl-12",
+        )}
         style={{ WebkitAppRegion: "drag" }}
       >
         <h1 className="text-sm font-medium">{t("settings.title", "Settings")}</h1>

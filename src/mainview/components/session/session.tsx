@@ -163,7 +163,9 @@ export function Session({ session }: { session: SessionInfo }) {
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
           {connectionError && sessionConnected !== "connected" && !isCreatingSession ? (
             <>
-              <p className="text-sm font-normal text-muted-foreground">{t("session.connectionFailed")}</p>
+              <p className="text-sm font-normal text-muted-foreground">
+                {t("session.connectionFailed")}
+              </p>
               <Button
                 variant="outline"
                 size="sm"
@@ -182,7 +184,9 @@ export function Session({ session }: { session: SessionInfo }) {
           ) : (
             <>
               <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm font-normal text-muted-foreground/60">{t("session.connecting")}</p>
+              <p className="text-sm font-normal text-muted-foreground/60">
+                {t("session.connecting")}
+              </p>
             </>
           )}
         </div>

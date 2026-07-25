@@ -179,7 +179,10 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       const absPath = resolve(projectDir, imgPath);
       const outputPath = output
         ? resolve(projectDir, output)
-        : join(dirname(absPath), `${basename(absPath, extname(absPath))}.thumb${width}${extname(absPath)}`);
+        : join(
+            dirname(absPath),
+            `${basename(absPath, extname(absPath))}.thumb${width}${extname(absPath)}`,
+          );
       await sharp(absPath).resize(width).toFile(outputPath);
       const metadata = await sharp(outputPath).metadata();
       return { result: { output: outputPath, metadata: extractMetadata(metadata) } };

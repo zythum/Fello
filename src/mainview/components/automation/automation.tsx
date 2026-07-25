@@ -25,11 +25,17 @@ import {
 import { SettingDialog } from "./common/setting-dialog";
 import { Play, Settings2, Trash2, LoaderCircle, Plus, ClockCheck } from "lucide-react";
 import { useMessage } from "../providers/message";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "../../store";
 
 export function Automation() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { confirm, toast } = useMessage();
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = isMacApp && !isFullScreen;
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
@@ -136,7 +142,10 @@ export function Automation() {
     return (
       <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
         <div
-          className="h-12 shrink-0 border-b border-border flex items-center justify-between pl-4 pr-2"
+          className={cn(
+            "h-12 shrink-0 border-b border-border flex items-center justify-between pr-2 transition-[padding] duration-200",
+            sidebarOpen ? "pl-6" : showMacTrafficLightSpace ? "pl-27" : "pl-12",
+          )}
           style={{ WebkitAppRegion: "drag" as any }}
         >
           <div className="flex items-center gap-2">
@@ -163,7 +172,10 @@ export function Automation() {
     <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
       {/* Header */}
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center justify-between pl-4 pr-2"
+        className={cn(
+          "h-12 shrink-0 border-b border-border flex items-center justify-between pr-2 transition-[padding] duration-200",
+          sidebarOpen ? "pl-6" : showMacTrafficLightSpace ? "pl-27" : "pl-12",
+        )}
         style={{ WebkitAppRegion: "drag" as any }}
       >
         <div className="flex items-center gap-2">
@@ -212,7 +224,7 @@ export function Automation() {
         </div>
       ) : (
         <ScrollArea className="flex-1 overflow-hidden">
-          <div className="px-5 py-4 w-full max-w-4xl mx-auto">
+          <div className="p-4 w-full max-w-4xl mx-auto">
             <ItemGroup className="gap-0">
               {schedules.map((schedule, index) => (
                 <Fragment key={schedule.id}>

@@ -240,7 +240,10 @@ export const imageResizeRequestSchema = z.object({
     .enum(["cover", "contain", "fill", "inside", "outside"])
     .default("inside")
     .describe("How to fit the image: cover, contain, fill, inside, outside. Default: inside."),
-  output: z.string().optional().describe("Output path. If omitted, saves alongside source with '.{width}x{height}' suffix."),
+  output: z
+    .string()
+    .optional()
+    .describe("Output path. If omitted, saves alongside source with '.{width}x{height}' suffix."),
 });
 
 export const imageResizeRespondSchema = z.object({
