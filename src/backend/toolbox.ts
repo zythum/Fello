@@ -2,6 +2,7 @@ import { join, resolve, dirname, basename, extname } from "path";
 import { writeFile } from "fs/promises";
 import { createHash, randomUUID, randomInt } from "crypto";
 import sharp, { type Metadata } from "sharp";
+import screenshot, { type ScreenshotOptionsWithoutFilename } from "screenshot-desktop";
 import {
   base64EncodeRequestSchema,
   base64DecodeRequestSchema,
@@ -18,6 +19,8 @@ import {
   imageThumbnailRequestSchema,
   imageResizeRequestSchema,
   imageConvertRequestSchema,
+  screenshotRequestSchema,
+  listDisplaysRequestSchema,
   type Base64EncodeRespond,
   type Base64DecodeRespond,
   type UrlEncodeRespond,
@@ -34,6 +37,8 @@ import {
   type ImageThumbnailRespond,
   type ImageResizeRespond,
   type ImageConvertRespond,
+  type ScreenshotRespond,
+  type ListDisplaysRespond,
 } from "../shared/zod/mcp-toolbox-schema";
 import type { SocketServer } from "./socket-server";
 import type { BackendContext } from "./types";
@@ -220,6 +225,55 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       await pipeline.toFile(outputPath);
       const metadata = await sharp(outputPath).metadata();
       return { result: { output: outputPath, metadata: extractMetadata(metadata) } };
+    });
+
+    // ── List Displays ─────────────────────────────────────────────
+    server.registry("toolbox/list-displays", async (): Promise<ListDisplaysRespond> => {
+      listDisplaysRequestSchema.parse({});
+      const displays = await screenshot.listDisplays();
+      return {
+        result: displays.map((d) => ({
+          id: Number(d.id),
+          name: d.name,
+          // screenshot-desktop 的类型声明 @types/screenshot-desktop 未暴露 primary 字段
+          primary: (d as any).primary === true,
+        })),
+      };
+    });
+
+    // ── Screenshot ─────────────────────────────────────────────────
+    server.registry("toolbox/screenshot", async (payload): Promise<ScreenshotRespond> => {
+      const { output, format, screen, width } = screenshotRequestSchema.parse(payload);
+      const outputPath = output
+        ? resolve(projectDir, output)
+        : join(projectDir, `screenshot.${format}`);
+      // Capture screenshot with default format (PNG) — screenshot-desktop
+      // has limited format support across platforms; we bypass it and use
+      // sharp for conversion instead.
+      const opts: ScreenshotOptionsWithoutFilename = {};
+      if (screen !== undefined) opts.screen = screen;
+      const img = await screenshot(opts);
+
+      // Get original screen dimensions before any processing
+      const screenMeta = await sharp(img).metadata();
+
+      // Build sharp pipeline: resize (if width specified), then convert format
+      let pipeline = sharp(img);
+      if (width !== undefined) {
+        pipeline = pipeline.resize(width);
+      }
+      pipeline = pipeline.toFormat(format);
+      await pipeline.toFile(outputPath);
+
+      const metadata = await sharp(outputPath).metadata();
+      return {
+        result: {
+          output: outputPath,
+          screenWidth: screenMeta.width ?? undefined,
+          screenHeight: screenMeta.height ?? undefined,
+          metadata: extractMetadata(metadata),
+        },
+      };
     });
   }
 
