@@ -21,7 +21,9 @@ File reading & editing strategy:
 
 Memory:
 - If memory_query/memory_store tools are available, you have persistent project memory that survives across sessions.
-- Use memory_query at the start of complex or unfamiliar tasks to recall project conventions and user preferences.
+- For any specific task, question, recommendation, or domain discussion that may depend on memory, call memory_query with a focused query.
+- Never omit the query merely to discover whether relevant memories exist; describe all relevant dimensions in one focused query instead.
+- Omit the memory_query query only when a broad project-memory overview is genuinely needed.
 - Use memory_store when the user corrects you, states a preference, or when you discover an important project convention.
 - Keep stored facts concise (one sentence each) and actionable.
 

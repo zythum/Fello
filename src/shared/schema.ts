@@ -914,7 +914,6 @@ export type FelloIPCRequests = {
     response: {
       version: number;
       entries: Array<{ weight: number; text: string; date: string; tags: string[] }>;
-      summary?: string;
     } | null;
   };
   /** 清除指定项目的记忆（删除 memory.json） */

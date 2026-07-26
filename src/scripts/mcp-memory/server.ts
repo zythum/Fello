@@ -6,7 +6,6 @@ import {
   memoryStoreRequestSchema,
   memoryStoreRespondSchema,
 } from "../../shared/zod/mcp-memory-schema";
-import * as fs from "fs";
 import * as http from "http";
 
 // ── Parse CLI args ──────────────────────────────────────────────────
@@ -16,30 +15,15 @@ function getArg(name: string): string | undefined {
   return idx !== -1 ? process.argv[idx + 1] : undefined;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 const socketPath = getArg("socket-path");
-const projectDir = getArg("project-dir");
-const memorySummaryFile = getArg("memory-summary");
 
 if (!socketPath) {
   console.error("[mcp-memory] Missing required argument: --socket-path");
   process.exit(1);
-}
-
-if (!projectDir) {
-  console.error("[mcp-memory] Missing required argument: --project-dir");
-  process.exit(1);
-}
-
-// Load initial memory summary (high-weight items) and clean up temp file
-let initialMemorySummary = "";
-if (memorySummaryFile) {
-  try {
-    initialMemorySummary = fs.readFileSync(memorySummaryFile, "utf8").trim();
-  } finally {
-    try {
-      fs.unlinkSync(memorySummaryFile);
-    } catch {}
-  }
 }
 
 // ── MCP Server Setup ────────────────────────────────────────────────
@@ -53,15 +37,13 @@ const server = new McpServer({
 server.registerTool(
   "memory_query",
   {
-    description:
-      `Query the project's persistent memory. Performs semantic retrieval to find memories relevant to your question.
+    description: `Query the project's persistent memory.
 
-Use this to recall project conventions, user preferences, past decisions, or corrections.
-Provide a descriptive query about what you need (e.g. "tech stack and build tools", "user's coding style preferences", "things to avoid").` +
-      (() => {
-        if (!initialMemorySummary) return "";
-        return `\n\nKey memories (high priority — always consider these):\n${initialMemorySummary}`;
-      })(),
+For every specific task, question, recommendation, or domain discussion that may depend on memory, provide a focused query. Include all relevant dimensions in that query, such as applicable conventions, preferences, decisions, corrections, architecture, or commands.
+
+Never omit query merely to discover whether relevant memories exist. Omit it only when a broad project-memory briefing is genuinely needed, such as when the user asks what is remembered.
+
+A focused query returns relevant details. An omitted query generates a current summary from the stored entries. In either mode, memories included in the response are marked as used.`,
     inputSchema: memoryQueryRequestSchema,
   },
   async (input) => {
@@ -75,9 +57,11 @@ Provide a descriptive query about what you need (e.g. "tech stack and build tool
           },
         ],
       };
-    } catch (err: any) {
+    } catch (error: unknown) {
       return {
-        content: [{ type: "text" as const, text: `Error querying memory: ${err.message}` }],
+        content: [
+          { type: "text" as const, text: `Error querying memory: ${getErrorMessage(error)}` },
+        ],
         isError: true,
       };
     }
@@ -103,7 +87,7 @@ Also store when:
 
 When in doubt about whether to store — store it. Forgetting costs more than duplicating.
 
-Each fact should be a concise, self-contained statement. Include a reason when the context helps determine importance (e.g. if the user strongly emphasized something, or corrected you).`,
+Each fact should be a concise, self-contained statement. Include a reason when the context helps determine importance (e.g. if the user strongly emphasized it or corrected the agent).`,
     inputSchema: memoryStoreRequestSchema,
   },
   async (input) => {
@@ -113,13 +97,15 @@ Each fact should be a concise, self-contained statement. Include a reason when t
         content: [
           {
             type: "text" as const,
-            text: result.summary || `Stored ${result.stored} fact(s) to project memory.`,
+            text: result.message || `Stored ${result.stored} fact(s) to project memory.`,
           },
         ],
       };
-    } catch (err: any) {
+    } catch (error: unknown) {
       return {
-        content: [{ type: "text" as const, text: `Error storing memory: ${err.message}` }],
+        content: [
+          { type: "text" as const, text: `Error storing memory: ${getErrorMessage(error)}` },
+        ],
         isError: true,
       };
     }
@@ -128,7 +114,7 @@ Each fact should be a concise, self-contained statement. Include a reason when t
 
 // ── HTTP Client over Unix Socket ────────────────────────────────────
 
-function postToSocket(path: string, body: unknown): Promise<any> {
+function postToSocket(path: string, body: unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
 
@@ -148,11 +134,15 @@ function postToSocket(path: string, body: unknown): Promise<any> {
       res.on("end", () => {
         const raw = Buffer.concat(chunks).toString("utf8");
         try {
-          const parsed = JSON.parse(raw);
+          const parsed: unknown = JSON.parse(raw);
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(parsed);
           } else {
-            reject(new Error(parsed.error || `HTTP ${res.statusCode}: ${raw}`));
+            const message =
+              typeof parsed === "object" && parsed && "error" in parsed
+                ? String(parsed.error)
+                : `HTTP ${res.statusCode}: ${raw}`;
+            reject(new Error(message));
           }
         } catch {
           reject(new Error(`Invalid response (${res.statusCode}): ${raw}`));
@@ -160,8 +150,8 @@ function postToSocket(path: string, body: unknown): Promise<any> {
       });
     });
 
-    req.on("error", (err) => {
-      reject(new Error(`Socket request failed: ${err.message}`));
+    req.on("error", (error) => {
+      reject(new Error(`Socket request failed: ${error.message}`));
     });
 
     req.write(data);

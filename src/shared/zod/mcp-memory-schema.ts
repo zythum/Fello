@@ -6,15 +6,16 @@ export const memoryQueryRequestSchema = z.object({
   query: z
     .string()
     .min(1)
+    .optional()
     .describe(
-      "What to search for in memory. Describe what you need to recall (e.g. 'tech stack', 'user preferences', 'build commands').",
+      "Focused topic to retrieve. Required for every specific task, question, recommendation, or domain discussion; never omit it merely to discover whether relevant memories exist. Omit only when a broad project-memory briefing is genuinely needed.",
     ),
 });
 
 export type MemoryQueryRequest = z.infer<typeof memoryQueryRequestSchema>;
 
 export const memoryQueryRespondSchema = z.object({
-  content: z.string().describe("The memory content (full or filtered)."),
+  content: z.string().describe("The generated project briefing or relevant memory details."),
 });
 
 export type MemoryQueryRespond = z.infer<typeof memoryQueryRespondSchema>;
@@ -31,7 +32,7 @@ export const memoryStoreRequestSchema = z.object({
           .max(300)
           .optional()
           .describe(
-            "Why this should be remembered — context that helps determine weight and tags (e.g. 'user explicitly corrected me', 'user emphasized with 一定/never').",
+            "Why this should be remembered — context that helps determine weight and tags (e.g. if the user strongly emphasized it or corrected the agent).",
           ),
       }),
     )
@@ -45,8 +46,8 @@ export const memoryStoreRequestSchema = z.object({
 export type MemoryStoreRequest = z.infer<typeof memoryStoreRequestSchema>;
 
 export const memoryStoreRespondSchema = z.object({
-  stored: z.number().describe("Number of facts successfully integrated."),
-  summary: z.string().optional().describe("Brief confirmation of what was stored."),
+  stored: z.number().describe("Number of facts submitted for integration."),
+  message: z.string().optional().describe("Brief confirmation of the memory operation."),
 });
 
 export type MemoryStoreRespond = z.infer<typeof memoryStoreRespondSchema>;

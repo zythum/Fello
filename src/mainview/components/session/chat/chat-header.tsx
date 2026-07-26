@@ -124,7 +124,8 @@ export function ChatHeader({ session }: ChatHeaderProps) {
     } catch (err) {
       console.error("Failed to close session:", err);
       toast.error(
-        extractErrorMessage(err) || t("chatHeader.failedToCloseSession", "Failed to close session."),
+        extractErrorMessage(err) ||
+          t("chatHeader.failedToCloseSession", "Failed to close session."),
       );
     } finally {
       setIsClosing(false);

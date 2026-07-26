@@ -22,7 +22,6 @@ interface ProjectMemory {
   projectId: string;
   projectTitle: string;
   entries: MemoryEntry[] | null;
-  summary?: string;
 }
 
 export function SettingsMemory() {
@@ -43,14 +42,12 @@ export function SettingsMemory() {
             projectId: project.id,
             projectTitle: project.title,
             entries: data?.entries ?? null,
-            summary: data?.summary,
           });
         } catch {
           results.push({
             projectId: project.id,
             projectTitle: project.title,
             entries: null,
-            summary: undefined,
           });
         }
       }
@@ -195,16 +192,6 @@ export function SettingsMemory() {
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {pm.summary && (
-                      <div className="px-4 py-2.5 bg-muted/20">
-                        <div className="text-[10px] font-medium uppercase text-foreground/40 mb-1">
-                          {t("settings.memory.summary", "Summary")}
-                        </div>
-                        <div className="text-xs text-foreground/70 whitespace-pre-wrap leading-relaxed">
-                          {pm.summary}
-                        </div>
-                      </div>
-                    )}
                     <Collapsible>
                       <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-foreground/50 hover:bg-muted/30 [&[data-panel-open]_svg]:rotate-90">
                         <ChevronRight className="size-3 transition-transform -ml-1" />
