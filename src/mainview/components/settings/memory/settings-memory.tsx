@@ -182,13 +182,11 @@ export function SettingsMemory() {
 
                 {/* Entries table */}
                 {pm.entries === null || pm.entries.length === 0 ? (
-                  <div className="flex gap-3 px-4 py-3 text-xs text-muted-foreground items-center">
-                    <div className="w-4 flex items-center justify-center">
-                      <Ban className="size-3" />
-                    </div>
-                    <div className="flex-1">
+                  <div className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-foreground/50 hover:bg-muted/30 [&[data-panel-open]_svg]:rotate-90">
+                    <Ban className="size-3 transition-transform -ml-1" />
+                    <span className="font-medium uppercase">
                       {t("settings.memory.empty", "No memories stored.")}
-                    </div>
+                    </span>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
