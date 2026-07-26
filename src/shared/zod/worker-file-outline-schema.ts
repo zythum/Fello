@@ -108,6 +108,8 @@ export interface FileOutlineWorkerRequest {
   symbols: SymbolKindConfig[];
   wrappers: WrapperConfig[];
   nameOf: NameOfConfig;
+  /** Descendants of these AST node types are not scanned for symbols. */
+  symbolScanBoundaryTypes?: string[];
   /** Config for statement detail extraction (imports, exports, packages, etc.). */
   statementDetail?: StatementDetailConfig;
   /**

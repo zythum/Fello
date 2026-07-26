@@ -335,6 +335,7 @@ async function parse(
 
   let result: OutlineSymbol[] = [];
   const typeSet = new Set(req.symbols.flatMap((s) => s.types));
+  const symbolScanBoundaryTypes = new Set(req.symbolScanBoundaryTypes || []);
   const detailLabels = req.statementDetail
     ? new Set(req.statementDetail.labels || DEFAULT_DETAIL_LABELS)
     : null;
@@ -397,6 +398,11 @@ async function parse(
             break;
           }
         }
+      }
+      if (descend && symbolScanBoundaryTypes.has(t)) {
+        // Revisit the boundary as an exit so declaration depth remains balanced.
+        descend = false;
+        continue;
       }
       if (descend && cursor.gotoFirstChild()) continue;
       if (cursor.gotoNextSibling()) {

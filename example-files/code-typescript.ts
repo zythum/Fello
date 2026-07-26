@@ -172,6 +172,34 @@ function randomInt(min: number, max: number): number {
 }
 
 /**
+ * 回归：导出工厂内的局部 helper 不应出现在文件大纲中
+ */
+export function createUrlFactory(baseUrl: string) {
+  function normalizePath(path: string): string {
+    return path.startsWith("/") ? path : `/${path}`;
+  }
+
+  function buildUrl(path: string): string {
+    return new URL(normalizePath(path), baseUrl).toString();
+  }
+
+  return { buildUrl };
+}
+
+/**
+ * 回归：被隐藏的局部函数不应遗留孤立的局部声明
+ */
+export function outer() {
+  function hiddenHelper() {
+    class LocalClass {
+      method() {}
+    }
+
+    type LocalType = string;
+  }
+}
+
+/**
  * 深拷贝对象
  */
 function deepClone<T>(obj: T): T {

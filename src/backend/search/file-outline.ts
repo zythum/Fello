@@ -37,14 +37,25 @@ interface LangConfig {
   wrappers: WrapperConfig[];
   nameOf: NameOfConfig;
   statementDetail?: StatementDetailConfig;
+  symbolScanBoundaryTypes?: string[];
   docstrings?: { nodeType: string; prefixes: string[] }[];
 }
+
+const FUNCTION_SCOPE_BOUNDARY_TYPES = [
+  "function_declaration",
+  "generator_function_declaration",
+  "function_expression",
+  "generator_function",
+  "arrow_function",
+  "method_definition",
+];
 
 const LANGUAGES: LangConfig[] = [
   {
     name: "JavaScript",
     extensions: [".js", ".jsx", ".mjs", ".cjs"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-javascript.wasm"),
+    symbolScanBoundaryTypes: FUNCTION_SCOPE_BOUNDARY_TYPES,
     symbols: [
       {
         types: ["function_declaration", "generator_function_declaration"],
@@ -63,7 +74,13 @@ const LANGUAGES: LangConfig[] = [
       { types: ["variable_declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
-    wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
+    wrappers: [
+      {
+        node: "export_statement",
+        prefix: "export ",
+        createStandaloneLabel: "export",
+      },
+    ],
     nameOf: {
       fieldPriority: ["name", "source"],
       recurseTypes: [
@@ -93,6 +110,7 @@ const LANGUAGES: LangConfig[] = [
     name: "TypeScript",
     extensions: [".ts"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-typescript.wasm"),
+    symbolScanBoundaryTypes: FUNCTION_SCOPE_BOUNDARY_TYPES,
     symbols: [
       {
         types: ["function_declaration", "generator_function_declaration", "function_signature"],
@@ -120,7 +138,11 @@ const LANGUAGES: LangConfig[] = [
       { types: ["import_statement"], label: "import", hasName: true },
     ],
     wrappers: [
-      { node: "export_statement", prefix: "export ", createStandaloneLabel: "export" },
+      {
+        node: "export_statement",
+        prefix: "export ",
+        createStandaloneLabel: "export",
+      },
       {
         node: "ambient_declaration",
         prefix: "declare ",
@@ -160,6 +182,7 @@ const LANGUAGES: LangConfig[] = [
     name: "TSX",
     extensions: [".tsx"],
     wasmFile: join(process.treeSitterWasmPath, "tree-sitter-tsx.wasm"),
+    symbolScanBoundaryTypes: FUNCTION_SCOPE_BOUNDARY_TYPES,
     symbols: [
       {
         types: ["function_declaration", "generator_function_declaration", "function_signature"],
@@ -182,7 +205,13 @@ const LANGUAGES: LangConfig[] = [
       { types: ["variable_declaration"], label: "var", hasName: true, maxDepth: 0 },
       { types: ["import_statement"], label: "import", hasName: true },
     ],
-    wrappers: [{ node: "export_statement", prefix: "export ", createStandaloneLabel: "export" }],
+    wrappers: [
+      {
+        node: "export_statement",
+        prefix: "export ",
+        createStandaloneLabel: "export",
+      },
+    ],
     nameOf: {
       fieldPriority: ["name", "source"],
       recurseTypes: [
@@ -460,6 +489,7 @@ async function parseInChild(
       wrappers: config.wrappers,
       nameOf: config.nameOf,
       statementDetail: config.statementDetail,
+      symbolScanBoundaryTypes: config.symbolScanBoundaryTypes,
       docstrings: config.docstrings,
     };
     child.send(request);
