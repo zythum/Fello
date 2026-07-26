@@ -4,8 +4,6 @@ import type {
   ToolCall,
   ToolCallUpdate,
   Plan,
-  UsageUpdate,
-  AvailableCommandsUpdate,
 } from "@agentclientprotocol/sdk";
 import type { SessionNotificationFelloExt, SubagentUpdate } from "../../shared/schema";
 import type { SessionState } from "../store";
@@ -326,36 +324,6 @@ function calculateSubagent(
   });
 }
 
-function calculateUsageUpdate(
-  state: SessionState,
-  subSessionId: string | null,
-  update: UsageUpdate,
-): SessionState {
-  if (subSessionId) {
-    return state;
-  }
-  return produce(state, (state) => {
-    state.usage = {
-      size: update.size ?? 0,
-      used: update.used ?? 0,
-      cost: update.cost ?? null,
-    };
-  });
-}
-
-function calculateAvailableCommands(
-  state: SessionState,
-  subSessionId: string | null,
-  update: AvailableCommandsUpdate,
-): SessionState {
-  if (subSessionId) {
-    return state;
-  }
-  return produce(state, (state) => {
-    state.availableCommands = update.availableCommands ?? [];
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Main Reducer Logic
 // ---------------------------------------------------------------------------
@@ -438,14 +406,6 @@ export function reduceSessionNotification(
       break;
     case "current_mode_update":
       // modes state is now updated via session-changed IPC
-      break;
-
-    case "usage_update":
-      nextState = calculateUsageUpdate(currentState, subSessionId, update);
-      break;
-
-    case "available_commands_update":
-      nextState = calculateAvailableCommands(currentState, subSessionId, update);
       break;
 
     default:

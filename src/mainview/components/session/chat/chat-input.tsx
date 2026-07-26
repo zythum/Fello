@@ -7,7 +7,6 @@ import {
   useSessionAskUserRequests,
   useSessionDraftInput,
   useSessionDraftAttachments,
-  useSessionAvailableCommands,
 } from "../../../lib/session-selectors";
 import { useAppStore, type StagedAttachmentInfo, type SessionState } from "../../../store";
 import type { ChatMessage } from "../../../lib/chat-message";
@@ -256,7 +255,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const initializeInfo = session.initializeInfo;
   const isLoading = useSessionIsLoading(session.id);
   const askUserRequests = useSessionAskUserRequests(session.id);
-  const availableCommands = useSessionAvailableCommands(session.id);
+  const availableCommands = session.availableCommands;
   const draftInput = useSessionDraftInput(session.id);
   const draftAttachments = useSessionDraftAttachments(session.id);
 
@@ -561,14 +560,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         contents,
       });
 
-      // 3. Store per-turn usage
-      if (promptResponse.usage) {
-        useAppStore.getState().updateSessionState(session.id, () => ({
-          lastTurnUsage: promptResponse.usage,
-        }));
-      }
-
-      // 4. Show warning if not end_turn
+      // 3. Show warning if not end_turn
       if (promptResponse.stopReason && promptResponse.stopReason !== "end_turn") {
         const stopReasonLabels: Record<string, string> = {
           max_tokens: t("chatInput.stopReasonMaxTokens", "Reached maximum token limit"),

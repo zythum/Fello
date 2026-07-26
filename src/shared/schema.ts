@@ -3,6 +3,8 @@ import type {
   InitializeResponse,
   ContentBlock,
   Usage,
+  UsageUpdate,
+  AvailableCommand,
 } from "@agentclientprotocol/sdk";
 
 export type SubagentStatus = "pending" | "in_progress" | "completed" | "failed";
@@ -415,6 +417,12 @@ export interface SessionInfo {
   thoughtLevels: SessionThoughtLevelState | null;
   /** 缓存的代理初始化信息 */
   initializeInfo: InitializeResponse | null;
+  /** 当前 Agent 为该会话提供的命令；仅在运行时缓存，不持久化。 */
+  availableCommands: AvailableCommand[];
+  /** 当前上下文窗口用量；仅在运行时缓存，不持久化。 */
+  usage: UsageUpdate | null;
+  /** 最近一次完成请求的 token 用量；仅在运行时缓存，不持久化。 */
+  lastTurnUsage: Usage | null;
   /** 是否在输出中 */
   isStreaming: boolean;
   /** 后端 agent-bridge 连接状态 */

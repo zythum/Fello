@@ -1,5 +1,6 @@
 import type {
   AvailableCommand,
+  UsageUpdate,
   RequestPermissionResponse,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
@@ -45,6 +46,28 @@ export function createBridgeConnectModule(
     broadcastAndSaveSessionUpdate = fn;
   }
 
+  function publishAvailableCommands(sessionId: string, availableCommands: AvailableCommand[]) {
+    storage.updateSession(sessionId, { availableCommands }, false);
+    const updated = storage.getSession(sessionId);
+    if (updated) sendEvent("session-changed", { session: updated });
+  }
+
+  function publishUsage(sessionId: string, usage: UsageUpdate) {
+    storage.updateSession(
+      sessionId,
+      {
+        usage: {
+          size: usage.size ?? 0,
+          used: usage.used ?? 0,
+          cost: usage.cost ?? null,
+        },
+      },
+      false,
+    );
+    const updated = storage.getSession(sessionId);
+    if (updated) sendEvent("session-changed", { session: updated });
+  }
+
   async function ensureBridge(
     sessionKey: string,
     agentId: string,
@@ -86,6 +109,19 @@ export function createBridgeConnectModule(
               }
             }
 
+            if (sessionUpdate === "usage_update") {
+              publishUsage(currentSessionId, notification.update);
+              return;
+            }
+
+            if (sessionUpdate === "available_commands_update") {
+              publishAvailableCommands(
+                currentSessionId,
+                notification.update.availableCommands ?? [],
+              );
+              return;
+            }
+
             if (sessionUpdate === "current_mode_update") {
               const session = storage.getSession(currentSessionId);
               if (session && session.modes) {
@@ -111,13 +147,9 @@ export function createBridgeConnectModule(
             typeof params.contextUsagePercentage === "number" &&
             currentSessionId === `${agentId}:${params.sessionId}`
           ) {
-            broadcastAndSaveSessionUpdate(currentSessionId, {
-              sessionId: params.sessionId,
-              update: {
-                sessionUpdate: "usage_update",
-                used: params.contextUsagePercentage / 100,
-                size: 1,
-              },
+            publishUsage(currentSessionId, {
+              used: params.contextUsagePercentage / 100,
+              size: 1,
             });
           }
           return;
@@ -147,15 +179,7 @@ export function createBridgeConnectModule(
                 });
               }
             }
-            if (commands.length) {
-              broadcastAndSaveSessionUpdate(currentSessionId, {
-                sessionId: params.sessionId,
-                update: {
-                  sessionUpdate: "available_commands_update",
-                  availableCommands: commands,
-                },
-              });
-            }
+            publishAvailableCommands(currentSessionId, commands);
           }
           return;
         }
@@ -316,7 +340,11 @@ export function createBridgeConnectModule(
       } catch {}
     }
     // Mark session as disconnected
-    storage.updateSession(sessionKey, { connectionStatus: "disconnected" }, false);
+    storage.updateSession(
+      sessionKey,
+      { connectionStatus: "disconnected", availableCommands: [] },
+      false,
+    );
     const session = storage.getSession(sessionKey);
     if (session) sendEvent("session-changed", { session });
   }

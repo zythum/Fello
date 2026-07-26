@@ -11,7 +11,7 @@ export const memoryEntrySchema = z.object({
     .describe(
       "Future-work impact: 3=explicit must-follow constraint, 2=stable work-shaping knowledge, 1=background context",
     ),
-  text: z.string().max(200).describe("The memory fact, concise and self-contained"),
+  text: z.string().max(512).describe("The memory fact, concise and self-contained"),
   date: z
     .string()
     .describe("Date when this fact was recorded, updated, or last marked as used (YYYY-MM-DD)"),
@@ -66,7 +66,7 @@ export type MemoGetCurrentRespond = z.infer<typeof memoGetCurrentRespondSchema>;
 // ── memo_add ─────────────────────────────────────────────────────────
 
 export const memoAddRequestSchema = z.object({
-  text: z.string().min(1).max(200).describe("New immutable memory fact"),
+  text: z.string().min(1).max(512).describe("New immutable memory fact"),
   weight: mutableWeightSchema,
   tags: z
     .array(z.string().min(1))

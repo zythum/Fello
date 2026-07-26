@@ -26,7 +26,7 @@ export const memoryStoreRequestSchema = z.object({
   facts: z
     .array(
       z.object({
-        text: z.string().max(200).describe("The fact to remember, concise and self-contained."),
+        text: z.string().max(512).describe("The fact to remember, concise and self-contained."),
         reason: z
           .string()
           .max(300)

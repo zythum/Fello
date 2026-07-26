@@ -11,7 +11,6 @@ import type {
   AskUserRequest,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./lib/chat-message";
-import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 enableArrayMethods();
 enableMapSet();
@@ -50,15 +49,12 @@ export interface StagedAttachmentInfo {
 // Per-session state bucket
 export interface SessionState {
   messages: ChatMessage[];
-  usage: UsageUpdate | null;
-  lastTurnUsage: Usage | null;
   isLoading: boolean;
   terminalLogs: Record<string, string>;
   askUserRequests: AskUserRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
   activeSubagents: Map<string, SubagentMessage>;
   pendingNotifications: SessionNotificationFelloExt[];
-  availableCommands: AvailableCommand[];
   /** 暂存的输入框内容，用于 session 切换时恢复 */
   draftInput: string;
   /** 暂存的附件列表（base64 编码），与 draftInput 一同跨 session 保持 */
@@ -78,15 +74,12 @@ export interface SessionState {
 
 const emptySessionState = (): SessionState => ({
   messages: [],
-  usage: null,
-  lastTurnUsage: null,
   isLoading: true,
   terminalLogs: {},
   askUserRequests: [],
   activeToolCalls: new Map(),
   activeSubagents: new Map(),
   pendingNotifications: [],
-  availableCommands: [],
   draftInput: "",
   draftAttachments: [],
   completedAt: null,

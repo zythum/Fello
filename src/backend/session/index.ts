@@ -485,7 +485,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
           promptResponse?.stopReason as FelloIPCSchema["events"]["prompt-end"]["stopReason"],
         error: promptError,
       });
-      storage.updateSession(sessionId, { isStreaming: false });
+      storage.updateSession(sessionId, {
+        isStreaming: false,
+        ...(promptResponse?.usage ? { lastTurnUsage: promptResponse.usage } : {}),
+      });
       const updated2 = storage.getSession(sessionId);
       if (updated2) sendEvent("session-changed", { session: updated2 });
 

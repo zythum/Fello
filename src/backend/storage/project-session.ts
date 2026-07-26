@@ -11,7 +11,7 @@ import type {
   Feature,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
-import type { InitializeResponse } from "@agentclientprotocol/sdk";
+import type { AvailableCommand, InitializeResponse, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 import { PROJECTS_DIR } from "./constant";
 
@@ -31,6 +31,9 @@ interface SessionMeta {
   filename: string;
   isStreaming: boolean;
   connectionStatus: "disconnected" | "connecting" | "connected";
+  availableCommands: AvailableCommand[];
+  usage: UsageUpdate | null;
+  lastTurnUsage: Usage | null;
 
   // === 需要存的 ===
   id: string;
@@ -124,6 +127,9 @@ const sessionMetaMemo = (() => {
             filename,
             isStreaming: false,
             connectionStatus: "disconnected",
+            availableCommands: [],
+            usage: null,
+            lastTurnUsage: null,
             id,
             title,
             agent_id,
@@ -164,7 +170,18 @@ function writeSessionMeta(meta: SessionMeta) {
   mkdirSync(dirname(meta.filename), { recursive: true });
   writeFileSync(
     meta.filename,
-    JSON.stringify(omit(meta, ["filename", "isStreaming", "connectionStatus"]), null, 2),
+    JSON.stringify(
+      omit(meta, [
+        "filename",
+        "isStreaming",
+        "connectionStatus",
+        "availableCommands",
+        "usage",
+        "lastTurnUsage",
+      ]),
+      null,
+      2,
+    ),
   );
   sessionMetaMemo.set(meta.id, meta);
 }
@@ -265,6 +282,9 @@ export function createSession(
     ),
     isStreaming: false,
     connectionStatus: "disconnected",
+    availableCommands: [],
+    usage: null,
+    lastTurnUsage: null,
     id: id,
     title: updates?.title ?? "",
     agent_id: agentId,
@@ -295,6 +315,9 @@ export function updateSession(
     modes: SessionModeState | null;
     thoughtLevels: SessionThoughtLevelState | null;
     initializeInfo: InitializeResponse | null;
+    availableCommands: AvailableCommand[];
+    usage: UsageUpdate | null;
+    lastTurnUsage: Usage | null;
     isStreaming: boolean;
     connectionStatus: "disconnected" | "connecting" | "connected";
   }>,
@@ -312,6 +335,9 @@ export function updateSession(
   if (updates.modes !== undefined) meta.modes = updates.modes;
   if (updates.thoughtLevels !== undefined) meta.thought_levels = updates.thoughtLevels;
   if (updates.initializeInfo !== undefined) meta.initialize_info = updates.initializeInfo;
+  if (updates.availableCommands !== undefined) meta.availableCommands = updates.availableCommands;
+  if (updates.usage !== undefined) meta.usage = updates.usage;
+  if (updates.lastTurnUsage !== undefined) meta.lastTurnUsage = updates.lastTurnUsage;
 
   if (updateTime) {
     meta.updated_at = Date.now();
@@ -353,6 +379,9 @@ export function listSessions(): SessionInfo[] {
         modes: meta.modes ?? null,
         thoughtLevels: meta.thought_levels ?? null,
         initializeInfo: meta.initialize_info ?? null,
+        availableCommands: meta.availableCommands,
+        usage: meta.usage,
+        lastTurnUsage: meta.lastTurnUsage,
         isStreaming: meta.isStreaming,
         connectionStatus: meta.connectionStatus,
       });
@@ -385,6 +414,9 @@ export function getSession(sessionId: string): SessionInfo | null {
     modes: meta.modes ?? null,
     thoughtLevels: meta.thought_levels ?? null,
     initializeInfo: meta.initialize_info ?? null,
+    availableCommands: meta.availableCommands,
+    usage: meta.usage,
+    lastTurnUsage: meta.lastTurnUsage,
     isStreaming: meta.isStreaming,
     connectionStatus: meta.connectionStatus,
   };

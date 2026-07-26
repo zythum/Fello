@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useSessionUsage } from "../../../lib/session-selectors";
 import { useAppStore } from "../../../store";
 import { Settings2, ReceiptTurkishLira, Copy, Check, FolderOpen, Loader2 } from "lucide-react";
 import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
@@ -155,7 +154,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
         </span>
       </div>
       <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
-        <UsageButton sessionId={session.id} />
+        <UsageButton session={session} />
         <PopoverPrimitive.Root
           onOpenChange={(open) => {
             if (open) {
@@ -275,7 +274,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                 <div className="mt-1 flex gap-1">
                   <Button
                     size="xs"
-                    className="flex flex-[3] items-center gap-2 h-7 text-xs font-normal"
+                    className="flex flex-3 items-center gap-2 h-7 text-xs font-normal"
                     onClick={handleSyncAndRefresh}
                     disabled={isClosing}
                   >
@@ -305,9 +304,9 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   );
 }
 
-function UsageButton({ sessionId }: { sessionId: string }) {
+function UsageButton({ session }: Pick<ChatHeaderProps, "session">) {
   const { t } = useTranslation();
-  const { lastTurnUsage, usage } = useSessionUsage(sessionId);
+  const { lastTurnUsage, usage } = session;
   const hasData = usage || lastTurnUsage;
 
   if (!hasData) return null;

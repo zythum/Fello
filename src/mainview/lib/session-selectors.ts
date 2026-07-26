@@ -2,7 +2,6 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore, type StagedAttachmentInfo } from "../store";
 import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./chat-message";
 import type { AskUserRequest } from "../../shared/schema";
-import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 /**
  * 细粒度的 Session State Selector Hooks。
@@ -80,30 +79,6 @@ export function useSessionDraftAttachments(sessionId: string | null): StagedAtta
     useShallow((s) => {
       const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
       return state?.draftAttachments ?? [];
-    }),
-  );
-}
-
-/** 订阅 usage & lastTurnUsage（用 useShallow 做浅比较，避免因对象重建而误触发重渲染） */
-export function useSessionUsage(sessionId: string | null): {
-  usage: UsageUpdate | null;
-  lastTurnUsage: Usage | null;
-} {
-  return useAppStore(
-    useShallow((s) => {
-      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
-      if (!state) return { usage: null, lastTurnUsage: null };
-      return { usage: state.usage, lastTurnUsage: state.lastTurnUsage };
-    }),
-  );
-}
-
-/** 只订阅 availableCommands 数组 */
-export function useSessionAvailableCommands(sessionId: string | null): AvailableCommand[] {
-  return useAppStore(
-    useShallow((s) => {
-      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
-      return state?.availableCommands ?? [];
     }),
   );
 }
