@@ -203,7 +203,7 @@ const components: Components = {
     </ol>
   ),
   li: ({ className, children, node: _node, ...props }) => (
-    <li {...props} className={cn(className, "py-0.5")}>
+    <li {...props} className={cn(className, "[&>p]:inline py-0.5")}>
       {children}
     </li>
   ),
