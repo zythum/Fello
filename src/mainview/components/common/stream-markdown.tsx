@@ -115,8 +115,7 @@ const typographyClasses = cn(
   "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:no-underline prose-a:underline-offset-4 prose-a:text-[13px]",
   "prose-code:text-foreground/80 prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-normal prose-code:text-[12px]!",
   "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-  "prose-li:marker:text-muted-foreground prose-li:my-0 prose-li:text-[13px]",
-  "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
+  "prose-li:marker:text-muted-foreground/70 prose-li:text-[13px]",
   "prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:text-[13px]",
   "prose-table:my-2 prose-th:border-border prose-td:border-border",
 );
@@ -192,6 +191,21 @@ const components: Components = {
     <TableCell {...props} className={className}>
       {children}
     </TableCell>
+  ),
+  ul: ({ className, children, node: _node, ...props }) => (
+    <ul {...props} className={cn(className, "list-inside whitespace-normal pl-2")}>
+      {children}
+    </ul>
+  ),
+  ol: ({ className, children, node: _node, ...props }) => (
+    <ol {...props} className={cn(className, "list-inside whitespace-normal pl-2")}>
+      {children}
+    </ol>
+  ),
+  li: ({ className, children, node: _node, ...props }) => (
+    <li {...props} className={cn(className, "py-0.5")}>
+      {children}
+    </li>
   ),
   img: ({ node: _node, ...props }) => (
     <div className="w-full rounded-sm overflow-hidden">

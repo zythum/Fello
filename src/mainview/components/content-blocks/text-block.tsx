@@ -42,7 +42,6 @@ const typographyClasses: Record<string, string> = {
     "prose-code:text-card-foreground prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal prose-code:text-[12px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
     "prose-li:my-0 prose-li:text-[13px]",
-    "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
   agent_message: cn(
@@ -55,8 +54,7 @@ const typographyClasses: Record<string, string> = {
     "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:no-underline prose-a:underline-offset-4 prose-a:text-[13px]",
     "prose-code:text-foreground/80 prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-normal prose-code:text-[12px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-    "prose-li:marker:text-muted-foreground prose-li:my-0 prose-li:text-[13px]",
-    "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
+    "prose-li:marker:text-muted-foreground/70 prose-li:text-[13px]",
     "prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:text-[13px]",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
@@ -70,8 +68,7 @@ const typographyClasses: Record<string, string> = {
     "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:underline-offset-4 prose-a:text-[13px]",
     "prose-code:text-card-foreground/80 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal prose-code:text-[12px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-    "prose-li:my-0 prose-li:text-[13px]",
-    "prose-ul:pl-2 prose-ol:pl-2 prose-ul:my-1.5 prose-ol:my-1.5",
+    "prose-li:text-[13px]",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
 };
