@@ -119,7 +119,7 @@
 ```
 {
   value: string | null;   // 选中选项的 value，或 null
-  reason?: string;        // 原因（timeout, no_client, 或自定义文本）
+  reason: string | null;  // 原因（timeout, no_client, 或自定义文本），必填但可为 null
 }
 ```
 
@@ -238,7 +238,7 @@ Zod schema 在 `src/shared/zod/mcp-ask-user-schema.ts` 中定义一次，Backend
 | `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器 + `generateSocketPath()`（详见 [socket-server.md](./socket-server.md)） |
 | `src/shared/zod/mcp-ask-user-schema.ts` | Shared | ask-user Zod schema 定义（请求 + 响应） |
 | `src/shared/schema.ts` | Shared | TypeScript 接口定义 |
-| `src/backend/storage.ts` | Backend | `SOCKETS_DIR` 常量 |
+| `src/backend/storage/constant.ts` | Backend | `SOCKETS_DIR`、`TEMP_DIR` 常量 |
 | `src/mainview/store.ts` | Frontend | askUser 请求队列状态管理 |
 | `src/mainview/backend.ts` | Frontend | IPC 桥接 |
 | `src/mainview/components/session/chat/chat-ask-user-dialog.tsx` | Frontend | UI 对话框组件 |

@@ -30,6 +30,9 @@ It brings local and cloud AI agents into your development workflow — all insid
 - **🔧 MCP Server Integration** — Dynamically attach Model Context Protocol servers (Stdio or HTTP) to supercharge your agent with extra tools.
 - **🔧 MCP 服务器集成** — 动态配置 MCP 服务器（Stdio 或 HTTP），为 Agent 扩展更多能力。
 
+- **🧠 Persistent Project Memory** — Preserve project conventions, preferences, decisions, and corrections across sessions with focused retrieval and transactional updates.
+- **🧠 项目级持久记忆** — 跨会话保存项目约定、偏好、决策和纠正信息，并通过定向检索与事务更新保持准确。
+
 - **📁 File Workspace + Terminal** — Browse, edit, preview files and run terminals side by side with your AI chat. All in one panel, all synced.
 - **📁 文件工作区 + 终端** — 在 AI 对话旁浏览、编辑、预览文件，同时运行终端。一体面板，实时联动。
 
@@ -57,6 +60,7 @@ It brings local and cloud AI agents into your development workflow — all insid
 | **Local Agents** | Stdio agents via ACP protocol for private, offline-capable workflows |
 | **API Agents** | Connect to OpenAI-compatible APIs (streaming text, reasoning, file content) |
 | **MCP Servers** | Dynamic tool integration via Model Context Protocol |
+| **Project Memory** | Persistent project-level conventions and decisions with semantic retrieval, critical-constraint injection, and transactional updates |
 | **File Tree** | Browse, create, rename, delete, drag-drop files — with preview for images, markdown, code, PDF, DOCX, XLSX |
 | **Terminal** | Full xterm.js terminal with `node-pty`, multi-tab support, auto-persisted logs |
 | **Diff View** | Side-by-side file diffing (Git-style) for code reviews |
@@ -168,7 +172,7 @@ Main/preload changes typically require restarting the dev process.
 │   ├── shared/               # Typed IPC contracts & shared types
 │   ├── agents/               # Agent session logic (ACP + MCP tools, permissions, system prompts)
 │   ├── backend/              # IPC handlers, FS, Terminal, WebUI, Skills
-│   │   ├── agents/           # Agent process spawners (stdio, API)
+│   │   ├── agent/            # Agent bridge and session coordination
 │   │   ├── automation/       # Cron scheduling & task execution
 │   │   └── ilink/            # WeChat iLink integration
 │   ├── electron/             # Electron main process
@@ -189,7 +193,7 @@ Main/preload changes typically require restarting the dev process.
 | Backend logic | `src/backend/backend.ts` + `src/backend/agent/agent-bridge.ts` |
 | IPC bridge | `src/scripts/electron-preload/preload.ts`, `src/mainview/backend.ts` |
 | IPC types | `src/shared/schema.ts` |
-| Agent implementations | `src/agents/` + `src/backend/agents/` |
+| Agent implementations | `src/agents/` + `src/backend/agent/` |
 | Build config | `electron.vite.config.ts` |
 
 ### Scripts
@@ -218,8 +222,12 @@ npm run pack:linux   # Linux .AppImage
 - [Coding Conventions](./docs/coding-conventions.md)
 - [Custom Events](./docs/custom-events.md)
 - [IPC Protocol](./docs/ipc-protocol.md)
+- [Socket Server](./docs/socket-server.md)
 - [Built-in ACP Tools](./docs/builtin-tools.md)
+- [Skills](./docs/skills.md)
+- [Ask User](./docs/ask-user.md)
 - [Automation](./docs/automation.md)
+- [Project Memory](./docs/memory.md)
 - [Storage & Data](./docs/storage.md)
 
 ---

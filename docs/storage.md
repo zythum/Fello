@@ -7,12 +7,12 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 ```text
 ~/.fello/
 ├── settings.json                  # 全局设置（代理配置、MCP 服务器、主题、语言等）
-├── sockets/                       # Unix Domain Socket 文件（MCP 子进程 IPC）
-├── workspaces/                    # 工作区临时数据
+├── sockets/                       # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                          # 临时文件目录
 ├── projects/                      # 项目工作区数据（Stdio Agent 会话）
 │   └── <project_id>/              # 每个项目一个独立文件夹，<project_id> 是项目路径 cwd 的 SHA1 哈希值
 │       ├── project.json           # 该项目的元数据
+│       ├── memory.json            # 该项目跨会话共享的持久记忆
 │       └── sessions/              # 该项目下的所有会话记录
 │           └── <session_id>/      # 每个会话一个独立文件夹，<session_id> 格式为 `<agent_id>:<resume_id>`
 │               ├── session.json   # 该会话的元数据
@@ -25,6 +25,13 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 │           └── <session_id>/      # 每个会话独立文件夹（UUID）
 │               ├── session.json   # 会话状态（modelId, allowedToolKinds, contextUsedTokens）
 │               └── history.jsonl  # 对话历史 (NDJSON ModelMessage)
+├── automations/                   # 自动化任务数据
+│   └── <schedule_id>/
+│       ├── schedule.json          # 计划配置
+│       └── tasks/
+│           └── <task_id>/
+│               ├── task.json      # 任务元数据（状态、时间、错误信息）
+│               └── ...            # 任务产出文件（Agent 执行生成）
 └── ilink/                         # 微信 iLink 数据
     ├── credentials.json           # 登录凭证（权限 0o600）
     ├── cursor.json                # 消息轮询游标
@@ -34,36 +41,39 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 ## 数据文件及字段详解
 
 ### 1. 全局设置 (`settings.json`)
-保存用户的全局偏好设置。如果在启动时文件不存在，系统会自动使用默认配置创建。
+保存用户的全局偏好设置。文件不存在时，读取逻辑返回默认配置；首次调用 `updateSettings()` 后写入该文件。
 
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `agents` | `Array` | 代理（Agent）配置列表。支持两种类型 |
-| ↳ StdioAgentInfo | `object` | `type: "stdio"` |
-| &nbsp;&nbsp;↳ `id` | `string` | 代理的唯一标识符（如 `"kiro"`） |
+| `agents` | `Record<string, AgentMeta>` | 以 Agent ID 为键的配置对象；读取到 IPC `SettingsInfo` 时转换为数组 |
+| ↳ StdioAgentMeta | `object` | `type: "stdio"` |
 | &nbsp;&nbsp;↳ `command` | `string` | 启动该代理的命令（如 `"kiro-cli"`） |
 | &nbsp;&nbsp;↳ `args` | `string[]` | 启动参数列表（如 `["acp"]`） |
 | &nbsp;&nbsp;↳ `env` | `Record<string, string>` | 运行时所需环境变量 |
 | &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该代理 |
-| ↳ ApiAgentInfo | `object` | `type: "api"` |
-| &nbsp;&nbsp;↳ `id` | `string` | 代理的唯一标识符（如 `"deepseek"`） |
+| &nbsp;&nbsp;↳ `order` | `number` | Agent 在设置列表中的顺序 |
+| ↳ ApiAgentMeta | `object` | `type: "api"` |
 | &nbsp;&nbsp;↳ `provider` | `string` | 兼容层提供商标识（如 `"openai-compatible"`） |
 | &nbsp;&nbsp;↳ `baseUrl` | `string` | API 服务基础地址 |
 | &nbsp;&nbsp;↳ `apiKey` | `string` | API 鉴权密钥 |
-| &nbsp;&nbsp;↳ `headers` | `Record<string, string>` | 可选的额外请求头 |
+| &nbsp;&nbsp;↳ `headers` | `Record<string, string>` | 额外请求头 |
 | &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该代理 |
-| `mcpServers` | `Array` | MCP（Model Context Protocol）服务器配置列表。支持两种类型 |
-| ↳ StdioMcpServerInfo | `object` | `type: "stdio"` |
-| &nbsp;&nbsp;↳ `id` | `string` | MCP 服务器的唯一标识符 |
-| &nbsp;&nbsp;↳ `command` | `string` | 启动该 MCP 服务器的命令 |
+| &nbsp;&nbsp;↳ `order` | `number` | Agent 在设置列表中的顺序 |
+| &nbsp;&nbsp;↳ `contextWindowTokens` | `number?` | 可选的模型上下文窗口 token 数 |
+| &nbsp;&nbsp;↳ `modelIdTemplate` | `string?` | 可选的模型 ID 模板 |
+| &nbsp;&nbsp;↳ `models` | `string[]?` | 可选的手动模型 ID 列表；存在时不调用 `/models` |
+| `mcpServers` | `Record<string, McpServerMeta>` | 以 MCP Server ID 为键的配置对象；读取到 IPC `SettingsInfo` 时转换为数组 |
+| ↳ StdioMcpServerMeta | `object` | `type: "stdio"` |
+| &nbsp;&nbsp;↳ `command` | `string` | 启动该 MCP Server 的命令 |
 | &nbsp;&nbsp;↳ `args` | `string[]` | 启动参数列表 |
 | &nbsp;&nbsp;↳ `env` | `Record<string, string>` | 运行时所需环境变量 |
-| &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该 MCP 服务器 |
-| ↳ HttpMcpServerInfo | `object` | `type: "http"` |
-| &nbsp;&nbsp;↳ `id` | `string` | MCP 服务器的唯一标识符 |
-| &nbsp;&nbsp;↳ `url` | `string` | MCP Server 的 HTTP(S) 地址 |
-| &nbsp;&nbsp;↳ `headers` | `Record<string, string>` | 请求时附加的请求头 |
-| &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该 MCP 服务器 |
+| &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该 MCP Server |
+| &nbsp;&nbsp;↳ `order` | `number` | MCP Server 在设置列表中的顺序 |
+| ↳ HttpMcpServerMeta / SseMcpServerMeta | `object` | `type: "http"` 或 `type: "sse"` |
+| &nbsp;&nbsp;↳ `url` | `string` | MCP Server 的 HTTP(S) 或 SSE 端点 |
+| &nbsp;&nbsp;↳ `headers` | `Record<string, string>` | 请求或连接时附加的请求头 |
+| &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该 MCP Server |
+| &nbsp;&nbsp;↳ `order` | `number` | MCP Server 在设置列表中的顺序 |
 | `theme` | `Object` | 主题设置。 |
 | ↳ `theme_mode` | `"light" \| "dark" \| "system"` | UI 主题模式。 |
 | `i18n` | `Object` | 国际化设置。 |
@@ -72,11 +82,26 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | ↳ `enabled` | `boolean` | 是否启用自动监听项目文件变更。 |
 | `ilink` | `Object` | iLink 相关设置。 |
 | ↳ `useOriginalImage` | `boolean` | 是否使用原图（默认 false，使用缩略图以节省 token）。 |
-| ↳ `keepaliveMaxCount` | `number` | 每次流式生成中，连续保活消息的最大次数。0 表示不发送保活消息。默认 2。 |
-| `snippets` | `Array` | 用户自定义的文本片段列表。 |
+| `editor` | `Object` | 编辑器设置。 |
+| ↳ `name` | `string` | 编辑器标识（传给 launch-editor 的值），如 `'code'`、`'cursor'`、`'zed'`、`'webstorm'` 等。 |
+| `sound` | `Object` | 音效设置。 |
+| ↳ `volume` | `number` | 音量 0-100。 |
+| ↳ `muted` | `boolean` | 是否静音。 |
+| ↳ `theme` | `"soft" \| "crisp"` | 音效风格。 |
+| `snippets` | `Array?` | 用户自定义的文本片段列表。 |
 | ↳ `id` | `string` | Snippet 的唯一标识符。 |
 | ↳ `title` | `string` | Snippet 的显示标题。 |
 | ↳ `content` | `string` | Snippet 的文本内容。 |
+| `imageGeneration` | `Array?` | 图片生成 Provider 列表。 |
+| ↳ `id` | `string` | Provider 的唯一标识符。 |
+| ↳ `name` | `string` | 用户自定义名称（如 `"OpenAI GPT-Image"`）。 |
+| ↳ `provider` | `string` | Provider 类型（目前仅 `"openai-compatible"`）。 |
+| ↳ `baseUrl` | `string` | API 基础地址。 |
+| ↳ `apiKey` | `string` | API 鉴权密钥。 |
+| ↳ `headers` | `Record<string, string>?` | 可选额外请求头。 |
+| ↳ `extraBody` | `Record<string, unknown>?` | 可选额外请求体参数（如 quality 等厂商特有参数）。 |
+| ↳ `model` | `string` | 模型标识（如 `"gpt-image-2"`）。 |
+| ↳ `active` | `boolean` | 是否激活。 |
 
 ### 2. 项目元数据 (`projects/<project_id>/project.json`)
 管理用户添加的各个本地代码仓库或工作区。
@@ -88,7 +113,21 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `cwd` | `string` | 项目的绝对路径。 |
 | `created_at` | `number` | 项目的创建时间（**毫秒级**时间戳，如 `Date.now()`）。 |
 
-### 3. 会话元数据 (`projects/<project_id>/sessions/<session_id>/session.json`)
+### 3. 项目记忆 (`projects/<project_id>/memory.json`)
+保存该项目跨 Agent、跨会话共享的持久记忆。`entries` 是唯一事实来源，文件不持久化 entry ID 或派生 summary。
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `version` | `number` | 当前为 `1`，用于未来兼容迁移。 |
+| `entries` | `MemoryEntry[]` | 项目记忆条目；写入时按 weight、date 排序。 |
+| `entries[].weight` | `1 \| 2 \| 3` | 未来工作影响：背景、稳定知识、必须遵守的行为约束。 |
+| `entries[].text` | `string` | 简洁、自包含的事实。 |
+| `entries[].date` | `YYYY-MM-DD` | 记录、更新或最近使用的 UTC 日期。 |
+| `entries[].tags` | `string[]` | 开放语义检索关键词。 |
+
+完整的查询、事务、运行时 ID、关键约束注入和容量整理设计见 [Memory — 项目级持久记忆](./memory.md)。
+
+### 4. 会话元数据 (`projects/<project_id>/sessions/<session_id>/session.json`)
 记录用户在特定项目中与特定 Agent 的对话历史元数据。
 
 | 字段 | 类型 | 说明 |
@@ -102,16 +141,18 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `created_at` | `number` | 会话的创建时间（**毫秒级**时间戳）。 |
 | `updated_at` | `number` | 会话的最后更新时间（**毫秒级**时间戳），用户每次发送新消息或修改标题时会更新此字段。 |
 | `mcp_servers` | `string[]` | 该会话启用的 MCP Server ID 列表。 |
+| `features` | `Feature[]` | 该会话启用的 feature 列表（如 `"skills"`、`"search"`、`"memory"`、`"image_generation"`、`"ask_user"`、`"share_to_user"`）。 |
 | `permission_mode` | `"ask" \| "allow-all"` | 权限模式：每次询问或默认全部允许。 |
 | `models` | `SessionModelState \| null` | 会话的模型配置缓存，包含可用模型及当前选中的模型 ID。 |
 | `modes` | `SessionModeState \| null` | 会话的模式配置缓存（仅 Stdio Agent）。 |
+| `thought_levels` | `SessionThoughtLevelState \| null` | 会话的思考级别配置缓存。 |
 | `initialize_info` | `InitializeResponse \| null` | 代理的初始化信息缓存（包括代理能力、名称、版本等）。 |
 
 > **⚠️ 关于 `id` 与 `resume_id` 的防混淆提示**：
 > 在 Fello 的后端逻辑中，`session.id` 仅用于 Fello 自身管理 UI 侧的路由和列表。
 > 当需要与底层的 ACP 服务（Agent 进程）通信时（例如 `loadSession` 或 `prompt`），必须传入 `session.resume_id`，绝不能传入 `session.id`。
 
-### 4. API Agent 会话状态 (`api-agents/<agent_id>/sessions/<session_id>/session.json`)
+### 5. API Agent 会话状态 (`api-agents/<agent_id>/sessions/<session_id>/session.json`)
 存储 API Agent 会话的运行时状态，由 `OpenaiCompatibleAgent` 管理。
 
 | 字段 | 类型 | 说明 |
@@ -120,7 +161,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `allowedToolKinds` | `string[]` | 被"始终允许"的工具权限种类列表。 |
 | `contextUsedTokens` | `number \| undefined` | 上下文窗口已用 Token 数（可选，持久化后恢复用）。 |
 
-### 5. 历史会话流事件 (`messages.jsonl` / `history.jsonl`)
+### 6. 历史会话流事件 (`messages.jsonl` / `history.jsonl`)
 
 **Stdio Agent (`messages.jsonl`)**：存储由 ACP 协议产生的会话状态增量更新日志（Event Stream）。
 
@@ -138,11 +179,11 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | **持久化机制** | 每次 `prompt` 完成后追加用户消息和助手响应。 |
 | **读取与恢复** | 在 `resumeSession` 时按行解析，恢复完整的对话历史到 `session.history`。 |
 
-### 6. 终端日志 (`terminals/<terminal_id>.log`)
+### 7. 终端日志 (`terminals/<terminal_id>.log`)
 
 存储 Agent 在运行过程中通过终端输出的日志内容。终端日志被持久化到当前会话的 `terminals` 目录下，确保会话休眠后或重启应用时终端输出不丢失。
 
-### 7. iLink 数据 (`ilink/`)
+### 8. iLink 数据 (`ilink/`)
 
 | 文件 | 说明 |
 | :--- | :--- |

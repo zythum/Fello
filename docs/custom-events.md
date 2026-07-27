@@ -19,6 +19,7 @@
 - **分发方 (Dispatchers)**：
   - `file-panel.tsx`：双击文件树节点时触发。
   - `tool-bubble.tsx`：在 Tool Call 气泡的 `summary` 区域中，点击 `locations` 标签按钮时触发。
+  - `markdown-detail.tsx`：在 Markdown 预览中点击文件链接时触发。
 - **监听方 (Listeners)**：
   - `session.tsx`：统一捕获事件，校验 `projectId` 匹配后调用 `handlePreviewFile` 更新内部状态（`detailType` / `detailFile`），在左侧嵌入式详情视图中展示文件预览。
 
@@ -35,7 +36,11 @@
   ```
 - **分发方 (Dispatchers)**：
   - `file-panel.tsx`：文件树右键菜单点击 "Add to Chat" 时触发（支持多选）。
-  - `file-detail.tsx`（`detail/file/`）：在文件代码预览区域选中具体文本/代码行后，右键菜单点击 "Add to Chat" 时触发。
+  - `code-detail.tsx`（`detail/file/code-detail/`）：在文件代码预览区域选中具体文本/代码行后，右键菜单点击 "Add to Chat" 时触发。
+  - `code-view.tsx`（`common/`）：在通用代码视图中选中代码行后触发。
+  - `code-compare-view.tsx`（`common/`）：在代码对比视图中选中代码行后触发。
+  - `markdown-detail.tsx`（`detail/file/markdown-detail/`）：在 Markdown 预览中点击 "Add to Chat" 时触发。
+  - `html-detail.tsx`（`detail/file/html-detail/`）：在 HTML 预览中点击 "Add to Chat" 时触发。
 - **监听方 (Listeners)**：
   - `chat-input.tsx`：收到事件后，将其转换为 react-mentions 支持的格式 `@[name](id)`，追加到输入框末尾并自动聚焦。
 
@@ -47,6 +52,19 @@
   - `chat-input.tsx`：用户按下回车提交新消息后，为了确保发送的新消息（Optimistic Update）能立即出现在视野中，忽略当前的滚动防抖拦截，直接强制滚动到底部。
 - **监听方 (Listeners)**：
   - `chat-area.tsx`：捕获事件后，直接调用底部的 `scrollIntoView({ behavior: "smooth" })` 方法。
+
+## 4. `fello-scroll-to-message`
+
+- **用途**：滚动聊天内容区到指定消息位置。
+- **Payload (`detail`)**：
+  ```ts
+  string  // 目标消息的 displayId
+  ```
+- **分发方 (Dispatchers)**：
+  - `chat-area.tsx`：时间线导航点击时触发。
+  - `user-bubble.tsx`：在用户消息气泡中点击引用跳转时触发。
+- **监听方 (Listeners)**：
+  - `chat-area.tsx`：捕获事件后，查找目标消息 DOM 元素并滚动至可见区域。
 
 ## 规范与建议
 

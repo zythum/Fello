@@ -69,7 +69,7 @@
 - **`src/backend/backend.ts`**：IPC 总入口，创建 BackendContext 与事件总线，按层级实例化各工厂模块，组装统一的 `backendHandlers` 对象并返回 `{ backendHandlers, closeBackend }`
 - **`src/backend/types.ts`**：共享类型定义（`BackendContext`、`SendEventFn`、`EventListener`）
 - **`src/backend/session/index.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、Socket Server 生命周期
-- **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP）
+- **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP：skills/search/memory/image-generation/ask-user/share-to-user + 始终加载 toolbox）
 - **`src/backend/session/notifications.ts`**：通知合并、广播、iLink 转发与 tool_call 状态追踪
 - **`src/backend/bridge-connect.ts`**：Agent Bridge 连接管理（`ensureBridge`/`rekeyBridge`/`killBridge`/`killBridgesByAgent`/`clearAll`/`setBroadcast`），会话级 Bridge 生命周期、连接状态广播、权限路由
 - **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册
@@ -80,7 +80,7 @@
 - **`src/backend/project/filesystem.ts`**：文件系统操作（搜索/读写/目录遍历/文件信息）
 - **`src/backend/project/git.ts`**：Git 状态查询与 HEAD 文件读取
 - **`src/backend/inference.ts`**：无头一次性推理原语（spawn 临时 Agent session → prompt → 收集结果 → 销毁），供 automation 使用
-- **`src/backend/search/index.ts`**：搜索模块入口（ripgrep + file-outline），Socket 路由注册与 MCP Server 构建
+- **`src/backend/search/index.ts`**：搜索模块入口（ripgrep + file-outline），Socket 路由注册（`search/search`、`search/rg`、`search/file_outline`）与 MCP Server 构建
 - **`src/backend/search/ripgrep.ts`**：基于 ripgrep worker 子进程的代码搜索
 - **`src/backend/search/file-outline.ts`**：基于 tree-sitter WASM 的文件大纲提取
 - **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback）
@@ -89,6 +89,9 @@
 - **`src/backend/agent/resolve-agent-info.ts`**：Agent 配置解析（Stdio/API 类型校验，被 backend 和 automation 共享）
 - **`src/backend/webui.ts`**：WebUI 模式下的 WebSocket 及 HTTP 静态服务
 - **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装、Socket 路由注册（`registerSkillsRoute`/`buildSkillsMcpServer`）
+- **`src/backend/memory.ts`**：项目级持久记忆模块（语义查询/存储 + memo 事务管理），Socket 路由注册（`memory/query`、`memory/store`、`memo/read`、`memo/touch`、`memo/add`、`memo/delete`、`memo/set-weight`）
+- **`src/backend/image-generation.ts`**：图片生成模块，调用 OpenAI 兼容 API 生成图片，Socket 路由注册（`image-generation/generate`）
+- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/截图），Socket 路由注册（`toolbox/*`）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
@@ -106,6 +109,10 @@
 - **`src/shared/zod/mcp-skills-schema.ts`**：Shared Zod schema，用于校验 Skills MCP 工具的请求与响应数据结构
 - **`src/shared/zod/mcp-search-schema.ts`**：Search MCP 工具请求与响应数据结构
 - **`src/shared/zod/mcp-share-to-user-schema.ts`**：Share-to-User MCP 工具请求与响应数据结构
+- **`src/shared/zod/mcp-memory-schema.ts`**：Memory MCP 工具请求与响应数据结构
+- **`src/shared/zod/mcp-memo-schema.ts`**：Memo MCP 工具请求与响应数据结构
+- **`src/shared/zod/mcp-image-generation-schema.ts`**：Image Generation MCP 工具请求与响应数据结构
+- **`src/shared/zod/mcp-toolbox-schema.ts`**：Toolbox MCP 工具请求与响应数据结构
 - **`src/shared/zod/worker-ripgrep-schema.ts`**：Ripgrep Worker 子进程 IPC 通信数据结构
 - **`src/shared/zod/worker-file-outline-schema.ts`**：File Outline Worker 子进程 IPC 通信数据结构
 
@@ -118,6 +125,9 @@
 - **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`。session.json 新增 `contextUsedTokens` 字段，支持跨会话持久化上下文用量
 - **`acp-client-tools.ts`**：创建 ACP 客户端工具集（文件读写、终端、搜索等）
 - **`mcp-tools.ts`**：创建 MCP 会话工具集（动态加载 MCP Server 提供的工具）
+- **`agent-client-proxy.ts`**：将 ACP Client 能力代理为 API Agent 可调用的客户端接口
+- **`subagent-tool.ts`**：API Agent 的子代理工具与执行协调
+- **`image-tools.ts`**：API Agent 图片输入与图片相关工具处理
 - **`permission.ts`**：权限记忆系统，支持"始终允许"（Always Allow），持久化到会话状态
 - **`system-prompts.ts`**：基础系统提示词
 - **`utils.ts`**：ContentBlock 与 AI SDK Part 之间的转换工具
@@ -125,7 +135,7 @@
 ### Renderer（`src/mainview/`）
 
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 提示管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
-- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页）
+- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页、`/automation` 自动化页）
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 askUserRequests 队列、iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `lib/session-selectors.ts`：Zustand 细粒度选择器 Hooks（`useSessionMessages`/`useSessionActiveToolCalls`/`useSessionIsLoading` 等），使用 `useShallow` 避免不必要的重渲染
@@ -138,14 +148,14 @@
   - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader + AskUserDialog）
   - `session/chat/chat-ask-user-dialog.tsx`：Ask User 对话框，支持选项选择与自定义输入、排队动画
   - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新、用量按钮）
-  - `session/chat/bubbles/`：各类消息气泡（agent、user、system、tool、thinking、plan）
+  - `chat-bubbles/`：各类消息气泡（agent、subagent、user、system、tool、thinking、plan、message、base）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
   - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
-  - `session/detail/file/file-detail.tsx`：文件详情入口，根据文件类型分发到子目录（code-detail/、image-detail/、markdown-detail/、pdf-detail/、docx-detail/、xlsx-detail/、pptx-detail/、fallback-detail/），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
+  - `session/detail/file/file-detail.tsx`：文件详情入口，根据文件类型分发到子目录（code-detail/、image-detail/、markdown-detail/、html-detail/、pdf-detail/、docx-detail/、xlsx-detail/、pptx-detail/、fallback-detail/），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
-  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink、snippets）
+  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink、snippets、memory、image-generation）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
 ### MCP 子进程
@@ -154,10 +164,14 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 
 - **`src/scripts/mcp-skills/server.ts`**：Skills MCP server，提供 `list_skills` 和 `activate_skill` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/skills/catalog`、`/skills/detail`）。Skills 本身是会话级 feature flag，可以通过 `features` 参数开关
 - **`src/scripts/mcp-ask-user/server.ts`**：Ask User MCP server，提供 `ask_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/ask-user/ask`），将 Agent 的询问请求转发到 `askUser()` 函数
-- **`src/scripts/mcp-search/server.ts`**：Search MCP server，提供 `search`、`rg` 和 `file_outline` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/search/search`、`/search/rg`、`/search/file-outline`）
+- **`src/scripts/mcp-search/server.ts`**：Search MCP server，提供 `search`、`rg` 和 `file_outline` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/search/search`、`/search/rg`、`/search/file_outline`）
 - **`src/scripts/mcp-share-to-user/server.ts`**：Share-to-User MCP server，提供 `share_to_user` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/share-to-user/share`），将 Agent 的文件分享请求转发到 `shareToUser()` 函数
+- **`src/scripts/mcp-memory/server.ts`**：Memory MCP server，提供 `memory_query` 和 `memory_store` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memory/query`、`/memory/store`），用于项目级持久记忆的语义检索与存储
+- **`src/scripts/mcp-memo/server.ts`**：Memo MCP server，提供 `memo_get_current`、`memo_touch`、`memo_add`、`memo_delete`、`memo_set_weight` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memo/read`、`/memo/touch`、`/memo/add`、`/memo/delete`、`/memo/set-weight`），用于项目记忆条目的事务性管理
+- **`src/scripts/mcp-image-generation/server.ts`**：Image Generation MCP server，提供 `image_generation` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/image-generation/generate`），用于文本生成图片
+- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、屏幕截图等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制
 
-Skills、ask-user、search 和 share-to-user 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "ask_user", "search", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。
+Skills、ask-user、search、share-to-user、memory 和 image-generation 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "search", "image_generation", "memory", "ask_user", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。此外，toolbox MCP Server 始终加载，不受 feature flag 控制。
 
 MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 `out/scripts/`。
 
@@ -185,30 +199,34 @@ type AgentInfo = StdioAgentInfo | ApiAgentInfo
 ```
 
 - **StdioAgentInfo**：`type: "stdio"`, `command`, `args`, `env`
-- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`, `contextWindowTokens`（可选，默认 128000）
+- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`，以及可选的 `contextWindowTokens`（默认 128000）、`modelIdTemplate`、`models`
 
 `ACPBridge` 根据 `AgentInfo.type` 路由到对应的 spawner（`spawnStdioAgent` 或 `spawnOpenaiCompatibleApiAgent`），两者都实现统一的 `AgentProcess` 接口。
 
-### 2) 单 Bridge、单 Agent 进程复用
+### 2) Session 级 Bridge 生命周期
 
-应用全局只维护一个 `ACPBridge` 实例。所有会话操作都复用同一连接：
+`createBridgeConnectModule()` 使用 `Map<sessionKey, Promise<ACPBridge>>` 管理连接。常规会话各自以 Fello `session.id` 作为 key 持有 Bridge；创建会话时先使用临时 key，取得 Agent `resumeId` 并持久化后再通过 `rekeyBridge()` 切换到正式 key。
 
-- 新建会话：`newSession`
-- 恢复会话：`loadSession`
-- 发送消息：`prompt`
-- 取消生成：`cancel`
+- 新建会话：`ACPBridge.newSession()`
+- 恢复会话：`ACPBridge.loadSession()`
+- 发送消息：`ACPBridge.sendPrompt()`
+- 取消生成：`ACPBridge.cancel()`
+- 关闭与清理：`killBridge()` / `killBridgesByAgent()` / `clearAll()`
 
-`ACPBridge` 通过 `Map<sessionId, SessionModelState>` 与 `Map<sessionId, SessionModeState>` 维护模型与模式状态缓存，避免会话切换时反复拉取。
+每个 `ACPBridge` 封装对应的 Agent 连接/进程，并按 ACP `resumeId` 缓存模型、模式、思考级别、配置选项和已加载会话状态。
 
 ### 3) 事件驱动的 UI 渲染
 
 所有 ACP 增量事件统一经过同一链路进入 Zustand，再由 React 渲染：
 
 ```
-ACP sessionUpdate
-  → main.safeSend("session-update")
-  → renderer/backend.emit()
-  → reduceSessionUpdate(currentState, update)
+ACPBridge.onSessionUpdate
+  → bridge-connect.broadcastAndSaveSessionUpdate()
+  → session/notifications.ts 持久化并调用 sendEvent("session-update")
+  → Electron IPC / WebUI WebSocket 传输
+  → mainview/backend.ts emit()
+  → App.tsx handleSessionUpdate()
+  → reduceSessionNotification(sessionId, currentState, notification)
   → useAppStore(sessionStates)
   → ChatArea / Bubble 组件更新
 ```
@@ -239,7 +257,7 @@ ACP sessionUpdate
 - `activeIlinkSessionId`：当前 iLink 活跃会话 ID
 - `isMacApp` / `isFullScreen`：平台与窗口状态
 
-此外，模型与模式（`models` / `modes`）以及 Agent 初始化信息（`initializeInfo`）现在作为 `SessionInfo` 的一部分直接与每个独立的会话元数据绑定，前端会根据当前会话的 `SessionInfo` 直接渲染，避免了全局状态同步带来的界面闪烁问题。
+此外，模型、模式、思考级别（`models` / `modes` / `thoughtLevels`）以及 Agent 初始化信息（`initializeInfo`）现在作为 `SessionInfo` 的一部分直接与每个独立的会话元数据绑定，前端会根据当前会话的 `SessionInfo` 直接渲染，避免了全局状态同步带来的界面闪烁问题。
 
 ### 5) 主进程统一托管系统能力
 
@@ -263,9 +281,10 @@ ACP sessionUpdate
 Renderer: addProject(pickWorkDir)
   → Main: storage.addProject(project.json)
   → Renderer: 在项目下触发 newSession(projectId, agentId, mcpServers, permissionMode)
-  → Main: ensureBridge(agentId) → spawn Agent process (Stdio or API)
+  → Main: ensureBridge(tempKey, agentId, cwd) → spawn Agent process (Stdio or API)
   → Agent: newSession
   → Main: storage.createSession(session.json)
+  → Main: rekeyBridge(tempKey, session.id) + 创建 Session Socket Server
   → Renderer: 刷新 sessions + 进入 active session
 ```
 
@@ -276,7 +295,7 @@ Renderer: resetSessionState(sessionId)
   → Main: loadSession(sessionId)
   → Agent: loadSession/resumeSession (服务端重放历史或从本地 history.jsonl 恢复)
   → session-update 持续推送
-  → reduceSessionUpdate 重建消息/工具/usage 状态
+  → reduceSessionNotification 重建消息/工具/usage 状态
 ```
 
 ### C. 发送消息（流式）
@@ -285,9 +304,9 @@ Renderer: resetSessionState(sessionId)
 ChatInput submit
   → 立即写入本地 user message + isStreaming=true
   → Main: sendPrompt
-  → Agent: prompt
+  → Agent: sendPrompt
   → session-update chunk 持续到达（text-delta / reasoning-delta / file / tool-call / tool-result）
-  → reduceSessionUpdate / calculateToolCall
+  → reduceSessionNotification / calculateToolCallUpdate
   → 生成结束: Agent 通过 result.usage 采集 Token 用量
     → 发送 sessionUpdate("usage_update", { used, size }) 更新上下文窗口进度
     → prompt 返回 { stopReason, usage } 包含本轮 Token 明细
@@ -363,7 +382,7 @@ Agent 调用 list_skills / activate_skill MCP tool
 
 ```
 Agent 调用 search / rg / file_outline MCP tool
-  → MCP search server: HTTP POST over Unix Socket（/search/search、/search/rg、/search/file-outline）
+  → MCP search server: HTTP POST over Unix Socket（/search/search、/search/rg、/search/file_outline）
   → Main SocketServer: 查询 ripgrep worker 或 file-outline worker
   → 返回结果给 MCP server
   → Agent: 收到 tool call 结果

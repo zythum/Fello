@@ -13,6 +13,9 @@ fello/
 │   │   ├── storage.ts                    # API Agent 会话持久化（session.json + history.jsonl）
 │   │   ├── acp-client-tools.ts           # ACP 客户端工具集工厂
 │   │   ├── mcp-tools.ts                  # MCP 会话工具集工厂
+│   │   ├── agent-client-proxy.ts         # ACP Client 能力代理
+│   │   ├── subagent-tool.ts              # 子代理工具与执行协调
+│   │   ├── image-tools.ts                # 图片输入与相关工具处理
 │   │   ├── permission.ts                 # 权限记忆系统（"始终允许"）
 │   │   ├── system-prompts.ts            # 基础系统提示词
 │   │   └── utils.ts                     # ContentBlock 转换工具
@@ -58,7 +61,10 @@ fello/
 │   │   ├── watcher.ts                # 文件系统监控（@parcel/watcher 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成、路由注册
-│   │   ├── socket-server.ts          # Unix Domain Socket HTTP 服务器 + 路径生成
+│   │   ├── memory.ts                 # 项目级持久记忆（语义查询/存储 + memo 事务管理）
+│   │   ├── image-generation.ts       # 图片生成模块（OpenAI 兼容 API）
+│   │   ├── toolbox.ts                # 通用工具箱（编码/哈希/时间/UUID/随机数/图片处理/截图）
+│   │   ├── socket-server.ts          # 本地 Socket HTTP 服务器 + 跨平台路径生成
 │   │   ├── i18n.ts                   # 后端多语言初始化
 │   │   ├── locales/                  # 后端多语言 JSON 字典
 │   │   │   ├── en.json
@@ -85,6 +91,14 @@ fello/
 │   │   │   └── server.ts             # Search MCP server（search/rg/file_outline）
 │   │   ├── mcp-share-to-user/
 │   │   │   └── server.ts             # Share-to-User MCP server
+│   │   ├── mcp-memory/
+│   │   │   └── server.ts             # Memory MCP server（memory_query/memory_store）
+│   │   ├── mcp-memo/
+│   │   │   └── server.ts             # Memo MCP server（事务性记忆条目管理）
+│   │   ├── mcp-image-generation/
+│   │   │   └── server.ts             # Image Generation MCP server
+│   │   ├── mcp-toolbox/
+│   │   │   └── server.ts             # Toolbox MCP server（编码/哈希/时间/UUID/图片处理/截图）
 │   │   ├── worker-ripgrep/
 │   │   │   └── worker.ts             # Ripgrep Worker 子进程
 │   │   └── worker-file-outline/
@@ -98,6 +112,10 @@ fello/
 │   │       ├── mcp-skills-schema.ts
 │   │       ├── mcp-search-schema.ts       # Search MCP 工具请求与响应
 │   │       ├── mcp-share-to-user-schema.ts # Share-to-User MCP 请求与响应
+│   │       ├── mcp-memory-schema.ts       # Memory MCP 工具请求与响应
+│   │       ├── mcp-memo-schema.ts         # Memo MCP 工具请求与响应
+│   │       ├── mcp-image-generation-schema.ts # Image Generation MCP 请求与响应
+│   │       ├── mcp-toolbox-schema.ts      # Toolbox MCP 工具请求与响应
 │   │       ├── worker-ripgrep-schema.ts    # Ripgrep Worker IPC 数据结构
 │   │       └── worker-file-outline-schema.ts # File Outline Worker IPC 数据结构
 │   │
@@ -151,9 +169,18 @@ fello/
 │       │   │           ├── docx-detail/          # DOCX 预览
 │       │   │           ├── xlsx-detail/          # Excel 预览
 │       │   │           └── pptx-detail/          # PPTX 预览
+│       │   ├── chat-bubbles/          # 各类消息气泡（独立顶级目录）
+│       │   │   ├── agent-bubble.tsx
+│       │   │   ├── subagent-bubble.tsx
+│       │   │   ├── user-bubble.tsx
+│       │   │   ├── system-bubble.tsx
+│       │   │   ├── tool-bubble.tsx
+│       │   │   ├── thinking-bubble.tsx
+│       │   │   ├── plan-bubble.tsx
+│       │   │   ├── message-bubble.tsx
+│       │   │   └── base-bubble.tsx
 │       │   ├── session/              # 会话主工作区相关组件
-│       │   │   ├── chat/             # 聊天核心区域与气泡组件
-│       │   │   │   ├── bubbles/      # 各类角色消息气泡 (agent/user/system/tool/thinking/plan)
+│       │   │   ├── chat/             # 聊天核心区域
 │       │   │   │   ├── chat.tsx      # 聊天主容器（含 ChatHeader）
 │       │   │   │   ├── chat-header.tsx # 会话头部 (Agent Badge, 标题, MCP菜单, 刷新)
 │       │   │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
@@ -191,6 +218,8 @@ fello/
 │       │   │       │   │   └── xlsx-detail.tsx
 │       │   │       │   ├── pptx-detail/       # PPTX 演示文稿预览
 │       │   │       │   │   └── pptx-detail.tsx
+│       │   │       │   ├── html-detail/       # HTML 预览（含沙盒 iframe）
+│       │   │       │   │   └── html-detail.tsx
 │       │   │       │   └── fallback-detail/   # 不支持类型的降级展示
 │       │   │       │       └── fallback-detail.tsx
 │       │   │       └── terminal/
@@ -208,7 +237,8 @@ fello/
 │       │   │   ├── mcp/
 │       │   │   │   ├── settings-mcp.tsx             # MCP Servers 配置页面
 │       │   │   │   ├── settings-mcp-stdio-dialog.tsx    # Stdio MCP 配置弹窗
-│       │   │   │   └── settings-mcp-http-dialog.tsx     # HTTP MCP 配置弹窗
+│       │   │   │   ├── settings-mcp-http-dialog.tsx     # HTTP MCP 配置弹窗
+│       │   │   │   └── settings-mcp-sse-dialog.tsx      # SSE MCP 配置弹窗
 │       │   │   ├── webui/
 │       │   │   │   └── settings-webui.tsx           # WebUI 配置页面
 │       │   │   ├── ilink/
@@ -216,6 +246,10 @@ fello/
 │       │   │   └── snippets/
 │       │   │       ├── settings-snippets.tsx        # Snippets 管理页面
 │       │   │       └── settings-snippet-dialog.tsx  # Snippet 编辑弹窗
+│       │   │   ├── memory/
+│       │   │   │   └── settings-memory.tsx          # 项目记忆管理页面
+│       │   │   └── image-generation/
+│       │   │       └── settings-image-generation.tsx # 图片生成 Provider 配置页面
 │       │   ├── skills/               # Skills 管理页面
 │       │   │   ├── skills-layout.tsx     # Skills 页侧边导航布局
 │       │   │   ├── installed/
@@ -279,7 +313,8 @@ fello/
 │   └── fello_icon.png
 ├── tools/                            # 构建辅助脚本
 │   ├── prepare-mac-icon.sh           # macOS 图标生成脚本
-│   └── prepare-npm-package.mjs       # npm 包打包脚本（生成 npm-package/ 目录）
+│   ├── prepare-npm-package.mjs       # npm 包打包脚本（生成 npm-package/ 目录）
+│   └── download-tree-sitter-wasm.mjs # 下载 Search MCP 使用的 grammar WASM
 ├── docs/                             # 项目文档
 ├── .github/                          # GitHub CI/CD 配置
 ├── components.json                   # shadcn 生成配置
@@ -321,7 +356,7 @@ fello/
 - Agent 终端管理：`agent/agent-terminal-manager.ts`
 - iLink 微信集成：连接管理、消息收发
 - Skills 系统：目录扫描、skills.sh 市场集成、路由注册（`registerSkillsRoute`、`buildSkillsMcpServer`）
-- Unix Socket Server：`socket-server.ts`（含 `generateSocketPath`）
+- 本地 Socket Server：`socket-server.ts`（`generateSocketPath()` 在 Unix-like 系统生成 socket 文件，在 Windows 生成命名管道）
 - 通过 `src/shared/schema.ts` 保持主渲染层 API 契约稳定
 
 ### `src/electron`
@@ -345,8 +380,7 @@ fello/
 ```
 ~/.fello/
 ├── settings.json                    # 全局设置
-├── sockets/                         # Unix Domain Socket 文件（MCP 子进程 IPC）
-├── workspaces/                      # 工作区临时数据
+├── sockets/                         # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                            # 临时文件目录
 ├── automations/                     # 自动化任务数据
 │   └── <schedule-id>/
@@ -358,6 +392,7 @@ fello/
 ├── projects/                        # 项目数据（Stdio Agent 会话）
 │   └── <project-id>/
 │       ├── project.json
+│       ├── memory.json               # 项目级跨会话持久记忆
 │       └── sessions/
 │           └── <session-id>/
 │               ├── session.json
@@ -376,22 +411,25 @@ fello/
     └── active-session.json          # 当前活跃会话 ID
 ```
 
-`settings.json` 字段：
+`settings.json` 的持久化字段：
 
-- `agents`: 自定义的 Agent 列表，支持 `StdioAgentInfo` 和 `ApiAgentInfo` 两种类型。API Agent 支持 `contextWindowTokens` 字段配置上下文窗口大小
-- `mcpServers`: MCP Server 列表，支持 `StdioMcpServerInfo` 和 `HttpMcpServerInfo` 两种类型
-- `theme`: UI 主题配置（`themeMode`: `"light" | "dark" | "system"`）
-- `i18n`: 应用语言配置（`language`: `"en"` | `"zh-CN"`）
-- `fileWatcher`: 文件监听配置（`enabled`: `boolean`）
-- `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`, `keepaliveMaxCount`: `number`）
+- `agents`: 以 Agent ID 为键的配置对象，支持 Stdio 与 OpenAI-compatible API 两种类型；对象内保存 `order`，读取为 IPC `SettingsInfo` 时转换为数组
+- `mcpServers`: 以 MCP Server ID 为键的配置对象，支持 Stdio、HTTP 和 SSE 三种类型；对象内保存 `order`
+- `theme`: UI 主题配置（`theme_mode`: `"light" | "dark" | "system"`）
+- `i18n`: 应用语言配置（`language`: string）
+- `fileWatcher`: 文件监听配置（`enabled`: boolean）
+- `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`）
+- `editor`: 编辑器设置（`name`: `string`，如 `"code"`、`"cursor"`）
+- `sound`: 音效设置（`volume`: `number`、`muted`: `boolean`、`theme`: `"soft" | "crisp"`）
 - `snippets`: Snippets 列表，每项包含 `id`、`title`、`content` 字段
+- `imageGeneration`: 图片生成 Provider 列表，每项包含 `id`、`name`、`provider`、`baseUrl`、`apiKey`、`model`、`active` 等字段
 
 `project.json` 字段：
 
 - `id`: 项目 ID（cwd 的 SHA1 哈希）
 - `title`: 项目名称
 - `cwd`: 项目工作目录
-- `createdAt`: 毫秒级时间戳
+- `created_at`: 毫秒级时间戳
 
 `session.json` 字段（API Agent 会话）：
 
@@ -408,8 +446,10 @@ fello/
 - `project_id`: 所属项目 ID
 - `cwd`: 会话工作目录
 - `mcp_servers`: 启用的 MCP Server ID 列表
+- `features`: 启用的 feature 列表
 - `permission_mode`: 权限模式（`"ask"` 或 `"allow-all"`）
 - `models`: 模型配置缓存
 - `modes`: 模式配置缓存
+- `thought_levels`: 思考级别配置缓存
 - `initialize_info`: Agent 初始化信息缓存
 - `created_at` / `updated_at`: 毫秒级时间戳

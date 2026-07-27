@@ -42,6 +42,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ── Memory file operations ───────────────────────────────────────────
 
+/** Derive projectId from cwd (same logic as storage/project-session.ts). */
+function getProjectIdFromCwd(cwd: string): string {
+  return createHash("sha1").update(cwd).digest("hex");
+}
+
 function getMemoryPath(projectId: string): string {
   return join(PROJECTS_DIR, projectId, MEMORY_FILENAME);
 }
@@ -477,14 +482,26 @@ export function createMemoryModule(
   // ── MCP Server Builder ──────────────────────────────────────────────
 
   function buildMemoryMcpServer(options: { projectDir: string; socketPath: string }) {
+    const projectId = getProjectIdFromCwd(options.projectDir);
+    const criticalMemories = readMemoryFile(projectId).entries
+      .filter((entry) => entry.weight === 3)
+      .map((entry) => entry.text);
+    const args = [
+      join(process.scriptsPath, "mcp-memory/server.mjs"),
+      "--socket-path",
+      options.socketPath,
+    ];
+
+    if (criticalMemories.length > 0) {
+      const criticalMemoryFile = join(TEMP_DIR, `memory-critical-${randomUUID()}.json`);
+      writeFileSync(criticalMemoryFile, JSON.stringify(criticalMemories), "utf-8");
+      args.push("--critical-memory", criticalMemoryFile);
+    }
+
     return {
       name: "memory",
       command: process.execPath,
-      args: [
-        join(process.scriptsPath, "mcp-memory/server.mjs"),
-        "--socket-path",
-        options.socketPath,
-      ],
+      args,
       env: [{ name: "ELECTRON_RUN_AS_NODE", value: "1" }],
     };
   }

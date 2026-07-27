@@ -79,13 +79,16 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 ### 模型、模式与扩展
 
 - 动态配置 Agent：支持在应用设置中添加、修改、删除多个 Agent（Stdio 或 API 类型），使用 ID 作为唯一标识。API Agent 支持配置 `contextWindowTokens`（上下文窗口大小），保存设置时自动校验为正整数
-- MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器（Stdio 和 HTTP 两种类型），并在会话菜单中随时启停，为 Agent 动态扩展能力
+- MCP 服务器：支持在设置中配置 Model Context Protocol (MCP) 服务器（Stdio、HTTP 和 SSE 三种类型），并在会话菜单中随时启停，为 Agent 动态扩展能力
 - Skills 系统：浏览和安装来自 skills.sh 市场的 Skills，支持用户级和项目级作用域（fello/agents/claude 三个 scope）
-- 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）和语言（Language）
+- 项目级持久记忆：跨会话保存项目约定、偏好、决策，支持语义检索和事务更新
+- 图片生成：支持配置 OpenAI 兼容的图片生成 Provider，Agent 可通过工具调用生成图片
+- 动态配置界面与交互：支持在应用设置中修改全局主题（Theme）、语言（Language）、编辑器、音效
 - Snippets：支持在设置中管理自定义文本片段（Snippets），可在聊天输入中快速引用
 - 从 Agent 读取可用模型列表，这些配置被持久化并隔离在每个独立会话（Session）的元数据中，切换会话时 UI 无缝更新
 - 支持在下拉菜单中显示模型信息
 - 支持在会话运行中随时切换模型，并通过 `session-changed` 事件进行细粒度的原子级 UI 更新
+- 支持切换思考级别（Thought Levels），控制 Agent 的推理深度
 - 在输入区显示 token 统计（input/output/total/think）
 
 ### WebUI 远程访问
@@ -109,7 +112,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 - 定时任务计划：基于 cron 表达式配置定时触发的 AI Agent 任务
 - 计划管理：支持创建、编辑、删除计划，支持 cron 定时和手动触发两种模式
-- 任务执行：每次触发时 spawn 独立的 ACPBridge 执行，支持 MCP 和 Skills
+- 任务执行：由 `InferenceModule.runInference()` 执行，统一管理 Agent、MCP、权限与清理生命周期
 - 并发保护：同一计划不会并发执行，正在运行时跳过新触发
 - 文件持久化：任务产物以文件形式存储在 `~/.fello/automations/<schedule-id>/tasks/<task-id>/` 下
 - 任务历史：支持查看每次执行的状态、时间和产出文件
@@ -137,7 +140,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 数据与安全边界
 
-- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）
+- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、项目级持久记忆（`~/.fello/projects/<project_id>/memory.json`）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）、自动化任务数据（`~/.fello/automations/` 下）
 - 完整对话事件日志（在会话目录下的 `messages.jsonl` 或 `history.jsonl` 文件中）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 

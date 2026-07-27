@@ -11,7 +11,7 @@ Skills 支持两种作用域级别：
 | **project** | 项目根目录下的 `.fello/skills/` |
 | **user** | `~/.fello/skills/`、`~/.agents/skills/`、`~/.claude/skills/` |
 
-Skills 是一个**会话级 feature flag**，与 `ask_user` 平级，可以通过会话的 `features` 配置开关。
+Skills 是一个**会话级 feature flag**，与 Search、Memory、Ask User 等能力一样通过会话的 `features` 配置开关。
 
 ---
 
@@ -23,19 +23,36 @@ Skills 集成在 Fello 的会话级功能开关系统中：
 
 ```typescript
 /** 会话级别的 feature 枚举 */
-export type Feature = "skills" | "ask_user";
+export type Feature =
+  | "skills"
+  | "ask_user"
+  | "share_to_user"
+  | "search"
+  | "memory"
+  | "image_generation";
 ```
 
 ### 默认启用 — `src/shared/constants.ts`
 
 ```typescript
 /** 所有可用的 feature 列表，也作为默认值 */
-export const ALL_FEATURES: Feature[] = ["skills", "ask_user"];
+export const ALL_FEATURES: Feature[] = [
+  "skills",
+  "search",
+  "image_generation",
+  "memory",
+  "ask_user",
+  "share_to_user",
+];
 
 /** feature → i18n key 映射 */
 export const FEATURE_I18N_KEYS: Record<Feature, string> = {
+  search: "constant.feature.search",
   skills: "constant.feature.skills",
   ask_user: "constant.feature.askUser",
+  share_to_user: "constant.feature.shareToUser",
+  memory: "constant.feature.memory",
+  image_generation: "constant.feature.imageGeneration",
 };
 ```
 
@@ -105,7 +122,7 @@ export const FEATURE_I18N_KEYS: Record<Feature, string> = {
 
 ### 启动
 
-MCP Server 由 `buildMcpServersConfig()` 在 `session.ts` 中按需构建，仅在 `features` 包含 `"skills"` 时注入：
+MCP Server 由 `buildMcpServersConfig()` 在 `session/mcp-config.ts` 中按需构建，仅在 `features` 包含 `"skills"` 时注入：
 
 ```typescript
 if (socketPath && features.includes("skills")) {
@@ -213,11 +230,11 @@ interface SkillInfo {
 
 ### Skills MCP 路由注册 — `registerSkillsRoute()`
 
-`registerSkillsRoute(server, projectRoot)` 向 Socket Server 注册  和  两个路由，供 MCP 子进程回调。该函数被 （常规会话）和 （自动化任务）共享使用。
+`registerSkillsRoute(server, projectRoot)` 向 Socket Server 注册 `/skills/catalog` 和 `/skills/detail` 两个路由，供 MCP 子进程回调。该函数被 `src/backend/session/index.ts`（常规会话）和 `src/backend/inference.ts`（自动化推理）共享使用。
 
 ### Skills MCP 配置构建 — `buildSkillsMcpServer()`
 
-`buildSkillsMcpServer({ projectDir, socketPath })` 构建 skills MCP Server 的启动配置（command + args + env），内部自动生成 catalog JSON 快照文件。被  和  共享使用，消除了原有的重复代码。
+`buildSkillsMcpServer({ projectDir, socketPath })` 构建 skills MCP Server 的启动配置（command + args + env），内部自动生成 catalog JSON 快照文件。该函数被 `src/backend/session/mcp-config.ts` 和 `src/backend/inference.ts` 共享使用。
 
 ### Socket 路由处理
 
@@ -272,7 +289,7 @@ interface SkillInfo {
 - 来源：通过 `request.getSkillsCatalog({ projectId })` 获取
 - 排序：按 `name.localeCompare()` 排序
 - 数量限制：最多显示 `AT_SUGGESTION_MAX = 6` 条
-- 优先顺序：MCP Server 排在 Skills 前面
+- 优先顺序：MCP Server 排在 Skills 前面（`[...mcpItems, ...cachedSkills]`）
 
 ---
 
@@ -339,9 +356,9 @@ for (const file of await readdir(TEMP_DIR)) {
 | 文件 | 层 | 职责 |
 |---|---|---|
 | `src/scripts/mcp-skills/server.ts` | MCP | Skills MCP tool 注册 & Socket 转发 |
-| `src/backend/session.ts` | Backend | `buildMcpServersConfig()` 按 feature 注入 Skills MCP Server |
+| `src/backend/session/mcp-config.ts` | Backend | `buildMcpServersConfig()` 按 feature 注入 Skills MCP Server |
 | `src/backend/skills.ts` | Backend | Skills 目录扫描、frontmatter 解析、CRUD、`registerSkillsRoute()`、`buildSkillsMcpServer()` |
-| `src/backend/storage.ts` | Backend | `TEMP_DIR`、`SOCKETS_DIR` 常量 |
+| `src/backend/storage/constant.ts` | Backend | `TEMP_DIR`、`SOCKETS_DIR` 常量 |
 | `src/backend/socket-server.ts` | Backend | Unix Domain Socket HTTP 服务器 |
 | `src/shared/zod/mcp-skills-schema.ts` | Shared | Skills Zod schema（catalog、detail request/response） |
 | `src/shared/schema.ts` | Shared | `Feature` 枚举、`SkillInfo` 接口 |

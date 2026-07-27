@@ -99,18 +99,22 @@ sendPrompt: {
 | `renameProject` | `{ projectId, title }` | `void` | 重命名项目 |
 | `deleteProject` | `string` (projectId) | `void` | 删除项目 |
 | `deleteSession` | `string` (sessionId) | `void` | 删除会话 |
+| `closeSession` | `{ sessionId }` | `void` | 关闭会话及其 Agent bridge，保留本地数据 |
+| `getSessionDataSystemPath` | `{ sessionId }` | `string \| null` | 获取会话存储目录的绝对路径 |
+| `resetAgent` | `{ agentId }` | `void` | 重置 Agent：关闭其所有会话并清理 bridge |
+| `clearAgentSessions` | `{ agentId }` | `{ deletedSessionIds }` | 清理 Agent 的所有会话数据 |
 | `updateSession` | `{ sessionId, title?, mcpServers?, features? }` | `void` | 更新会话属性（标题 / MCP / features） |
 
 ### 会话交互
 
 | 方法 | params | response | 说明 |
 |---|---|---|---|
-| `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes }` | 创建新会话 |
-| `loadSession` | `{ sessionId }` | `{ sessionId, initializeInfo, models, modes }` | 恢复已有关会话 |
+| `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes, thoughtLevels }` | 创建新会话 |
+| `loadSession` | `{ sessionId, force? }` | `{ sessionId, initializeInfo, models, modes, thoughtLevels }` | 恢复已有会话；`force` 可要求重新加载 |
 | `getSessionHistory` | `{ sessionId }` | `{ messages }` | 获取会话历史消息 |
 | `sendPrompt` | `{ sessionId, contents }` | `{ stopReason, usage? }` | 发送用户 Prompt |
 | `cancelPrompt` | `{ sessionId }` | `void` | 取消当前生成 |
-| `respondAskUser` | `{ sessionId, askUserId, value, reason? }` | `void` | 响应 askUser 请求 |
+| `respondAskUser` | `{ sessionId, askUserId, value: string \| null, reason? }` | `void` | 响应 askUser 请求 |
 | `getPendingAskUserRequests` | `{ sessionId }` | `AskUserRequest[]` | 获取 pending 的 askUser 请求 |
 | `changeWorkDir` | `{ sessionId }` | `{ ok, cwd }` | 更改会话工作目录 |
 
@@ -122,6 +126,8 @@ sendPrompt: {
 | `setModel` | `{ sessionId, modelId }` | `void` | 切换模型 |
 | `getModes` | `{ sessionId }` | `SessionModeState \| null` | 获取可用模式列表 |
 | `setMode` | `{ sessionId, modeId }` | `void` | 切换模式 |
+| `getThoughtLevels` | `{ sessionId }` | `SessionThoughtLevelState \| null` | 获取可用思考级别列表 |
+| `setThoughtLevel` | `{ sessionId, thoughtLevelId }` | `void` | 切换思考级别 |
 
 ### 文件系统
 
@@ -161,9 +167,39 @@ sendPrompt: {
 | `getIlinkStatus` | `void` | `{ connected, userId?, accountId?, qrcodeUrl?, error? }` | 获取连接状态 |
 | `startIlinkLogin` | `void` | `{ qrcode, qrcodeImgUrl }` | 开始扫码登录 |
 | `pollIlinkQrcode` | `{ qrcode }` | `{ status }` | 轮询扫码状态 |
-| `stopIlink` | `void` | `void` | 断开连接 |
+| `stopIlink` | `{ logout: boolean }` | `void` | 断开连接（logout=true 时同时登出） |
 | `setActiveIlinkSession` | `{ sessionId }` | `void` | 设置活跃微信会话 |
 | `getActiveIlinkSession` | `void` | `{ sessionId: string \| null }` | 获取当前活跃会话 |
+
+### 自动化（Automation）
+
+| 方法 | params | response | 说明 |
+|---|---|---|---|
+| `getServerTimezone` | `void` | `string` | 获取服务端时区 |
+| `listSchedules` | `void` | `Schedule[]` | 获取所有调度列表 |
+| `createSchedule` | `{ name, agentId, modelId?, prompt, cron, features?, mcpServers? }` | `Schedule` | 创建调度 |
+| `updateSchedule` | `{ scheduleId, updates }` | `Schedule` | 更新调度 |
+| `deleteSchedule` | `{ scheduleId }` | `void` | 删除调度 |
+| `triggerSchedule` | `{ scheduleId }` | `Task` | 手动立即触发调度 |
+| `getTasks` | `{ scheduleId }` | `Task[]` | 获取调度的任务历史 |
+| `getTaskFiles` | `{ scheduleId, taskId }` | `string[]` | 获取任务生成的文件列表 |
+| `readTaskFile` | `{ scheduleId, taskId, filePath, encoding? }` | `string` | 读取任务文件内容 |
+| `deleteTask` | `{ scheduleId, taskId }` | `void` | 删除任务及其文件 |
+| `getTaskFileSystemPath` | `{ scheduleId, taskId, filePath }` | `string` | 获取任务文件的系统绝对路径 |
+
+### 记忆（Memory）
+
+| 方法 | params | response | 说明 |
+|---|---|---|---|
+| `getMemory` | `{ projectId }` | `{ version, entries } \| null` | 获取项目记忆条目 |
+| `clearMemory` | `{ projectId }` | `void` | 清除项目记忆 |
+| `getMemorySystemFilePath` | `{ projectId }` | `string \| null` | 获取 memory.json 系统路径 |
+
+### 文件分享
+
+| 方法 | params | response | 说明 |
+|---|---|---|---|
+| `getShareFileSystemPath` | `{ sessionId, sharePath }` | `string` | 获取分享文件的系统绝对路径 |
 
 ## 完整事件列表
 
@@ -174,7 +210,7 @@ sendPrompt: {
 | `ask-user-request` | `AskUserRequest` | Agent 发起 askUser 请求 |
 | `ask-user-response` | `AskUserResponse` | askUser 请求已响应 |
 | `terminal-output` | `{ terminalId, data }` | 终端输出数据 |
-| `terminal-exit` | `{ terminalId, exitCode }` | 终端进程退出 |
+| `terminal-exit` | `{ terminalId, exitCode: number \\| null }` | 终端进程退出 |
 | `agent-terminal-output` | `{ sessionId, terminalId, data }` | Agent 专属终端输出 |
 | `webui-status-changed` | `{ status }` | WebUI 服务状态变更 |
 | `ilink-status-changed` | `{ status }` | iLink 连接状态变更 |
@@ -182,6 +218,10 @@ sendPrompt: {
 | `projects-changed` | `void` | 项目列表变更（新增/删除/重命名） |
 | `sessions-changed` | `void` | 会话列表变更 |
 | `fs-changed` | `{ projectId, changes }` | 文件系统变更 |
+| `prompt-start` | `{ sessionId }` | Prompt 开始处理 |
+| `prompt-end` | `{ sessionId, stopReason?, error? }` | Prompt 处理结束 |
+| `schedules-changed` | `void` | 调度列表发生变更（新增/删除/更新） |
+| `task-update` | `{ scheduleId, task }` | 自动化任务状态更新 |
 
 ## 前后端调用链路
 

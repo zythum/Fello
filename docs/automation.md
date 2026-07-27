@@ -13,12 +13,13 @@ interface Schedule {
   id: string;
   name: string;
   agentId: string;          // 使用的 Agent ID
+  modelId?: string;         // 使用的模型 ID（可选，留空则使用 Agent 默认模型）
   prompt: string;           // Agent 执行的 Prompt
   cron: {
     type: "cron" | "manual"; // cron 定时 或 手动触发
     expr?: string;           // 5 段式 cron 表达式（分 时 日 月 周）
   };
-  features: Feature[];       // 启用的 feature 列表（ask_user 始终为 false）
+  features: Feature[];       // 启用的 feature 列表（ask_user/share_to_user 始终被过滤）
   mcpServers: string[];      // 使用的 MCP 服务器 ID 列表
   createdAt: number;
   updatedAt: number;
@@ -45,15 +46,13 @@ interface Task {
 
 ```
 src/backend/automation/
-├── index.ts        # 模块导出 + 高层 Schedule/Task 处理器（listSchedules/createSchedule/updateSchedule/deleteSchedule 等）
-├── store.ts        # 文件持久化层（Schedule/Task CRUD）
-├── scheduler.ts    # Cron 计划管理（CronJob 注册/注销/恢复/停止）
-└── runner.ts       # 任务执行器（spawn ACPBridge，MCP/Skills 集成）
+├── index.ts        # 模块导出 + Schedule CRUD + Cron 计划管理 + 任务执行器（InferenceModule 集成）
+└── store.ts        # 文件持久化层（Schedule/Task CRUD + createSchedule 工厂方法）
 ```
 
 ### store.ts — 持久化
 
-`createSchedule(params)` 工厂方法封装了 Schedule 对象的创建逻辑（ID 生成、ask_user 过滤、默认值），被 `index.ts` 和 `backend.ts` 共享使用，避免外部手动构造 Schedule 对象。
+`createSchedule(params)` 工厂方法封装了 Schedule 对象的创建逻辑（ID 生成、`ask_user`/`share_to_user` 过滤、默认值），被 `index.ts` 和 `backend.ts` 共享使用，避免外部手动构造 Schedule 对象。
 
 - 数据目录：`~/.fello/automations/`
 - 每个 Schedule 一个子目录，内含 `schedule.json` 和 `tasks/` 目录
@@ -68,54 +67,50 @@ src/backend/automation/
     ├── schedule.json
     └── tasks/
         └── <task-id>/
-            ├── task.json         # 任务元数据
-            ├── README.md         # 自动生成的执行摘要
-            ├── conversation.json # 完整对话记录
-            └── ...               # Agent 产出的其他文件
+            ├── task.json                  # 任务元数据
+            ├── .fello-conversation.json   # 完整对话记录（notifications + terminalLogs + meta）
+            └── ...                        # Agent 产出的其他文件
 ```
 
-### scheduler.ts — 计划管理
+### scheduler — 计划管理（index.ts）
 
 - 基于 `cron` 库（^4.4.0）实现 CronJob 管理
 - `scheduleCron(schedule)` — 注册 cron 任务
 - `unscheduleCron(scheduleId)` — 注销单个计划
-- `restoreActiveSchedules()` — 应用启动时恢复所有活跃计划
+- `restoreActiveSchedules()` — 模块初始化时自动恢复所有活跃计划
 - `stopAllCrons()` — 应用退出时优雅清理
 - `getNextRun(schedule)` — 获取下次执行时间
 - 并发保护：`runningTasks` Set 确保同一计划不会并发执行
 
-### runner.ts — 任务执行
+### runner — 任务执行（index.ts）
 
-`initRunner()` 初始化时自动调用 `restoreActiveSchedules()` 恢复所有活跃计划。`runner.ts` 使用共享模块：`agent/resolve-agent-info.ts`（Agent 配置解析）、`skills.ts` 的 `registerSkillsRoute()` / `buildSkillsMcpServer()`（Skills MCP 集成）、`socket-server.ts` 的 `generateSocketPath()`（socket 路径生成）。
+`createAutomationModule(ctx, { inference })` 接收 `InferenceModule` 依赖，通过 `inference.runInference()` 执行任务。不再直接 spawn ACPBridge，而是委托给 InferenceModule 处理 Agent 会话的全生命周期。
 
 执行流程：
 
 1. 检查并发锁（同一 Schedule 不重复执行）
 2. 创建 Task 记录，状态标记为 `running`
-3. 通过共享的 `resolveAgentInfo()` 解析 Agent 配置（Stdio 或 API 类型）
-4. Spawn 独立的 `ACPBridge` 实例
-5. 配置 MCP 服务器和 Skills（如启用）
-6. 建立新会话，发送 Prompt
-7. 收集所有 SessionNotification 事件
-8. 将对话内容归纳为 `README.md` 和 `conversation.json` 写入任务目录
-9. 清理 Bridge 和 Skills Socket Server
-10. 更新 Schedule 的 `lastRunAt`
-11. 标记 Task 为 `success` 或 `error`
+3. 构建 MCP 服务器配置（`buildAutomationMcpServers`）
+4. 调用 `inference.runInference({ agentId, prompt, model, cwd, mcpServers, features })`
+5. InferenceModule 内部完成 Agent 解析、Bridge spawn、MCP/Skills 集成、权限自动批准
+6. 将对话记录写入 `.fello-conversation.json`（含 meta、notifications、terminalLogs）
+7. 更新 Schedule 的 `lastRunAt`
+8. 标记 Task 为 `success` 或 `error`
 
-权限处理：自动选择 `allow_always` > `allow_once` > 第一个选项，无需人工干预。
+权限处理：InferenceModule 内部自动选择 `allow_always` > `allow_once` > 第一个选项，无需人工干预。
 
 ## IPC 接口
 
 | 方法 | 参数 | 返回值 |
 |------|------|--------|
 | `listSchedules` | — | `Schedule[]` |
-| `createSchedule` | `{ name, agentId, prompt, cron, features?, mcpServers? }` | `Schedule` |
+| `createSchedule` | `{ name, agentId, modelId?, prompt, cron, features?, mcpServers? }` | `Schedule` |
 | `updateSchedule` | `{ scheduleId, updates }` | `Schedule` |
 | `deleteSchedule` | `{ scheduleId }` | `void` |
 | `triggerSchedule` | `{ scheduleId }` | `Task` |
 | `getTasks` | `{ scheduleId }` | `Task[]` |
 | `getTaskFiles` | `{ scheduleId, taskId }` | `string[]` |
-| `readTaskFile` | `{ scheduleId, taskId, filePath }` | `string` |
+| `readTaskFile` | `{ scheduleId, taskId, filePath, encoding? }` | `string` |
 | `deleteTask` | `{ scheduleId, taskId }` | `void` |
 | `getTaskFileSystemPath` | `{ scheduleId, taskId, filePath }` | `string` |
 
@@ -162,14 +157,14 @@ CronEditor 组件提供常用预设供快速选择：
 - **每小时**（hourly）
 - **自定义**（custom）— 直接编辑 cron 表达式
 
-使用 `cronstrue` 库（^3.14.0）将 cron 表达式转换为人类可读文本显示。
+使用 `cronstrue` 库（^3.24.0）将 cron 表达式转换为人类可读文本显示。
 
 ## 依赖
 
 | 包 | 版本 | 用途 |
 |----|------|------|
 | `cron` | ^4.4.0 | CronJob 定时计划 |
-| `cronstrue` | ^3.14.0 | Cron 表达式转人类可读文本 |
+| `cronstrue` | ^3.24.0 | Cron 表达式转人类可读文本 |
 
 ## 路由
 
@@ -178,5 +173,5 @@ CronEditor 组件提供常用预设供快速选择：
 ## 安全
 
 - `readTaskFile` / `writeTaskFile` / `getTaskFileSystemPath` 均有路径穿越校验，确保访问不超出任务目录
-- 自动化任务执行时权限自动批准，`ask_user` feature 始终禁用
+- 自动化任务执行时权限自动批准，`ask_user` 和 `share_to_user` feature 始终禁用（在 `store.createSchedule` 中过滤）
 - 应用退出时 `stopAllCrons()` 确保无残留定时器

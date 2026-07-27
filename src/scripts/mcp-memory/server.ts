@@ -6,6 +6,7 @@ import {
   memoryStoreRequestSchema,
   memoryStoreRespondSchema,
 } from "../../shared/zod/mcp-memory-schema";
+import * as fs from "fs";
 import * as http from "http";
 
 // ── Parse CLI args ──────────────────────────────────────────────────
@@ -19,12 +20,39 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function loadCriticalMemories(filePath: string | undefined): string[] {
+  if (!filePath) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === "string")
+      : [];
+  } catch (error: unknown) {
+    console.error(`[mcp-memory] Failed to load critical memories: ${getErrorMessage(error)}`);
+    return [];
+  } finally {
+    fs.rmSync(filePath, { force: true });
+  }
+}
+
 const socketPath = getArg("socket-path");
+const criticalMemories = loadCriticalMemories(getArg("critical-memory"));
 
 if (!socketPath) {
   console.error("[mcp-memory] Missing required argument: --socket-path");
   process.exit(1);
 }
+
+const criticalMemoryDescription =
+  criticalMemories.length === 0
+    ? ""
+    : `
+
+Automatically loaded critical project memories — always follow these:
+${criticalMemories.map((memory) => `- ${memory.replaceAll("\n", "\n  ")}`).join("\n")}
+
+These are only the highest-priority project constraints, not the complete project memory. Do not treat the absence of a detail here as evidence that no relevant memory exists. This list does not replace task-specific retrieval.`;
 
 // ── MCP Server Setup ────────────────────────────────────────────────
 
@@ -37,7 +65,7 @@ const server = new McpServer({
 server.registerTool(
   "memory_query",
   {
-    description: `Query the project's persistent memory.
+    description: `Query the project's persistent memory.${criticalMemoryDescription}
 
 For every specific task, question, recommendation, or domain discussion that may depend on memory, provide a focused query. Include all relevant dimensions in that query, such as applicable conventions, preferences, decisions, corrections, architecture, or commands.
 

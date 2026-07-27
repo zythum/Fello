@@ -12,7 +12,7 @@
 
 - 文件名统一 kebab-case（如 `chat-input.tsx`、`agent-bridge.ts`、`session-state-reducer.ts`）
 - React 组件文件以功能命名，按页面结构放入 `components/` 对应的模块目录下（如 `session/`、`session/chat/`、`settings/`、`skills/` 等）
-- 消息气泡按角色拆分到 `components/session/chat/bubbles/`
+- 消息气泡按角色拆分到 `components/chat-bubbles/`
 - 多模态消息内容块按类型拆分到 `components/content-blocks/`
 - UI primitives 保持 `components/ui/`，避免跨目录重复实现
 - Agent 会话逻辑（框架无关）放在 `src/agents/`，不耦合 Electron 或 React
@@ -45,7 +45,7 @@
 
 - **协议遵循**：所有功能开发必须遵循 ACP（Agent Client Protocol）协议规范（基于 `@agentclientprotocol/sdk`）。如果发现功能需求与 ACP 协议冲突，必须提出质疑并进行讨论，禁止强行绕过或违背协议。
 - **ID 映射规范**：与底层 ACP 服务（Agent 进程）交互时，必须使用 `session.resumeId` 而非 `session.id`。由于 ACP 接口声明中常将参数命名为 `sessionId`，极易与 Fello 自身的 `session.id` 混淆。牢记规则：**ACP 侧的 `sessionId` === Fello 侧的 `session.resumeId`**。
-- ACP 更新事件统一进入 `reduceSessionUpdate(currentState, update)`，主进程在接收到这些事件时，对于 Stdio Agent 会先通过 `appendSessionMessage` 持久化到 `messages.jsonl` 文件
+- ACP 更新事件统一进入 `reduceSessionNotification(sessionId, currentState, notification)`，主进程在接收到这些事件时，对于 Stdio Agent 会先通过 `appendSessionMessage` 持久化到 `messages.jsonl` 文件
 - API Agent 的历史消息由 `OpenaiCompatibleAgent` 直接管理并持久化到 `history.jsonl`
 - 历史回放和实时流式事件共用同一 Reducer 处理逻辑，避免行为分叉
 - 切换/恢复会话前先 `resetSessionState`，避免历史与旧状态混叠
