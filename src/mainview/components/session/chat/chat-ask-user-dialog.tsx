@@ -22,20 +22,12 @@ export function AskUserDialog({ sessionId }: Props) {
   // 当 askUserRequests 变化时，管理排队和动画
   useEffect(() => {
     if (!askUserRequests || askUserRequests.length === 0) {
-      // 全部处理完 → 隐藏
       setAnimState("hidden");
       setActiveIndex(0);
       return;
     }
 
-    if (animState === "hidden") {
-      // 首次出现
-      setAnimState("enter");
-      const timer = setTimeout(() => setAnimState("idle"), 300);
-      return () => clearTimeout(timer);
-    }
-
-    // activeIndex 超出范围（最后一个被 resolve 了）→ 下一个或隐藏
+    // activeIndex 超出范围（最后一个被 resolve 了）→ 隐藏
     if (activeIndex >= askUserRequests.length) {
       setAnimState("exit");
       const timer = setTimeout(() => {
@@ -44,7 +36,22 @@ export function AskUserDialog({ sessionId }: Props) {
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [askUserRequests, askUserRequests?.length, activeIndex, animState]);
+  }, [askUserRequests, askUserRequests?.length, activeIndex]);
+
+  // 单独处理 enter → idle 的动画过渡，避免 animState 变化导致 timer 被清除
+  useEffect(() => {
+    if (animState === "enter") {
+      const timer = setTimeout(() => setAnimState("idle"), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [animState]);
+
+  // hidden → enter 的触发：当有请求且当前隐藏时
+  useEffect(() => {
+    if (askUserRequests && askUserRequests.length > 0 && animState === "hidden") {
+      setAnimState("enter");
+    }
+  }, [askUserRequests, askUserRequests?.length, animState]);
 
   const currentRequest = askUserRequests ? askUserRequests[activeIndex] : null;
 
