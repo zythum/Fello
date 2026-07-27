@@ -28,6 +28,9 @@ import {
   Clipboard,
   ChevronDown,
   Check,
+  Astroid,
+  Gauge,
+  Eclipse,
 } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -1126,6 +1129,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
+                    <Eclipse className="size-3 mr-1"/>
                     <span className="truncate">
                       {availableModes.find((m) => m.id === currentModeId)?.name ??
                         t("chatInput.mode", "Mode")}
@@ -1250,6 +1254,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
+                    <Astroid className="size-3 mr-1"/>
                     <span className="truncate">
                       {availableModels.find((m) => m.modelId === currentModelId)?.name ??
                         t("chatInput.selectModel", "Select model")}
@@ -1258,7 +1263,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-auto! max-h-none! max-w-64 min-w-(--anchor-width)"
+                    className="w-auto! max-w-72 min-w-(--anchor-width)"
                   >
                     {groupedModels.size <= 1
                       ? availableModels.map((m) => (
@@ -1349,6 +1354,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
+                    <Gauge className="size-3 mr-1"/>
                     <span className="truncate">
                       {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ??
                         "Thought"}
