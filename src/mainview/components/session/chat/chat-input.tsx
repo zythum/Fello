@@ -1110,14 +1110,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           </MentionsInput>
           {/* Bottom bar: model selector + send button */}
           <div
-            className="flex cursor-text items-center justify-between gap-2 px-2 pb-2"
+            className="flex cursor-text items-center justify-between gap-2 px-2 pb-2 overflow-hidden"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
               containerRef.current?.querySelector("textarea")?.focus();
             }}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
               {availableModes.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -1125,11 +1125,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
                       />
                     }
                   >
-                    <Eclipse className="size-3 mr-1"/>
+                    <Eclipse className="size-3"/>
                     <span className="truncate">
                       {availableModes.find((m) => m.id === currentModeId)?.name ??
                         t("chatInput.mode", "Mode")}
@@ -1242,7 +1242,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 </DropdownMenu>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
               {availableModels.length > 0 ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -1250,11 +1250,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-48"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
                       />
                     }
                   >
-                    <Astroid className="size-3 mr-1"/>
+                    <Astroid className="size-3"/>
                     <span className="truncate">
                       {availableModels.find((m) => m.modelId === currentModelId)?.name ??
                         t("chatInput.selectModel", "Select model")}
@@ -1350,11 +1350,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 max-w-32"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-32 shrink overflow-hidden"
                       />
                     }
                   >
-                    <Gauge className="size-3 mr-1"/>
+                    <Gauge className="size-3"/>
                     <span className="truncate">
                       {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ??
                         "Thought"}
