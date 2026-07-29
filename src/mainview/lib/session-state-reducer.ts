@@ -1,10 +1,5 @@
 import { produce } from "immer";
-import type {
-  ContentChunk,
-  ToolCall,
-  ToolCallUpdate,
-  Plan,
-} from "@agentclientprotocol/sdk";
+import type { ContentChunk, ToolCall, ToolCallUpdate, Plan } from "@agentclientprotocol/sdk";
 import type { SessionNotificationFelloExt, SubagentUpdate } from "../../shared/schema";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, SubagentMessage, ChatMessage, PlanMessage } from "./chat-message";

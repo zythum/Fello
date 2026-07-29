@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DocxDocument } from "@silurus/ooxml/docx";
+import { math } from "@silurus/ooxml/math";
 import { useTranslation } from "react-i18next";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,7 +24,7 @@ export function DocxView({ data }: DocxViewProps) {
 
     async function load() {
       try {
-        instance = await DocxDocument.load(data.slice(0));
+        instance = await DocxDocument.load(data.slice(0), { math });
         if (cancelled) {
           instance.destroy();
           return;

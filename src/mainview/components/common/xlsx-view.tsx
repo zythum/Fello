@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { XlsxViewer } from "@silurus/ooxml/xlsx";
+import { math } from "@silurus/ooxml/math";
 import { useTranslation } from "react-i18next";
 
 export interface XlsxViewProps {
@@ -18,7 +19,7 @@ export function XlsxView({ data }: XlsxViewProps) {
     let destroy = false;
     setError(null);
     setLoading(true);
-    const viewer = new XlsxViewer(container);
+    const viewer = new XlsxViewer(container, { math });
     viewer
       .load(data.slice(0))
       .then(() => {

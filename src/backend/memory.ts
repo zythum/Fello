@@ -483,8 +483,8 @@ export function createMemoryModule(
 
   function buildMemoryMcpServer(options: { projectDir: string; socketPath: string }) {
     const projectId = getProjectIdFromCwd(options.projectDir);
-    const criticalMemories = readMemoryFile(projectId).entries
-      .filter((entry) => entry.weight === 3)
+    const criticalMemories = readMemoryFile(projectId)
+      .entries.filter((entry) => entry.weight === 3)
       .map((entry) => entry.text);
     const args = [
       join(process.scriptsPath, "mcp-memory/server.mjs"),

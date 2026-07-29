@@ -11,7 +11,12 @@ import type {
   Feature,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
-import type { AvailableCommand, InitializeResponse, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
+import type {
+  AvailableCommand,
+  InitializeResponse,
+  Usage,
+  UsageUpdate,
+} from "@agentclientprotocol/sdk";
 
 import { PROJECTS_DIR } from "./constant";
 

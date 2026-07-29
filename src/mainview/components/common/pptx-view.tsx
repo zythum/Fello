@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PptxPresentation } from "@silurus/ooxml/pptx";
+import { math } from "@silurus/ooxml/math";
 import { useTranslation } from "react-i18next";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,7 +24,10 @@ export function PptxView({ data }: PptxViewProps) {
 
     async function load() {
       try {
-        instance = await PptxPresentation.load(data.slice(0));
+        instance = await PptxPresentation.load(data.slice(0), {
+          useGoogleFonts: true,
+          math,
+        });
         if (cancelled) {
           instance.destroy();
           return;

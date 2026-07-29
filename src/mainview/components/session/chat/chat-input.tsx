@@ -1129,7 +1129,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
-                    <Eclipse className="size-3"/>
+                    <Eclipse className="size-3" />
                     <span className="truncate">
                       {availableModes.find((m) => m.id === currentModeId)?.name ??
                         t("chatInput.mode", "Mode")}
@@ -1254,7 +1254,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
-                    <Astroid className="size-3"/>
+                    <Astroid className="size-3" />
                     <span className="truncate">
                       {availableModels.find((m) => m.modelId === currentModelId)?.name ??
                         t("chatInput.selectModel", "Select model")}
@@ -1354,7 +1354,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
-                    <Gauge className="size-3"/>
+                    <Gauge className="size-3" />
                     <span className="truncate">
                       {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ??
                         "Thought"}
