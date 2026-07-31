@@ -382,6 +382,9 @@ export function initBackend(
     async getAgentTerminalOutput(params) {
       return terminal.getAgentTerminalOutput(params);
     },
+    async killAgentTerminal(params) {
+      return terminal.killAgentTerminal(params);
+    },
 
     // Git
     async getGitStatus(params) {

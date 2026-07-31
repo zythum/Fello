@@ -458,7 +458,9 @@
     "noProject": "未选择项目"
   },
   "toolBubble": {
-    "tool": "工具"
+    "tool": "工具",
+    "stop": "停止",
+    "stopping": "停止中…"
   },
   "imageView": {
     "fallbackAlt": "图片"

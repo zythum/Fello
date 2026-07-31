@@ -49,6 +49,7 @@ export class AgentTerminalManager {
     const proc = spawn(command, args, {
       cwd,
       env: { ...process.env, ...env },
+      stdio: ["ignore", "pipe", "pipe"],
       shell: true, // Use shell to support commands like 'npm' easily on Windows
       windowsHide: true,
     });

@@ -458,7 +458,9 @@
     "noProject": "No project selected"
   },
   "toolBubble": {
-    "tool": "Tool"
+    "tool": "Tool",
+    "stop": "Stop",
+    "stopping": "Stopping…"
   },
   "imageView": {
     "fallbackAlt": "Image"

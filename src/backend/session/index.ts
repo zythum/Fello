@@ -546,10 +546,15 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const connectPromise = bridgeConnect.bridges.get(sessionId);
     if (connectPromise) {
       const b = await connectPromise;
-      await b.cancel({ sessionId: session.resumeId });
+      // 先本地杀终端（同步、立即生效，不依赖 agent 状态），再通知 agent 取消回合
       const killed = b.terminalManager.killBySession(session.resumeId);
       if (killed > 0)
         console.log(`[CancelPrompt] Killed ${killed} agent terminal(s) for session ${sessionId}`);
+      try {
+        await b.cancel({ sessionId: session.resumeId });
+      } catch (err) {
+        console.warn("[CancelPrompt] Cancel bridge error (agent may already be gone)", err);
+      }
     }
   }
 

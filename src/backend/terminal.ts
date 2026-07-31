@@ -38,6 +38,7 @@ export interface TerminalModule {
     rows: number;
   }) => Promise<{ ok: boolean }>;
   getAgentTerminalOutput: (params: { sessionId: string; terminalId: string }) => Promise<string>;
+  killAgentTerminal: (params: { sessionId: string; terminalId: string }) => Promise<void>;
   killAllTerminals: () => void;
 }
 
@@ -267,6 +268,34 @@ export function createTerminalModule(
     return storage.readTerminalOutput(sessionId, terminalId) || "";
   }
 
+  async function killAgentTerminal({
+    sessionId,
+    terminalId,
+  }: {
+    sessionId: string;
+    terminalId: string;
+  }) {
+    // 优先按 session 定位 bridge（bridge 的 key 是 Fello 侧 session.id）
+    const connectPromise = deps.bridges.get(sessionId);
+    if (connectPromise) {
+      const b = await connectPromise;
+      b.terminalManager.kill(terminalId);
+      return;
+    }
+    // fallback：terminalId 全局唯一，扫描所有 bridge 定位
+    for (const pending of deps.bridges.values()) {
+      try {
+        const b = await pending;
+        if (b.terminalManager.getTerminal(terminalId)) {
+          b.terminalManager.kill(terminalId);
+          return;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
   function killAllTerminals() {
     for (const terminal of terminals.values()) {
       terminal.kill();
@@ -283,6 +312,7 @@ export function createTerminalModule(
     killTerminal,
     resizeTerminal,
     getAgentTerminalOutput,
+    killAgentTerminal,
     killAllTerminals,
   };
 }

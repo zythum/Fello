@@ -35,6 +35,7 @@ import {
   Download,
   EllipsisVertical,
   SquareChartGantt,
+  Square,
 } from "lucide-react";
 import {
   Item,
@@ -139,6 +140,24 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const kindIcon = (message.kind ? kindIcons[message.kind] : null) ?? kindIcons.other;
   const userAction = useRef<boolean>(false);
   const [open, setOpen] = useState(false);
+  const [stopping, setStopping] = useState(false);
+
+  const isRunningShell =
+    message.kind === "execute" && message.status === "in_progress" && message.terminalId != null;
+
+  const handleStop = useCallback(async () => {
+    if (!message.terminalId || stopping) return;
+    setStopping(true);
+    try {
+      await request.killAgentTerminal({
+        sessionId: session.id,
+        terminalId: message.terminalId,
+      });
+    } catch (err) {
+      console.error("Failed to stop agent terminal:", err);
+      setStopping(false);
+    }
+  }, [message.terminalId, session.id, stopping]);
 
   useEffect(() => {
     if (userAction.current === true) {
@@ -217,6 +236,28 @@ export function ToolItem({ session, message }: ToolItemProps) {
               );
             })}
           </div>
+        )}
+        {isRunningShell && (
+          <Button
+            type="button"
+            variant="destructive"
+            size="xs"
+            className="shrink-0 rounded-full px-2 disabled:opacity-100"
+            title={t("toolBubble.stop")}
+            disabled={stopping}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void handleStop();
+            }}
+          >
+            {stopping ? (
+              <Loader2 className="size-2.5 animate-spin" />
+            ) : (
+              <Square className="size-2.5 fill-current" />
+            )}
+            <span className="text-[10px]">{stopping ? t("toolBubble.stopping") : t("toolBubble.stop")}</span>
+          </Button>
         )}
         {statusIcons[status]}
       </CollapsibleTrigger>

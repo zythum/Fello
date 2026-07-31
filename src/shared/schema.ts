@@ -791,6 +791,8 @@ export type FelloIPCRequests = {
   };
   /** 获取代理专属终端的输出内容 */
   getAgentTerminalOutput: { params: { sessionId: string; terminalId: string }; response: string };
+  /** 终止指定的代理专属终端（SIGTERM），用于停止卡住的 Shell 工具调用 */
+  killAgentTerminal: { params: { sessionId: string; terminalId: string }; response: void };
 
   /**
    * 获取项目目录下的 Git 状态（当前分支、文件变更等）
