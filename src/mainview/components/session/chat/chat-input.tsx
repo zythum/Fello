@@ -94,7 +94,7 @@ async function absPathToMention(
       !absPath.startsWith(projectCwd.replace(/\/?$/, "/")))
   ) {
     const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
-    return `@[#resource:${fileUri}](${fileUri}) `;
+    return `@[#resource:${fileUri}](${fileUri})`;
   }
   try {
     const relPath = await request.getSystemFilePath({
@@ -105,13 +105,27 @@ async function absPathToMention(
     const info = await request.getFileInfo({ projectId, relativePath: relPath });
     if (info) {
       const prefix = info.isFile ? "#file:" : "#folder:";
-      return `@[${prefix}${relPath}](${absPath}) `;
+      return `@[${prefix}${relPath}](${absPath})`;
     }
   } catch {
     // not within project
   }
   const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
-  return `@[#resource:${fileUri}](${fileUri}) `;
+  return `@[#resource:${fileUri}](${fileUri})`;
+}
+
+/**
+ * 在 textarea 光标处插入 mentions（#file: / #folder: / #resource: 标记）。
+ * 空格规则与 fello-add-to-chat（source 加入）保持一致：
+ * - 光标前已有内容且非空白 → 补 1 个前导空格
+ * - 多个 mention 之间 1 个空格
+ * - 末尾固定 1 个空格
+ */
+function insertMentionsAtCursor(textarea: HTMLTextAreaElement, mentions: string[]): void {
+  const before = textarea.value.slice(0, textarea.selectionStart);
+  const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+  const prefix = needsLeadingSpace ? " " : "";
+  document.execCommand("insertText", false, `${prefix}${mentions.join(" ")} `);
 }
 
 /** 将 File 读取为 base64（不含 data: URL 前缀） */
@@ -135,6 +149,28 @@ function readFileAsText(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsText(file);
   });
+}
+
+/** 将文件作为内嵌附件存入 draftAttachments（图片 → base64，其余 → 纯文本） */
+async function addFileAsAttachment(
+  file: File,
+  type: "image" | "file",
+  updateSessionState: (updater: (s: SessionState) => Partial<SessionState>) => void,
+): Promise<void> {
+  const data = type === "image" ? await readFileAsBase64(file) : await readFileAsText(file);
+  updateSessionState((s) => ({
+    draftAttachments: [
+      ...s.draftAttachments,
+      { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
+    ],
+  }));
+}
+
+/** 将文件树节点数组拼成 mention markup 文本 */
+function nodesToMentionText(nodes: { id: string; name: string; isFolder: boolean }[]): string {
+  return nodes
+    .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
+    .join(" ");
 }
 
 /** 将暂存的附件信息构建成 ContentBlock 列表 */
@@ -270,6 +306,39 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     [session.id],
   );
 
+  const promptCapabilities = initializeInfo?.agentCapabilities?.promptCapabilities;
+  const supportsImage = promptCapabilities?.image ?? false;
+  const supportsEmbedded = promptCapabilities?.embeddedContext ?? false;
+
+  const getTextarea = useCallback(
+    () => containerRef.current?.querySelector("textarea") as HTMLTextAreaElement | null,
+    [],
+  );
+
+  /** 将一组绝对路径解析为 mention 并插入到 textarea 光标处 */
+  const insertPathMentions = useCallback(
+    async (paths: string[], textarea?: HTMLTextAreaElement) => {
+      if (paths.length === 0) return;
+      const target = textarea ?? getTextarea();
+      if (!target) return;
+      target.focus();
+      const mentions = await Promise.all(
+        paths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
+      );
+      insertMentionsAtCursor(target, mentions);
+    },
+    [getTextarea, session.projectId, session.cwd],
+  );
+
+  /** 将 mention 文本追加到输入末尾（与 fello-add-to-chat 行为一致），并聚焦输入框 */
+  const appendMentionsToInput = useCallback(
+    (mentions: string) => {
+      setLocalInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+      requestAnimationFrame(() => getTextarea()?.focus());
+    },
+    [getTextarea],
+  );
+
   // ---- 本地输入状态（轻量，不经过 store，保证打字流畅） ----
   const [localInput, setLocalInput] = useState(draftInput);
   const localInputRef = useRef(localInput);
@@ -321,45 +390,20 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       const customEvent = e as CustomEvent;
       const nodes = customEvent.detail as { id: string; name: string; isFolder: boolean }[];
       if (!nodes || nodes.length === 0) return;
-      const mentions = nodes
-        .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
-        .join(" ");
-      setLocalInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
-      // Focus the textarea
-      requestAnimationFrame(() => {
-        containerRef.current?.querySelector("textarea")?.focus();
-      });
+      appendMentionsToInput(nodesToMentionText(nodes));
     };
 
     document.addEventListener("fello-add-to-chat", handleAddToChat);
     return () => document.removeEventListener("fello-add-to-chat", handleAddToChat);
-  }, [session.id]);
+  }, [appendMentionsToInput]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
 
-    const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
-    const supportsEmbedded = initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
-
     for (const file of files) {
       const isImage = file.type.startsWith("image/");
-      const type: "image" | "file" =
-        isImage && supportsImage ? "image" : supportsEmbedded ? "file" : "file";
-
-      const data = type === "image" ? await readFileAsBase64(file) : await readFileAsText(file);
-
-      updateSessionState((s) => ({
-        draftAttachments: [
-          ...s.draftAttachments,
-          {
-            id: generateUUID(),
-            filename: file.name,
-            mimeType: file.type,
-            type,
-            data,
-          },
-        ],
-      }));
+      const type: "image" | "file" = isImage && supportsImage ? "image" : "file";
+      await addFileAsAttachment(file, type, updateSessionState);
     }
 
     // Reset input
@@ -619,9 +663,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(false);
-      const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
-      const supportsEmbedded =
-        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
       // Handle files drop
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const absPaths: string[] = [];
@@ -637,24 +678,18 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             // Read inline and store immediately (folders will fail silently)
             (async () => {
               try {
-                const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
                 const type: "image" | "file" = isImage ? "image" : "file";
-                updateSessionState((s) => ({
-                  draftAttachments: [
-                    ...s.draftAttachments,
-                    { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
-                  ],
-                }));
+                await addFileAsAttachment(file, type, updateSessionState);
               } catch {
                 // Can't read inline (e.g. folder) → try electron path API as fallback
                 if (!isWebUI) {
                   const p = electron.getPathForFile(file);
                   if (p) {
                     const mention = await absPathToMention(p, session.projectId, session.cwd);
-                    const textarea = containerRef.current?.querySelector("textarea");
+                    const textarea = getTextarea();
                     if (textarea) {
                       textarea.focus();
-                      document.execCommand("insertText", false, mention);
+                      insertMentionsAtCursor(textarea, [mention]);
                     }
                   }
                 }
@@ -668,15 +703,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
         // Async resolve absolute paths to mentions (with project-aware prefix)
         if (absPaths.length > 0) {
-          (async () => {
-            const textarea = containerRef.current?.querySelector("textarea");
-            if (!textarea) return;
-            textarea.focus();
-            const mentions = await Promise.all(
-              absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
-            );
-            document.execCommand("insertText", false, mentions.join(""));
-          })();
+          void insertPathMentions(absPaths);
           return;
         }
         // If we got here without handling anything (e.g. folder from Finder),
@@ -697,15 +724,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           .filter(Boolean);
 
         if (absPaths.length > 0) {
-          (async () => {
-            const textarea = containerRef.current?.querySelector("textarea");
-            if (!textarea) return;
-            textarea.focus();
-            const mentions = await Promise.all(
-              absPaths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
-            );
-            document.execCommand("insertText", false, mentions.join(" ") + " ");
-          })();
+          void insertPathMentions(absPaths);
         }
         return;
       }
@@ -717,24 +736,20 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       try {
         const nodes: { id: string; name: string; isFolder: boolean }[] = JSON.parse(raw);
         if (nodes.length === 0) return;
-        const mentions = nodes
-          .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
-          .join(" ");
-        setLocalInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
-
-        // Focus the textarea after paste
-        requestAnimationFrame(() => {
-          containerRef.current?.querySelector("textarea")?.focus();
-        });
+        appendMentionsToInput(nodesToMentionText(nodes));
       } catch {
         // ignore malformed data
       }
     },
     [
-      initializeInfo?.agentCapabilities?.promptCapabilities,
+      supportsImage,
+      supportsEmbedded,
       session.projectId,
       session.cwd,
       updateSessionState,
+      getTextarea,
+      insertPathMentions,
+      appendMentionsToInput,
     ],
   );
 
@@ -817,14 +832,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-      const text = e.clipboardData.getData("text/plain");
       const files = e.clipboardData.files;
       if (!session) return;
 
       if (files.length > 0 && !isWebUI) {
-        const supportsImage = initializeInfo?.agentCapabilities?.promptCapabilities?.image;
-        const supportsEmbedded =
-          initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext;
         // Handle files
         const paths: string[] = [];
 
@@ -836,14 +847,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           if (canEmbed || canReadText) {
             // Read inline and store immediately
             (async () => {
-              const data = isImage ? await readFileAsBase64(file) : await readFileAsText(file);
               const type: "image" | "file" = isImage ? "image" : "file";
-              updateSessionState((s) => ({
-                draftAttachments: [
-                  ...s.draftAttachments,
-                  { id: generateUUID(), filename: file.name, mimeType: file.type, type, data },
-                ],
-              }));
+              await addFileAsAttachment(file, type, updateSessionState);
             })();
           } else if (!isWebUI) {
             const p = electron.getPathForFile(file);
@@ -855,74 +860,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           const target = e.target as HTMLElement;
           if (target.tagName !== "TEXTAREA") return;
           const textarea = target as HTMLTextAreaElement;
-          textarea.focus();
-          (async () => {
-            const mentions = await Promise.all(
-              paths.map((p) => absPathToMention(p, session.projectId, session.cwd)),
-            );
-            document.execCommand("insertText", false, mentions.join(""));
-          })();
+          void insertPathMentions(paths, textarea);
         }
         e.preventDefault();
         return;
       }
 
-      if (text) {
-        const trimmed = text.trim();
-        if (trimmed.includes("\n") || trimmed.length > 1024) return;
-
-        const target = e.target as HTMLElement;
-        if (target.tagName !== "TEXTAREA") return;
-        const textarea = target as HTMLTextAreaElement;
-
-        const isLikelyPath =
-          trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes(".");
-        if (!isLikelyPath) return;
-
-        // We only want to intercept if it might be a path.
-        // To avoid blocking the UI, we prevent default and stop propagation, then do async check.
-        e.preventDefault();
-        e.stopPropagation();
-
-        (async () => {
-          let insertText = text;
-          try {
-            // Attempt to resolve as absolute or relative path
-            const isAbsolutePath = trimmed.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(trimmed);
-            const absPath = isAbsolutePath
-              ? trimmed
-              : await request.getSystemFilePath({
-                  projectId: session.projectId,
-                  path: trimmed,
-                  isAbsolute: true,
-                });
-
-            const relPath = await request.getSystemFilePath({
-              projectId: session.projectId,
-              path: trimmed,
-              isAbsolute: false,
-            });
-            const info = await request.getFileInfo({
-              projectId: session.projectId,
-              relativePath: relPath,
-            });
-            if (info) {
-              const isFolder = !info.isFile;
-              const displayPath = relPath.replace(/\\/g, "/");
-              const prefix = isFolder ? "#folder:" : "#file:";
-              insertText = `@[${prefix}${displayPath}](${absPath}) `;
-            }
-          } catch {
-            // ignore
-          }
-
-          // Restore focus and insert text natively so MentionsInput catches the onChange
-          textarea.focus();
-          document.execCommand("insertText", false, insertText);
-        })();
-      }
+      // 纯文本：直接放行浏览器默认粘贴，不做疑似路径识别
     },
-    [session, initializeInfo?.agentCapabilities?.promptCapabilities, updateSessionState],
+    [session, supportsImage, supportsEmbedded, updateSessionState, insertPathMentions],
   );
 
   return (
@@ -935,7 +881,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           onContextMenu={() => {
             // 右键点击 highlighter（MentionsInput 覆盖层）时确保 textarea 保持焦点，
             // 这样 focus-within 样式在右键菜单打开时也能生效
-            const textarea = containerRef.current?.querySelector("textarea");
+            const textarea = getTextarea();
             if (textarea && document.activeElement !== textarea) {
               textarea.focus();
             }
@@ -1114,7 +1060,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
-              containerRef.current?.querySelector("textarea")?.focus();
+              getTextarea()?.focus();
             }}
           >
             <div className="flex items-center gap-2 overflow-hidden">
@@ -1219,7 +1165,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                         <DropdownMenuItem
                           key={s.id}
                           onClick={() => {
-                            containerRef.current?.querySelector("textarea")?.focus();
+                            getTextarea()?.focus();
                             document.execCommand("insertText", false, s.content);
                           }}
                         >
@@ -1474,7 +1420,7 @@ const mentionStyle = {
   backgroundColor: "var(--secondary)",
   boxShadow: "0 0 0 1px var(--ring)",
   opacity: 0.5,
-  borderRadius: 3,
-  margin: -1.5,
-  padding: 1.5,
+  borderRadius: 2,
+  margin: -0.5,
+  padding: 0.5,
 };
