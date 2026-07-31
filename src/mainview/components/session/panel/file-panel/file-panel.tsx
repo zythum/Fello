@@ -26,7 +26,6 @@ import {
   RefreshCw,
   ChevronRight,
   Loader2,
-  ChevronsDownUp,
   Pencil,
   Trash2,
   FolderOpen,
@@ -35,6 +34,7 @@ import {
   MessageSquarePlus,
   Folders,
   Code,
+  ListChevronsDownUp,
 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { cn, extractErrorMessage } from "@/lib/utils";
@@ -1445,6 +1445,38 @@ export const FilePanel = memo(function FilePanel({
           <span className="text-xs font-medium text-nowrap">{t("filePanel.title")}</span>
         </div>
         <div className="ml-auto mr-2 flex items-center gap-0.5">
+          {!isWebUI && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 text-muted-foreground hover:text-foreground"
+                disabled={!cwd}
+                onClick={() => revealInFinder(cwd)}
+                title={t("filePanel.revealInFinder")}
+              >
+                <FolderOpen className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 text-muted-foreground hover:text-foreground"
+                disabled={!cwd}
+                onClick={() => {
+                  if (!cwd) return;
+                  const editorName = useAppStore.getState().editor.name;
+                  void electron.openInEditor(cwd, editorName).catch((err) => {
+                    console.error("openInEditor failed:", extractErrorMessage(err));
+                  });
+                }}
+                title={t("filePanel.openInEditor", {
+                  editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                })}
+              >
+                <Code className="size-3.5" />
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -1470,20 +1502,20 @@ export const FilePanel = memo(function FilePanel({
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
-            onClick={collapseAll}
-            title={t("filePanel.collapseFolders")}
+            onClick={refresh}
+            title={t("filePanel.refresh", "Refresh")}
           >
-            <ChevronsDownUp className="size-3.5" />
+            <RefreshCw className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
-            onClick={refresh}
-            title={t("filePanel.refresh", "Refresh")}
+            onClick={collapseAll}
+            title={t("filePanel.collapseFolders")}
           >
-            <RefreshCw className="size-3.5" />
+            <ListChevronsDownUp className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -1596,10 +1628,26 @@ export const FilePanel = memo(function FilePanel({
               </ContextMenuItem>
               <ContextMenuSeparator />
               {!isWebUI && (
-                <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
-                  <FolderOpen />
-                  {t("filePanel.revealInFinder")}
-                </ContextMenuItem>
+                <>
+                  <ContextMenuItem onClick={() => revealInFinder(cwd ?? "")}>
+                    <FolderOpen />
+                    {t("filePanel.revealInFinder")}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => {
+                      if (!cwd) return;
+                      const editorName = useAppStore.getState().editor.name;
+                      void electron.openInEditor(cwd, editorName).catch((err) => {
+                        console.error("openInEditor failed:", extractErrorMessage(err));
+                      });
+                    }}
+                  >
+                    <Code />
+                    {t("filePanel.openInEditor", {
+                      editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                    })}
+                  </ContextMenuItem>
+                </>
               )}
             </ContextMenuContent>
           </ContextMenu>
