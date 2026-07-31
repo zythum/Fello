@@ -596,7 +596,11 @@ export class OpenaiCompatibleAgent implements Agent {
     }
 
     // Update context usage
-    const outputTokens = summaryResult.usage?.outputTokens ?? 0;
+    // compact 后历史只剩一条 system 摘要消息，下次请求实际发送的就是摘要本身，
+    // 所以占用按摘要输出 tokens 估算。generateText 无工具时为单 step，
+    // usage 与 finalStep.usage 相等；统一用 finalStep 口径与 prompt() 保持一致。
+    const summaryUsage = summaryResult.finalStep.usage;
+    const outputTokens = summaryUsage.outputTokens ?? 0;
     session.contextUsedTokens = outputTokens;
 
     if (this.connection) {
@@ -817,10 +821,13 @@ export class OpenaiCompatibleAgent implements Agent {
       session.history.push(userMessage, ...response.messages);
       await this.appendSessionHistory(session.id, userMessage, ...response.messages);
 
-      // Get per-turn usage (sum of all steps) and last-step usage for context tracking
-      const [turnUsage, lastStepUsage] = await Promise.all([result.totalUsage, result.usage]);
+      // result.usage 是所有 step 的合计（per-turn 总量，用于 ACP 上报；totalUsage 已废弃）。
+      // 上下文窗口占用应按下一次请求实际会发送的内容估算：
+      // 下一轮会把最后一个 step 的完整消息发出去，所以取 finalStep 的 input + output tokens。
+      const [turnUsage, finalStep] = await Promise.all([result.usage, result.finalStep]);
+      const finalStepUsage = finalStep.usage;
       session.contextUsedTokens =
-        (lastStepUsage.inputTokens ?? 0) + (lastStepUsage.outputTokens ?? 0);
+        (finalStepUsage.inputTokens ?? 0) + (finalStepUsage.outputTokens ?? 0);
 
       // Build ACP usage object (per-turn data)
       const usage: Usage = {
