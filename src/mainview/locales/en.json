@@ -497,11 +497,16 @@
   },
   "chatArea": {
     "thinking": "Thinking...",
+    "waitingForTask": "Waiting for task...",
     "scrollToBottom": "Scroll to bottom",
     "copyGroup": "Copy",
     "copiedGroup": "Copied",
     "duration": "Took {{duration}}",
     "loadMore": "Load earlier messages"
+  },
+  "subagentBubble": {
+    "thinking": "Thinking...",
+    "waitingForTask": "Waiting for task..."
   },
   "chatTimeline": {
     "userMessageIndex": "User message {{index}}",

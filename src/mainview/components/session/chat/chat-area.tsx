@@ -448,6 +448,12 @@ export function ChatArea({ session }: { session: SessionInfo }) {
           const groupText = getAgentText(group.contentMessages);
           const groupHasText = groupText.trim().length > 0;
 
+          // 最后一条消息如果是尚未完成的工具调用，则显示「等待任务完成」而不是「思考中」
+          const lastGroupMessage = group.contentMessages[group.contentMessages.length - 1];
+          const isWaitingForTask =
+            lastGroupMessage?.role === "tool_call" &&
+            (lastGroupMessage.status === "in_progress" || lastGroupMessage.status === "pending");
+
           // 计算耗时：找出最后一条消息的时间与 userMessage 收到时间之差
           let durationMs: number | null = null;
           if (group.userMessage && group.contentMessages.length > 0) {
@@ -528,7 +534,9 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                   )}
                 >
                   <span className="animate-shimmer-text">
-                    {t("chatArea.thinking", "Thinking...")}
+                    {isWaitingForTask
+                      ? t("chatArea.waitingForTask", "Waiting for task...")
+                      : t("chatArea.thinking", "Thinking...")}
                   </span>
                 </div>
               </div>

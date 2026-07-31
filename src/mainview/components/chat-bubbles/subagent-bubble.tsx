@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bot,
   ChevronsDownUp,
@@ -70,7 +71,15 @@ export const SubagentBubble = memo(function SubagentBubble({
   message,
   isStreaming: _isStreaming,
 }: BaseBubbleProps<SubagentMessage>) {
+  const { t } = useTranslation();
   const status: SubagentStatus = message.status ?? "completed";
+  // 子任务仍在执行中（pending / in_progress）时，在底部显示状态条
+  const isActive = status === "pending" || status === "in_progress";
+  // 最后一条消息如果是尚未完成的工具调用，则显示「等待任务完成」而不是「思考中」
+  const lastInnerMessage = message.messages[message.messages.length - 1];
+  const isWaitingForTask =
+    lastInnerMessage?.role === "tool_call" &&
+    (lastInnerMessage.status === "in_progress" || lastInnerMessage.status === "pending");
   const userAction = useRef<boolean>(false);
   const [open, setOpen] = useState(false);
 
@@ -135,6 +144,15 @@ export const SubagentBubble = memo(function SubagentBubble({
             </>
           )}
         </div>
+        {isActive && (
+          <div className="text-[11px] text-muted-foreground/50 mt-2 uppercase tracking-widest">
+            <span className="animate-shimmer-text">
+              {isWaitingForTask
+                ? t("subagentBubble.waitingForTask", "Waiting for task...")
+                : t("subagentBubble.thinking", "Thinking...")}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
