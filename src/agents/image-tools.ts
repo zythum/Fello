@@ -1,6 +1,5 @@
 import { resolve } from "path";
 import { readFile } from "fs/promises";
-import sharp from "sharp";
 import mime from "mime-types";
 import { tool, generateText, type ToolSet } from "ai";
 import type { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -68,9 +67,9 @@ Provide a specific query describing what you want to know about the image — th
           // Read and encode image
           const absPath = resolve(params.cwd, imgPath);
           const buffer = await readFile(absPath);
-          const metadata = await sharp(absPath).metadata();
           const base64 = buffer.toString("base64");
-          const mimeType = (metadata.format && mime.lookup(metadata.format)) || "image/png";
+          // 通过文件后缀名推断 MIME 类型，无需依赖 sharp（避免原生模块加载问题）
+          const mimeType = mime.lookup(absPath) || "image/png";
 
           // Run internal inference with image as user message content block
           const result = await generateText({

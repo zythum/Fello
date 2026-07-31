@@ -14,9 +14,9 @@
 | `mcp-share-to-user` | `share_to_user` | `share-to-user/share` |
 | `mcp-memory` | `memory_query`、`memory_store` | `memory/query`、`memory/store` |
 | `mcp-image-generation` | `image_generation` | `image-generation/generate` |
-| `mcp-toolbox` | 编码解码、哈希、时间、UUID、随机值、图片处理、屏幕相关工具 | `toolbox/*`（始终加载） |
+| `mcp-toolbox` | 编码解码、哈希、时间、UUID、随机值、图片处理工具 | `toolbox/*`（始终加载） |
 
-`toolbox/*` 汇总 18 条 Session Socket 路由：`toolbox/base64-encode`、`toolbox/base64-decode`、`toolbox/url-encode`、`toolbox/url-decode`、`toolbox/hash`、`toolbox/time`、`toolbox/uuid`、`toolbox/short-id`、`toolbox/random`、`toolbox/rand-int`、`toolbox/choice`、`toolbox/shuffle`、`toolbox/image-metadata`、`toolbox/image-thumbnail`、`toolbox/image-resize`、`toolbox/image-convert`、`toolbox/list-displays`、`toolbox/screenshot`。
+`toolbox/*` 汇总 16 条 Session Socket 路由：`toolbox/base64-encode`、`toolbox/base64-decode`、`toolbox/url-encode`、`toolbox/url-decode`、`toolbox/hash`、`toolbox/time`、`toolbox/uuid`、`toolbox/short-id`、`toolbox/random`、`toolbox/rand-int`、`toolbox/choice`、`toolbox/shuffle`、`toolbox/image-metadata`、`toolbox/image-thumbnail`、`toolbox/image-resize`、`toolbox/image-convert`。
 
 ### 临时 Memo Socket
 
@@ -124,7 +124,7 @@ stopSessionSocketServer(sessionId)                              → 停止并清
 | `memory/query` | 项目记忆语义检索 | `memory` |
 | `memory/store` | 项目记忆存储 | `memory` |
 | `image-generation/generate` | 文本生成图片 | `image_generation` |
-| `toolbox/*` | 18 条编码/哈希/时间/UUID/随机值/图片处理/屏幕工具路由 | 始终加载 |
+| `toolbox/*` | 16 条编码/哈希/时间/UUID/随机值/图片处理工具路由 | 始终加载 |
 
 **生命周期绑定：**
 

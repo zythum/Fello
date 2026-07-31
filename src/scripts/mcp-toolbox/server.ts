@@ -17,8 +17,6 @@ import {
   imageThumbnailRequestSchema,
   imageResizeRequestSchema,
   imageConvertRequestSchema,
-  screenshotRequestSchema,
-  listDisplaysRequestSchema,
   base64EncodeRespondSchema,
   base64DecodeRespondSchema,
   urlEncodeRespondSchema,
@@ -35,8 +33,6 @@ import {
   imageThumbnailRespondSchema,
   imageResizeRespondSchema,
   imageConvertRespondSchema,
-  screenshotRespondSchema,
-  listDisplaysRespondSchema,
 } from "../../shared/zod/mcp-toolbox-schema";
 import * as http from "http";
 
@@ -405,57 +401,6 @@ server.registerTool(
           output: input.output,
         }),
       );
-      return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
-    } catch (err: any) {
-      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
-    }
-  },
-);
-
-// ── Screenshot ──────────────────────────────────────────────────────
-
-function registerScreenshotTool(name: string, description: string) {
-  server.registerTool(
-    name,
-    {
-      description,
-      inputSchema: screenshotRequestSchema,
-    },
-    async (input) => {
-      try {
-        const res = screenshotRespondSchema.parse(
-          await postToSocket("/toolbox/screenshot", {
-            output: input.output,
-            format: input.format,
-            screen: input.screen,
-            width: input.width,
-          }),
-        );
-        return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
-      } catch (err: any) {
-        return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
-      }
-    },
-  );
-}
-
-registerScreenshotTool(
-  "screenshot",
-  "Capture a screenshot of the display. Use 'screen' parameter (0-based index) to select a specific display on multi-monitor setups; omit to capture all displays combined. Returns the output file path and image metadata.",
-);
-
-// ── List Displays ────────────────────────────────────────────────────
-
-server.registerTool(
-  "list_displays",
-  {
-    description:
-      "List available displays/screens. Returns each display's 0-based index (usable as the 'screen' parameter in screenshot tool), name, and whether it's the primary display.",
-    inputSchema: listDisplaysRequestSchema,
-  },
-  async () => {
-    try {
-      const res = listDisplaysRespondSchema.parse(await postToSocket("/toolbox/list-displays", {}));
       return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };

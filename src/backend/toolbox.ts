@@ -1,8 +1,7 @@
 import { join, resolve, dirname, basename, extname } from "path";
 import { writeFile } from "fs/promises";
 import { createHash, randomUUID, randomInt } from "crypto";
-import sharp, { type Metadata } from "sharp";
-import screenshot, { type ScreenshotOptionsWithoutFilename } from "screenshot-desktop";
+import type { Metadata } from "sharp";
 import {
   base64EncodeRequestSchema,
   base64DecodeRequestSchema,
@@ -19,8 +18,6 @@ import {
   imageThumbnailRequestSchema,
   imageResizeRequestSchema,
   imageConvertRequestSchema,
-  screenshotRequestSchema,
-  listDisplaysRequestSchema,
   type Base64EncodeRespond,
   type Base64DecodeRespond,
   type UrlEncodeRespond,
@@ -37,8 +34,6 @@ import {
   type ImageThumbnailRespond,
   type ImageResizeRespond,
   type ImageConvertRespond,
-  type ScreenshotRespond,
-  type ListDisplaysRespond,
 } from "../shared/zod/mcp-toolbox-schema";
 import type { SocketServer } from "./socket-server";
 import type { BackendContext } from "./types";
@@ -63,6 +58,24 @@ const CHARSETS = {
   numeric: "0123456789",
   hex: "0123456789abcdef",
 };
+
+// ── Sharp (lazy) ─────────────────────────────────────────────────────
+// 动态加载 sharp，避免在应用启动时加载原生模块失败导致整个主进程崩溃
+// （Linux 上 libvips 原生二进制加载失败时，仅相关工具调用报错而非启动失败）。
+
+let sharpPromise: Promise<typeof import("sharp").default> | null = null;
+
+function getSharp(): Promise<typeof import("sharp").default> {
+  if (!sharpPromise) {
+    sharpPromise = import("sharp")
+      .then((m) => m.default)
+      .catch((err) => {
+        sharpPromise = null;
+        throw err;
+      });
+  }
+  return sharpPromise;
+}
 
 // ── Factory ──────────────────────────────────────────────────────────
 
@@ -174,6 +187,7 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
     server.registry("toolbox/image-metadata", async (payload): Promise<ImageMetadataRespond> => {
       const { path: imgPath } = imageMetadataRequestSchema.parse(payload);
       const absPath = resolve(projectDir, imgPath);
+      const sharp = await getSharp();
       const metadata = await sharp(absPath).metadata();
       return { result: extractMetadata(metadata) };
     });
@@ -188,6 +202,7 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
             dirname(absPath),
             `${basename(absPath, extname(absPath))}.thumb${width}${extname(absPath)}`,
           );
+      const sharp = await getSharp();
       await sharp(absPath).resize(width).toFile(outputPath);
       const metadata = await sharp(outputPath).metadata();
       return { result: { output: outputPath, metadata: extractMetadata(metadata) } };
@@ -197,6 +212,7 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
     server.registry("toolbox/image-resize", async (payload): Promise<ImageResizeRespond> => {
       const { path: imgPath, width, height, fit, output } = imageResizeRequestSchema.parse(payload);
       const absPath = resolve(projectDir, imgPath);
+      const sharp = await getSharp();
       const resized = await sharp(absPath).resize({ width, height, fit }).toBuffer();
       const resizedMeta = await sharp(resized).metadata();
       const actualWidth = resizedMeta.width ?? width ?? 0;
@@ -218,6 +234,7 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       const outputPath = output
         ? resolve(projectDir, output)
         : join(dirname(absPath), `${basename(absPath, extname(absPath))}.${format}`);
+      const sharp = await getSharp();
       let pipeline = sharp(absPath);
       const opts: { quality?: number } = {};
       if (quality !== undefined) opts.quality = quality;
@@ -225,55 +242,6 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       await pipeline.toFile(outputPath);
       const metadata = await sharp(outputPath).metadata();
       return { result: { output: outputPath, metadata: extractMetadata(metadata) } };
-    });
-
-    // ── List Displays ─────────────────────────────────────────────
-    server.registry("toolbox/list-displays", async (): Promise<ListDisplaysRespond> => {
-      listDisplaysRequestSchema.parse({});
-      const displays = await screenshot.listDisplays();
-      return {
-        result: displays.map((d) => ({
-          id: Number(d.id),
-          name: d.name,
-          // screenshot-desktop 的类型声明 @types/screenshot-desktop 未暴露 primary 字段
-          primary: (d as any).primary === true,
-        })),
-      };
-    });
-
-    // ── Screenshot ─────────────────────────────────────────────────
-    server.registry("toolbox/screenshot", async (payload): Promise<ScreenshotRespond> => {
-      const { output, format, screen, width } = screenshotRequestSchema.parse(payload);
-      const outputPath = output
-        ? resolve(projectDir, output)
-        : join(projectDir, `screenshot.${format}`);
-      // Capture screenshot with default format (PNG) — screenshot-desktop
-      // has limited format support across platforms; we bypass it and use
-      // sharp for conversion instead.
-      const opts: ScreenshotOptionsWithoutFilename = {};
-      if (screen !== undefined) opts.screen = screen;
-      const img = await screenshot(opts);
-
-      // Get original screen dimensions before any processing
-      const screenMeta = await sharp(img).metadata();
-
-      // Build sharp pipeline: resize (if width specified), then convert format
-      let pipeline = sharp(img);
-      if (width !== undefined) {
-        pipeline = pipeline.resize(width);
-      }
-      pipeline = pipeline.toFormat(format);
-      await pipeline.toFile(outputPath);
-
-      const metadata = await sharp(outputPath).metadata();
-      return {
-        result: {
-          output: outputPath,
-          screenWidth: screenMeta.width ?? undefined,
-          screenHeight: screenMeta.height ?? undefined,
-          metadata: extractMetadata(metadata),
-        },
-      };
     });
   }
 
