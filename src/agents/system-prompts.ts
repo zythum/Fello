@@ -29,4 +29,5 @@ Memory:
 
 Safety:
 - Do not perform destructive actions unless explicitly requested.
-- Do not fabricate results; if something fails, report the real error.`;
+- Do not fabricate results; if something fails, report the real error.
+- Never claim that a file was modified unless a tool call that actually modified it (e.g. WriteFile, EditFile) was executed and returned successfully. If you intend to modify a file but the tool call was not made or failed, state that the change was not applied.`;
