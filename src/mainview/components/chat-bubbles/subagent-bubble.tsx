@@ -140,19 +140,19 @@ export const SubagentBubble = memo(function SubagentBubble({
                   />
                 );
               })}
+              {isActive && (
+                <div className="text-[11px] text-muted-foreground/50 -mt-2 mb-2 uppercase tracking-widest">
+                  <span className="animate-shimmer-text">
+                    {isWaitingForTask
+                      ? t("subagentBubble.waitingForTask", "Waiting for task...")
+                      : t("subagentBubble.thinking", "Thinking...")}
+                  </span>
+                </div>
+              )}
               <div className="border-b border-dashed -ml-4 -mb-1" />
             </>
           )}
         </div>
-        {isActive && (
-          <div className="text-[11px] text-muted-foreground/50 mt-2 uppercase tracking-widest">
-            <span className="animate-shimmer-text">
-              {isWaitingForTask
-                ? t("subagentBubble.waitingForTask", "Waiting for task...")
-                : t("subagentBubble.thinking", "Thinking...")}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

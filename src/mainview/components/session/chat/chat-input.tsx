@@ -168,9 +168,7 @@ async function addFileAsAttachment(
 
 /** 将文件树节点数组拼成 mention markup 文本 */
 function nodesToMentionText(nodes: { id: string; name: string; isFolder: boolean }[]): string {
-  return nodes
-    .map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`)
-    .join(" ");
+  return nodes.map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`).join(" ");
 }
 
 /** 将暂存的附件信息构建成 ContentBlock 列表 */

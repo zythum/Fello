@@ -41,7 +41,8 @@ const typographyClasses: Record<string, string> = {
     "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:underline-offset-4 prose-a:text-[13px]",
     "prose-code:text-card-foreground prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal prose-code:text-[12px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-    "prose-li:my-0 prose-li:text-[13px]",
+    "prose-ol:pl-0 prose-ol:my-1 prose-ul:ml-0 prose-ul:my-1",
+    "prose-li:my-0 prose-li:pl-0 prose-li:text-[13px]",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
   agent_message: cn(

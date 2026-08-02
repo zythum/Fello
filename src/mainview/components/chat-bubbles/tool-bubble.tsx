@@ -256,7 +256,9 @@ export function ToolItem({ session, message }: ToolItemProps) {
             ) : (
               <Square className="size-2.5 fill-current" />
             )}
-            <span className="text-[10px]">{stopping ? t("toolBubble.stopping") : t("toolBubble.stop")}</span>
+            <span className="text-[10px]">
+              {stopping ? t("toolBubble.stopping") : t("toolBubble.stop")}
+            </span>
           </Button>
         )}
         {statusIcons[status]}

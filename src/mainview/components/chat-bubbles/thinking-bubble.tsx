@@ -33,7 +33,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({
             : t("thinkingBubble.thought", "Thought")}
         </span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 pl-5">
+      <CollapsibleContent className="mt-1">
         <div className="max-w-none">
           <ContentBlocks
             blocks={message.contents}

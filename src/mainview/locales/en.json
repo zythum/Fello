@@ -584,7 +584,9 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "previousSlide": "Previous slide",
-    "nextSlide": "Next slide"
+    "nextSlide": "Next slide",
+    "speakerNotes": "Notes",
+    "closeNotes": "Close"
   },
   "htmlDetail": {
     "fileNotFound": "File not found or inaccessible",
