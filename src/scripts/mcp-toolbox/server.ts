@@ -17,6 +17,7 @@ import {
   imageThumbnailRequestSchema,
   imageResizeRequestSchema,
   imageConvertRequestSchema,
+  qrCodeRequestSchema,
   base64EncodeRespondSchema,
   base64DecodeRespondSchema,
   urlEncodeRespondSchema,
@@ -33,6 +34,7 @@ import {
   imageThumbnailRespondSchema,
   imageResizeRespondSchema,
   imageConvertRespondSchema,
+  qrCodeRespondSchema,
 } from "../../shared/zod/mcp-toolbox-schema";
 import * as http from "http";
 
@@ -399,6 +401,32 @@ server.registerTool(
           format: input.format,
           quality: input.quality,
           output: input.output,
+        }),
+      );
+      return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    }
+  },
+);
+
+// ── QR Code ─────────────────────────────────────────────────────────
+
+server.registerTool(
+  "image_qrcode",
+  {
+    description: "Generate a PNG QR code image from text.",
+    inputSchema: qrCodeRequestSchema,
+  },
+  async (input) => {
+    try {
+      const res = qrCodeRespondSchema.parse(
+        await postToSocket("/toolbox/image-qrcode", {
+          text: input.text,
+          output: input.output,
+          size: input.size,
+          margin: input.margin,
+          errorCorrection: input.errorCorrection,
         }),
       );
       return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };

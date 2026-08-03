@@ -283,3 +283,40 @@ export const imageConvertRespondSchema = z.object({
 
 export type ImageConvertRequest = z.infer<typeof imageConvertRequestSchema>;
 export type ImageConvertRespond = z.infer<typeof imageConvertRespondSchema>;
+
+// ── QR Code ─────────────────────────────────────────────────────────
+
+export const qrCodeRequestSchema = z.object({
+  text: z.string().min(1).describe("Text to encode in the QR code."),
+  output: z
+    .string()
+    .optional()
+    .describe("Output PNG path. If omitted, saves as 'qrcode.png' in the project root."),
+  size: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(5)
+    .describe("Size of each QR module in pixels (1-50). Default: 5."),
+  margin: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .default(4)
+    .describe("White-space margin around the QR code in modules (0-100). Default: 4."),
+  errorCorrection: z
+    .enum(["L", "M", "Q", "H"])
+    .default("M")
+    .describe("Error correction level. Default: M."),
+});
+
+export const qrCodeRespondSchema = z.object({
+  result: z.object({
+    output: z.string(),
+  }),
+});
+
+export type QrCodeRequest = z.infer<typeof qrCodeRequestSchema>;
+export type QrCodeRespond = z.infer<typeof qrCodeRespondSchema>;

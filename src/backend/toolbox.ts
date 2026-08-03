@@ -1,6 +1,7 @@
 import { join, resolve, dirname, basename, extname } from "path";
 import { writeFile } from "fs/promises";
 import { createHash, randomUUID, randomInt } from "crypto";
+import * as qr from "qr-image";
 import type { Metadata } from "sharp";
 import {
   base64EncodeRequestSchema,
@@ -18,6 +19,7 @@ import {
   imageThumbnailRequestSchema,
   imageResizeRequestSchema,
   imageConvertRequestSchema,
+  qrCodeRequestSchema,
   type Base64EncodeRespond,
   type Base64DecodeRespond,
   type UrlEncodeRespond,
@@ -34,6 +36,7 @@ import {
   type ImageThumbnailRespond,
   type ImageResizeRespond,
   type ImageConvertRespond,
+  type QrCodeRespond,
 } from "../shared/zod/mcp-toolbox-schema";
 import type { SocketServer } from "./socket-server";
 import type { BackendContext } from "./types";
@@ -242,6 +245,20 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       await pipeline.toFile(outputPath);
       const metadata = await sharp(outputPath).metadata();
       return { result: { output: outputPath, metadata: extractMetadata(metadata) } };
+    });
+
+    // ── QR Code ────────────────────────────────────────────────────
+    server.registry("toolbox/image-qrcode", async (payload): Promise<QrCodeRespond> => {
+      const { text, output, size, margin, errorCorrection } = qrCodeRequestSchema.parse(payload);
+      const outputPath = resolve(projectDir, output ?? "qrcode.png");
+      const png = qr.imageSync(text, {
+        type: "png",
+        size,
+        margin,
+        ec_level: errorCorrection,
+      });
+      await writeFile(outputPath, png);
+      return { result: { output: outputPath } };
     });
   }
 
