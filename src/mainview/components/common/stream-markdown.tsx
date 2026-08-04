@@ -1,4 +1,4 @@
-import { useMemo, isValidElement, useState, useCallback } from "react";
+import { useMemo, useId, useRef, isValidElement, useState, useCallback } from "react";
 import { Streamdown, defaultRehypePlugins, type Components } from "streamdown";
 import type { Pluggable, PluggableList } from "unified";
 import { mermaid } from "@streamdown/mermaid";
@@ -120,11 +120,53 @@ const typographyClasses = cn(
   "prose-table:my-2 prose-th:border-border prose-td:border-border",
 );
 
+/** Generate a URL-friendly slug from heading text content */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fff\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
+/** Extract plain text from React children (handles nested elements) */
+function extractText(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) return children.map(extractText).join("");
+  if (isValidElement(children)) {
+    const props = children.props as Record<string, unknown>;
+    if (props.children) return extractText(props.children as React.ReactNode);
+  }
+  return "";
+}
+
+function Heading({
+  level,
+  prefix,
+  children,
+  ...props
+}: {
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  prefix: string;
+  children?: React.ReactNode;
+  [key: string]: unknown;
+}) {
+  const Tag = `h${level}` as const;
+  const id = `${prefix}${slugify(extractText(children))}`;
+  return (
+    <Tag id={id} {...props}>
+      {children}
+    </Tag>
+  );
+}
+
 // Override the <code> element to render block code blocks with CodeView.
 // The default <pre> component adds "data-block" to the <code> element via cloneElement,
 // which triggers a React reconciliation — on the second render pass, the "data-block"
 // prop is present, allowing us to distinguish block code from inline code.
-const components: Components = {
+const baseComponents: Components = {
   code: ({ className, children, node: _node, ...props }) => {
     if (!("data-block" in props)) {
       // Inline code — render as a styled <code> element
@@ -214,6 +256,81 @@ const components: Components = {
   ),
 };
 
+function createComponents(
+  prefix: string,
+  onLinkClickRef: React.RefObject<
+    ((href: string, e: React.MouseEvent) => boolean | void) | undefined
+  >,
+): Components {
+  return {
+    ...baseComponents,
+    a: ({ href, children, node: _node, ...props }: any) => {
+      if (href && href.startsWith("#")) {
+        const handleClick = (e: React.MouseEvent) => {
+          e.preventDefault();
+          const targetId = `${prefix}${slugify(decodeURIComponent(href.slice(1)))}`;
+          const el = document.getElementById(targetId);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        };
+        return (
+          <a href={href} onClick={handleClick} {...props}>
+            {children}
+          </a>
+        );
+      }
+      href = href?.split("?")[0];
+      if (href && !/^(https?:|data:|mailto:|blob:|web:)/.test(href)) {
+        const handleClick = (e: React.MouseEvent) => {
+          e.preventDefault();
+          onLinkClickRef.current?.(href, e);
+        };
+        return (
+          <a href={href} onClick={handleClick} {...props}>
+            {children}
+          </a>
+        );
+      }
+      return (
+        <a href={href || undefined} target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+        </a>
+      );
+    },
+    h1: ({ node: _node, children, ...props }: any) => (
+      <Heading level={1} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+    h2: ({ node: _node, children, ...props }: any) => (
+      <Heading level={2} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+    h3: ({ node: _node, children, ...props }: any) => (
+      <Heading level={3} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+    h4: ({ node: _node, children, ...props }: any) => (
+      <Heading level={4} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+    h5: ({ node: _node, children, ...props }: any) => (
+      <Heading level={5} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+    h6: ({ node: _node, children, ...props }: any) => (
+      <Heading level={6} prefix={prefix} {...props}>
+        {children}
+      </Heading>
+    ),
+  };
+}
+
 export function StreamMarkdown({
   className,
   children,
@@ -227,31 +344,15 @@ export function StreamMarkdown({
     return buildImageRehypePlugins(imageSource);
   }, [imageSource]);
 
-  const resolvedComponents = useMemo(() => {
-    if (!onLinkClick) return components;
-    return {
-      ...components,
-      a: ({ href, children, node: _node, ...props }: any) => {
-        if (href && !/^(https?:|data:|#|mailto:|blob:|web:)/.test(href)) {
-          const handleClick = (e: React.MouseEvent) => {
-            if (onLinkClick(href, e) === false) {
-              e.preventDefault();
-            }
-          };
-          return (
-            <a href={href} onClick={handleClick} {...props}>
-              {children}
-            </a>
-          );
-        }
-        return (
-          <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
-            {children}
-          </a>
-        );
-      },
-    };
-  }, [onLinkClick]);
+  const idPrefix = useId();
+
+  const onLinkClickRef = useRef(onLinkClick);
+  onLinkClickRef.current = onLinkClick;
+
+  const resolvedComponents = useMemo(
+    () => createComponents(idPrefix, onLinkClickRef),
+    [idPrefix],
+  );
 
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
