@@ -552,13 +552,11 @@ This tool directly sends a plan update to the client, which replaces the entire 
 
         // Send the plan update directly
         const plan: Plan = {
-          entries: entries.map(
-            (entry): PlanEntry => ({
-              content: entry.content,
-              priority: entry.priority,
-              status: entry.status,
-            }),
-          ),
+          entries: entries.map((entry): PlanEntry => ({
+            content: entry.content,
+            priority: entry.priority,
+            status: entry.status,
+          })),
         };
         await connection.sessionUpdate({
           sessionId: params.sessionId,
