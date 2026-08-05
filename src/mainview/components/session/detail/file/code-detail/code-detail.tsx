@@ -30,7 +30,9 @@ interface CodeDetailProps {
 
 export function CodeDetail({ projectId, file }: CodeDetailProps) {
   const { t } = useTranslation();
-  const { content, gitContent, loading, errorMsg } = useFile(projectId, file, { gitHead: true });
+  const { content, gitContent, loading, errorMsg, filePath } = useFile(projectId, file, {
+    gitHead: true,
+  });
   const [viewMode, setViewMode] = useState<ViewMode>("code");
   const [codeViewContainer, setCodeViewContainer] = useState<HTMLDivElement | null>(null);
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
@@ -45,7 +47,12 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
     goToNext,
     goToPrev,
     closeSearch,
-  } = useFileSearch(projectId, file, viewMode, codeViewContainer?.children[0]?.shadowRoot ?? null);
+  } = useFileSearch(
+    projectId,
+    filePath,
+    viewMode,
+    codeViewContainer?.children[0]?.shadowRoot ?? null,
+  );
 
   const viewModes: ViewMode[] = gitContent != null ? ["code", "compare"] : ["code"];
 
@@ -64,32 +71,42 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
 
   const handleAddFileToChat = useCallback(() => {
     document.dispatchEvent(
-      new CustomEvent("fello-add-to-chat", { detail: [{ id: file, name: file, isFolder: false }] }),
+      new CustomEvent("fello-add-to-chat", {
+        detail: [{ id: filePath, name: filePath, isFolder: false }],
+      }),
     );
-  }, [file]);
+  }, [filePath]);
 
   const handleCopyPath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: true });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleCopyRelativePath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: false });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: false });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleRevealInFinder = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     electron.revealInFinder(absPath);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleOpenInEditor = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     const editorName = useAppStore.getState().editor.name;
     electron.openInEditor(absPath, editorName);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
@@ -140,7 +157,7 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
               <CodeView
                 className="min-h-full"
                 content={content}
-                filename={file}
+                filename={filePath}
                 addLineToChat={true}
               />
             </ContextMenuTrigger>
@@ -155,7 +172,7 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
                 className="min-h-full"
                 oldContent={gitContent ?? ""}
                 newContent={content}
-                filename={file}
+                filename={filePath}
                 addLineToChat={true}
               />
             </ContextMenuTrigger>

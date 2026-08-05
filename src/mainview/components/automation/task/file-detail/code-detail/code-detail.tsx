@@ -33,11 +33,11 @@ export function CodeDetail({
   onRevealInFinder,
 }: CodeDetailProps) {
   const { t } = useTranslation();
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
+  const { content, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName);
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
   const displayContent = useMemo(() => {
-    if (fileName.endsWith(".json")) {
+    if (filePath.endsWith(".json")) {
       try {
         return JSON.stringify(JSON.parse(content), null, 2);
       } catch {
@@ -45,7 +45,7 @@ export function CodeDetail({
       }
     }
     return content;
-  }, [fileName, content]);
+  }, [filePath, content]);
 
   const handleCopyContent = useCallback(() => {
     copyText(displayContent);
@@ -63,7 +63,7 @@ export function CodeDetail({
         }}
       >
         <ContextMenuTrigger className="h-full">
-          <CodeView className="min-h-full" content={displayContent} filename={fileName} />
+          <CodeView className="min-h-full" content={displayContent} filename={filePath} />
         </ContextMenuTrigger>
         <ContextMenuContent>
           {contextSelectedText && (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { request } from "../../../../../backend";
+import { parseFileReference } from "../../../../common/file-reference";
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binaryStr = atob(base64);
@@ -20,6 +21,9 @@ interface UseTaskFileResult {
   arrayBuffer: ArrayBuffer;
   loading: boolean;
   errorMsg: string;
+  filePath: string;
+  search: string;
+  hash: string;
 }
 
 export function useTaskFile(
@@ -30,6 +34,7 @@ export function useTaskFile(
 ): UseTaskFileResult {
   const { encoding = "text" } = options;
   const { t } = useTranslation();
+  const { path: cleanFilePath, search, hash } = parseFileReference(filePath);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -45,7 +50,7 @@ export function useTaskFile(
         const data = await request.readTaskFile({
           scheduleId,
           taskId,
-          filePath,
+          filePath: cleanFilePath,
           encoding: encoding === "base64" ? "base64" : undefined,
         });
         if (!active) return;
@@ -61,12 +66,12 @@ export function useTaskFile(
     return () => {
       active = false;
     };
-  }, [scheduleId, taskId, filePath, encoding, t]);
+  }, [scheduleId, taskId, cleanFilePath, encoding, t]);
 
   const arrayBuffer = useMemo(
     () => (encoding === "base64" ? base64ToArrayBuffer(content) : new ArrayBuffer(0)),
     [content, encoding],
   );
 
-  return { content, arrayBuffer, loading, errorMsg };
+  return { content, arrayBuffer, loading, errorMsg, filePath: cleanFilePath, search, hash };
 }

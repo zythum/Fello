@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FileIcon } from "../../../common/file-icon";
 import { getFileKind } from "./file-types";
+import { parseFileReference } from "../../../common/file-reference";
 import { CodeDetail } from "./code-detail/code-detail";
 import { MarkdownDetail } from "./markdown-detail/markdown-detail";
 import { ImageDetail } from "./image-detail/image-detail";
@@ -72,13 +73,14 @@ export function FileDetail({
     );
   }
 
+  const filePath = parseFileReference(fileName).path;
   const contextProps = {
     scheduleId,
     taskId,
     fileName,
-    onCopyPath: onCopyPath ? () => onCopyPath(fileName) : undefined,
-    onCopyAbsolutePath: onCopyAbsolutePath ? () => onCopyAbsolutePath(fileName) : undefined,
-    onRevealInFinder: onRevealInFinder ? () => onRevealInFinder(fileName) : undefined,
+    onCopyPath: onCopyPath ? () => onCopyPath(filePath) : undefined,
+    onCopyAbsolutePath: onCopyAbsolutePath ? () => onCopyAbsolutePath(filePath) : undefined,
+    onRevealInFinder: onRevealInFinder ? () => onRevealInFinder(filePath) : undefined,
   };
 
   return (
@@ -87,9 +89,9 @@ export function FileDetail({
       <div className="h-10 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background">
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
-            <FileIcon name={fileName} className="size-4 shrink-0 text-muted-foreground/80" />
+            <FileIcon name={filePath} className="size-4 shrink-0 text-muted-foreground/80" />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs truncate leading-tight text-foreground/60">{fileName}</span>
+              <span className="text-xs truncate leading-tight text-foreground/60">{filePath}</span>
             </div>
           </div>
         </div>

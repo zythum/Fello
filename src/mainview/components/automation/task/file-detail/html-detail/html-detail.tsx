@@ -37,12 +37,16 @@ export function HtmlDetail({
   onRevealInFinder,
 }: HtmlDetailProps) {
   const { t } = useTranslation();
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
+  const { content, loading, errorMsg, filePath, search, hash } = useTaskFile(
+    scheduleId,
+    taskId,
+    fileName,
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [retryKey, setRetryKey] = useState(0);
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
-  const pathname = `/automation/${scheduleId}/${taskId}/${fileName}`;
+  const pathname = `/automation/${scheduleId}/${taskId}/${filePath}${search}${hash}`;
   const iframeUrl = useMemo(() => resolveFileUrl(pathname), [pathname]);
 
   const httpUrl = useMemo(() => {
@@ -92,7 +96,7 @@ export function HtmlDetail({
             src={iframeUrl}
             className="flex-1 w-full border-0 bg-white"
             sandbox="allow-scripts allow-popups allow-forms allow-modals"
-            title={fileName}
+            title={filePath}
           />
         </div>
       ) : (
@@ -104,7 +108,7 @@ export function HtmlDetail({
             }}
           >
             <ContextMenuTrigger className="h-full">
-              <CodeView className="min-h-full" content={content} filename={fileName} />
+              <CodeView className="min-h-full" content={content} filename={filePath} />
             </ContextMenuTrigger>
             <ContextMenuContent>
               {contextSelectedText && (

@@ -9,7 +9,7 @@ interface XlsxDetailProps {
 }
 
 export function XlsxDetail({ scheduleId, taskId, fileName }: XlsxDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+  const { arrayBuffer, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName, {
     encoding: "base64",
   });
 
@@ -18,7 +18,7 @@ export function XlsxDetail({ scheduleId, taskId, fileName }: XlsxDetailProps) {
 
   return (
     <div className="h-full">
-      <XlsxView data={arrayBuffer} filename={fileName} />
+      <XlsxView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

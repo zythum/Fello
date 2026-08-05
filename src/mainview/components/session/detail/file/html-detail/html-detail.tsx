@@ -35,10 +35,16 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
-  // Load file content for code/compare views
-  const { content, gitContent, loading: fileLoading } = useFile(projectId, file, { gitHead: true });
+  const {
+    content,
+    gitContent,
+    loading: fileLoading,
+    filePath,
+    search,
+    hash,
+  } = useFile(projectId, file, { gitHead: true });
 
-  const pathname = `/project/${projectId}/${file}`;
+  const pathname = `/project/${projectId}/${filePath}${search}${hash}`;
   const iframeUrl = useMemo(() => resolveFileUrl(pathname), [pathname]);
 
   const httpUrl = useMemo(() => {
@@ -55,7 +61,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
     (async () => {
       try {
         // First try the exact path
-        const info = await request.getFileInfo({ projectId, relativePath: file });
+        const info = await request.getFileInfo({ projectId, relativePath: filePath });
         if (!active) return;
 
         if (info && info.isFile) {
@@ -63,7 +69,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
         }
 
         // If not a file, try with index.html (directory serving)
-        const normalizedPath = file.endsWith("/") ? file : `${file}/`;
+        const normalizedPath = filePath.endsWith("/") ? filePath : `${filePath}/`;
         const indexPath = `${normalizedPath}index.html`;
         const indexInfo = await request.getFileInfo({ projectId, relativePath: indexPath });
         if (!active) return;
@@ -88,7 +94,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
     return () => {
       active = false;
     };
-  }, [projectId, file, t]);
+  }, [projectId, filePath, t]);
 
   // Open the page in system browser via the HTTP WebUI URL, or new tab in WebUI mode
   const handleOpenExternal = useCallback(() => {
@@ -128,32 +134,42 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
 
   const handleAddFileToChat = useCallback(() => {
     document.dispatchEvent(
-      new CustomEvent("fello-add-to-chat", { detail: [{ id: file, name: file, isFolder: false }] }),
+      new CustomEvent("fello-add-to-chat", {
+        detail: [{ id: filePath, name: filePath, isFolder: false }],
+      }),
     );
-  }, [file]);
+  }, [filePath]);
 
   const handleCopyPath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: true });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleCopyRelativePath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: false });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: false });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleRevealInFinder = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     electron.revealInFinder(absPath);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleOpenInEditor = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     const editorName = useAppStore.getState().editor.name;
     electron.openInEditor(absPath, editorName);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const contextMenuItems = (
     <ContextMenuContent>
@@ -247,7 +263,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
             src={iframeUrl}
             className="flex-1 w-full border-0 bg-white"
             sandbox="allow-scripts allow-popups allow-forms allow-modals"
-            title={file}
+            title={filePath}
           />
         </div>
       ) : viewMode === "code" ? (
@@ -262,7 +278,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
                 <CodeView
                   className="min-h-full"
                   content={content}
-                  filename={file}
+                  filename={filePath}
                   addLineToChat={true}
                 />
               </ContextMenuTrigger>
@@ -283,7 +299,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
                 className="min-h-full"
                 oldContent={gitContent ?? ""}
                 newContent={content}
-                filename={file}
+                filename={filePath}
                 addLineToChat={true}
               />
             </ContextMenuTrigger>

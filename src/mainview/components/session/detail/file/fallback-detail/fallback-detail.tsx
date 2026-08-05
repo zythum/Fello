@@ -5,6 +5,7 @@ import { useAppStore } from "../../../../../store";
 import { request, isWebUI } from "../../../../../backend";
 import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
+import { parseFileReference } from "../../../../common/file-reference";
 
 interface FallbackDetailProps {
   projectId: string;
@@ -13,18 +14,27 @@ interface FallbackDetailProps {
 
 export function FallbackDetail({ projectId, file }: FallbackDetailProps) {
   const { t } = useTranslation();
+  const filePath = parseFileReference(file).path;
 
   const handleRevealInFinder = useCallback(async () => {
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     electron.revealInFinder(absPath);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleOpenInEditor = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     const editorName = useAppStore.getState().editor.name;
     electron.openInEditor(absPath, editorName);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   return (
     <div className="flex flex-col items-center justify-center gap-3 mt-10">

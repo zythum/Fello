@@ -9,7 +9,7 @@ interface DocxDetailProps {
 }
 
 export function DocxDetail({ scheduleId, taskId, fileName }: DocxDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+  const { arrayBuffer, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName, {
     encoding: "base64",
   });
 
@@ -18,7 +18,7 @@ export function DocxDetail({ scheduleId, taskId, fileName }: DocxDetailProps) {
 
   return (
     <div className="h-full">
-      <DocxView data={arrayBuffer} filename={fileName} />
+      <DocxView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

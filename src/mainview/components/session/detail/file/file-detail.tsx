@@ -5,6 +5,7 @@ import { FileIcon } from "../../../common/file-icon";
 import { subscribe } from "../../../../backend";
 import type { FileDetailProps } from "./file-types";
 import { getFileKind } from "./file-types";
+import { parseFileReference } from "../../../common/file-reference";
 import { CodeDetail } from "./code-detail/code-detail";
 import { MarkdownDetail } from "./markdown-detail/markdown-detail";
 import { ImageDetail } from "./image-detail/image-detail";
@@ -17,7 +18,8 @@ import { FallbackDetail } from "./fallback-detail/fallback-detail";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
-  const fileKind = getFileKind(file);
+  const filePath = file ? parseFileReference(file).path : "";
+  const fileKind = getFileKind(filePath);
   const [fileModified, setFileModified] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -25,13 +27,13 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   useEffect(() => {
     setFileModified(false);
     setRefreshKey(0);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   // Listen for external file modifications
   useEffect(() => {
-    if (!projectId || !file) return;
+    if (!projectId || !filePath) return;
     const handler = (payload: { projectId: string; changes: string[] }) => {
-      if (payload.projectId === projectId && payload.changes.includes(file)) {
+      if (payload.projectId === projectId && payload.changes.includes(filePath)) {
         setFileModified(true);
       }
     };
@@ -39,7 +41,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     return () => {
       subscribe.off("fs-changed", handler);
     };
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleRefresh = useCallback(() => {
     setFileModified(false);
@@ -55,9 +57,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       >
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
-            <FileIcon name={file ?? ""} className="size-4 shrink-0 text-muted-foreground/80" />
+            <FileIcon name={filePath} className="size-4 shrink-0 text-muted-foreground/80" />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs truncate leading-tight text-foreground/60">{file}</span>
+              <span className="text-xs truncate leading-tight text-foreground/60">{filePath}</span>
             </div>
           </div>
         </div>
@@ -92,7 +94,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       </div>
 
       {/* content */}
-      {projectId && file && (
+      {projectId && filePath && file && (
         <div className="relative flex-1 min-h-0 overflow-hidden">
           {fileKind === "text" ? (
             <CodeDetail key={refreshKey} projectId={projectId} file={file} />

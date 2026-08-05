@@ -1,4 +1,4 @@
-import { useMemo, useId, useRef, isValidElement, useState, useCallback } from "react";
+import { useMemo, useId, useRef, isValidElement, useState, useCallback, useEffect } from "react";
 import { Streamdown, defaultRehypePlugins, type Components } from "streamdown";
 import type { Pluggable, PluggableList } from "unified";
 import { mermaid } from "@streamdown/mermaid";
@@ -21,10 +21,13 @@ import {
 } from "@/components/ui/table";
 
 /**
- * Build rehype plugins that rewrite img src via a transform function
- * before rehype-harden blocks relative/unknown-protocol images.
+ * Build rehype plugins that normalize local links before rehype-harden validates them.
+ *
+ * rehype-harden accepts explicit relative paths such as `./AGENTS.md`, but treats a
+ * bare filename such as `AGENTS.md` as an invalid URL. Markdown commonly emits the
+ * latter form, so normalize it before the sanitize/harden plugins run.
  */
-function buildImageRehypePlugins(transformSrc: (src: string) => string): PluggableList {
+function buildRehypePlugins(transformImageSrc?: (src: string) => string): PluggableList {
   const { raw, sanitize, harden } = defaultRehypePlugins as Record<string, Pluggable>;
   const [sanitizePlugin, sanitizeSchema] = sanitize as [any, Record<string, any>];
   const protocols = sanitizeSchema.protocols as Record<string, string[]>;
@@ -32,16 +35,31 @@ function buildImageRehypePlugins(transformSrc: (src: string) => string): Pluggab
     ...sanitizeSchema,
     protocols: { ...protocols, src: [...(protocols.src || []), "web"] },
   };
-  const rehypeResolveImages = () => (tree: any) => {
+  const rehypeNormalizeRelativeLinks = () => (tree: any) => {
     const walk = (node: any) => {
-      if (node.type === "element" && node.tagName === "img" && node.properties?.src) {
-        node.properties.src = transformSrc(node.properties.src);
+      if (node.type === "element" && node.properties) {
+        if (node.tagName === "a" && typeof node.properties.href === "string") {
+          const href = node.properties.href;
+          if (!/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(href)) {
+            node.properties.href = `./${href}`;
+          }
+        }
+        if (
+          transformImageSrc &&
+          node.tagName === "img" &&
+          typeof node.properties.src === "string"
+        ) {
+          node.properties.src = transformImageSrc(node.properties.src);
+        }
       }
       if (node.children) node.children.forEach(walk);
     };
     walk(tree);
   };
-  return [raw, [sanitizePlugin, extendedSchema], rehypeResolveImages, harden];
+  const rehypeSanitize = transformImageSrc
+    ? ([sanitizePlugin, extendedSchema] satisfies Pluggable)
+    : sanitize;
+  return [raw, rehypeNormalizeRelativeLinks, rehypeSanitize, harden];
 }
 
 function CodeBlock({
@@ -95,6 +113,8 @@ export interface StreamMarkdownProps {
   isStreaming?: boolean;
   children?: string;
   forceBreaks?: boolean;
+  /** Hash to scroll to after the Markdown headings are rendered. */
+  initalHash?: string;
   /** Transform image src before rendering. Use to resolve relative paths. */
   imageSource?: (src: string) => string;
   /** Intercept clicks on relative-path links. Return false to prevent default navigation. */
@@ -128,6 +148,18 @@ function slugify(text: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .trim();
+}
+
+/** Convert a hash value into the ID used by rendered headings. */
+function hashToHeadingId(prefix: string, hash: string): string {
+  const rawHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  let decodedHash = rawHash;
+  try {
+    decodedHash = decodeURIComponent(rawHash);
+  } catch {
+    // Keep the original value when the hash is not valid URI encoding.
+  }
+  return `${prefix}${slugify(decodedHash)}`;
 }
 
 /** Extract plain text from React children (handles nested elements) */
@@ -268,7 +300,7 @@ function createComponents(
       if (href && href.startsWith("#")) {
         const handleClick = (e: React.MouseEvent) => {
           e.preventDefault();
-          const targetId = `${prefix}${slugify(decodeURIComponent(href.slice(1)))}`;
+          const targetId = hashToHeadingId(prefix, href);
           const el = document.getElementById(targetId);
           if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -280,7 +312,6 @@ function createComponents(
           </a>
         );
       }
-      href = href?.split("?")[0];
       if (href && !/^(https?:|data:|mailto:|blob:|web:)/.test(href)) {
         const handleClick = (e: React.MouseEvent) => {
           e.preventDefault();
@@ -336,23 +367,19 @@ export function StreamMarkdown({
   children,
   isStreaming,
   forceBreaks,
+  initalHash,
   imageSource,
   onLinkClick,
 }: StreamMarkdownProps) {
-  const rehypePlugins = useMemo(() => {
-    if (!imageSource) return undefined;
-    return buildImageRehypePlugins(imageSource);
-  }, [imageSource]);
+  const rehypePlugins = useMemo(() => buildRehypePlugins(imageSource), [imageSource]);
 
   const idPrefix = useId();
+  const initialHashTargetRef = useRef<string | null>(null);
 
   const onLinkClickRef = useRef(onLinkClick);
   onLinkClickRef.current = onLinkClick;
 
-  const resolvedComponents = useMemo(
-    () => createComponents(idPrefix, onLinkClickRef),
-    [idPrefix],
-  );
+  const resolvedComponents = useMemo(() => createComponents(idPrefix, onLinkClickRef), [idPrefix]);
 
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
@@ -370,6 +397,22 @@ export function StreamMarkdown({
     }
     return { frontmatter: undefined, content: children };
   }, [children]);
+
+  useEffect(() => {
+    if (!initalHash || initalHash === "#") {
+      initialHashTargetRef.current = null;
+      return;
+    }
+
+    const targetId = hashToHeadingId(idPrefix, initalHash);
+    if (initialHashTargetRef.current === targetId) return;
+
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    initialHashTargetRef.current = targetId;
+    target.scrollIntoView({ behavior: "smooth" });
+  }, [initalHash, content, idPrefix]);
 
   return (
     <div className={className ?? typographyClasses}>

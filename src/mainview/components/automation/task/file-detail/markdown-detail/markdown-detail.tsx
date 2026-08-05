@@ -40,14 +40,14 @@ export function MarkdownDetail({
   onNavigateFile,
 }: MarkdownDetailProps) {
   const { t } = useTranslation();
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
+  const { content, loading, errorMsg, filePath, hash } = useTaskFile(scheduleId, taskId, fileName);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
   const resolvePath = useCallback(
     (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
-      const dir = fileName.includes("/") ? fileName.substring(0, fileName.lastIndexOf("/")) : "";
+      const dir = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
       const raw = src.startsWith("/") ? src.slice(1) : dir ? `${dir}/${src}` : src;
       const parts = raw.split("/");
       const normalized: string[] = [];
@@ -58,7 +58,7 @@ export function MarkdownDetail({
       }
       return normalized.join("/");
     },
-    [fileName],
+    [filePath],
   );
 
   const imageSource = useMemo(() => {
@@ -118,6 +118,7 @@ export function MarkdownDetail({
             <ContextMenuTrigger className="h-full select-text">
               <div className="p-4 max-w-3xl">
                 <StreamMarkdown
+                  initalHash={hash}
                   imageSource={imageSource}
                   onLinkClick={
                     onNavigateFile
@@ -144,7 +145,7 @@ export function MarkdownDetail({
             }}
           >
             <ContextMenuTrigger className="h-full">
-              <CodeView className="min-h-full" content={content} filename={fileName} />
+              <CodeView className="min-h-full" content={content} filename={filePath} />
             </ContextMenuTrigger>
             {contextMenuItems}
           </ContextMenu>

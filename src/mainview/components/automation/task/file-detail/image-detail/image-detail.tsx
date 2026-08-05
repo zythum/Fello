@@ -10,21 +10,21 @@ interface ImageDetailProps {
 }
 
 export function ImageDetail({ scheduleId, taskId, fileName }: ImageDetailProps) {
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+  const { content, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName, {
     encoding: "base64",
   });
 
   const src = useMemo(() => {
     if (!content) return "";
-    const ext = fileName.split(".").pop()?.toLowerCase() || "";
+    const ext = filePath.split(".").pop()?.toLowerCase() || "";
     let mimeType = ext;
     if (ext === "svg") mimeType = "svg+xml";
     else if (ext === "jpg") mimeType = "jpeg";
     return `data:image/${mimeType};base64,${content}`;
-  }, [fileName, content]);
+  }, [filePath, content]);
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
-  return <ImageView src={src} alt={fileName} />;
+  return <ImageView src={src} alt={filePath} />;
 }

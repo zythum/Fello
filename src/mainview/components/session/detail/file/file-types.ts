@@ -1,3 +1,5 @@
+import { parseFileReference } from "../../../common/file-reference";
+
 export type FileKind = "image" | "markdown" | "text" | "pdf" | "docx" | "pptx" | "xlsx" | "html";
 
 export interface FileDetailProps {
@@ -21,7 +23,8 @@ const FILE_EXT_MAP: Record<string, FileKind> = {
 /** 根据文件扩展名判断 fileKind */
 export function getFileKind(filename: string | null): FileKind | null {
   if (!filename) return null;
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const { path } = parseFileReference(filename);
+  const ext = path.split(".").pop()?.toLowerCase() || "";
   if (IMAGE_EXTENSIONS.includes(ext)) return "image";
   if (ext in FILE_EXT_MAP) return FILE_EXT_MAP[ext]!;
   if (ext === "md") return "markdown";

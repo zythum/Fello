@@ -9,7 +9,7 @@ interface PptxDetailProps {
 }
 
 export function PptxDetail({ scheduleId, taskId, fileName }: PptxDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+  const { arrayBuffer, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName, {
     encoding: "base64",
   });
 
@@ -18,7 +18,7 @@ export function PptxDetail({ scheduleId, taskId, fileName }: PptxDetailProps) {
 
   return (
     <div className="h-full">
-      <PptxView data={arrayBuffer} filename={fileName} />
+      <PptxView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

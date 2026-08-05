@@ -8,14 +8,16 @@ interface PdfDetailProps {
 }
 
 export function PdfDetail({ projectId, file }: PdfDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useFile(projectId, file, { encoding: "base64" });
+  const { arrayBuffer, loading, errorMsg, filePath } = useFile(projectId, file, {
+    encoding: "base64",
+  });
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
   return (
     <div className="h-full">
-      <PdfView data={arrayBuffer} filename={file} />
+      <PdfView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { request } from "../../../../../backend";
+import { parseFileReference } from "../../../../common/file-reference";
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const base64Data = base64.includes(",") ? base64.split(",")[1]! : base64;
@@ -23,6 +24,9 @@ interface UseFileResult {
   arrayBuffer: ArrayBuffer;
   loading: boolean;
   errorMsg: string;
+  filePath: string;
+  search: string;
+  hash: string;
 }
 
 export function useFile(
@@ -32,6 +36,7 @@ export function useFile(
 ): UseFileResult {
   const { encoding = "text", gitHead = false } = options;
   const { t } = useTranslation();
+  const { path: filePath, search, hash } = useMemo(() => parseFileReference(file), [file]);
   const [content, setContent] = useState("");
   const [gitContent, setGitContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +51,7 @@ export function useFile(
 
     async function load() {
       try {
-        const info = await request.getFileInfo({ projectId, relativePath: file });
+        const info = await request.getFileInfo({ projectId, relativePath: filePath });
         if (!active) return;
         if (!info || !info.isFile) {
           setErrorMsg(t("fileDetail.fileNotFound"));
@@ -64,12 +69,12 @@ export function useFile(
         const promises: Promise<unknown>[] = [
           request.readFile({
             projectId,
-            relativePath: file,
+            relativePath: filePath,
             encoding: encoding === "base64" ? "base64" : undefined,
           }),
         ];
         if (gitHead) {
-          promises.push(request.readGitHeadFile({ projectId, relativePath: file }));
+          promises.push(request.readGitHeadFile({ projectId, relativePath: filePath }));
         }
         // minimum loading time to avoid flash
         promises.push(new Promise((resolve) => setTimeout(resolve, 300)));
@@ -89,12 +94,12 @@ export function useFile(
     return () => {
       active = false;
     };
-  }, [projectId, file, encoding, gitHead, t]);
+  }, [projectId, filePath, encoding, gitHead, t]);
 
   const arrayBuffer = useMemo(
     () => (encoding === "base64" ? base64ToArrayBuffer(content) : new ArrayBuffer(0)),
     [content, encoding],
   );
 
-  return { content, gitContent, arrayBuffer, loading, errorMsg };
+  return { content, gitContent, arrayBuffer, loading, errorMsg, filePath, search, hash };
 }

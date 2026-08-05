@@ -9,7 +9,7 @@ interface PdfDetailProps {
 }
 
 export function PdfDetail({ scheduleId, taskId, fileName }: PdfDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName, {
+  const { arrayBuffer, loading, errorMsg, filePath } = useTaskFile(scheduleId, taskId, fileName, {
     encoding: "base64",
   });
 
@@ -18,7 +18,7 @@ export function PdfDetail({ scheduleId, taskId, fileName }: PdfDetailProps) {
 
   return (
     <div className="h-full">
-      <PdfView data={arrayBuffer} filename={fileName} />
+      <PdfView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

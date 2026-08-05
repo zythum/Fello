@@ -8,14 +8,16 @@ interface XlsxDetailProps {
 }
 
 export function XlsxDetail({ projectId, file }: XlsxDetailProps) {
-  const { arrayBuffer, loading, errorMsg } = useFile(projectId, file, { encoding: "base64" });
+  const { arrayBuffer, loading, errorMsg, filePath } = useFile(projectId, file, {
+    encoding: "base64",
+  });
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
   return (
     <div className="h-full">
-      <XlsxView data={arrayBuffer} filename={file} />
+      <XlsxView data={arrayBuffer} filename={filePath} />
     </div>
   );
 }

@@ -30,14 +30,16 @@ interface MarkdownDetailProps {
 
 export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const { t } = useTranslation();
-  const { content, gitContent, loading, errorMsg } = useFile(projectId, file, { gitHead: true });
+  const { content, gitContent, loading, errorMsg, filePath, hash } = useFile(projectId, file, {
+    gitHead: true,
+  });
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
 
   const resolvePath = useCallback(
     (src: string) => {
       if (!src || /^(https?:|data:|#|mailto:|blob:)/.test(src)) return src;
-      const dir = file.includes("/") ? file.substring(0, file.lastIndexOf("/")) : "";
+      const dir = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
       const raw = src.startsWith("/") ? src.slice(1) : dir ? `${dir}/${src}` : src;
       const parts = raw.split("/");
       const normalized: string[] = [];
@@ -48,7 +50,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
       }
       return normalized.join("/");
     },
-    [file],
+    [filePath],
   );
 
   const imageSource = useMemo(() => {
@@ -77,32 +79,42 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
 
   const handleAddFileToChat = useCallback(() => {
     document.dispatchEvent(
-      new CustomEvent("fello-add-to-chat", { detail: [{ id: file, name: file, isFolder: false }] }),
+      new CustomEvent("fello-add-to-chat", {
+        detail: [{ id: filePath, name: filePath, isFolder: false }],
+      }),
     );
-  }, [file]);
+  }, [filePath]);
 
   const handleCopyPath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: true });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleCopyRelativePath = useCallback(async () => {
-    const text = await request.getSystemFilePath({ projectId, path: file, isAbsolute: false });
+    const text = await request.getSystemFilePath({ projectId, path: filePath, isAbsolute: false });
     await copyText(text);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleRevealInFinder = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     electron.revealInFinder(absPath);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   const handleOpenInEditor = useCallback(async () => {
     if (isWebUI) return;
-    const absPath = await request.getSystemFilePath({ projectId, path: file, isAbsolute: true });
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
     const editorName = useAppStore.getState().editor.name;
     electron.openInEditor(absPath, editorName);
-  }, [projectId, file]);
+  }, [projectId, filePath]);
 
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
@@ -152,6 +164,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
             <ContextMenuTrigger className="h-full select-text">
               <div className="prose prose-sm dark:prose-invert max-w-none p-6 min-h-full bg-background font-sans pb-20">
                 <StreamMarkdown
+                  initalHash={hash}
                   imageSource={imageSource}
                   onLinkClick={(href) => {
                     document.dispatchEvent(
@@ -176,7 +189,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
               <CodeView
                 className="min-h-full"
                 content={content}
-                filename={file}
+                filename={filePath}
                 addLineToChat={true}
               />
             </ContextMenuTrigger>
@@ -191,7 +204,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
                 className="min-h-full"
                 oldContent={gitContent ?? ""}
                 newContent={content}
-                filename={file}
+                filename={filePath}
                 addLineToChat={true}
               />
             </ContextMenuTrigger>
