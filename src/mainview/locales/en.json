@@ -498,6 +498,7 @@
   "chatArea": {
     "thinking": "Thinking...",
     "waitingForTask": "Waiting for task...",
+    "waitingForSubagent": "Waiting for subagent...",
     "scrollToBottom": "Scroll to bottom",
     "copyGroup": "Copy",
     "copiedGroup": "Copied",

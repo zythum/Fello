@@ -498,6 +498,7 @@
   "chatArea": {
     "thinking": "思考中...",
     "waitingForTask": "等待任务完成...",
+    "waitingForSubagent": "等待子代理完成...",
     "scrollToBottom": "滚动到底部",
     "copyGroup": "复制",
     "copiedGroup": "已复制",

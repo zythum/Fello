@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionMessages } from "../../../lib/session-selectors";
+import { useSessionActiveSubagents, useSessionMessages } from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
 import { MessageBubble } from "../../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
@@ -28,6 +28,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
   const messages = useSessionMessages(sessionId);
+  const activeSubagents = useSessionActiveSubagents(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -453,6 +454,9 @@ export function ChatArea({ session }: { session: SessionInfo }) {
           const isWaitingForTask =
             lastGroupMessage?.role === "tool_call" &&
             (lastGroupMessage.status === "in_progress" || lastGroupMessage.status === "pending");
+          const isWaitingForSubagent = Array.from(activeSubagents?.values() ?? []).some(
+            (subagent) => subagent.status === "in_progress" || subagent.status === "pending",
+          );
 
           // 计算耗时：找出最后一条消息的时间与 userMessage 收到时间之差
           let durationMs: number | null = null;
@@ -529,14 +533,19 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                   className={cn(
                     "text-[11px] text-muted-foreground/50 mt-4 h-4 uppercase tracking-widest",
                     {
-                      invisible: !(isLastGroup && showThinking) || !isStreaming,
+                      invisible:
+                        !isLastGroup ||
+                        !isStreaming ||
+                        (!showThinking && !isWaitingForTask && !isWaitingForSubagent),
                     },
                   )}
                 >
                   <span className="animate-shimmer-text">
                     {isWaitingForTask
                       ? t("chatArea.waitingForTask", "Waiting for task...")
-                      : t("chatArea.thinking", "Thinking...")}
+                      : isWaitingForSubagent
+                        ? t("chatArea.waitingForSubagent", "Waiting for subagent...")
+                        : t("chatArea.thinking", "Thinking...")}
                   </span>
                 </div>
               </div>
