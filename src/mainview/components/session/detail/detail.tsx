@@ -24,7 +24,12 @@ export function Detail({ detailType, projectId, file, terminalId, onClose }: Det
       )}
 
       {detailType === "terminal" && projectId && terminalId && (
-        <TerminalDetail terminalId={terminalId} projectId={projectId} onClose={onClose} />
+        <TerminalDetail
+          key={terminalId}
+          terminalId={terminalId}
+          projectId={projectId}
+          onClose={onClose}
+        />
       )}
 
       {(!detailType ||
