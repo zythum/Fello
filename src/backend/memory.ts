@@ -263,6 +263,12 @@ Preserve exact constraints and details such as names, paths, commands, and versi
 
 // ── Module Interface ─────────────────────────────────────────────────
 
+/** Memory file entries augmented with their runtime-derived IDs (for UI display). */
+export type MemoryFileWithIds = {
+  version: number;
+  entries: (MemoryEntry & { id: string })[];
+};
+
 export interface MemoryModule {
   /** Register Socket routes for Session Agent's mcp-memory */
   registerMemoryRoute: (server: SocketServer, projectId: string, sessionId: string) => void;
@@ -274,7 +280,9 @@ export interface MemoryModule {
     env: { name: string; value: string }[];
   };
   /** Get the persisted memory entries for a project (for UI display) */
-  getMemory: (projectId: string) => MemoryFile | null;
+  getMemory: (projectId: string) => MemoryFileWithIds | null;
+  /** Delete a single memory entry by its runtime-derived ID */
+  deleteMemoryEntry: (projectId: string, entryId: string) => boolean;
   /** Clear all memory for a project (delete the file) */
   clearMemory: (projectId: string) => void;
   /** Get the file system path of memory.json for a project */
@@ -508,12 +516,22 @@ export function createMemoryModule(
 
   // ── UI Helpers ───────────────────────────────────────────────────────
 
-  function getMemory(projectId: string): MemoryFile | null {
+  function getMemory(projectId: string): MemoryFileWithIds | null {
     const file = readMemoryFile(projectId);
     if (file.entries.length === 0 && !existsSync(getMemoryPath(projectId))) {
       return null;
     }
-    return file;
+    return { version: file.version, entries: getMemoEntries(file.entries) };
+  }
+
+  function deleteMemoryEntry(projectId: string, entryId: string): boolean {
+    const file = readMemoryFile(projectId);
+    const index = file.entries.findIndex((entry) => getMemoryEntryId(entry.text) === entryId);
+    if (index === -1) return false;
+
+    file.entries.splice(index, 1);
+    writeMemoryFile(projectId, file);
+    return true;
   }
 
   function clearMemory(projectId: string): void {
@@ -532,6 +550,7 @@ export function createMemoryModule(
     registerMemoryRoute,
     buildMemoryMcpServer,
     getMemory,
+    deleteMemoryEntry,
     clearMemory,
     getFilePath,
   };

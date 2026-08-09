@@ -12,6 +12,7 @@ import { useMessage } from "../../providers/message";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface MemoryEntry {
+  id: string;
   weight: number;
   text: string;
   date: string;
@@ -83,6 +84,30 @@ export function SettingsMemory() {
     } catch (err) {
       toast.error(
         extractErrorMessage(err) || t("settings.memory.clearFailed", "Failed to clear memory."),
+      );
+    }
+  };
+
+  const handleDeleteEntry = async (projectId: string, entryId: string) => {
+    const result = await confirm({
+      title: t("settings.memory.confirmDeleteTitle", "Delete Memory Entry"),
+      content: t(
+        "settings.memory.confirmDeleteDesc",
+        "Are you sure you want to delete this memory entry? This cannot be undone.",
+      ),
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        { text: t("settings.memory.delete", "Delete"), value: "confirm", variant: "destructive" },
+      ],
+    });
+    if (!result) return;
+    try {
+      await request.deleteMemoryEntry({ projectId, entryId });
+      await loadMemories();
+      toast.success(t("settings.memory.deleted", "Memory entry deleted."));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err) || t("settings.memory.deleteFailed", "Failed to delete memory entry."),
       );
     }
   };
@@ -200,8 +225,11 @@ export function SettingsMemory() {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="divide-y divide-border border-t border-border">
-                          {pm.entries.map((entry, idx) => (
-                            <div key={idx} className="flex items-start gap-3 px-4 py-2 text-xs">
+                          {pm.entries.map((entry) => (
+                            <div
+                              key={entry.id}
+                              className="group flex items-start gap-3 px-4 py-2 text-xs"
+                            >
                               <div
                                 className={`w-4 text-center shrink-0 font-mono font-medium ${weightColor(entry.weight)}`}
                                 aria-label={weightLabel(entry.weight)}
@@ -210,7 +238,7 @@ export function SettingsMemory() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="text-foreground/80">{entry.text}</div>
-                                <div className="flex mt-2 items-center">
+                                <div className="flex mt-2 items-center gap-3">
                                   <div className="shrink-0 flex gap-1 flex-1">
                                     {entry.tags.map((tag) => (
                                       <span
@@ -221,6 +249,13 @@ export function SettingsMemory() {
                                       </span>
                                     ))}
                                   </div>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 text-[10px] text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100"
+                                    onClick={() => handleDeleteEntry(pm.projectId, entry.id)}
+                                  >
+                                    {t("settings.memory.delete", "Delete")}
+                                  </button>
                                   <div className="shrink-0 text-muted-foreground/80 text-[10px]">
                                     <span>{entry.date}</span>
                                   </div>

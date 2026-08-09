@@ -192,6 +192,7 @@ sendPrompt: {
 | 方法 | params | response | 说明 |
 |---|---|---|---|
 | `getMemory` | `{ projectId }` | `{ version, entries } \| null` | 获取项目记忆条目 |
+| `deleteMemoryEntry` | `{ projectId, entryId }` | `boolean` | 删除单条记忆条目 |
 | `clearMemory` | `{ projectId }` | `void` | 清除项目记忆 |
 | `getMemorySystemFilePath` | `{ projectId }` | `string \| null` | 获取 memory.json 系统路径 |
 

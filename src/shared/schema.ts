@@ -951,8 +951,13 @@ export type FelloIPCRequests = {
     params: { projectId: string };
     response: {
       version: number;
-      entries: Array<{ weight: number; text: string; date: string; tags: string[] }>;
+      entries: Array<{ id: string; weight: number; text: string; date: string; tags: string[] }>;
     } | null;
+  };
+  /** 删除指定项目的单条记忆条目（按运行时派生的条目 ID） */
+  deleteMemoryEntry: {
+    params: { projectId: string; entryId: string };
+    response: boolean;
   };
   /** 清除指定项目的记忆（删除 memory.json） */
   clearMemory: {
