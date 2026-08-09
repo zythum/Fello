@@ -87,7 +87,11 @@ export function createAskUserModule(
   async function askUser(options: AskUserOptions): Promise<AskUserResult> {
     const { sessionId } = options;
     const askUserId = randomUUID();
-    const request: AskUserRequest = { ...options, askUserId };
+    const request: AskUserRequest = {
+      ...options,
+      askUserId,
+      timeoutAt: Date.now() + USER_REQUEST_TIMEOUT_MS,
+    };
 
     sendEvent("ask-user-request", request);
 

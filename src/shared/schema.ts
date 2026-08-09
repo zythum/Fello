@@ -173,6 +173,8 @@ export interface AskUserRequest {
   options: AskUserRequestOption[];
   /** 是否允许用户输入自定义回复（显示 "其他" 按钮），默认 true */
   allowCustomInput?: boolean;
+  /** 请求的超时时间戳（毫秒）。超时后后端自动以 timeout 结束请求；前端可用于倒计时展示 */
+  timeoutAt?: number;
 }
 
 /**

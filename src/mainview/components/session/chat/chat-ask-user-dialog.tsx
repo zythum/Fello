@@ -5,7 +5,7 @@ import * as backend from "../../../backend";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { HelpCircle, ArrowLeft, ArrowUp } from "lucide-react";
+import { HelpCircle, ArrowLeft, ArrowUp, Clock } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
 import type { AskUserRequest } from "../../../../shared/schema";
 
@@ -94,6 +94,9 @@ export function AskUserDialog({ sessionId }: Props) {
             <h3 className="text-sm font-medium leading-snug truncate">
               {currentRequest.title || t("askUser.title", "Request")}
             </h3>
+            {currentRequest.timeoutAt != null && (
+              <AskUserCountdown timeoutAt={currentRequest.timeoutAt} />
+            )}
           </div>
 
           {/* description — 可滚动 */}
@@ -133,6 +136,37 @@ function formatDescription(text: string): string {
     // not JSON, use as-is
   }
   return text;
+}
+
+function AskUserCountdown({ timeoutAt }: { timeoutAt: number }) {
+  const { t } = useTranslation();
+  const [remainingMs, setRemainingMs] = useState(() => Math.max(0, timeoutAt - Date.now()));
+
+  useEffect(() => {
+    const update = () => setRemainingMs(Math.max(0, timeoutAt - Date.now()));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [timeoutAt]);
+
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const urgent = totalSeconds <= 30;
+
+  return (
+    <span
+      className={`ml-auto inline-flex shrink-0 items-center h-5 rounded-full px-1.5 text-[10px] font-mono tabular-nums leading-none ${
+        urgent ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+      }`}
+      title={t("askUser.autoClose", "Auto closes on timeout")}
+    >
+      <Clock className="size-3 mr-1 -ml-px" />
+      <span>{minutes.toString().padStart(2, "0")}</span>
+      <span className="text-[8px] mx-0.5">:</span>
+      <span>{seconds.toString().padStart(2, "0")}</span>
+    </span>
+  );
 }
 
 function AskUserOptions({

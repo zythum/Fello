@@ -655,7 +655,8 @@
     "other": "Other...",
     "back": "Back",
     "inputPlaceholder": "Type your response... (Enter to send)",
-    "submit": "Submit"
+    "submit": "Submit",
+    "autoClose": "Auto closes on timeout"
   },
   "shareToUser": {
     "copyToProject": "Copy to project",
