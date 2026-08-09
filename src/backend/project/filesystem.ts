@@ -13,13 +13,48 @@ import {
 import * as mimeTypes from "mime-types";
 import { dirname, join, relative, extname, basename } from "path";
 import type { BackendContext } from "../types";
-import { isIgnorePath, resolveSafePath, toPosixPath } from "../utils";
+import { resolveSafePath, toPosixPath } from "../utils";
+import * as git from "./git-utils";
 
 // ── Constants ────────────────────────────────────────────────────────
 
 const SEARCH_MAX_RESULTS = 10;
 const SEARCH_FUSE_THRESHOLD = 0.4;
 const SEARCH_CACHE_TTL_MS = 60_000;
+
+// VCS directories that should never appear in the file tree / search results.
+const IGNORE_NAME_SET = new Set([".git", ".svn", ".hg"]);
+
+// Heavy dependency/cache directories that should never be indexed for search,
+// even when they are not covered by .gitignore.
+const SEARCH_IGNORE_NAME_SET = new Set(["node_modules", "vendor", "__pycache__"]);
+
+// ── Types ────────────────────────────────────────────────────────────
+
+/**
+ * Checks whether any segment of the path relative to `cwd` belongs to one of
+ * the given forbidden name sets (VCS dirs, heavy dependency dirs, ...).
+ * @param fullPath The absolute path of the file or directory to check.
+ * @param cwd The absolute path of the project root directory.
+ * @param nameSets The sets of directory names that should be excluded.
+ * @returns true if the path contains a forbidden segment, false otherwise.
+ */
+function hasForbiddenSegment(
+  fullPath: string,
+  cwd: string,
+  ...nameSets: ReadonlySet<string>[]
+): boolean {
+  if (fullPath === cwd) return false;
+  const relPath = relative(cwd, fullPath);
+  if (!relPath) return false;
+  const segments = relPath.split(/[\\/]+/);
+  for (let i = 0; i < segments.length; i++) {
+    const name = segments[i];
+    if (!name || name === ".") continue;
+    if (nameSets.some((set) => set.has(name))) return true;
+  }
+  return false;
+}
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -75,7 +110,7 @@ export function createFilesystemState(ctx: BackendContext) {
         const full = join(dir, name);
         const s = await stat(full).catch(() => null);
         if (!s) continue;
-        if (isIgnorePath(full, cwd)) continue;
+        if (hasForbiddenSegment(full, cwd, IGNORE_NAME_SET, SEARCH_IGNORE_NAME_SET)) continue;
         if (fileScene.has(full)) continue;
         const rel = relative(cwd, full);
         const posixRel = toPosixPath(rel);
@@ -193,7 +228,7 @@ export function createFilesystemState(ctx: BackendContext) {
       const results: Array<{ id: string; filename: string; isFolder: boolean }> = [];
       for (const name of entries) {
         const full = join(cwd, name);
-        if (isIgnorePath(full, cwd)) continue;
+        if (hasForbiddenSegment(full, cwd, IGNORE_NAME_SET, SEARCH_IGNORE_NAME_SET)) continue;
         if (fileScene.has(full)) continue;
         fileScene.add(full);
         const s = await stat(full).catch(() => null);
@@ -243,20 +278,31 @@ export function createFilesystemState(ctx: BackendContext) {
     const startPath = resolveSafePath(cwd, relativePath);
 
     const entries = await readdir(startPath).catch(() => []);
-    const results: { id: string; name: string; isFolder: boolean }[] = [];
+    const results: { id: string; name: string; isFolder: boolean; ignored: boolean }[] = [];
     for (const name of entries) {
       const full = join(startPath, name);
       const s = await stat(full).catch(() => null);
       if (!s) continue;
-      if (isIgnorePath(full, cwd)) continue;
+      if (hasForbiddenSegment(full, cwd, IGNORE_NAME_SET)) continue;
       const relId = toPosixPath(relative(cwd, full));
-      results.push({ id: relId, name, isFolder: s.isDirectory() });
+      results.push({ id: relId, name, isFolder: s.isDirectory(), ignored: false });
     }
 
     results.sort((a, b) => {
       if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
+
+    // Mark entries excluded by .gitignore so the file tree can dim them.
+    const ignoredPaths = await git.getGitIgnoredPaths(
+      cwd,
+      results.map((r) => r.id),
+    );
+    if (ignoredPaths.size > 0) {
+      for (const r of results) {
+        if (ignoredPaths.has(r.id)) r.ignored = true;
+      }
+    }
     return results;
   }
 
@@ -415,6 +461,28 @@ export function createFilesystemState(ctx: BackendContext) {
     markProjectFsDirty(projectId);
   }
 
+  async function getGitStatus({ projectId, cwd }: { projectId: string; cwd?: string }) {
+    const project = storage.getProject(projectId);
+    if (!project) return null;
+    const targetCwd = cwd ? resolveSafePath(project.cwd, cwd) : project.cwd;
+    return git.getGitStatus(targetCwd);
+  }
+
+  async function readGitHeadFile({
+    projectId,
+    relativePath,
+    encoding,
+  }: {
+    projectId: string;
+    relativePath: string;
+    encoding?: string;
+  }) {
+    const project = storage.getProject(projectId);
+    if (!project) return "";
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+    return git.readGitHeadFile(targetPath, encoding);
+  }
+
   async function getPlatform() {
     return process.platform;
   }
@@ -435,6 +503,8 @@ export function createFilesystemState(ctx: BackendContext) {
     readFile,
     getFileInfo,
     writeExternalFile,
+    getGitStatus,
+    readGitHeadFile,
     getPlatform,
   };
 }

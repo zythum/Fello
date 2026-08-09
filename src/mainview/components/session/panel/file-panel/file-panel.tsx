@@ -44,6 +44,7 @@ interface TreeNode {
   id: string;
   name: string;
   isFolder: boolean;
+  ignored: boolean;
   children?: TreeNode[];
 }
 
@@ -188,6 +189,7 @@ function TreeItem({
           }}
           className={cn(
             "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none text-foreground/60",
+            node.ignored && "opacity-50",
             node.id === previewId
               ? "bg-primary/8 hover:bg-primary/10"
               : "hover:bg-primary/5 hover:text-foreground",
@@ -803,6 +805,7 @@ export const FilePanel = memo(function FilePanel({
       id: tempId,
       name: "",
       isFolder,
+      ignored: false,
       children: isFolder ? [] : undefined,
     };
     if (parentId) {

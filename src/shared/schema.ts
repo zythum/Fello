@@ -748,10 +748,11 @@ export type FelloIPCRequests = {
   /**
    * 读取目录内容
    * 返回的节点 `id` 统一为 POSIX 风格的相对路径，用于保证多平台的一致性。
+   * 每个节点带 `ignored` 标记：被 .gitignore 排除时为 true（前端用于置灰展示）。
    */
   readDir: {
     params: { projectId: string; relativePath?: string };
-    response: { id: string; name: string; isFolder: boolean }[];
+    response: { id: string; name: string; isFolder: boolean; ignored: boolean }[];
   };
   /** 创建新文件或文件夹 */
   createFile: {

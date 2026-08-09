@@ -8,27 +8,6 @@ export function toPosixPath(p: string): string {
   return p.replace(/\\/g, "/");
 }
 
-const IGNORE_NAME_SET = new Set([".git", ".svn", ".hg", "node_modules", "vendor", "__pycache__"]);
-
-/**
- * Checks if a given path should be ignored based on the global ignore rules.
- * @param fullPath The absolute path of the file or directory to check.
- * @param cwd The absolute path of the project root directory.
- * @returns true if the path should be ignored, false otherwise.
- */
-export function isIgnorePath(fullPath: string, cwd: string): boolean {
-  if (fullPath === cwd) return false;
-  const relPath = relative(cwd, fullPath);
-  if (!relPath) return false;
-  const segments = relPath.split(/[\\/]+/);
-  for (let i = 0; i < segments.length; i++) {
-    const name = segments[i];
-    if (!name || name === ".") continue;
-    if (IGNORE_NAME_SET.has(name)) return true;
-  }
-  return false;
-}
-
 /**
  * Resolves a safe absolute path from a project root and a relative path.
  * Prevents path traversal attacks (e.g. using `../` to access files outside the project).

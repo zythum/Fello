@@ -2,7 +2,6 @@ import type { BackendContext } from "../types";
 import type { WatcherModule } from "../watcher";
 import type { SessionModule } from "../session";
 import { createFilesystemState } from "./filesystem";
-import { createGitHandlers } from "./git";
 
 export interface ProjectModule {
   // Project CRUD
@@ -23,10 +22,9 @@ export interface ProjectModule {
   readFile: ReturnType<typeof createFilesystemState>["readFile"];
   getFileInfo: ReturnType<typeof createFilesystemState>["getFileInfo"];
   writeExternalFile: ReturnType<typeof createFilesystemState>["writeExternalFile"];
+  getGitStatus: ReturnType<typeof createFilesystemState>["getGitStatus"];
+  readGitHeadFile: ReturnType<typeof createFilesystemState>["readGitHeadFile"];
   getPlatform: ReturnType<typeof createFilesystemState>["getPlatform"];
-  // Git handlers
-  getGitStatus: ReturnType<typeof createGitHandlers>["getGitStatus"];
-  readGitHeadFile: ReturnType<typeof createGitHandlers>["readGitHeadFile"];
 }
 
 export function createProjectModule(
@@ -39,7 +37,6 @@ export function createProjectModule(
   const { sendEvent, onEvent, storage } = ctx;
 
   const fs = createFilesystemState(ctx);
-  const git = createGitHandlers(ctx);
 
   // React to fs-changed events to invalidate search cache
   onEvent((channel, payload) => {
@@ -87,6 +84,5 @@ export function createProjectModule(
     renameProject,
     deleteProject,
     ...fs,
-    ...git,
   };
 }
