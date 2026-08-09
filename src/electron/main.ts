@@ -6,6 +6,7 @@ import {
   ipcMain,
   Menu,
   protocol,
+  session,
   shell,
   nativeTheme,
   MenuItemConstructorOptions,
@@ -23,6 +24,8 @@ const launchEditor = require("launch-editor");
 import { extractErrorMessage } from "../backend/utils";
 import { storageOps } from "../backend/storage";
 import { parseFileRoute, serveRoute } from "../backend/file-routes";
+import { applyProxy, detectSystemProxy, settingProxyInfoToProxyConfig } from "../backend/proxy";
+import type { SettingProxyInfo } from "../shared/schema";
 import {
   createAutoUpdateCheckGate,
   createUpdaterEvent,
@@ -64,6 +67,20 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
   mainWindow.webContents.send(channel, payload);
   return true;
 }
+
+// ── Apply proxy as early as possible ──────────────────────────────
+// 必须在任何网络请求 / 子进程 spawn 之前执行：
+// 1. undici 全局 dispatcher（覆盖主进程 fetch）
+// 2. http/https globalAgent（覆盖 electron-updater 等）
+// 3. process.env（子进程自动继承；MCP stdio 子进程在 mcp-tools.ts 显式合并）
+// system 模式：detectSystemProxy 为同步实现（scutil/netsh 毫秒级），
+// 启动早期即可一次探测完整生效，无需后续异步补齐。
+const proxySettings = storageOps.getSettings().proxy;
+applyProxy(
+  proxySettings.mode === "system"
+    ? detectSystemProxy()
+    : settingProxyInfoToProxyConfig(proxySettings),
+);
 
 const { backendHandlers, closeBackend } = initBackend(safeSend);
 
@@ -264,6 +281,71 @@ async function installDownloadedUpdate() {
   await closeBackend().catch(() => {});
   autoUpdater.quitAndInstall(false, true);
 }
+
+// ── Restart app ────────────────────────────────────────────────────
+let isRestarting = false;
+
+async function restartApp() {
+  if (isRestarting) return;
+  isRestarting = true;
+  await closeBackend().catch(() => {});
+  // app.exit 不触发 before-quit，closeBackend 已在上方完成优雅关闭。
+  app.relaunch();
+  app.exit(0);
+}
+
+// 前端保存代理设置后由 useMessage confirm 提示，确认后调用此 IPC。
+ipcMain.handle("restartApp", async () => {
+  await restartApp();
+});
+
+// ── Chromium proxy (renderer / net) ────────────────────────────────
+// 注意：proxyRules 不支持 userinfo 认证，认证凭据通过 app 'login' 事件提供。
+function buildChromiumProxyRules(proxy: SettingProxyInfo): string {
+  const httpProxy = proxy.httpProxy?.trim();
+  const httpsProxy = (proxy.httpsProxy || proxy.httpProxy)?.trim();
+  const rules: string[] = [];
+  if (httpProxy) rules.push(`http=${httpProxy}`);
+  if (httpsProxy) rules.push(`https=${httpsProxy}`);
+  return rules.join(";");
+}
+
+async function applyChromiumProxy() {
+  const proxy = storageOps.getSettings().proxy;
+  try {
+    if (proxy.mode === "off") {
+      await session.defaultSession.setProxy({ mode: "direct" });
+      return;
+    }
+    if (proxy.mode === "system") {
+      // Chromium 侧直接跟随系统（支持 PAC）。
+      await session.defaultSession.setProxy({ mode: "system" });
+      return;
+    }
+    await session.defaultSession.setProxy({
+      mode: "fixed_servers",
+      proxyRules: buildChromiumProxyRules(proxy),
+      proxyBypassRules: proxy.noProxy || undefined,
+    });
+  } catch (error) {
+    console.error("[proxy] Failed to apply Chromium proxy:", extractErrorMessage(error));
+  }
+}
+
+// 代理认证：仅当配置了 manual 模式且带用户名时，为代理 407 提供凭据
+app.on("login", (event, _webContents, _details, authInfo, callback) => {
+  if (!authInfo.isProxy) {
+    callback();
+    return;
+  }
+  const proxy = storageOps.getSettings().proxy;
+  if (proxy.mode === "manual" && proxy.username) {
+    event.preventDefault();
+    callback(proxy.username, proxy.password ?? "");
+  } else {
+    callback();
+  }
+});
 
 function setupMenu() {
   const template: MenuItemConstructorOptions[] = [
@@ -509,7 +591,7 @@ app.on("before-quit", (event) => {
     });
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Register custom fello:// protocol handler for serving files.
   // 仅响应 fello://web/...，统一由 file-routes.ts 解析:
   //   fello://web/project/<projectId>/<relativePath>
@@ -542,6 +624,8 @@ app.whenReady().then(() => {
   });
 
   setupMenu();
+  // 先应用 Chromium 代理，再创建窗口，确保窗口内所有请求都走已配置的代理
+  await applyChromiumProxy();
   createMainWindow();
   setupAutoUpdater();
 });

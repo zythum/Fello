@@ -11,7 +11,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type { AgentClientProxy } from "./agent-client-proxy";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
-import {} from "./utils";
+import { buildProxyEnv } from "../backend/proxy";
 
 export type MCPSessionTools = {
   clients: MCPClient[];
@@ -83,11 +83,17 @@ async function createClient(server: McpServer, cwd: string): Promise<MCPClient> 
     }
     throw new Error(`McpServer Type: ${server.type} not supported.`);
   }
+  // StdioClientTransport 只继承白名单 env（HOME/PATH/SHELL/TERM/USER 等），
+  // HTTP_PROXY 等不会自动继承，必须显式合并 buildProxyEnv() 的输出。
+  // 顺序：代理 env 在前，用户自定义 env 覆盖（per-server 定制优先）。
   return createMCPClient({
     transport: new StdioClientTransport({
       command: server.command,
       args: server.args,
-      env: toEnvRecord(server.env),
+      env: {
+        ...buildProxyEnv(),
+        ...toEnvRecord(server.env),
+      },
       cwd,
     }),
     clientName: "fello-openai-compatible-agent",

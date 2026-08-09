@@ -286,6 +286,29 @@ export interface SettingSoundInfo {
 }
 
 /**
+ * 网络代理配置信息
+ */
+export interface SettingProxyInfo {
+  /**
+   * 代理模式：
+   * - 'off'：直连，不使用代理
+   * - 'manual'：手动指定代理服务器
+   * - 'system'：跟随系统代理（macOS/Windows 系统设置，或环境变量）
+   */
+  mode: "off" | "manual" | "system";
+  /** HTTP 代理地址，如 http://127.0.0.1:7890（仅 manual 模式使用） */
+  httpProxy?: string;
+  /** HTTPS 代理地址，如 http://127.0.0.1:7890（仅 manual 模式使用，缺省时回退到 httpProxy） */
+  httpsProxy?: string;
+  /** 不走代理的地址列表，逗号分隔（如 localhost,127.0.0.1,*.internal） */
+  noProxy?: string;
+  /** 代理认证用户名（可选） */
+  username?: string;
+  /** 代理认证密码（可选） */
+  password?: string;
+}
+
+/**
  * Snippet 配置信息
  */
 export interface SnippetInfo {
@@ -341,6 +364,8 @@ export interface SettingsInfo {
   editor: SettingEditorInfo;
   /** 音效设置 */
   sound: SettingSoundInfo;
+  /** 网络代理设置 */
+  proxy: SettingProxyInfo;
   /** Snippets 列表 */
   snippets: SnippetInfo[];
   /** 图片生成 Provider 列表 */

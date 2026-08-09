@@ -119,6 +119,7 @@ export interface AppState {
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   fileWatcher: SettingsInfo["fileWatcher"];
+  proxy: SettingsInfo["proxy"];
   ilink: SettingsInfo["ilink"];
   editor: SettingEditorInfo;
   sound: SettingSoundInfo;
@@ -183,6 +184,7 @@ export interface AppState {
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
+  setProxy: (proxy: SettingsInfo["proxy"]) => void;
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
   setEditor: (editor: SettingEditorInfo) => void;
   setSound: (sound: SettingSoundInfo) => void;
@@ -227,6 +229,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
+  proxy: { mode: "off" },
   ilink: { useOriginalImage: false },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
@@ -379,6 +382,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
+  setProxy: (proxy) => set({ proxy }),
   setIlink: (ilink) => set({ ilink }),
   setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),

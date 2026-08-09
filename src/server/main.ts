@@ -1,5 +1,7 @@
 import "./env";
 import { initBackend } from "../backend/backend";
+import { applyProxy, detectSystemProxy, settingProxyInfoToProxyConfig } from "../backend/proxy";
+import { storageOps } from "../backend/storage";
 import { version } from "../../package.json";
 
 // ── Parse CLI arguments ─────────────────────────────────────────────
@@ -29,6 +31,19 @@ Options:
 `);
     process.exit(0);
   }
+}
+
+// ── Apply proxy as early as possible ──────────────────────────────
+// 必须在任何网络请求 / 子进程 spawn 之前执行（undici dispatcher +
+// http/https globalAgent + process.env，子进程自动继承）。
+// system 模式：detectSystemProxy 为同步实现，启动早期一次探测完整生效。
+const proxySettings = storageOps.getSettings().proxy;
+if (proxySettings.mode === "system") {
+  const detected = detectSystemProxy();
+  applyProxy(detected);
+  console.log(`[proxy] system proxy: ${detected.httpProxy || detected.httpsProxy || "none"}`);
+} else {
+  applyProxy(settingProxyInfoToProxyConfig(proxySettings));
 }
 
 // ── Initialize backend ─────────────────────────────────────────────

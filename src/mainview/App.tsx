@@ -29,6 +29,7 @@ function AppContent() {
     setEditor,
     setSnippets,
     setImageGeneration,
+    setProxy,
     isMacApp,
     setIsFullScreen,
     setIlinkStatus,
@@ -80,6 +81,7 @@ function AppContent() {
         setI18n(settings.i18n);
         i18n.changeLanguage(settings.i18n.language);
       }
+      if (settings.proxy) setProxy(settings.proxy);
       if (settings.editor) setEditor(settings.editor);
       if (settings.snippets) setSnippets(settings.snippets);
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
@@ -118,6 +120,7 @@ function AppContent() {
     setEditor,
     setSnippets,
     setImageGeneration,
+    setProxy,
     setIlinkStatus,
     setActiveIlinkSessionId,
   ]);

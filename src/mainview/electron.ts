@@ -61,6 +61,13 @@ export const electron = {
     if (isWebUI) return;
     return window.fello!.invoke("installUpdate");
   },
+  restartApp: async (): Promise<void> => {
+    if (isWebUI) {
+      console.warn("WebUI mode: restartApp is not supported. Restart the server process manually.");
+      return;
+    }
+    return window.fello!.invoke("restartApp");
+  },
 
   updateTheme: (theme: "dark" | "light") => {
     if (isWebUI || !window.fello) return;

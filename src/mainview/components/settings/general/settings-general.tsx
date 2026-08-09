@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
+import { SettingsProxyDialog } from "./settings-proxy-dialog";
 import {
   Select,
   SelectContent,
@@ -12,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronRight } from "lucide-react";
 import { useMessage } from "../../providers/message";
 import { EDITOR_LABELS } from "../../../../shared/constants";
 import * as tiks from "@rexa-developer/tiks";
@@ -29,8 +32,18 @@ export function SettingsGeneral() {
     setEditor,
     sound,
     setSound,
+    proxy,
   } = useAppStore();
   const { toast } = useMessage();
+  const [proxyDialogOpen, setProxyDialogOpen] = useState(false);
+
+  const proxySummary = (() => {
+    const mode = proxy.mode ?? "off";
+    if (mode === "off") return t("settings.general.proxyOff", "Direct");
+    if (mode === "system") return t("settings.general.proxySystem", "System");
+    const url = proxy.httpProxy || proxy.httpsProxy || "";
+    return url ? url : t("settings.proxy.manual", "Manual");
+  })();
 
   const handleThemeChange = async (mode: string | null) => {
     if (!mode) return;
@@ -183,6 +196,37 @@ export function SettingsGeneral() {
                   </div>
                   <Switch checked={fileWatcher.enabled} onCheckedChange={handleFileWatcherChange} />
                 </div>
+              </div>
+            </div>
+            <div className="border-t border-border"></div>
+            {/* ── Network ── */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">
+                {t("settings.general.groupNetwork", "Network")}
+              </h4>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium leading-none">
+                    {t("settings.general.proxy", "Network Proxy")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.general.proxyDesc",
+                      "Configure the network proxy used by Fello for Node requests, subprocesses and the UI.",
+                    )}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-35 shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setProxyDialogOpen(true)}
+                  title={t("settings.general.proxyEdit", "Edit proxy settings")}
+                >
+                  <span className="min-w-0 flex-1 truncate text-left">{proxySummary}</span>
+                  <ChevronRight className="size-3 shrink-0 text-muted-foreground/60" />
+                </Button>
               </div>
             </div>
             <div className="border-t border-border"></div>
@@ -375,7 +419,7 @@ export function SettingsGeneral() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs w-35"
+                    className="h-7 text-xs w-35 text-muted-foreground hover:text-foreground"
                     onClick={() => tiks.success()}
                   >
                     {t("settings.general.soundTestPlay", "Play")}
@@ -386,6 +430,7 @@ export function SettingsGeneral() {
           </div>
         </div>
       </ScrollArea>
+      <SettingsProxyDialog open={proxyDialogOpen} onOpenChange={setProxyDialogOpen} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs";
 
 import { FELLO_DIR } from "./constant";
 
-import type { SnippetInfo, SettingsInfo } from "../../shared/schema";
+import type { SettingProxyInfo, SnippetInfo, SettingsInfo } from "../../shared/schema";
 
 interface BaseAgentMeta {
   disabled: boolean;
@@ -95,6 +95,7 @@ interface SettingsMeta {
     muted: boolean;
     theme: "soft" | "crisp";
   };
+  proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
 }
@@ -119,6 +120,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     volume: 50,
     muted: false,
     theme: "soft",
+  },
+  proxy: {
+    mode: "off",
   },
 };
 
@@ -300,6 +304,25 @@ function readSettings(): SettingsMeta {
       };
     })();
 
+    const proxy: SettingProxyInfo = (() => {
+      const raw = rawObj && isObject(rawObj.proxy) ? rawObj.proxy : null;
+      if (!raw) return DEFAULT_SETTINGS.proxy!;
+      const mode =
+        raw.mode === "off" || raw.mode === "manual" || raw.mode === "system"
+          ? raw.mode
+          : DEFAULT_SETTINGS.proxy!.mode;
+      const str = (value: unknown): string | undefined =>
+        typeof value === "string" && value.trim() ? value.trim() : undefined;
+      return {
+        mode,
+        httpProxy: str(raw.httpProxy),
+        httpsProxy: str(raw.httpsProxy),
+        noProxy: str(raw.noProxy),
+        username: str(raw.username),
+        password: str(raw.password),
+      };
+    })();
+
     const snippets: SnippetInfo[] = Array.isArray(rawObj?.snippets)
       ? (rawObj.snippets as unknown[]).filter(
           (s): s is SnippetInfo =>
@@ -361,6 +384,7 @@ function readSettings(): SettingsMeta {
       ilink,
       editor,
       sound,
+      proxy,
       snippets,
       imageGeneration,
     };
@@ -458,6 +482,7 @@ export function getSettings(): SettingsInfo {
       muted: meta.sound.muted,
       theme: meta.sound.theme,
     },
+    proxy: meta.proxy ?? DEFAULT_SETTINGS.proxy!,
     snippets: meta.snippets ?? [],
     imageGeneration: (meta.imageGeneration ?? []).map((p) => ({
       id: p.id,
@@ -614,6 +639,27 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           settings.sound.theme === "soft" || settings.sound.theme === "crisp"
             ? settings.sound.theme
             : prevMeta.sound.theme,
+      };
+    })(),
+    proxy: (() => {
+      if (!settings.proxy) {
+        return prevMeta.proxy;
+      }
+      const mode =
+        settings.proxy.mode === "off" ||
+        settings.proxy.mode === "manual" ||
+        settings.proxy.mode === "system"
+          ? settings.proxy.mode
+          : (prevMeta.proxy?.mode ?? DEFAULT_SETTINGS.proxy!.mode);
+      const str = (value: string | undefined): string | undefined =>
+        typeof value === "string" && value.trim() ? value.trim() : undefined;
+      return {
+        mode,
+        httpProxy: str(settings.proxy.httpProxy),
+        httpsProxy: str(settings.proxy.httpsProxy),
+        noProxy: str(settings.proxy.noProxy),
+        username: str(settings.proxy.username),
+        password: str(settings.proxy.password),
       };
     })(),
     snippets: settings.snippets ?? prevMeta.snippets,

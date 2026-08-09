@@ -13,6 +13,7 @@ type ElectronIPCRequests = {
   checkForUpdates: { params: { manual?: boolean } | void; response: void };
   downloadUpdate: { params: void; response: void };
   installUpdate: { params: void; response: void };
+  restartApp: { params: void; response: void };
 };
 
 type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;
