@@ -84,6 +84,9 @@
 - **`src/backend/search/ripgrep.ts`**：基于 ripgrep worker 子进程的代码搜索
 - **`src/backend/search/file-outline.ts`**：基于 tree-sitter WASM 的文件大纲提取
 - **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback）
+- **`src/backend/proxy.ts`**：HTTP/HTTPS 代理配置模块（基于 undici + proxy-agent），为 Agent API 请求和图片生成提供代理支持
+- **`src/backend/watcher.ts`**：文件外部修改监听（基于 @parcel/watcher），检测工作区文件变更并广播 `fs-changed` 事件
+- **`src/backend/i18n.ts`**：后端国际化模块，提供主进程侧的翻译能力
 - **`src/backend/agent/agent-bridge.ts`**：Agent 进程生命周期管理，根据 Agent 类型（Stdio/API）路由到对应的 spawner
 - **`src/backend/agent/agent-terminal-manager.ts`**：管理 Agent 请求创建的独立终端进程
 - **`src/backend/agent/resolve-agent-info.ts`**：Agent 配置解析（Stdio/API 类型校验，被 backend 和 automation 共享）
@@ -91,7 +94,7 @@
 - **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装、Socket 路由注册（`registerSkillsRoute`/`buildSkillsMcpServer`）
 - **`src/backend/memory.ts`**：项目级持久记忆模块（语义查询/存储 + memo 事务管理），Socket 路由注册（`memory/query`、`memory/store`、`memo/read`、`memo/touch`、`memo/add`、`memo/delete`、`memo/set-weight`）
 - **`src/backend/image-generation.ts`**：图片生成模块，调用 OpenAI 兼容 API 生成图片，Socket 路由注册（`image-generation/generate`）
-- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/截图），Socket 路由注册（`toolbox/*`）
+- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成），Socket 路由注册（`toolbox/*`）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
@@ -169,7 +172,7 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 - **`src/scripts/mcp-memory/server.ts`**：Memory MCP server，提供 `memory_query` 和 `memory_store` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memory/query`、`/memory/store`），用于项目级持久记忆的语义检索与存储
 - **`src/scripts/mcp-memo/server.ts`**：Memo MCP server，提供 `memo_get_current`、`memo_touch`、`memo_add`、`memo_delete`、`memo_set_weight` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memo/read`、`/memo/touch`、`/memo/add`、`/memo/delete`、`/memo/set-weight`），用于项目记忆条目的事务性管理
 - **`src/scripts/mcp-image-generation/server.ts`**：Image Generation MCP server，提供 `image_generation` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/image-generation/generate`），用于文本生成图片
-- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、屏幕截图等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制
+- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、QR 码生成等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制
 
 Skills、ask-user、search、share-to-user、memory 和 image-generation 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "search", "image_generation", "memory", "ask_user", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。此外，toolbox MCP Server 始终加载，不受 feature flag 控制。
 

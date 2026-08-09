@@ -6,7 +6,9 @@
 fello/
 ├── src/
 │   ├── server/                       # 独立 Node.js 服务器入口
-│   │   └── main.ts                   # 无 Electron 版本，纯 Node 启动 backend + WEBUI
+│   │   ├── main.ts                   # 无 Electron 版本，纯 Node 启动 backend + WEBUI
+│   │   ├── env.ts                    # 服务器环境变量配置
+│   │   └── global.d.ts               # 服务器全局类型声明
 │   ├── agents/                       # Agent 会话逻辑（框架无关，主进程使用）
 │   │   ├── openai-compatible-agent.ts    # OpenAI 兼容 API Agent 实现（ACP Agent 接口）
 │   │   ├── session-state.ts              # 会话状态创建（ACP tools + MCP tools + 权限记忆）
@@ -29,6 +31,7 @@ fello/
 │   │   ├── terminal.ts               # PTY 终端管理（创建/销毁/resize/输出）
 │   │   ├── inference.ts              # 无头一次性推理原语（供 automation 使用）
 │   │   ├── serve-file.ts             # 安全文件服务（路径穿越防护、MIME 检测）
+│   │   ├── proxy.ts                  # HTTP/HTTPS 代理配置（undici + proxy-agent）
 │   │   ├── session/                  # 会话生命周期模块
 │   │   │   ├── index.ts              # 会话管理（new/load/sendPrompt/cancel/delete）
 │   │   │   ├── mcp-config.ts         # MCP Server 配置构建（按 features 注入内置 MCP）
@@ -63,7 +66,7 @@ fello/
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成、路由注册
 │   │   ├── memory.ts                 # 项目级持久记忆（语义查询/存储 + memo 事务管理）
 │   │   ├── image-generation.ts       # 图片生成模块（OpenAI 兼容 API）
-│   │   ├── toolbox.ts                # 通用工具箱（编码/哈希/时间/UUID/随机数/图片处理/截图）
+│   │   ├── toolbox.ts                # 通用工具箱（编码/哈希/时间/UUID/随机数/图片处理/QR 码）
 │   │   ├── socket-server.ts          # 本地 Socket HTTP 服务器 + 跨平台路径生成
 │   │   ├── i18n.ts                   # 后端多语言初始化
 │   │   ├── locales/                  # 后端多语言 JSON 字典
@@ -78,7 +81,8 @@ fello/
 │   ├── electron/                     # Electron 主进程
 │   │   ├── main.ts                   # 应用入口、窗口生命周期、系统菜单、全屏管理
 │   │   ├── updater.ts                # 自动更新逻辑
-│   │   └── env.ts                    # 环境变量配置
+│   │   ├── env.ts                    # 环境变量配置
+│   │   └── global.d.ts               # Electron 全局类型声明
 │   │
 │   ├── scripts/                      # 构建脚本入口（preload + MCP 子进程 + Worker 子进程）
 │   │   ├── electron-preload/
@@ -98,7 +102,7 @@ fello/
 │   │   ├── mcp-image-generation/
 │   │   │   └── server.ts             # Image Generation MCP server
 │   │   ├── mcp-toolbox/
-│   │   │   └── server.ts             # Toolbox MCP server（编码/哈希/时间/UUID/图片处理/截图）
+│   │   │   └── server.ts             # Toolbox MCP server（编码/哈希/时间/UUID/图片处理/QR 码）
 │   │   ├── worker-ripgrep/
 │   │   │   └── worker.ts             # Ripgrep Worker 子进程
 │   │   └── worker-file-outline/

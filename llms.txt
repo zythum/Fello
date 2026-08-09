@@ -4,7 +4,7 @@ Runtime
 - Main process: src/electron/main.ts
 - Preload (contextBridge): src/scripts/electron-preload/preload.ts
 - Backend Logic (Node.js): src/backend/ (IPC handlers, ACP bridge, terminal manager, WebUI server, iLink bridge, skills catalog)
-- Agent Session Logic (shared): src/agents/ (session-state, storage, OpenAI-compatible agent, MCP tools, ACP tools, permission memory, system prompts)
+- Agent Session Logic (shared): src/agents/ (session-state, storage, OpenAI-compatible agent, MCP tools, ACP tools, permission memory, system prompts, subagent tool, image analysis tool, agent client proxy, utils)
 - Renderer (React + Vite): src/mainview/
 
 IPC
@@ -20,11 +20,12 @@ Agent Architecture
 - Agent process interface: src/backend/agent/base-agent.ts (AgentProcess: input WritableStream, output ReadableStream, close)
 - ACP bridge: src/backend/agent/agent-bridge.ts manages agent process lifecycle & session routing
 
-Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan, GetFileOutline)
-- GetFileOutline: src/agents/file-outline.ts (AST file outline via @ast-grep/napi)
+Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan)
+- Subagent tool: src/agents/subagent-tool.ts (parallel sub-session execution, merged into toolset by openai-compatible-agent.ts)
+- ImageAnalysis tool: src/agents/image-tools.ts (vision/image analysis, merged into toolset by openai-compatible-agent.ts)
 
 Sessions & Persistence
-- Session metadata persistence: src/backend/storage.ts (stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
+- Session metadata persistence: src/backend/storage/ (directory; stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
 - API agent session persistence: src/agents/storage.ts (stores session.json + history.jsonl under ~/.fello/api-agents/<agent_id>/sessions/<session_id>/)
 - Fine-grained session updates: Uses `session-changed` IPC event to update single sessions atomically in the frontend store
 - Permission memory: src/agents/permission.ts — supports "always allow" per tool kind, persisted in session state
@@ -66,14 +67,18 @@ Skills System
 - Skill files stored under: ~/.fello/skills/, ~/.agents/skills/, ~/.claude/skills/
 
 Dev / Build Commands
-- npm run dev (electron-vite dev; Vite server on http://localhost:5173)
-- npm run build
+- npm run dev (electron-vite dev; Vite server on http://localhost:6234)
+- npm run build (electron-vite build + build:server)
+- npm run build:server (esbuild server bundle → out/server/main.js)
 - npm run preview
+- npm run pack:npm (build + prepare npm package → npm-package/)
 - npm run pack:mac / pack:win / pack:linux
 - npm run lint (oxlint)
 - npm run typecheck (tsc for both renderer and node configs)
 - npm run format (oxfmt)
 - npm run prepare:icon:mac (icon generation script)
+- npm run download:grammars (download tree-sitter WASM grammars)
+- npm run postinstall (auto-download tree-sitter WASM grammars after install)
 
 Repo Conventions
 - Electron code lives under src/electron

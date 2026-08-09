@@ -176,6 +176,11 @@ Main/preload changes typically require restarting the dev process.
 │   │   ├── automation/       # Cron scheduling & task execution
 │   │   └── ilink/            # WeChat iLink integration
 │   ├── electron/             # Electron main process
+│   ├── server/               # Headless server entry point (npm package)
+│   ├── scripts/              # Preload, MCP servers, workers
+│   │   ├── electron-preload/ # Context bridge preload
+│   │   ├── mcp-*/            # Built-in MCP server scripts
+│   │   └── worker-*/         # Worker scripts (file outline, ripgrep)
 │   └── mainview/             # React app (components, routing, store, i18n, styles)
 ├── docs/                     # Architecture, guides, conventions
 ├── tools/                    # Build scripts
@@ -192,7 +197,7 @@ Main/preload changes typically require restarting the dev process.
 | Window / lifecycle | `src/electron/main.ts` |
 | Backend logic | `src/backend/backend.ts` + `src/backend/agent/agent-bridge.ts` |
 | IPC bridge | `src/scripts/electron-preload/preload.ts`, `src/mainview/backend.ts` |
-| IPC types | `src/shared/schema.ts` |
+| IPC types | `src/shared/schema.ts`, `src/shared/constants.ts`, `src/shared/zod/` |
 | Agent implementations | `src/agents/` + `src/backend/agent/` |
 | Build config | `electron.vite.config.ts` |
 
@@ -200,7 +205,7 @@ Main/preload changes typically require restarting the dev process.
 
 ```bash
 npm run dev          # Development with HMR
-npm run build        # Production build
+npm run build        # Production build (includes server bundle)
 npm run preview      # Preview built app
 npm run lint         # Lint with oxlint
 npm run typecheck    # TypeScript checking
@@ -211,6 +216,10 @@ npm run pack:npm     # Build npm package → npm-package/
 npm run pack:mac     # macOS .dmg
 npm run pack:win     # Windows .exe
 npm run pack:linux   # Linux .AppImage
+
+# Utilities
+npm run prepare:icon:mac  # Generate macOS app icons
+npm run download:grammars # Download tree-sitter WASM grammars
 ```
 
 ### 📖 Developer Guide

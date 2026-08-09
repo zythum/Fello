@@ -33,7 +33,7 @@ Skills 是一组预定义的指令和辅助文件，Agent 通过 MCP 工具查�
 
 ### 通过 skills 工具安装
 
-访问 https://www.skills.sh/ 可以查询想要的 skills。
+访问 https://skills.sh 可以查询想要的 skills。
 
 在终端中通过 `npx skills` 命令行工具安装：
 
@@ -46,10 +46,10 @@ npx skills add <owner/repo> --local  # 安装到项目级
 
 ```bash
 # 用户级安装
-cp -r my-skill ~/.agents/skills/
+cp -r my-skill ~/.fello/skills/
 
 # 项目级安装
-cp -r my-skill .agents/skills/
+cp -r my-skill .fello/skills/
 ```
 
 ---

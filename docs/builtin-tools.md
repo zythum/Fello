@@ -11,6 +11,10 @@ Fello 为 API Agent 内置了一套文件系统和执行工具，定义在 `src/
 | `EditFile` | StrReplace 式编辑文件 | `acp-client-tools.ts` |
 | `Shell` | 执行终端命令 | `acp-client-tools.ts` |
 | `Plan` | 创建/更新执行计划 | `acp-client-tools.ts` |
+| `Subagent` | 并行子 Agent 任务执行 | `subagent-tool.ts` |
+| `ImageAnalysis` | 图片视觉分析与理解 | `image-tools.ts` |
+
+> **注：** `Subagent` 和 `ImageAnalysis` 不在 `acp-client-tools.ts` 中定义，而是在 `subagent-tool.ts` 和 `image-tools.ts` 中分别定义，由 `openai-compatible-agent.ts` 合并到 Agent 工具集中。
 
 > **注：** `file_outline` 不是 ACP client tool，而是 Search MCP Server 提供的工具（见下方 [Search MCP — file_outline](#search-mcp--file_outline) 章节）。
 
