@@ -163,7 +163,7 @@ export function SettingsProxyDialog({ open, onOpenChange }: SettingsProxyDialogP
           <DialogTitle>{t("settings.proxy.title", "Network Proxy")}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 mt-2">
           {/* ── Mode ── */}
           <div className="flex items-center justify-between gap-4">
             <Field className="gap-1">

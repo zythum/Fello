@@ -225,7 +225,7 @@ export function SettingsGeneral() {
                   title={t("settings.general.proxyEdit", "Edit proxy settings")}
                 >
                   <span className="min-w-0 flex-1 truncate text-left">{proxySummary}</span>
-                  <ChevronRight className="size-3 shrink-0 text-muted-foreground/60" />
+                  <ChevronRight className="size-3 shrink-0" />
                 </Button>
               </div>
             </div>
