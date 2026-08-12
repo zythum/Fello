@@ -358,9 +358,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       const cachedModelId = session.models.currentModelId;
       finalModels = { ...finalModels, currentModelId: cachedModelId };
       restorePushback.push(
-        b.setSessionModel({ sessionId: session.resumeId, modelId: cachedModelId }).catch(
-          (err) => console.warn("[loadSession] Failed to restore model selection:", err),
-        ),
+        b
+          .setSessionModel({ sessionId: session.resumeId, modelId: cachedModelId })
+          .catch((err) => console.warn("[loadSession] Failed to restore model selection:", err)),
       );
     }
 
@@ -373,9 +373,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       const cachedModeId = session.modes.currentModeId;
       finalModes = { ...finalModes, currentModeId: cachedModeId };
       restorePushback.push(
-        b.setSessionMode({ sessionId: session.resumeId, modeId: cachedModeId }).catch(
-          (err) => console.warn("[loadSession] Failed to restore mode selection:", err),
-        ),
+        b
+          .setSessionMode({ sessionId: session.resumeId, modeId: cachedModeId })
+          .catch((err) => console.warn("[loadSession] Failed to restore mode selection:", err)),
       );
     }
 
@@ -390,9 +390,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       const cachedId = session.thoughtLevels.currentThoughtLevelId;
       finalThoughtLevels = { ...finalThoughtLevels, currentThoughtLevelId: cachedId };
       restorePushback.push(
-        b.setThoughtLevel({ sessionId: session.resumeId, thoughtLevelId: cachedId }).catch(
-          (err) => console.warn("[loadSession] Failed to restore thought level:", err),
-        ),
+        b
+          .setThoughtLevel({ sessionId: session.resumeId, thoughtLevelId: cachedId })
+          .catch((err) => console.warn("[loadSession] Failed to restore thought level:", err)),
       );
     }
 

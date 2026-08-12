@@ -1,7 +1,4 @@
-import type {
-  AvailableCommand,
-  SessionNotification,
-} from "@agentclientprotocol/sdk";
+import type { AvailableCommand, SessionNotification } from "@agentclientprotocol/sdk";
 import type { AddonSessionUpdate, SubagentStatus } from "../../shared/schema";
 import { AcpAdapter } from "./acp-adapter";
 
@@ -41,8 +38,7 @@ interface SubagentListParams {
 const parseMetadata = (p: unknown): MetadataParams => p as MetadataParams;
 const parseCommandsAvailable = (p: unknown): CommandsAvailableParams =>
   p as CommandsAvailableParams;
-const parseSubagentList = (p: unknown): SubagentListParams =>
-  p as SubagentListParams;
+const parseSubagentList = (p: unknown): SubagentListParams => p as SubagentListParams;
 
 // ── Adapter ──────────────────────────────────────────────────────────
 
@@ -133,12 +129,7 @@ export class KiroAdapter extends AcpAdapter {
     ) {
       const commands: AvailableCommand[] = [];
       for (const item of params.commands) {
-        if (
-          typeof item === "object" &&
-          item &&
-          "name" in item &&
-          typeof item.name === "string"
-        ) {
+        if (typeof item === "object" && item && "name" in item && typeof item.name === "string") {
           commands.push({
             name: item.name.replace(/^\//, ""),
             description: item.description ? String(item.description) : "",
@@ -183,8 +174,7 @@ export class KiroAdapter extends AcpAdapter {
             sessionUpdate: "subagent_update",
             sessionId: subagent.sessionId,
             name: typeof subagent.sessionName === "string" ? subagent.sessionName : undefined,
-            prompt:
-              typeof subagent.initialQuery === "string" ? subagent.initialQuery : undefined,
+            prompt: typeof subagent.initialQuery === "string" ? subagent.initialQuery : undefined,
             status: KIRO_STATUS_MAP[String(subagent?.status?.type)],
           };
           results.push({

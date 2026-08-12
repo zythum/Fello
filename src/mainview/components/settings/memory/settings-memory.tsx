@@ -107,7 +107,8 @@ export function SettingsMemory() {
       toast.success(t("settings.memory.deleted", "Memory entry deleted."));
     } catch (err) {
       toast.error(
-        extractErrorMessage(err) || t("settings.memory.deleteFailed", "Failed to delete memory entry."),
+        extractErrorMessage(err) ||
+          t("settings.memory.deleteFailed", "Failed to delete memory entry."),
       );
     }
   };

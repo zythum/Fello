@@ -73,9 +73,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     currentSessionId: string,
     agentId: string,
   ): SessionNotification[] | null {
-    const meta = notification.update?._meta as
-      | Record<string, unknown>
-      | undefined;
+    const meta = notification.update?._meta as Record<string, unknown> | undefined;
     const sessionUpdate = notification.update?.sessionUpdate;
 
     // Replay detection: only for CodeBuddy content chunks
@@ -158,8 +156,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     agentId: string,
   ): SessionNotification[] {
     const type = typeof teamUpdate.type === "string" ? teamUpdate.type : "";
-    const eventTeamName =
-      typeof teamUpdate.teamName === "string" ? teamUpdate.teamName : null;
+    const eventTeamName = typeof teamUpdate.teamName === "string" ? teamUpdate.teamName : null;
 
     const getOrCreateState = (): TeamState => {
       let s = this.stateMap.get(currentSessionId);
@@ -205,9 +202,7 @@ export class CodebuddyAdapter extends AcpAdapter {
       for (const [memberName, member] of state.members) {
         if (member.teamName !== eventTeamName) continue;
         if (member.status !== "completed" && member.status !== "failed") {
-          results.push(
-            makeSubagentUpdate(member.sessionId, undefined, undefined, "failed"),
-          );
+          results.push(makeSubagentUpdate(member.sessionId, undefined, undefined, "failed"));
         }
         state.members.delete(memberName);
       }
@@ -235,8 +230,7 @@ export class CodebuddyAdapter extends AcpAdapter {
 
         // Resolve teamName: event-level → existing member → activeTeamName → ""
         const existing = state.members.get(memberName);
-        const resolvedTeamName =
-          eventTeamName ?? existing?.teamName ?? state.activeTeamName ?? "";
+        const resolvedTeamName = eventTeamName ?? existing?.teamName ?? state.activeTeamName ?? "";
         state.members.set(memberName, {
           sessionId: memberSessionId,
           status,

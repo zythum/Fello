@@ -12,10 +12,7 @@ const execFileAsync = promisify(execFile);
  * git repository or git is unavailable, so callers can treat the result as
  * "nothing is ignored".
  */
-export async function getGitIgnoredPaths(
-  cwd: string,
-  relPaths: string[],
-): Promise<Set<string>> {
+export async function getGitIgnoredPaths(cwd: string, relPaths: string[]): Promise<Set<string>> {
   if (relPaths.length === 0) return new Set<string>();
   // Feed all candidate paths at once via stdin; git itself resolves nested
   // .gitignore rules and `!` negations. Note: execFile's `input` option does

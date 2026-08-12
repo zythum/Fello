@@ -120,12 +120,7 @@ export function createInferenceModule(
       },
       onExtNotification: (method, params) => {
         for (const adapter of adapters) {
-          const results = adapter.handleExtNotification(
-            method,
-            params,
-            currentSessionId,
-            agentId,
-          );
+          const results = adapter.handleExtNotification(method, params, currentSessionId, agentId);
           if (results.length > 0) {
             for (const result of results) {
               processNotification(result);

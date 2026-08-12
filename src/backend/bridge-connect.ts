@@ -105,11 +105,7 @@ export function createBridgeConnectModule(
         for (const adapter of adapters) {
           const next: SessionNotification[] = [];
           for (const n of results) {
-            const processed = adapter.preprocessNotification(
-              n,
-              currentSessionId,
-              agentId,
-            );
+            const processed = adapter.preprocessNotification(n, currentSessionId, agentId);
             if (processed !== null) {
               next.push(...processed);
             }
@@ -140,10 +136,7 @@ export function createBridgeConnectModule(
           }
 
           if (sessionUpdate === "available_commands_update") {
-            publishAvailableCommands(
-              currentSessionId,
-              result.update.availableCommands ?? [],
-            );
+            publishAvailableCommands(currentSessionId, result.update.availableCommands ?? []);
             continue;
           }
 
@@ -183,12 +176,7 @@ export function createBridgeConnectModule(
         // SessionNotifications, which are fed back through
         // processSessionUpdate for unified handling.
         for (const adapter of adapters) {
-          const results = adapter.handleExtNotification(
-            method,
-            params,
-            currentSessionId,
-            agentId,
-          );
+          const results = adapter.handleExtNotification(method, params, currentSessionId, agentId);
           if (results.length > 0) {
             for (const result of results) {
               processSessionUpdate(result);
