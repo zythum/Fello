@@ -81,10 +81,11 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
       : "";
   const workspacePrompt = `Current session working directory (cwd): ${cwd}.${extras} Use this as the default base path for relative paths.`;
 
-  // Temporal & environment context — LLMs often hallucinate the current time
+  // Temporal & environment context — LLMs often hallucinate the current time.
+  // Only the date is injected: precise time changes every second and would
+  // defeat prompt caching; it's available via the toolbox time tool.
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-CA"); // YYYY-MM-DD format
-  const timeStr = now.toLocaleTimeString("en-US", { hour12: false });
   const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timezoneOffset = -now.getTimezoneOffset();
@@ -94,7 +95,7 @@ function buildWorkspaceSystemPrompt(cwd: string, additionalDirectories: string[]
   const utcOffset = `UTC${offsetSign}${offsetHours}:${offsetMinutes}`;
   const platform = process.platform; // darwin, linux, win32
 
-  const envContext = `Date and time: ${dateStr} ${timeStr} (${weekday})
+  const envContext = `Date: ${dateStr} (${weekday})
 Timezone: ${timezone} (${utcOffset})
 Platform: ${platform}`;
 
