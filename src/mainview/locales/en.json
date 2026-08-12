@@ -43,6 +43,8 @@
     "ilinkUnsetActive": "Unset WeChat Active",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
+    "updated": "Updated",
+    "created": "Created",
     "newSessionDialog": {
       "title": "Create session",
       "agent": "Agent",

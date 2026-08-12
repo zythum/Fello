@@ -33,10 +33,15 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { useMessage } from "../providers/message";
 import { extractErrorMessage } from "@/lib/utils";
 import {
+  CalendarDays,
   Check,
+  Clock,
+  Bot,
+  Folder,
   FolderClosed,
   FolderOpen,
   FolderPlus,
@@ -58,8 +63,22 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return extractErrorMessage(error) || fallbackMessage;
 }
 
+/** 相对时间显示：分钟/小时/天，超过 30 天回退到本地化日期 */
+function formatRelativeTime(timestamp: number, language: string): string {
+  const diff = Date.now() - timestamp;
+  const rtf = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
+  const minutes = Math.round(diff / 60_000);
+  if (minutes < 1) return rtf.format(0, "minute");
+  if (minutes < 60) return rtf.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return rtf.format(-hours, "hour");
+  const days = Math.round(hours / 24);
+  if (days < 30) return rtf.format(-days, "day");
+  return new Date(timestamp).toLocaleDateString(language);
+}
+
 export function Sidebar() {
-  const { t, i18n: _i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -569,118 +588,170 @@ export function Sidebar() {
                   </ContextMenuContent>
                 </ContextMenu>
                 {expanded &&
-                  projectSessions.map((session) => (
-                    <ContextMenu
-                      key={session.id}
-                      onOpenChange={(open) => {
-                        setOpenSessionMenuId((prev) =>
-                          open ? session.id : prev === session.id ? null : prev,
-                        );
-                      }}
-                    >
-                      <ContextMenuTrigger
-                        render={<div />}
-                        onClick={() => handleSelectSession(session)}
-                        className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
-                          activeSessionId === session.id
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-                        } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
-                        onContextMenu={(e) => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        <div
-                          className={cn(
-                            "flex min-w-0 flex-1 items-center gap-1.5",
-                            session.connectionStatus === "connected" ? "" : "opacity-60",
-                          )}
-                        >
-                          {(() => {
-                            const state = sessionStates.get(session.id);
-                            const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
-                            const isStreaming = session.isStreaming;
-                            const completedStatus = state?.completedStatus;
-                            if (hasAskUser) {
-                              return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
-                            }
-                            if (isStreaming) {
-                              return <LoaderCircle className="size-3 animate-spin shrink-0" />;
-                            }
-                            if (
-                              completedStatus === "success" ||
-                              (state?.completedAt && !completedStatus)
-                            ) {
-                              return <Check className="size-3 shrink-0 text-green-500" />;
-                            }
-                            if (completedStatus === "error") {
-                              return <TriangleAlert className="size-3 shrink-0 text-yellow-500" />;
-                            }
-                            return <div className="size-3 shrink-0" />;
-                          })()}
-                          <Badge
-                            variant="outline"
-                            className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
-                          >
-                            {configuredAgents.find((a) => a.id === session.agentId)?.id ||
-                              session.agentId}
-                          </Badge>
-                          <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                            {session.title || t("sidebar.newChat", "New Chat")}
-                          </span>
-                          {activeIlinkSessionId === session.id && (
-                            <MessageCircle className="size-3 shrink-0 text-green-500" />
-                          )}
-                        </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent onClick={(e) => e.stopPropagation()} className="w-auto">
-                        <ContextMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRenameSession(session);
-                          }}
-                        >
-                          <Pencil />
-                          {t("sidebar.rename")}
-                        </ContextMenuItem>
-                        {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
-                          <ContextMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              request
-                                .setActiveIlinkSession({ sessionId: session.id })
-                                .catch(() => {});
+                  projectSessions.map((session) => {
+                    const agentLabel =
+                      configuredAgents.find((a) => a.id === session.agentId)?.id || session.agentId;
+                    return (
+                      <HoverCard key={session.id}>
+                        <HoverCardTrigger render={<div />}>
+                          <ContextMenu
+                            onOpenChange={(open) => {
+                              setOpenSessionMenuId((prev) =>
+                                open ? session.id : prev === session.id ? null : prev,
+                              );
                             }}
                           >
-                            <MessageCircle />
-                            {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                          </ContextMenuItem>
-                        )}
-                        {ilinkStatus.connected && activeIlinkSessionId === session.id && (
-                          <ContextMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
-                            }}
-                          >
-                            <MessageCircle />
-                            {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                          </ContextMenuItem>
-                        )}
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleDeleteSession(session);
-                          }}
+                            <ContextMenuTrigger
+                              render={<div />}
+                              onClick={() => handleSelectSession(session)}
+                              className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
+                                activeSessionId === session.id
+                                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                              } ${openSessionMenuId === session.id ? "bg-sidebar-accent" : ""}`}
+                              onContextMenu={(e) => {
+                                e.stopPropagation();
+                              }}
+                            >
+                              <div
+                                className={cn(
+                                  "flex min-w-0 flex-1 items-center gap-1.5",
+                                  session.connectionStatus === "connected" ? "" : "opacity-60",
+                                )}
+                              >
+                                {(() => {
+                                  const state = sessionStates.get(session.id);
+                                  const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
+                                  const isStreaming = session.isStreaming;
+                                  const completedStatus = state?.completedStatus;
+                                  if (hasAskUser) {
+                                    return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+                                  }
+                                  if (isStreaming) {
+                                    return (
+                                      <LoaderCircle className="size-3 animate-spin shrink-0" />
+                                    );
+                                  }
+                                  if (
+                                    completedStatus === "success" ||
+                                    (state?.completedAt && !completedStatus)
+                                  ) {
+                                    return <Check className="size-3 shrink-0 text-green-500" />;
+                                  }
+                                  if (completedStatus === "error") {
+                                    return (
+                                      <TriangleAlert className="size-3 shrink-0 text-yellow-500" />
+                                    );
+                                  }
+                                  return <div className="size-3 shrink-0" />;
+                                })()}
+                                <Badge
+                                  variant="outline"
+                                  className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                                >
+                                  {agentLabel}
+                                </Badge>
+                                <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                                  {session.title || t("sidebar.newChat", "New Chat")}
+                                </span>
+                                {activeIlinkSessionId === session.id && (
+                                  <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                )}
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-auto"
+                            >
+                              <ContextMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRenameSession(session);
+                                }}
+                              >
+                                <Pencil />
+                                {t("sidebar.rename")}
+                              </ContextMenuItem>
+                              {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                                <ContextMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    request
+                                      .setActiveIlinkSession({ sessionId: session.id })
+                                      .catch(() => {});
+                                  }}
+                                >
+                                  <MessageCircle />
+                                  {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                                </ContextMenuItem>
+                              )}
+                              {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                                <ContextMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    request
+                                      .setActiveIlinkSession({ sessionId: "" })
+                                      .catch(() => {});
+                                  }}
+                                >
+                                  <MessageCircle />
+                                  {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                                </ContextMenuItem>
+                              )}
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleDeleteSession(session);
+                                }}
+                              >
+                                <Trash2 />
+                                {t("sidebar.delete")}
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        </HoverCardTrigger>
+                        <HoverCardContent
+                          side="right"
+                          align="start"
+                          sideOffset={14}
+                          alignOffset={0}
+                          className="w-68 p-3 text-xs"
                         >
-                          <Trash2 />
-                          {t("sidebar.delete")}
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
+                          <div className="flex flex-col gap-2">
+                            <div className="text-[13px] font-medium leading-relaxed">
+                              <span>
+                                {session.title || t("sidebar.newChat", "New Chat")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Bot className="size-3 shrink-0" />
+                              <span className="truncate text-xs">{session.agentId}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Folder className="size-3 shrink-0" />
+                              <span className="truncate text-xs">{project.title}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="size-3 shrink-0" />
+                              <span className="truncate text-xs">
+                                <span className="mr-1">{t("sidebar.updated", "Updated")}:</span>
+                                <span>{formatRelativeTime(session.updatedAt, i18n.language)}</span>
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <CalendarDays className="size-3 shrink-0" />
+                              <span className="truncate text-xs">
+                                <span className="mr-1">{t("sidebar.created", "Created")}:</span>
+                                <span>{formatRelativeTime(session.createdAt, i18n.language)}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    );
+                  })}
               </div>
             );
           })}
