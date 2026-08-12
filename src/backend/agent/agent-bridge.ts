@@ -58,6 +58,16 @@ export type AgentTerminalOutputCallback = (
   data: string,
 ) => void;
 
+/**
+ * Declares an agent-specific ext notification for ACPBridge to register on
+ * the ACP client. The `parse` function is called by the SDK before the
+ * handler runs, providing a hook for type validation/narrowing.
+ */
+export interface ExtNotificationSpec {
+  method: string;
+  parse: (params: unknown) => unknown;
+}
+
 export interface ACPBridgeOptions {
   agentInfo: AgentInfo;
   cwd: string;
@@ -66,6 +76,10 @@ export interface ACPBridgeOptions {
   onExtNotification: SessionExtNotificationCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
+  /** Ext notification specs to register on the ACP client. Declared by
+   * adapters (acp-adapters/adapters.ts) — keeps method names co-located
+   * with the handler logic, out of this file. */
+  extNotificationSpecs: ExtNotificationSpec[];
 }
 
 /**
@@ -295,7 +309,7 @@ export class ACPBridge {
     const terminalManager = this.terminalManager;
     const sessionsCwdMap = this._sessionsCwdMap;
 
-    const clientApp = client({ name: "Fello" })
+    let clientApp = client({ name: "Fello" })
       .onRequest(methods.client.session.requestPermission, (ctx) => {
         return onPermission(ctx.params);
       })
@@ -349,28 +363,15 @@ export class ACPBridge {
       .onRequest(methods.client.terminal.release, (ctx) => {
         terminalManager.release(ctx.params.terminalId);
         return {};
-      })
-      .onNotification(
-        "_kiro.dev/metadata",
-        (p: unknown) => p,
-        (ctx) => {
-          onExtNotification("_kiro.dev/metadata", ctx.params);
-        },
-      )
-      .onNotification(
-        "_kiro.dev/commands/available",
-        (p: unknown) => p,
-        (ctx) => {
-          onExtNotification("_kiro.dev/commands/available", ctx.params);
-        },
-      )
-      .onNotification(
-        "_kiro.dev/subagent/list_update",
-        (p: unknown) => p,
-        (ctx) => {
-          onExtNotification("_kiro.dev/subagent/list_update", ctx.params);
-        },
-      );
+      });
+
+    // Register ext notification specs declared by protocol adapters.
+    // Method names and parse functions live in acp-adapters/, not here.
+    for (const spec of this.options.extNotificationSpecs) {
+      clientApp = clientApp.onNotification(spec.method, spec.parse, (ctx) => {
+        onExtNotification(spec.method, ctx.params);
+      });
+    }
 
     this.connection = clientApp.connect(stream);
 

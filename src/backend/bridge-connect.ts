@@ -4,8 +4,8 @@ import type {
   RequestPermissionResponse,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import type { AddonSessionUpdate, SubagentStatus } from "../shared/schema";
 import { ACPBridge } from "./agent/agent-bridge";
+import { adapters, extNotificationSpecs } from "./acp-adapters/adapters";
 import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import type { BackendContext } from "./types";
 import type { AskUserModule } from "./ask-user";
@@ -68,6 +68,8 @@ export function createBridgeConnectModule(
     if (updated) sendEvent("session-changed", { session: updated });
   }
 
+  // ── Bridge lifecycle ──────────────────────────────────────────────
+
   async function ensureBridge(
     sessionKey: string,
     agentId: string,
@@ -85,10 +87,85 @@ export function createBridgeConnectModule(
 
     let currentSessionId: string | null = null;
 
+    /**
+     * Unified session-notification pipeline. Called by onSessionUpdate for
+     * native ACP notifications AND by onExtNotification for synthetic
+     * notifications produced by adapters.
+     *
+     * Adapter preprocessing runs ONCE per incoming notification — results
+     * (the original possibly transformed + any synthetic) go through the
+     * REST of the pipeline (session-specific handling, broadcast, storage),
+     * NOT through preprocessing again. This avoids recursion while keeping
+     * the original stored for replay/state-rebuild.
+     */
+    function processSessionUpdate(notification: SessionNotification) {
+      // Step 1: adapter preprocessing (pipeline-style across adapters)
+      let results: SessionNotification[] = [notification];
+      if (currentSessionId) {
+        for (const adapter of adapters) {
+          const next: SessionNotification[] = [];
+          for (const n of results) {
+            const processed = adapter.preprocessNotification(
+              n,
+              currentSessionId,
+              agentId,
+            );
+            if (processed !== null) {
+              next.push(...processed);
+            }
+          }
+          results = next;
+        }
+      }
+
+      if (results.length === 0) return; // all dropped
+      if (!currentSessionId) return;
+
+      // Step 2: rest of the pipeline for each result
+      for (const result of results) {
+        const sessionUpdate = result.update?.sessionUpdate;
+
+        if (currentSessionId && currentSessionId === `${agentId}:${result.sessionId}`) {
+          if (sessionUpdate === "session_info_update") {
+            if (result.update.title) {
+              storage.updateSession(currentSessionId, { title: result.update.title });
+              const updated = storage.getSession(currentSessionId);
+              if (updated) sendEvent("session-changed", { session: updated });
+            }
+          }
+
+          if (sessionUpdate === "usage_update") {
+            publishUsage(currentSessionId, result.update);
+            continue;
+          }
+
+          if (sessionUpdate === "available_commands_update") {
+            publishAvailableCommands(
+              currentSessionId,
+              result.update.availableCommands ?? [],
+            );
+            continue;
+          }
+
+          if (sessionUpdate === "current_mode_update") {
+            const session = storage.getSession(currentSessionId);
+            if (session && session.modes) {
+              session.modes.currentModeId = result.update.currentModeId ?? null;
+              storage.updateSession(currentSessionId, { modes: session.modes });
+              const updated = storage.getSession(currentSessionId);
+              if (updated) sendEvent("session-changed", { session: updated });
+            }
+          }
+        }
+        broadcastAndSaveSessionUpdate(currentSessionId, result);
+      }
+    }
+
     const agentInfo = resolveAgentInfo(agentId);
     const bridge = new ACPBridge(agentId, {
       agentInfo,
       cwd,
+      extNotificationSpecs,
       onSessionConnect: (connection) => {
         currentSessionId = `${agentId}:${connection.sessionId}`;
 
@@ -98,138 +175,26 @@ export function createBridgeConnectModule(
         if (updated) sendEvent("session-changed", { session: updated });
       },
       onSessionUpdate: (notification) => {
-        const sessionUpdate = notification.update?.sessionUpdate;
-        if (currentSessionId) {
-          if (currentSessionId === `${agentId}:${notification.sessionId}`) {
-            if (sessionUpdate === "session_info_update") {
-              if (notification.update.title) {
-                storage.updateSession(currentSessionId, { title: notification.update.title });
-                const updated = storage.getSession(currentSessionId);
-                if (updated) sendEvent("session-changed", { session: updated });
-              }
-            }
-
-            if (sessionUpdate === "usage_update") {
-              publishUsage(currentSessionId, notification.update);
-              return;
-            }
-
-            if (sessionUpdate === "available_commands_update") {
-              publishAvailableCommands(
-                currentSessionId,
-                notification.update.availableCommands ?? [],
-              );
-              return;
-            }
-
-            if (sessionUpdate === "current_mode_update") {
-              const session = storage.getSession(currentSessionId);
-              if (session && session.modes) {
-                session.modes.currentModeId = notification.update.currentModeId ?? null;
-                storage.updateSession(currentSessionId, { modes: session.modes });
-                const updated = storage.getSession(currentSessionId);
-                if (updated) sendEvent("session-changed", { session: updated });
-              }
-            }
-          }
-          broadcastAndSaveSessionUpdate(currentSessionId, notification);
-        }
+        processSessionUpdate(notification);
       },
 
       onExtNotification: (method, params) => {
-        if (method === "_kiro.dev/metadata") {
-          if (
-            typeof params === "object" &&
-            params &&
-            "sessionId" in params &&
-            typeof params.sessionId === "string" &&
-            "contextUsagePercentage" in params &&
-            typeof params.contextUsagePercentage === "number" &&
-            currentSessionId === `${agentId}:${params.sessionId}`
-          ) {
-            publishUsage(currentSessionId, {
-              used: params.contextUsagePercentage / 100,
-              size: 1,
-            });
-          }
-          return;
-        }
-
-        if (method === "_kiro.dev/commands/available") {
-          if (
-            typeof params === "object" &&
-            params &&
-            "sessionId" in params &&
-            typeof params.sessionId === "string" &&
-            "commands" in params &&
-            Array.isArray(params.commands) &&
-            currentSessionId === `${agentId}:${params.sessionId}`
-          ) {
-            const commands: AvailableCommand[] = [];
-            for (const item of params.commands) {
-              if (
-                typeof item === "object" &&
-                item &&
-                "name" in item &&
-                typeof item.name === "string"
-              ) {
-                commands.push({
-                  name: item.name.replace(/^\//, ""),
-                  description: item.description ? String(item.description) : "",
-                });
-              }
+        // Adapters translate ext notifications into synthetic
+        // SessionNotifications, which are fed back through
+        // processSessionUpdate for unified handling.
+        for (const adapter of adapters) {
+          const results = adapter.handleExtNotification(
+            method,
+            params,
+            currentSessionId,
+            agentId,
+          );
+          if (results.length > 0) {
+            for (const result of results) {
+              processSessionUpdate(result);
             }
-            publishAvailableCommands(currentSessionId, commands);
+            return;
           }
-          return;
-        }
-
-        if (method === "_kiro.dev/subagent/list_update") {
-          // kiro 没有给主 session 的 sessionId，只能这样兼容
-          if (
-            typeof params === "object" &&
-            params &&
-            currentSessionId &&
-            "subagents" in params &&
-            Array.isArray(params.subagents)
-          ) {
-            for (const subagent of params.subagents) {
-              if (
-                typeof subagent === "object" &&
-                subagent &&
-                "sessionId" in subagent &&
-                typeof subagent.sessionId === "string"
-              ) {
-                const update: AddonSessionUpdate = {
-                  sessionUpdate: "subagent_update",
-                  sessionId: subagent.sessionId,
-                  name: typeof subagent.sessionName === "string" ? subagent.sessionName : undefined,
-                  prompt:
-                    typeof subagent.initialQuery === "string" ? subagent.initialQuery : undefined,
-                  status: (
-                    {
-                      pending: "pending",
-                      working: "in_progress",
-                      terminated: "completed",
-                      failed: "failed",
-                    } satisfies Record<string, SubagentStatus>
-                  )[String(subagent?.status?.type)],
-                };
-                broadcastAndSaveSessionUpdate(currentSessionId, {
-                  sessionId: currentSessionId.replace(`${agentId}:`, ""),
-                  update: {
-                    sessionUpdate: "session_info_update",
-                    _meta: {
-                      fello: {
-                        update,
-                      },
-                    },
-                  },
-                });
-              }
-            }
-          }
-          return;
         }
       },
       onPermissionRequest: async (request) => {
@@ -327,6 +292,7 @@ export function createBridgeConnectModule(
       sessionAgentMap.delete(oldKey);
       sessionAgentMap.set(newKey, agentId);
     }
+    for (const a of adapters) a.rekey(oldKey, newKey);
   }
 
   async function killBridge(sessionKey: string): Promise<void> {
@@ -334,6 +300,7 @@ export function createBridgeConnectModule(
     if (p) {
       bridges.delete(sessionKey);
       sessionAgentMap.delete(sessionKey);
+      for (const a of adapters) a.cleanup(sessionKey);
       try {
         const b = await p;
         await b.kill();
@@ -364,6 +331,7 @@ export function createBridgeConnectModule(
     }
     bridges.clear();
     sessionAgentMap.clear();
+    for (const a of adapters) a.clearAll();
     await Promise.all(killPromises);
   }
 

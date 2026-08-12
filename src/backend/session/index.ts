@@ -342,6 +342,66 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       } else finalThoughtLevels = session.thoughtLevels;
     }
 
+    // Some agents (e.g., CodeBuddy) don't persist model/mode/thought_level
+    // selection across session resume — they return the default currentValue.
+    // If the cached SessionInfo has a valid selection that's still in the
+    // available list, prefer it over the agent's reset value, and push the
+    // corrected selection back to the agent so it uses the right model.
+    const restorePushback: Promise<unknown>[] = [];
+
+    if (
+      finalModels &&
+      session.models?.currentModelId &&
+      finalModels.currentModelId !== session.models.currentModelId &&
+      finalModels.availableModels.some((m) => m.modelId === session.models!.currentModelId)
+    ) {
+      const cachedModelId = session.models.currentModelId;
+      finalModels = { ...finalModels, currentModelId: cachedModelId };
+      restorePushback.push(
+        b.setSessionModel({ sessionId: session.resumeId, modelId: cachedModelId }).catch(
+          (err) => console.warn("[loadSession] Failed to restore model selection:", err),
+        ),
+      );
+    }
+
+    if (
+      finalModes &&
+      session.modes?.currentModeId &&
+      finalModes.currentModeId !== session.modes.currentModeId &&
+      finalModes.availableModes.some((m) => m.id === session.modes!.currentModeId)
+    ) {
+      const cachedModeId = session.modes.currentModeId;
+      finalModes = { ...finalModes, currentModeId: cachedModeId };
+      restorePushback.push(
+        b.setSessionMode({ sessionId: session.resumeId, modeId: cachedModeId }).catch(
+          (err) => console.warn("[loadSession] Failed to restore mode selection:", err),
+        ),
+      );
+    }
+
+    if (
+      finalThoughtLevels &&
+      session.thoughtLevels?.currentThoughtLevelId &&
+      finalThoughtLevels.currentThoughtLevelId !== session.thoughtLevels.currentThoughtLevelId &&
+      finalThoughtLevels.availableThoughtLevels.some(
+        (m) => m.id === session.thoughtLevels!.currentThoughtLevelId,
+      )
+    ) {
+      const cachedId = session.thoughtLevels.currentThoughtLevelId;
+      finalThoughtLevels = { ...finalThoughtLevels, currentThoughtLevelId: cachedId };
+      restorePushback.push(
+        b.setThoughtLevel({ sessionId: session.resumeId, thoughtLevelId: cachedId }).catch(
+          (err) => console.warn("[loadSession] Failed to restore thought level:", err),
+        ),
+      );
+    }
+
+    // Wait for pushback to complete so the agent has the correct selection
+    // before the user sends the next prompt.
+    if (restorePushback.length > 0) {
+      await Promise.all(restorePushback);
+    }
+
     if (shouldUpdateCache || b.initializeInfo) {
       storage.updateSession(
         session.id,
@@ -439,15 +499,23 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         ctx,
         mcpDeps,
       );
-      await b.loadSession({
-        sessionId: session.resumeId,
-        cwd: session.cwd,
-        mcpServers: activeMcpServers,
-      });
-      await createSessionSocketServer(session.id, {
-        socketPath,
-        project,
-      });
+      // Suppress replayed history notifications during lazy load —
+      // without this, the agent's replayed messages get stored and
+      // broadcast as duplicates.
+      notif.addRestoring(session.id);
+      try {
+        await b.loadSession({
+          sessionId: session.resumeId,
+          cwd: session.cwd,
+          mcpServers: activeMcpServers,
+        });
+        await createSessionSocketServer(session.id, {
+          socketPath,
+          project,
+        });
+      } finally {
+        notif.removeRestoring(session.id);
+      }
     }
 
     storage.updateSession(sessionId, { isStreaming: true });

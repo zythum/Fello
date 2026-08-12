@@ -200,6 +200,20 @@ function calculateToolCallUpdate(
       return subagentMessage.messages;
     })();
 
+    // If routing to a subagent, remove any stale entry from the main
+    // agent's messages. This can happen if the initial tool_call arrived
+    // before the member was registered in the adapter's teamStateMap,
+    // causing the sessionId to not be rewritten — the tool_call was
+    // placed in state.messages (main agent) instead of the subagent.
+    if (subSessionId) {
+      const mainIdx = state.messages.findIndex(
+        (m) => m.role === "tool_call" && m.toolCallId === update.toolCallId,
+      );
+      if (mainIdx !== -1) {
+        state.messages.splice(mainIdx, 1);
+      }
+    }
+
     // Also upsert into messages so tools appear interleaved with other roles
     const idx = messages.findIndex(
       (m) => m.role === "tool_call" && m.toolCallId === update.toolCallId,

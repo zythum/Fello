@@ -15,6 +15,7 @@
 import { randomUUID } from "crypto";
 import type { ContentBlock, McpServer, SessionNotification } from "@agentclientprotocol/sdk";
 import { ACPBridge } from "./agent/agent-bridge";
+import { adapters, extNotificationSpecs } from "./acp-adapters/adapters";
 import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import { startSocketServer, generateSocketPath, type SocketServer } from "./socket-server";
 import type { SkillsModule } from "./skills";
@@ -71,20 +72,68 @@ export function createInferenceModule(
     const terminalLogs: Record<string, string> = {};
 
     const agentInfo = resolveAgentInfo(agentId);
-    const bridge = new ACPBridge(agentId, {
-      agentInfo,
-      cwd,
-      onSessionConnect: () => {},
-      onSessionUpdate: (notification: SessionNotification) => {
-        notifications.push(notification);
-        if (notification.update?.sessionUpdate === "agent_message_chunk") {
-          const content = notification.update.content;
+    let currentSessionId: string | null = null;
+
+    /** Simplified version of bridge-connect's processSessionUpdate:
+     *  runs adapter preprocessing + _meta handling, then collects
+     *  notifications (no storage/broadcast). Synthetic notifications
+     *  from adapters are fed back through the same function. */
+    function processNotification(notification: SessionNotification) {
+      // Step 1: adapter preprocessing (pipeline-style)
+      let results: SessionNotification[] = [notification];
+      if (currentSessionId) {
+        for (const adapter of adapters) {
+          const next: SessionNotification[] = [];
+          for (const n of results) {
+            const processed = adapter.preprocessNotification(n, currentSessionId, agentId);
+            if (processed !== null) {
+              next.push(...processed);
+            }
+          }
+          results = next;
+        }
+      }
+
+      if (results.length === 0) return;
+
+      // Step 2: collect each result
+      for (const result of results) {
+        notifications.push(result);
+        if (result.update?.sessionUpdate === "agent_message_chunk") {
+          const content = result.update.content;
           if (content?.type === "text" && content.text) {
             textChunks.push(content.text);
           }
         }
+      }
+    }
+
+    const bridge = new ACPBridge(agentId, {
+      agentInfo,
+      cwd,
+      extNotificationSpecs,
+      onSessionConnect: (connection) => {
+        currentSessionId = `${agentId}:${connection.sessionId}`;
       },
-      onExtNotification: () => {},
+      onSessionUpdate: (notification: SessionNotification) => {
+        processNotification(notification);
+      },
+      onExtNotification: (method, params) => {
+        for (const adapter of adapters) {
+          const results = adapter.handleExtNotification(
+            method,
+            params,
+            currentSessionId,
+            agentId,
+          );
+          if (results.length > 0) {
+            for (const result of results) {
+              processNotification(result);
+            }
+            return;
+          }
+        }
+      },
       onPermissionRequest: async (request) => {
         const opt =
           request.options.find((o) => o.kind === "allow_always") ??
