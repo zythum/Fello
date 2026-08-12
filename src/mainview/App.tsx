@@ -338,6 +338,11 @@ function AppContent() {
             toast.loading(t("updater.checking", "Checking for updates..."), {
               id: UPDATE_TOAST_ID,
               duration: Infinity,
+              action: undefined,
+              cancel: {
+                label: t("updater.later", "Later"),
+                onClick: () => toast.dismiss(UPDATE_TOAST_ID),
+              },
             });
           }
           break;
@@ -374,6 +379,8 @@ function AppContent() {
             toast.success(t("updater.upToDate", "Fello is up to date."), {
               id: UPDATE_TOAST_ID,
               duration: 3000,
+              action: undefined,
+              cancel: undefined,
             });
           }
           break;
@@ -385,6 +392,8 @@ function AppContent() {
             {
               id: UPDATE_TOAST_ID,
               duration: Infinity,
+              action: undefined,
+              cancel: undefined,
             },
           );
           break;
@@ -419,6 +428,8 @@ function AppContent() {
             toast.info(t("updater.disabled", "Updates are available only in packaged builds."), {
               id: UPDATE_TOAST_ID,
               duration: 4000,
+              action: undefined,
+              cancel: undefined,
             });
           }
           break;
@@ -427,6 +438,8 @@ function AppContent() {
             toast.error(event.message, {
               id: UPDATE_TOAST_ID,
               duration: 5000,
+              action: undefined,
+              cancel: undefined,
             });
           }
           break;

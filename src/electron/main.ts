@@ -37,6 +37,9 @@ import {
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 const { autoUpdater } = electronUpdater;
 
+// Set to true to mock the update flow in dev mode for UI testing.
+const UPDATER_MOCK = false;
+
 if (isDev) {
   app.commandLine.appendSwitch("no-sandbox");
   // app.disableHardwareAcceleration();
@@ -218,12 +221,17 @@ async function checkForUpdates({ manual }: { manual: boolean }) {
   if (!autoUpdateCheckGate.shouldStart(manual)) return;
 
   if (isDev || !app.isPackaged) {
-    console.log("[checkForUpdates] skipped in dev mode");
-    sendUpdaterEvent({
-      type: "disabled",
-      manual,
-      reason: "Updates are available only in packaged builds.",
-    });
+    if (!UPDATER_MOCK) {
+      console.log("[checkForUpdates] skipped in dev mode");
+      sendUpdaterEvent({
+        type: "disabled",
+        manual,
+        reason: "Updates are available only in packaged builds.",
+      });
+      return;
+    }
+    console.log("[checkForUpdates] mock update flow in dev mode");
+    await mockCheckForUpdates(manual);
     return;
   }
 
@@ -247,7 +255,64 @@ async function checkForUpdates({ manual }: { manual: boolean }) {
   }
 }
 
+// ── Mock update flow for dev mode ──────────────────────────────────
+const MOCK_UPDATE_INFO = {
+  version: "99.0.0",
+  releaseName: "v99.0.0 (Mock Update)",
+  releaseDate: new Date().toISOString(),
+  releaseNotes: "This is a simulated update for UI testing in dev mode.",
+};
+
+async function mockCheckForUpdates(manual: boolean) {
+  if (isUpdateChecking) return;
+  isUpdateChecking = true;
+  lastUpdateCheckManual = manual;
+  sendUpdaterEvent({ type: "checking", manual });
+
+  await delay(1000);
+
+  isUpdateChecking = false;
+  hasDownloadedUpdate = false;
+  sendUpdaterEvent({ type: "available", manual, info: MOCK_UPDATE_INFO });
+  lastUpdateCheckManual = false;
+}
+
+async function mockDownloadUpdate() {
+  isUpdateDownloading = true;
+  const totalBytes = 85_000_000; // simulate ~85MB
+  const steps = 20;
+  for (let i = 1; i <= steps; i++) {
+    await delay(150);
+    const percent = (i / steps) * 100;
+    sendUpdaterEvent({
+      type: "download-progress",
+      percent: Math.round(percent * 10) / 10,
+      transferred: Math.round((totalBytes * i) / steps),
+      total: totalBytes,
+      bytesPerSecond: 4_200_000,
+    });
+  }
+  isUpdateDownloading = false;
+  hasDownloadedUpdate = true;
+  sendUpdaterEvent({ type: "downloaded", info: MOCK_UPDATE_INFO });
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function downloadAvailableUpdate() {
+  if (isDev && UPDATER_MOCK) {
+    if (isUpdateDownloading || hasDownloadedUpdate) return;
+    if (lastUpdaterEvent?.type !== "available") {
+      const message = "No update is ready to download.";
+      sendUpdaterEvent({ type: "error", manual: true, message });
+      throw new Error(message);
+    }
+    await mockDownloadUpdate();
+    return;
+  }
+
   if (!isUpdaterEnabled()) {
     throw new Error("Updates are available only in packaged builds.");
   }
@@ -273,6 +338,19 @@ async function downloadAvailableUpdate() {
 }
 
 async function installDownloadedUpdate() {
+  if (isDev && UPDATER_MOCK) {
+    if (!hasDownloadedUpdate) {
+      throw new Error("No downloaded update is ready to install.");
+    }
+    // In dev mode, just log and restart the app
+    console.log("[mock] installDownloadedUpdate: simulating restart");
+    isInstallingUpdate = true;
+    await closeBackend().catch(() => {});
+    app.relaunch();
+    app.exit(0);
+    return;
+  }
+
   if (!hasDownloadedUpdate) {
     throw new Error("No downloaded update is ready to install.");
   }
