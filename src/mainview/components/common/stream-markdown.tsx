@@ -33,7 +33,7 @@ function buildRehypePlugins(transformImageSrc?: (src: string) => string): Plugga
   const protocols = sanitizeSchema.protocols as Record<string, string[]>;
   const extendedSchema = {
     ...sanitizeSchema,
-    protocols: { ...protocols, src: [...(protocols.src || []), "web"] },
+    protocols: { ...protocols, src: [...(protocols.src || []), "web", "fello"] },
   };
   const rehypeNormalizeRelativeLinks = () => (tree: any) => {
     const walk = (node: any) => {
