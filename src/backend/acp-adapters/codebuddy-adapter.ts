@@ -39,11 +39,13 @@ export class CodebuddyAdapter extends AcpAdapter {
   private stateMap = new Map<string, TeamState>();
 
   /**
-   * CodeBuddy spawn env. CODEBUDDY_DEFER_TOOL_LOADING=0
-   * disable defer tool loading.
+   * CodeBuddy spawn env.
    */
   override getAgentEnv(): Record<string, string> {
-    return { CODEBUDDY_DEFER_TOOL_LOADING: "0" };
+    return {
+      CODEBUDDY_DEFER_TOOL_LOADING: "0",
+      CODEBUDDY_DISABLE_AUTO_MEMORY: "1",
+    };
   }
 
   /**
