@@ -248,6 +248,13 @@ export function createBridgeConnectModule(
         }
         sendEvent("agent-terminal-output", { sessionId, terminalId, data });
       },
+      // On prompt completion, hand the full PromptResponse to each adapter so
+      // it can freeze its own turn-boundary (CodeBuddy extracts its protocol
+      // timestamp; other adapters are no-ops).
+      onPromptCompleted: (sessionId, res) => {
+        const key = `${agentId}:${sessionId}`;
+        for (const a of adapters) a.handlePromptCompleted(key, res);
+      },
     });
 
     let newConnectPromise!: Promise<ACPBridge>;

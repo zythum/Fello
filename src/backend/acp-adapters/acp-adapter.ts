@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification, PromptResponse } from "@agentclientprotocol/sdk";
 import type { ExtNotificationSpec } from "../agent/agent-bridge";
 
 /**
@@ -72,6 +72,17 @@ export abstract class AcpAdapter {
   getAgentEnv(): Record<string, string> {
     return {};
   }
+
+  /**
+   * Called by the bridge when a prompt round completes, with the full
+   * PromptResponse in hand. Adapters that do turn-boundary / replay detection
+   * override this to extract the agent's own protocol-clock timestamp and
+   * freeze the boundary. Default no-op — only protocol-specific adapters
+   * (e.g. CodeBuddy, which stamps PromptResponse._meta with
+   * codebuddy.ai/requestId + timestamp) need it; generic adapters have no
+   * protocol timestamp to work from.
+   */
+  handlePromptCompleted(_sessionId: string, _res: PromptResponse): void {}
 
   // ── State lifecycle (default no-ops) ───────────────────────────────
 

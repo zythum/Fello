@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification, PromptResponse } from "@agentclientprotocol/sdk";
 import type { AddonSessionUpdate, SubagentStatus } from "../../shared/schema";
 import { AcpAdapter } from "./acp-adapter";
 
@@ -39,6 +39,15 @@ export class CodebuddyAdapter extends AcpAdapter {
   private stateMap = new Map<string, TeamState>();
 
   /**
+   * Per-session turn-boundary timestamp (epoch ms, from the agent's own
+   * protocol clock). Frozen when a prompt completes (via handlePromptCompleted),
+   * so content chunks emitted afterwards with an earlier protocol timestamp
+   * are previous-turn replays. Only CodeBuddy stamps PromptResponse._meta
+   * with a protocol timestamp, so this stays here rather than in the base.
+   */
+  private turnBoundaryTs = new Map<string, number>();
+
+  /**
    * CodeBuddy spawn env.
    */
   override getAgentEnv(): Record<string, string> {
@@ -49,23 +58,30 @@ export class CodebuddyAdapter extends AcpAdapter {
   }
 
   /**
-   * Per-session max _meta.timestamp for content chunks
-   * (agent_message_chunk / agent_thought_chunk). Used to detect
-   * replayed chunks whose timestamp is earlier than the max seen
-   * for the same session. Only content chunks with
-   * codebuddy.ai/requestId participate — other notification types
-   * (tool_call, session_info_update, etc.) are not tracked.
+   * Freeze the turn-boundary on prompt completion. Only CodeBuddy stamps the
+   * PromptResponse._meta with codebuddy.ai/requestId + a protocol timestamp,
+   * so this stays here rather than in the generic bridge — the agent's own
+   * clock is the boundary used to drop replayed prior-turn chunks (avoids
+   * timezone / clock-skew issues that wall-clock Date.now() would introduce).
    */
-  private sessionUpdateTimestamp = new Map<string, number>();
+  override handlePromptCompleted(sessionId: string, res: PromptResponse): void {
+    const meta = res._meta as Record<string, unknown> | undefined;
+    if (meta && typeof meta["codebuddy.ai/requestId"] === "string") {
+      const ts = Date.parse(typeof meta["timestamp"] === "string" ? meta["timestamp"] : "");
+      if (!isNaN(ts)) this.turnBoundaryTs.set(sessionId, ts);
+    }
+  }
 
   /**
    * One unified hook for all notification processing:
    *
-   * 1. Replay detection — drop agent_message_chunk / agent_thought_chunk
-   *    whose _meta.timestamp is earlier than the max seen for the same
-   *    session. CodeBuddy sometimes re-sends previous responses during
-   *    a new prompt; these replayed chunks carry original (earlier)
-   *    timestamps. Only applies to chunks that carry codebuddy.ai/requestId.
+   * 1. Replay detection — the adapter freezes a turn-boundary timestamp in
+   *    handlePromptCompleted() when a prompt completes (using the agent's own
+   *    protocol clock). Drop agent_message_chunk / agent_thought_chunk whose
+   *    _meta.timestamp is earlier than that boundary: CodeBuddy re-broadcasts
+   *    the previous turn's messages when a new prompt begins, and those
+   *    re-emitted chunks carry the previous turn's (earlier) timestamps. Only
+   *    applies to chunks that carry codebuddy.ai/requestId.
    * 2. memberEvent chunk routing — rewrite notification.sessionId from
    *    parent to member sessionId (CodeBuddy stamps all member chunks
    *    with the parent session).
@@ -86,11 +102,13 @@ export class CodebuddyAdapter extends AcpAdapter {
     const meta = notification.update?._meta as Record<string, unknown> | undefined;
     const sessionUpdate = notification.update?.sessionUpdate;
 
-    // Replay detection: only for CodeBuddy content chunks
-    // (agent_message_chunk / agent_thought_chunk) that carry
-    // codebuddy.ai/requestId and _meta.timestamp. If the chunk's
-    // timestamp is earlier than the max seen for the same session,
-    // it's a replayed chunk — drop it.
+    // Replay detection: CodeBuddy content chunks (agent_message_chunk /
+    // agent_thought_chunk) that carry codebuddy.ai/requestId and a protocol
+    // _meta.timestamp (the agent's own UTC clock). If the chunk's timestamp is
+    // earlier than the frozen turn-boundary for this session — set by the
+    // adapter via handlePromptCompleted() when the previous prompt completed — it's
+    // a replayed prior-turn chunk, drop it. Dropping against the agent's
+    // protocol clock (not wall-clock) avoids timezone / clock-skew issues.
     const requestId = meta?.["codebuddy.ai/requestId"];
     const metaTimestamp = meta?.["timestamp"];
     if (
@@ -100,12 +118,9 @@ export class CodebuddyAdapter extends AcpAdapter {
     ) {
       const ts = Date.parse(metaTimestamp);
       if (!isNaN(ts)) {
-        const maxTs = this.sessionUpdateTimestamp.get(currentSessionId);
-        if (maxTs !== undefined && ts < maxTs) {
+        const boundary = this.turnBoundaryTs.get(currentSessionId);
+        if (boundary !== undefined && ts < boundary) {
           return null;
-        }
-        if (maxTs === undefined || ts > maxTs) {
-          this.sessionUpdateTimestamp.set(currentSessionId, ts);
         }
       }
     }
@@ -265,15 +280,20 @@ export class CodebuddyAdapter extends AcpAdapter {
       this.stateMap.delete(oldKey);
       this.stateMap.set(newKey, state);
     }
+    const boundary = this.turnBoundaryTs.get(oldKey);
+    if (boundary !== undefined) {
+      this.turnBoundaryTs.delete(oldKey);
+      this.turnBoundaryTs.set(newKey, boundary);
+    }
   }
 
   override cleanup(sessionKey: string): void {
     this.stateMap.delete(sessionKey);
-    this.sessionUpdateTimestamp.delete(sessionKey);
+    this.turnBoundaryTs.delete(sessionKey);
   }
 
   override clearAll(): void {
     this.stateMap.clear();
-    this.sessionUpdateTimestamp.clear();
+    this.turnBoundaryTs.clear();
   }
 }

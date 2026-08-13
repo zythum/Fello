@@ -57,6 +57,13 @@ export type AgentTerminalOutputCallback = (
   terminalId: string,
   data: string,
 ) => void;
+/**
+ * Fired when a prompt round completes, with the full PromptResponse. The
+ * bridge just forwards the response as-is; timestamp extraction is
+ * protocol-specific and lives in the adapter (handlePromptCompleted), so the
+ * callback passes the response whole rather than a pre-parsed timestamp.
+ */
+export type PromptCompletedCallback = (sessionId: string, res: PromptResponse) => void;
 
 /**
  * Declares an agent-specific ext notification for ACPBridge to register on
@@ -76,6 +83,10 @@ export interface ACPBridgeOptions {
   onExtNotification: SessionExtNotificationCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
+  /** Fired when a prompt round completes, with the agent's protocol-clock
+   * timestamp (PromptResponse._meta.timestamp, epoch ms). Adapters use it as
+   * a turn-boundary for replay detection. Optional. */
+  onPromptCompleted?: PromptCompletedCallback;
   /** Ext notification specs to register on the ACP client. Declared by
    * adapters (acp-adapters/adapters.ts) — keeps method names co-located
    * with the handler logic, out of this file. */
@@ -648,7 +659,12 @@ export class ACPBridge {
 
   async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
     if (!this.connection) throw new Error("Not connected");
-    return this.connection.agent.request(methods.agent.session.prompt, params);
+    const res = await this.connection.agent.request(methods.agent.session.prompt, params);
+    // Forward the completed PromptResponse to adapters so they can freeze
+    // their turn-boundary from the agent's own protocol clock. The bridge
+    // does no timestamp parsing — that's protocol-specific adapter logic.
+    this.options.onPromptCompleted?.(params.sessionId, res);
+    return res;
   }
 
   async cancel(params: CancelNotification): Promise<void> {
