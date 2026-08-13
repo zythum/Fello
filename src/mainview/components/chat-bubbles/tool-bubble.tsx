@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Check,
   X,
@@ -36,6 +37,7 @@ import {
   EllipsisVertical,
   SquareChartGantt,
   Square,
+  ListCheck,
 } from "lucide-react";
 import {
   Item,
@@ -53,7 +55,7 @@ import { ContentBlocks } from "../content-blocks/content-blocks";
 import { CodeView } from "../common/code-view";
 import { CodeCompareView } from "../common/code-compare-view";
 import type { ToolCallMessage } from "../../lib/chat-message";
-import type { ToolCallStatus } from "@agentclientprotocol/sdk";
+import type { ToolCallContent, ToolCallStatus } from "@agentclientprotocol/sdk";
 import type { SessionInfo } from "../../../shared/schema";
 import type { BaseBubbleProps } from "./base-bubble";
 import {
@@ -133,6 +135,62 @@ export function parseFelloTools(
   return null;
 }
 
+/**
+ * Render a single tool call content item (content block or diff).
+ * Shared by the stacked layout and the tabbed layout.
+ */
+function renderContentItem(content: ToolCallContent, index: number, cwd: string): React.ReactNode {
+  if (content.type === "content") {
+    return (
+      <div key={index} className="px-2 text-foreground/80">
+        {content.content.type === "text" ? (
+          <ScrollArea className="-mx-2" viewportClassName="max-h-[70vh]">
+            <pre className="m-0 p-2 text-[11px]">
+              <code>
+                {
+                  // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
+                  content.content.text
+                    // eslint-disable-next-line no-control-regex
+                    .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
+                    .replace(/\[[0-9;]*[0-9]m/g, "")
+                }
+              </code>
+            </pre>
+          </ScrollArea>
+        ) : (
+          <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
+        )}
+      </div>
+    );
+  }
+  if (content.type === "diff") {
+    return (
+      <div key={index} className="border-b border-border last:border-b-0 flex flex-col">
+        <div className="px-2 py-2 bg-muted/50 border-b border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
+          <FileTypeIcon name={content.path.split("/").pop() ?? content.path} className="size-3.5" />
+          <span>
+            {content.path.startsWith(cwd) ? content.path.slice(cwd.length + 1) : content.path}
+          </span>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden w-full">
+          <ScrollArea className="w-full" viewportClassName="max-h-[70vh]">
+            {content.oldText == null || content.oldText === content.newText ? (
+              <CodeView content={content.newText} filename={content.path.split("/").pop()} />
+            ) : (
+              <CodeCompareView
+                oldContent={content.oldText}
+                newContent={content.newText}
+                filename={content.path.split("/").pop()}
+              />
+            )}
+          </ScrollArea>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function ToolItem({ session, message }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
@@ -144,6 +202,18 @@ export function ToolItem({ session, message }: ToolItemProps) {
 
   const isRunningShell =
     message.kind === "execute" && message.status === "in_progress" && message.terminalId != null;
+
+  // Always use a tabbed layout whenever there is at least one panel
+  // (content items + terminal) — one tab per content item + terminal.
+  const contentItems = (message.content ?? []).filter(
+    (c) => c.type === "content" || c.type === "diff",
+  );
+
+  const defaultTab = isRunningShell
+    ? "terminal"
+    : contentItems.length > 0
+      ? "content-0"
+      : "terminal";
 
   const handleStop = useCallback(async () => {
     if (!message.terminalId || stopping) return;
@@ -242,7 +312,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
             type="button"
             variant="destructive"
             size="xs"
-            className="shrink-0 rounded-full px-2 disabled:opacity-100"
+            className="shrink-0 rounded-full px-1.5 -my-2 h-5 disabled:opacity-100"
             title={t("toolBubble.stop")}
             disabled={stopping}
             onClick={(e) => {
@@ -278,67 +348,45 @@ export function ToolItem({ session, message }: ToolItemProps) {
             </pre>
           </ScrollArea>
         )}
-        {message.content &&
-          message.content.map((content, index) => {
-            if (content.type === "content") {
-              return (
-                <div key={index} className="px-2 text-foreground/80">
-                  {content.content.type === "text" ? (
-                    <ScrollArea className="-mx-2" viewportClassName="max-h-[70vh]">
-                      <pre className="m-0 p-2 text-[11px]">
-                        <code>
-                          {
-                            // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
-                            content.content.text
-                              // eslint-disable-next-line no-control-regex
-                              .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
-                              .replace(/\[[0-9;]*[0-9]m/g, "")
-                          }
-                        </code>
-                      </pre>
-                    </ScrollArea>
-                  ) : (
-                    <ContentBlocks blocks={[content.content]} role="tool_call"></ContentBlocks>
-                  )}
-                </div>
-              );
-            } else if (content.type === "diff") {
-              return (
-                <div key={index} className="border-b border-border last:border-b-0 flex flex-col">
-                  <div className="px-2 py-2 bg-muted/50 border-b border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
-                    <FileTypeIcon
-                      name={content.path.split("/").pop() ?? content.path}
-                      className="size-3.5"
-                    />
-                    <span>
-                      {content.path.startsWith(session.cwd)
-                        ? content.path.slice(session.cwd.length + 1)
-                        : content.path}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-h-0 overflow-hidden w-full">
-                    <ScrollArea className="w-full" viewportClassName="max-h-[70vh]">
-                      {content.oldText == null || content.oldText === content.newText ? (
-                        <CodeView
-                          content={content.newText}
-                          filename={content.path.split("/").pop()}
-                        />
-                      ) : (
-                        <CodeCompareView
-                          oldContent={content.oldText}
-                          newContent={content.newText}
-                          filename={content.path.split("/").pop()}
-                        />
-                      )}
-                    </ScrollArea>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })}
-        {message.terminalId && (
-          <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId} />
+        {(contentItems.length > 0 || message.terminalId) && (
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList
+              variant="line"
+              className="w-full h-8 justify-start rounded-none border-b border-border"
+            >
+              {contentItems.map((content, index) => (
+                <TabsTrigger
+                  key={index}
+                  value={`content-${index}`}
+                  className="h-full flex-none text-xs font-normal opacity-70"
+                >
+                  <ListCheck className="size-3.5 -ml-1" />
+                  {content.type === "diff"
+                    ? `${content.path.split("/").pop()}`
+                    : t("toolBubble.result")}
+                </TabsTrigger>
+              ))}
+              {message.terminalId && (
+                <TabsTrigger
+                  value="terminal"
+                  className="h-full flex-none px-2 text-xs font-normal opacity-70"
+                >
+                  <Terminal className="size-3.5 -ml-1" />
+                  {t("toolBubble.terminal")}
+                </TabsTrigger>
+              )}
+            </TabsList>
+            {contentItems.map((content, index) => (
+              <TabsContent key={index} value={`content-${index}`}>
+                {renderContentItem(content, index, session.cwd)}
+              </TabsContent>
+            ))}
+            {message.terminalId && (
+              <TabsContent value="terminal">
+                <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId!} />
+              </TabsContent>
+            )}
+          </Tabs>
         )}
       </CollapsibleContent>
     </Collapsible>

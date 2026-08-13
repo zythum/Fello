@@ -503,7 +503,9 @@
   "toolBubble": {
     "tool": "工具",
     "stop": "停止",
-    "stopping": "停止中…"
+    "stopping": "停止中…",
+    "result": "结果",
+    "terminal": "终端"
   },
   "imageView": {
     "fallbackAlt": "图片"

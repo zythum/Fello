@@ -503,7 +503,9 @@
   "toolBubble": {
     "tool": "Tool",
     "stop": "Stop",
-    "stopping": "Stopping…"
+    "stopping": "Stopping…",
+    "result": "Result",
+    "terminal": "Terminal"
   },
   "imageView": {
     "fallbackAlt": "Image"
