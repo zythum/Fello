@@ -397,11 +397,22 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    const absPaths: string[] = [];
 
     for (const file of files) {
       const isImage = file.type.startsWith("image/");
-      const type: "image" | "file" = isImage && supportsImage ? "image" : "file";
-      await addFileAsAttachment(file, type, updateSessionState);
+      if (isImage && supportsImage) {
+        // 仅图片可作为内嵌附件
+        await addFileAsAttachment(file, "image", updateSessionState);
+      } else if (!isWebUI) {
+        // 非图片文件：通过 source（绝对路径 mention）插入文本，而非作为附件
+        const p = electron.getPathForFile(file);
+        if (p) absPaths.push(p);
+      }
+    }
+
+    if (absPaths.length > 0) {
+      await insertPathMentions(absPaths);
     }
 
     // Reset input
@@ -668,32 +679,24 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
         for (const file of Array.from(e.dataTransfer.files)) {
           const isImage = file.type.startsWith("image/");
-          const canEmbed = isImage && supportsImage;
-          const canReadText = supportsEmbedded;
 
-          if (canEmbed || canReadText) {
+          if (isImage && supportsImage) {
+            // 仅图片可作为内嵌附件
             hasInlineAttachments = true;
             // Read inline and store immediately (folders will fail silently)
             (async () => {
               try {
-                const type: "image" | "file" = isImage ? "image" : "file";
-                await addFileAsAttachment(file, type, updateSessionState);
+                await addFileAsAttachment(file, "image", updateSessionState);
               } catch {
                 // Can't read inline (e.g. folder) → try electron path API as fallback
                 if (!isWebUI) {
                   const p = electron.getPathForFile(file);
-                  if (p) {
-                    const mention = await absPathToMention(p, session.projectId, session.cwd);
-                    const textarea = getTextarea();
-                    if (textarea) {
-                      textarea.focus();
-                      insertMentionsAtCursor(textarea, [mention]);
-                    }
-                  }
+                  if (p) absPaths.push(p);
                 }
               }
             })();
           } else if (!isWebUI) {
+            // 非图片文件：通过 source（绝对路径 mention）插入文本，而非作为附件
             const p = electron.getPathForFile(file);
             if (p) absPaths.push(p);
           }
@@ -741,11 +744,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     },
     [
       supportsImage,
-      supportsEmbedded,
-      session.projectId,
-      session.cwd,
       updateSessionState,
-      getTextarea,
       insertPathMentions,
       appendMentionsToInput,
     ],
@@ -839,16 +838,20 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
         for (const file of Array.from(files)) {
           const isImage = file.type.startsWith("image/");
-          const canEmbed = isImage && supportsImage;
-          const canReadText = supportsEmbedded;
 
-          if (canEmbed || canReadText) {
-            // Read inline and store immediately
+          if (isImage && supportsImage) {
+            // 仅图片可作为内嵌附件
             (async () => {
-              const type: "image" | "file" = isImage ? "image" : "file";
-              await addFileAsAttachment(file, type, updateSessionState);
+              try {
+                await addFileAsAttachment(file, "image", updateSessionState);
+              } catch {
+                // Can't read inline (e.g. folder) → try electron path API as fallback
+                const p = electron.getPathForFile(file);
+                if (p) paths.push(p);
+              }
             })();
-          } else if (!isWebUI) {
+          } else {
+            // 非图片文件：通过 source（绝对路径 mention）插入文本，而非作为附件
             const p = electron.getPathForFile(file);
             if (p) paths.push(p);
           }
@@ -866,7 +869,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       // 纯文本：直接放行浏览器默认粘贴，不做疑似路径识别
     },
-    [session, supportsImage, supportsEmbedded, updateSessionState, insertPathMentions],
+    [session, supportsImage, updateSessionState, insertPathMentions],
   );
 
   return (
@@ -1107,25 +1110,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 </DropdownMenu>
               )}
               <div className="flex items-center">
-                {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ||
-                initializeInfo?.agentCapabilities?.promptCapabilities?.image ? (
+                {supportsImage || supportsEmbedded ? (
                   <>
                     <input
                       type="file"
                       multiple
+                      accept="*/*"
                       ref={fileInputRef}
                       className="hidden"
                       onChange={handleFileSelect}
-                      accept={[
-                        initializeInfo?.agentCapabilities?.promptCapabilities?.image
-                          ? "image/*"
-                          : "",
-                        initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext
-                          ? "*/*"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(",")}
                     />
                     <Button
                       variant="ghost"
@@ -1135,7 +1128,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       aria-label={t("chatInput.attach", "Attach file")}
                       disabled={disabled}
                     >
-                      {initializeInfo?.agentCapabilities?.promptCapabilities?.embeddedContext ? (
+                      {supportsEmbedded ? (
                         <Paperclip className="size-3.5" />
                       ) : (
                         <ImageIcon className="size-3.5" />
