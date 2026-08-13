@@ -1076,7 +1076,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
-                    <Eclipse className="size-3" />
+                    <Eclipse className="size-3.5" />
                     <span className="truncate">
                       {availableModes.find((m) => m.id === currentModeId)?.name ??
                         t("chatInput.mode", "Mode")}
@@ -1191,7 +1191,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       />
                     }
                   >
-                    <Astroid className="size-3" />
+                    <Astroid className="size-3.5" />
                     <span className="truncate">
                       {availableModels.find((m) => m.modelId === currentModelId)?.name ??
                         t("chatInput.selectModel", "Select model")}
@@ -1287,11 +1287,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-32 shrink overflow-hidden"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
                       />
                     }
                   >
-                    <Gauge className="size-3" />
+                    <Gauge className="size-3.5" />
                     <span className="truncate">
                       {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ??
                         "Thought"}
