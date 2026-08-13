@@ -25,8 +25,8 @@ export const ThinkingBubble = memo(function ThinkingBubble({
       open={open}
       onOpenChange={setOpen}
     >
-      <CollapsibleTrigger className="w-full bg-transparent border-0 flex select-none items-center gap-2 px-0 py-1 text-[11px] text-muted-foreground/90 hover:text-muted-foreground pointer-events-auto">
-        <Lightbulb className={`size-3.5 ${isStreaming ? "animate-pulse" : ""}`} />
+      <CollapsibleTrigger className="w-full bg-transparent border-0 flex select-none items-center gap-1 px-0 py-1 text-[11px] text-muted-foreground/90 hover:text-muted-foreground pointer-events-auto">
+        <Lightbulb className={`size-3.5 -ml-px ${isStreaming ? "animate-pulse" : ""}`} />
         <span>
           {isStreaming
             ? t("thinkingBubble.thinking", "Thinking...")
