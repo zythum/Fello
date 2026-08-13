@@ -34,6 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import { Separator } from "@/components/ui/separator";
 import { useMessage } from "../providers/message";
 import { extractErrorMessage } from "@/lib/utils";
 import {
@@ -717,36 +718,90 @@ export function Sidebar() {
                           align="start"
                           sideOffset={14}
                           alignOffset={0}
-                          className="w-68 p-3 text-xs"
+                          className="max-w-86 min-w-48 w-auto p-3"
                         >
                           <div className="flex flex-col gap-2">
-                            <div className="text-[13px] font-medium leading-relaxed">
+                            <div className="text-sm font-medium leading-relaxed">
                               <span>
                                 {session.title || t("sidebar.newChat", "New Chat")}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <Bot className="size-3 shrink-0" />
-                              <span className="truncate text-xs">{session.agentId}</span>
+                              <span className="truncate">{session.agentId}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <Folder className="size-3 shrink-0" />
-                              <span className="truncate text-xs">{project.title}</span>
+                              {isWebUI ? (
+                                <span className="truncate">{project.title}</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleRevealProjectInFinder(project)}
+                                  title={project.cwd}
+                                  className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                                >
+                                  {project.title}
+                                </button>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <Clock className="size-3 shrink-0" />
-                              <span className="truncate text-xs">
+                              <span className="truncate">
                                 <span className="mr-1">{t("sidebar.updated", "Updated")}:</span>
                                 <span>{formatRelativeTime(session.updatedAt, i18n.language)}</span>
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <CalendarDays className="size-3 shrink-0" />
-                              <span className="truncate text-xs">
+                              <span className="truncate">
                                 <span className="mr-1">{t("sidebar.created", "Created")}:</span>
                                 <span>{formatRelativeTime(session.createdAt, i18n.language)}</span>
                               </span>
                             </div>
+                          </div>
+                          <Separator className="my-2.5" />
+                          <div className="flex flex-col -mx-2 -my-1">
+                            <button
+                              type="button"
+                              onClick={() => handleRenameSession(session)}
+                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Pencil className="size-3 shrink-0" />
+                              {t("sidebar.rename")}
+                            </button>
+                            {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  request.setActiveIlinkSession({ sessionId: session.id }).catch(() => {});
+                                }}
+                                className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                              >
+                                <MessageCircle className="size-3 shrink-0" />
+                                {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                              </button>
+                            )}
+                            {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
+                                }}
+                                className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                              >
+                                <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteSession(session)}
+                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                            >
+                              <Trash2 className="size-3 shrink-0" />
+                              {t("sidebar.delete")}
+                            </button>
                           </div>
                         </HoverCardContent>
                       </HoverCard>
