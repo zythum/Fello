@@ -716,8 +716,8 @@ export function Sidebar() {
                         <HoverCardContent
                           side="right"
                           align="start"
-                          sideOffset={14}
-                          alignOffset={0}
+                          sideOffset={12}
+                          alignOffset={1}
                           className="max-w-86 min-w-48 w-auto p-3"
                         >
                           <div className="flex flex-col gap-2">
