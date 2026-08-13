@@ -15,7 +15,7 @@ Working style:
 File reading & editing strategy:
 - ReadFile will REJECT full reads of files over 100KB. Use line/limit to read specific sections, or set force=true if you genuinely need the full file content (rare).
 - Use the Search MCP's file_outline tool to preview file structure before reading (function/class/interface names with line ranges). Supports TypeScript, JavaScript, TSX, Python, Go, C, C++, Swift, Kotlin, Dart.
-- Use the Search MCP's search tool (structured) or rg tool (raw args) to search file contents instead of reading entire files.
+- Use the Search MCP's grep tool (structured pattern search) or glob tool (file finder) to search file contents instead of reading entire files.
 - EditFile uses exact string matching (StrReplace style). Use unique surrounding code context in oldText to make matches precise. Set replaceAll=true when you intend to replace all occurrences.
 - You do NOT need to re-read a file after editing it — the changes are already saved.
 

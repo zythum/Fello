@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const searchRequestSchema = z.object({
+export const grepRequestSchema = z.object({
   pattern: z
     .string()
     .describe("Search pattern (literal text by default, set regex=true for regex)."),
@@ -33,32 +33,14 @@ export const searchRequestSchema = z.object({
   wordMatch: z.boolean().optional().describe("Only match whole words (-w)."),
 });
 
-export type SearchRequest = z.infer<typeof searchRequestSchema>;
+export type GrepRequest = z.infer<typeof grepRequestSchema>;
 
-export const searchRespondSchema = z.object({
+export const grepRespondSchema = z.object({
   output: z.string(),
   code: z.number(),
 });
 
-export type SearchRespond = z.infer<typeof searchRespondSchema>;
-
-export const rgRequestSchema = z.object({
-  args: z
-    .array(z.string())
-    .describe(
-      "Raw ripgrep CLI arguments (e.g. ['-i', 'pattern', 'src/']). The pattern and path are included in this array.",
-    ),
-});
-
-export type RgRequest = z.infer<typeof rgRequestSchema>;
-
-export const rgRespondSchema = z.object({
-  output: z.string(),
-  code: z.number(),
-  stderr: z.string().optional(),
-});
-
-export type RgRespond = z.infer<typeof rgRespondSchema>;
+export type GrepRespond = z.infer<typeof grepRespondSchema>;
 
 export const fileOutlineRequestSchema = z.object({
   path: z
@@ -75,3 +57,31 @@ export const fileOutlineRespondSchema = z.object({
 });
 
 export type FileOutlineRespond = z.infer<typeof fileOutlineRespondSchema>;
+
+// ── Glob ──────────────────────────────────────────────────────────────
+
+export const globRequestSchema = z.object({
+  pattern: z.string().describe("Glob pattern, e.g. '**/*.rs', 'src/**/*.{ts,tsx}'."),
+  path: z.string().optional().describe("Root directory to search from. Defaults to project root."),
+  limit: z.number().int().positive().optional().describe("Maximum number of results to return."),
+  maxDepth: z.number().int().positive().optional().describe("Maximum directory depth to traverse."),
+  dot: z
+    .boolean()
+    .optional()
+    .describe("Include dotfiles (hidden files/directories). Default: false."),
+  onlyFiles: z
+    .boolean()
+    .optional()
+    .describe("Only match files, not directories. Default: false (includes directories)."),
+  gitignore: z.boolean().optional().describe("Respect .gitignore patterns. Default: true."),
+});
+
+export type GlobRequest = z.infer<typeof globRequestSchema>;
+
+export const globRespondSchema = z.object({
+  filePaths: z.array(z.string()),
+  totalFiles: z.number(),
+  truncated: z.boolean(),
+});
+
+export type GlobRespond = z.infer<typeof globRespondSchema>;

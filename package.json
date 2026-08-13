@@ -1,6 +1,6 @@
 {
   "name": "fello",
-  "version": "0.1.48",
+  "version": "0.1.49",
   "description": "Yet another Agent client based on the ACP protocol",
   "author": {
     "name": "Zythum",
@@ -107,6 +107,7 @@
     "es-toolkit": "^1.50.0",
     "fix-path": "^5.0.0",
     "fuse.js": "^7.5.0",
+    "globby": "^16.2.3",
     "i18next": "^26.3.6",
     "launch-editor": "^2.14.1",
     "mime-types": "^3.0.2",

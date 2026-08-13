@@ -1,20 +1,22 @@
 import { join } from "path";
 import type { SocketServer } from "../socket-server";
 import {
-  searchRequestSchema,
-  searchRespondSchema,
-  rgRequestSchema,
-  rgRespondSchema,
+  grepRequestSchema,
+  grepRespondSchema,
   fileOutlineRequestSchema,
   fileOutlineRespondSchema,
+  globRequestSchema,
+  globRespondSchema,
 } from "../../shared/zod/mcp-search-schema";
 import { fileOutline } from "./file-outline";
-import { search, rg } from "./ripgrep";
+import { grep } from "./ripgrep";
+import { glob } from "./glob";
 import type { BackendContext } from "../types";
 
-export type { SearchOptions, RgOptions } from "./ripgrep";
+export type { GrepOptions } from "./ripgrep";
+export type { GlobOptions } from "./glob";
 export type { FileOutlineOptions } from "./file-outline";
-export { search, rg, fileOutline };
+export { grep, glob, fileOutline };
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -37,22 +39,22 @@ export function createSearchModule(_ctx: BackendContext): SearchModule {
 // ── Implementation ───────────────────────────────────────────────────
 
 function registerSearchRoute(server: SocketServer, projectDir: string) {
-  server.registry("search/search", async (payload: unknown) => {
-    const params = searchRequestSchema.parse(payload);
-    const result = await search({ projectDir, ...params });
-    return searchRespondSchema.parse(result);
-  });
-
-  server.registry("search/rg", async (payload: unknown) => {
-    const params = rgRequestSchema.parse(payload);
-    const result = await rg({ projectDir, ...params });
-    return rgRespondSchema.parse(result);
+  server.registry("search/grep", async (payload: unknown) => {
+    const params = grepRequestSchema.parse(payload);
+    const result = await grep({ projectDir, ...params });
+    return grepRespondSchema.parse(result);
   });
 
   server.registry("search/file_outline", async (payload: unknown) => {
     const params = fileOutlineRequestSchema.parse(payload);
     const result = await fileOutline({ projectDir, ...params });
     return fileOutlineRespondSchema.parse(result);
+  });
+
+  server.registry("search/glob", async (payload: unknown) => {
+    const params = globRequestSchema.parse(payload);
+    const result = await glob({ projectDir, ...params });
+    return globRespondSchema.parse(result);
   });
 }
 

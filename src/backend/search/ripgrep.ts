@@ -51,7 +51,7 @@ function normalizePath(inputPath: string, cwd?: string): string {
 
 // ── Search Handler ───────────────────────────────────────────────────
 
-export interface SearchOptions {
+export interface GrepOptions {
   projectDir: string;
   pattern: string;
   path: string;
@@ -67,7 +67,7 @@ export interface SearchOptions {
   timeout?: number;
 }
 
-export async function search(options: SearchOptions): Promise<{ output: string; code: number }> {
+export async function grep(options: GrepOptions): Promise<{ output: string; code: number }> {
   const args: string[] = [];
   args.push("--heading");
   args.push("--line-number");
@@ -91,28 +91,4 @@ export async function search(options: SearchOptions): Promise<{ output: string; 
   }
   const { code, stdout } = await ripgrepInChild(args, options.projectDir, options.timeout);
   return { output: stdout || "", code };
-}
-
-// ── Rg Handler ───────────────────────────────────────────────────────
-
-export interface RgOptions {
-  projectDir: string;
-  args: string[];
-  timeout?: number;
-}
-
-export async function rg(
-  options: RgOptions,
-): Promise<{ output: string; code: number; stderr?: string }> {
-  const { code, stdout, stderr } = await ripgrepInChild(
-    options.args,
-    options.projectDir,
-    options.timeout,
-  );
-
-  return {
-    output: stdout || "",
-    code,
-    stderr: stderr || undefined,
-  };
 }

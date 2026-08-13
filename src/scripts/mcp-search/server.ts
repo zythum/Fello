@@ -1,12 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  searchRequestSchema,
-  searchRespondSchema,
-  rgRequestSchema,
-  rgRespondSchema,
+  grepRequestSchema,
+  grepRespondSchema,
   fileOutlineRequestSchema,
   fileOutlineRespondSchema,
+  globRequestSchema,
+  globRespondSchema,
 } from "../../shared/zod/mcp-search-schema";
 import * as http from "http";
 
@@ -36,33 +36,25 @@ const server = new McpServer({
   name: "Search",
   version: "1.0.0",
   description:
-    "Search file contents and inspect file structure. Provides search (common patterns), rg (raw ripgrep args), and file_outline (AST-based file structure preview).",
+    "Search file contents and inspect file structure. Provides grep (pattern search), glob (file finder), and file_outline (AST-based file structure preview).",
 });
 
 server.registerTool(
-  "search",
+  "grep",
   {
     description: `Search file contents for common patterns using ripgrep.
 Fast, respects .gitignore, skips hidden/binary files by default.
 Pattern is treated as literal text by default. Set regex=true if you need regex.
-For advanced rg flags not covered here (multiline, PCRE2, --sort, --json, --stats, etc.), use the rg tool instead.
-
-Common examples:
-  search("TODO", ".")
-  search("function", "src/", { type: "ts" })
-  search("console.log", "src/", { ignoreCase: true, context: 2 })
-  search("import", ".", { glob: "*.tsx", maxResults: 20 })
-  search("useEffect", "src/", { listFiles: true })
 
 The path parameter accepts:
 - Relative path (relative to project root): "src/", "./lib"
 - Absolute path (POSIX or Windows): "/Users/me/project/src", "C:\\project\\src"
 - file:// URI: "file:///Users/me/project/src"`,
-    inputSchema: searchRequestSchema,
+    inputSchema: grepRequestSchema,
   },
   async (input) => {
     try {
-      const result = searchRespondSchema.parse(await postToSocket("/search/search", input));
+      const result = grepRespondSchema.parse(await postToSocket("/search/grep", input));
       return {
         content: [
           {
@@ -86,37 +78,43 @@ The path parameter accepts:
 );
 
 server.registerTool(
-  "rg",
+  "glob",
   {
-    description: `Run raw ripgrep (rg) with full CLI argument support.
-Use this when you need rg flags not covered by the search tool (multiline, PCRE2, --sort, --json, --stats, --no-ignore, --type-add, etc.).
+    description: `Find files and directories whose paths match a glob pattern. Respects .gitignore.
 
-Full reference: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md
+WHEN TO USE:
+- Finding files by name pattern (e.g., "*.rs", "**/*.tsx")
+- Discovering project structure
+- Listing files in specific directories
 
-Common examples:
-  rg(["--multiline", "class\\n.*\\n\\{", "src/"])
-  rg(["-P", "pattern", "src/"])
-  rg(["--json", "pattern", "src/"])
-  rg(["--stats", "-l", "pattern", "src/"])
-  rg(["--type-add", "web:*.{html,css,js}", "-t", "web", "pattern"])
-  rg(["-u", "pattern", "src/"])
+HOW TO USE:
+- Provide a glob pattern to match files
+- Optionally specify a path to narrow the search directory
+- Optionally specify a limit on results and max depth
 
-Paths in args are automatically normalized:
-- Relative paths resolve against the project root
-- Absolute paths and file:// URIs are used as-is`,
-    inputSchema: rgRequestSchema,
+PATTERNS:
+- "*.rs" - All .rs files in current directory
+- "**/*.rs" - All .rs files recursively
+- "src/**/*.{ts,tsx}" - All TypeScript files under src/
+- "**/test/**" - All files under any test/ directory
+- "**/*.test.{js,ts}" - All test files
+- "**/index.ts" - All index.ts files at any depth
+- "src/*" - Only direct children of src/ (non-recursive)
+- "**/*.{json,yaml,yml}" - All config-like files
+`,
+    inputSchema: globRequestSchema,
   },
   async (input) => {
     try {
-      const result = rgRespondSchema.parse(await postToSocket("/search/rg", input));
-      const content: string[] = [];
-      if (result.output) content.push(result.output);
-      if (result.stderr) content.push(`[stderr]\n${result.stderr}`);
+      const result = globRespondSchema.parse(await postToSocket("/search/glob", input));
+      const header = result.truncated
+        ? `Found ${result.totalFiles} matches (showing first ${result.filePaths.length}):\n`
+        : "";
       return {
         content: [
           {
             type: "text",
-            text: content.join("\n\n") || `(exit code: ${result.code})`,
+            text: header + result.filePaths.join("\n") || "(no matches)",
           },
         ],
       };
@@ -125,7 +123,7 @@ Paths in args are automatically normalized:
         content: [
           {
             type: "text",
-            text: `rg failed: ${err.message || String(err)}`,
+            text: `glob failed: ${err.message || String(err)}`,
           },
         ],
         isError: true,
