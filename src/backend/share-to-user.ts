@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { join } from "path";
+import { join, relative, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 import { readFile, writeFile } from "fs/promises";
 import { existsSync, mkdirSync } from "fs";
@@ -60,23 +60,34 @@ export function createShareToUserModule(
 
     // ── type='project': zero-copy, reference project file directly ──
     if (type === "project" && uri) {
+      const session = storage.getSession(sessionId);
+      if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+      // Normalize `uri` to a project-relative path. Callers may pass an
+      // absolute path or a file:// URI; the frontend /project/<id>/<path>
+      // route and reveal/preview actions all expect a relative path.
+      let projectPath = uri.startsWith("file://") ? fileURLToPath(uri) : uri;
+      if (isAbsolute(projectPath)) {
+        const rel = relative(session.cwd, projectPath);
+        if (!rel.startsWith("..") && !isAbsolute(rel)) {
+          projectPath = rel;
+        }
+      }
+
       const ilinkBridge = deps.ilink.getBridge();
       const ilinkActiveSessionId = deps.ilink.getActiveSessionId();
       if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
         const toUserId = ilinkBridge.userId;
         if (toUserId) {
-          const session = storage.getSession(sessionId);
-          if (session) {
-            deps.ilink.appendMediaBuffer({
-              filePath: join(session.cwd, uri),
-              name,
-              toUserId,
-              mimeType: resolvedMimeType,
-            });
-          }
+          deps.ilink.appendMediaBuffer({
+            filePath: join(session.cwd, projectPath),
+            name,
+            toUserId,
+            mimeType: resolvedMimeType,
+          });
         }
       }
-      return { name, projectPath: uri, mimeType: resolvedMimeType };
+      return { name, projectPath, mimeType: resolvedMimeType };
     }
 
     // ── type='link' or 'base64': copy to share directory ──
