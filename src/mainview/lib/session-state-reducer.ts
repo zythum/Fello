@@ -163,10 +163,25 @@ function calculateToolCallUpdate(
       message.title = update.title ?? "";
     }
     if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null) {
-      message.status = update.status;
+      // status 单向推进，避免异常快照（如 Edit 在内容之后又下发 status:"pending"）
+      // 把已 completed/failed 的工具调用回退为 pending/in_progress。
+      const next = update.status;
+      const current = message.status;
+      const order = { pending: 0, in_progress: 1, completed: 2, failed: 2 } as const;
+      if (current == null || order[next] >= order[current]) {
+        message.status = next;
+      }
     }
     if (Object.prototype.hasOwnProperty.call(update, "content")) {
-      message.content = update.content ?? [];
+      const newContent = update.content ?? [];
+      // 已展示结构化结果（diff）时，避免被后续仅含状态文本的更新整体覆盖。
+      // 例如 CodeBuddy 的 Edit：diff 在 tool_call(pending) 中下发，
+      // 后续 tool_call_update(completed) 只带 "Successfully edited file" 文本。
+      const hasDiff = message.content?.some((c) => c.type === "diff") ?? false;
+      const nextHasDiff = newContent.some((c) => c.type === "diff");
+      if (!hasDiff || nextHasDiff) {
+        message.content = newContent;
+      }
     }
     if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
       message.kind = update.kind;

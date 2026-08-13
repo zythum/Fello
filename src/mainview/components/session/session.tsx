@@ -135,6 +135,10 @@ export function Session({ session }: { session: SessionInfo }) {
           state = reduceSessionNotification(sessionId, state, notification);
         }
 
+        // 回放历史后收尾：把残留的 in_progress/pending 工具调用统一标记为 completed，
+        // 否则若 trailing completed 未落库（如运行中断），历史回看会永远停在 pending。
+        state = reduceFlushStreaming(state);
+
         state = {
           ...state,
           isLoading: false,
