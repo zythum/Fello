@@ -109,21 +109,50 @@ export function parseFelloTools(
   if (message.content[0].content.type !== "text") return null;
   const text = message.content[0].content.text;
   try {
-    const json = JSON.parse(text);
-    if (json.fello) {
-      if (json.fello["share-to-user"]) {
+    // CodeBuddy wraps the tool result as a JSON array of content blocks, e.g.
+    //   [{"type":"text","text":"{\"ok\":true,\"fello\":{...}}"}]
+    // Unwrap that wrapper so we can inspect the actual fello payload.
+    const parsed = JSON.parse(text);
+    const candidates: unknown[] = [];
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (item && typeof item === "object" && "text" in item) {
+          const inner = (item as { text?: unknown }).text;
+          if (typeof inner === "string") {
+            try {
+              candidates.push(JSON.parse(inner));
+              continue;
+            } catch {
+              // fall through: keep the raw block as a candidate
+            }
+          }
+        }
+        candidates.push(item);
+      }
+    } else {
+      candidates.push(parsed);
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== "object") continue;
+      const fello = (candidate as Record<string, unknown>).fello;
+      if (!fello || typeof fello !== "object") continue;
+      const felloObj = fello as Record<string, unknown>;
+
+      if (felloObj["share-to-user"]) {
         const shareToUserRespondResult = shareToUserRespondSchema.safeParse(
-          json.fello["share-to-user"],
+          felloObj["share-to-user"],
         );
         if (shareToUserRespondResult.success) {
           return { type: "shareToUser", respond: shareToUserRespondResult.data };
         }
       }
-      if (json.fello["image-generation"]) {
-        const raw = json.fello["image-generation"];
+      if (felloObj["image-generation"]) {
+        const raw = felloObj["image-generation"];
         // Normalize: old format (single image with sharePath) → new format (images array)
-        if (raw.sharePath && !raw.images) {
-          raw.images = [{ sharePath: raw.sharePath, name: raw.name, mimeType: raw.mimeType }];
+        if (raw && typeof raw === "object" && !("images" in raw) && "sharePath" in raw) {
+          const r = raw as Record<string, unknown>;
+          r.images = [{ sharePath: r.sharePath, name: r.name, mimeType: r.mimeType }];
         }
         const imageGenRespondResult = imageGenerationRespondSchema.safeParse(raw);
         if (imageGenRespondResult.success) {
