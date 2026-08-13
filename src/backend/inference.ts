@@ -15,7 +15,7 @@
 import { randomUUID } from "crypto";
 import type { ContentBlock, McpServer, SessionNotification } from "@agentclientprotocol/sdk";
 import { ACPBridge } from "./agent/agent-bridge";
-import { adapters, extNotificationSpecs } from "./acp-adapters/adapters";
+import { adapters, extNotificationSpecs, agentEnv } from "./acp-adapters/adapters";
 import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import { startSocketServer, generateSocketPath, type SocketServer } from "./socket-server";
 import type { SkillsModule } from "./skills";
@@ -112,6 +112,7 @@ export function createInferenceModule(
       agentInfo,
       cwd,
       extNotificationSpecs,
+      agentEnv,
       onSessionConnect: (connection) => {
         currentSessionId = `${agentId}:${connection.sessionId}`;
       },

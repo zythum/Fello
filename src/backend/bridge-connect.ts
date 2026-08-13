@@ -5,7 +5,7 @@ import type {
   SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { ACPBridge } from "./agent/agent-bridge";
-import { adapters, extNotificationSpecs } from "./acp-adapters/adapters";
+import { adapters, extNotificationSpecs, agentEnv } from "./acp-adapters/adapters";
 import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import type { BackendContext } from "./types";
 import type { AskUserModule } from "./ask-user";
@@ -159,6 +159,7 @@ export function createBridgeConnectModule(
       agentInfo,
       cwd,
       extNotificationSpecs,
+      agentEnv,
       onSessionConnect: (connection) => {
         currentSessionId = `${agentId}:${connection.sessionId}`;
 

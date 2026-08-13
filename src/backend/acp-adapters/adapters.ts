@@ -18,3 +18,10 @@ export const adapters: AcpAdapter[] = [codebuddyAdapter, kiroAdapter];
 /** Aggregated ext notification specs from all adapters. ACPBridge iterates
  * these to register .onNotification handlers on the ACP client. */
 export const extNotificationSpecs = adapters.flatMap((a) => a.extNotificationSpecs);
+
+/** Aggregated agent env vars from all adapters. ACPBridge merges these into
+ * the stdio agent spawn env (agent-specific agentInfo.env still wins). */
+export const agentEnv: Record<string, string> = Object.assign(
+  {},
+  ...adapters.map((a) => a.getAgentEnv()),
+);

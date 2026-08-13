@@ -80,6 +80,10 @@ export interface ACPBridgeOptions {
    * adapters (acp-adapters/adapters.ts) — keeps method names co-located
    * with the handler logic, out of this file. */
   extNotificationSpecs: ExtNotificationSpec[];
+  /** Agent env vars to inject when spawning the stdio process. Declared by
+   * adapters (acp-adapters/adapters.ts) — keeps protocol-specific env
+   * co-located with the adapter that owns it. */
+  agentEnv: Record<string, string>;
 }
 
 /**
@@ -263,7 +267,14 @@ export class ACPBridge {
     const acpId = this.id;
     const proc =
       this.options.agentInfo.type === "stdio"
-        ? spawnStdioAgent({ ...this.options.agentInfo, cwd: this.options.cwd })
+        ? spawnStdioAgent({
+            ...this.options.agentInfo,
+            cwd: this.options.cwd,
+            env: {
+              ...this.options.agentEnv,
+              ...this.options.agentInfo.env,
+            },
+          })
         : this.options.agentInfo.provider === "openai-compatible"
           ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
           : (() => {

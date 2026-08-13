@@ -62,6 +62,17 @@ export abstract class AcpAdapter {
     return [];
   }
 
+  /**
+   * Agent process env vars to inject when spawning the agent. Protocol-
+   * specific environment needed by the agent process (e.g.
+   * CODEBUDDY_DEFER_TOOL_LOADING for CodeBuddy). Aggregated by
+   * adapters.ts and applied by ACPBridge when spawning a stdio agent;
+   * agent-specific agentInfo.env still takes precedence.
+   */
+  getAgentEnv(): Record<string, string> {
+    return {};
+  }
+
   // ── State lifecycle (default no-ops) ───────────────────────────────
 
   rekey(_oldKey: string, _newKey: string): void {}

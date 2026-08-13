@@ -39,6 +39,14 @@ export class CodebuddyAdapter extends AcpAdapter {
   private stateMap = new Map<string, TeamState>();
 
   /**
+   * CodeBuddy spawn env. CODEBUDDY_DEFER_TOOL_LOADING=0
+   * disable defer tool loading.
+   */
+  override getAgentEnv(): Record<string, string> {
+    return { CODEBUDDY_DEFER_TOOL_LOADING: "0" };
+  }
+
+  /**
    * Per-session max _meta.timestamp for content chunks
    * (agent_message_chunk / agent_thought_chunk). Used to detect
    * replayed chunks whose timestamp is earlier than the max seen
