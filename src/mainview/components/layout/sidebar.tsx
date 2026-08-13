@@ -722,9 +722,7 @@ export function Sidebar() {
                         >
                           <div className="flex flex-col gap-2">
                             <div className="text-sm font-medium leading-relaxed">
-                              <span>
-                                {session.title || t("sidebar.newChat", "New Chat")}
-                              </span>
+                              <span>{session.title || t("sidebar.newChat", "New Chat")}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <Bot className="size-3 shrink-0" />
@@ -774,7 +772,9 @@ export function Sidebar() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  request.setActiveIlinkSession({ sessionId: session.id }).catch(() => {});
+                                  request
+                                    .setActiveIlinkSession({ sessionId: session.id })
+                                    .catch(() => {});
                                 }}
                                 className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                               >

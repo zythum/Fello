@@ -52,7 +52,13 @@ function toEnvRecord(env: Array<{ name: string; value: string }>): Record<string
 
 function inferToolKind(name: string): ToolKind {
   const normalized = name.toLowerCase();
-  if (normalized.includes("read") || normalized.includes("list") || normalized.includes("search") || normalized.includes("grep") || normalized.includes("glob")) {
+  if (
+    normalized.includes("read") ||
+    normalized.includes("list") ||
+    normalized.includes("search") ||
+    normalized.includes("grep") ||
+    normalized.includes("glob")
+  ) {
     return "read";
   }
   if (
