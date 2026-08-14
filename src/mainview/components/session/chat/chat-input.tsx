@@ -742,12 +742,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
         // ignore malformed data
       }
     },
-    [
-      supportsImage,
-      updateSessionState,
-      insertPathMentions,
-      appendMentionsToInput,
-    ],
+    [supportsImage, updateSessionState, insertPathMentions, appendMentionsToInput],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
