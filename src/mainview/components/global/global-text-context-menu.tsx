@@ -58,9 +58,19 @@ export function GlobalTextContextMenu() {
       });
 
       requestAnimationFrame(() => {
-        const selection = window.getSelection()?.toString() || "";
-        const nextHasSelection = selection.trim().length > 0;
+        const selectionObj = window.getSelection();
+        const selection = selectionObj?.toString() || "";
         const nextIsEditable = editable;
+        let nextHasSelection = selection.trim().length > 0;
+
+        // A selection may persist from elsewhere in the document (e.g. text
+        // selected in chat-area while right-clicking the sidebar). Only treat
+        // it as a real selection if the click actually landed on it.
+        if (nextHasSelection && selectionObj && target instanceof Node) {
+          if (!selectionObj.containsNode(target, true)) {
+            nextHasSelection = false;
+          }
+        }
         if (!nextHasSelection && !nextIsEditable) {
           setOpen(false);
           return;
