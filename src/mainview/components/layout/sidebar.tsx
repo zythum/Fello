@@ -497,19 +497,23 @@ export function Sidebar() {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
             return (
-              <div key={project.id} className="space-y-0.5">
+              <div key={project.id} className="space-y-0.5 group">
                 <HoverCard
                   open={hoverId === projectHoverId(project.id)}
                   onOpenChange={(open) => {
                     setHoverId((prev) =>
-                      open ? projectHoverId(project.id) : prev === projectHoverId(project.id) ? null : prev,
+                      open
+                        ? projectHoverId(project.id)
+                        : prev === projectHoverId(project.id)
+                          ? null
+                          : prev,
                     );
                   }}
                 >
                   <HoverCardTrigger render={<div />} delay={50}>
                     <div
                       onClick={() => toggleProject(project.id)}
-                      className={`group flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                      className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
                         hoverId === projectHoverId(project.id)
                           ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                           : ""
@@ -529,7 +533,7 @@ export function Sidebar() {
                           e.stopPropagation();
                           openNewSessionDialog(project.id);
                         }}
-                        className={`flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70 ${
+                        className={`flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70 transition-opacity duration-300 ${
                           projectSessions.length === 0
                             ? "opacity-100"
                             : "opacity-0 group-hover:opacity-100"
@@ -539,7 +543,7 @@ export function Sidebar() {
                           title: project.title,
                         })}
                       >
-                        <MessageCirclePlus />
+                        <MessageCirclePlus className="size-3.5" />
                       </button>
                     </div>
                   </HoverCardTrigger>
@@ -621,7 +625,11 @@ export function Sidebar() {
                         open={hoverId === sessionHoverId(session.id)}
                         onOpenChange={(open) => {
                           setHoverId((prev) =>
-                            open ? sessionHoverId(session.id) : prev === sessionHoverId(session.id) ? null : prev,
+                            open
+                              ? sessionHoverId(session.id)
+                              : prev === sessionHoverId(session.id)
+                                ? null
+                                : prev,
                           );
                         }}
                       >
