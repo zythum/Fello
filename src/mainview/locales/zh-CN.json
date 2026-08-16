@@ -32,6 +32,7 @@
     "newChatFailed": "创建新会话失败。",
     "loadSessionFailed": "加载会话失败。",
     "revealInFinderFailed": "在访达中显示失败。",
+    "openInEditorFailed": "在编辑器中打开失败。",
     "projectExists": "项目已存在。",
     "projectNameEmpty": "项目名称不能为空。",
     "chatNameEmpty": "会话名称不能为空。",

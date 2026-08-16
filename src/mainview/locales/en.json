@@ -32,6 +32,7 @@
     "newChatFailed": "Failed to create a new chat.",
     "loadSessionFailed": "Failed to load session.",
     "revealInFinderFailed": "Failed to reveal in Finder.",
+    "openInEditorFailed": "Failed to open in editor.",
     "projectExists": "Project already exists.",
     "projectNameEmpty": "Project name cannot be empty.",
     "chatNameEmpty": "Chat name cannot be empty.",

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
 import type { ProjectInfo, SessionInfo, Feature } from "../../../shared/schema";
-import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../shared/constants";
+import { ALL_FEATURES, FEATURE_I18N_KEYS, EDITOR_LABELS } from "../../../shared/constants";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   CalendarDays,
   Check,
   Clock,
+  Code,
   Bot,
   Folder,
   FolderClosed,
@@ -402,6 +403,17 @@ export function Sidebar() {
     }
   };
 
+  const handleOpenProjectInEditor = async (project: ProjectInfo) => {
+    try {
+      const editorName = useAppStore.getState().editor.name;
+      await electron.openInEditor(project.cwd, editorName);
+    } catch (err) {
+      toast.error(
+        getErrorMessage(err, t("sidebar.openInEditorFailed", "Failed to open in editor.")),
+      );
+    }
+  };
+
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects],
@@ -594,6 +606,18 @@ export function Sidebar() {
                         >
                           <FolderOpen className="size-3 shrink-0" />
                           {t("sidebar.revealInFinder")}
+                        </button>
+                      )}
+                      {!isWebUI && (
+                        <button
+                          type="button"
+                          onClick={() => void handleOpenProjectInEditor(project)}
+                          className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <Code className="size-3 shrink-0" />
+                          {t("filePanel.openInEditor", {
+                            editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                          })}
                         </button>
                       )}
                       <button
