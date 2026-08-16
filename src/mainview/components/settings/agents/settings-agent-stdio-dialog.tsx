@@ -15,7 +15,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Ellipsis } from "lucide-react";
 
 function isValidStringMap(raw: string): boolean {
   const trimmed = raw.trim();
@@ -34,6 +41,22 @@ function parseStringMap(raw: string): Record<string, string> {
   if (!trimmed) return {};
   return JSON.parse(trimmed);
 }
+
+// ── Quick presets ────────────────────────────────────────────────────
+
+interface AcpPreset {
+  id: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+/** 内置快速预设（与 guides/zh-CN/agents-*.md 中的推荐配置一致） */
+const BUILT_IN_PRESETS: AcpPreset[] = [
+  { id: "kiro", command: "kiro-cli", args: ["acp"], env: {} },
+  { id: "kimi", command: "kimi-cli", args: ["acp"], env: {} },
+  { id: "codebuddy", command: "codebuddy", args: ["--acp"], env: {} },
+];
 
 const schema = z.object({
   id: z
@@ -69,6 +92,18 @@ export function SettingsAgentStdioDialog({
     defaultValues: { id: "", command: "", argsRaw: "", envRaw: "" },
   });
 
+  const applyPreset = (preset: AcpPreset) => {
+    form.setValue("command", preset.command);
+    form.setValue("argsRaw", preset.args.join(" "));
+    if (Object.keys(preset.env).length > 0) {
+      form.setValue("envRaw", JSON.stringify(preset.env, null, "  "));
+    }
+    if (!initialAgent?.id) {
+      form.setValue("id", preset.id);
+    }
+    form.trigger();
+  };
+
   useEffect(() => {
     if (!open) return;
     form.reset({
@@ -99,8 +134,8 @@ export function SettingsAgentStdioDialog({
         <DialogHeader>
           <DialogTitle>
             {initialAgent?.id
-              ? t("settings.agents.editAgent", "Edit Agent")
-              : t("settings.agents.addAgent", "Add Agent")}
+              ? t("settings.agents.editStdioAgent", "Edit ACP Agent")
+              : t("settings.agents.addStdioAgent", "Add via ACP Agent")}
           </DialogTitle>
           <DialogDescription>
             {t(
@@ -120,14 +155,43 @@ export function SettingsAgentStdioDialog({
                   <FieldLabel htmlFor="stdio-id" className="text-[11px] text-muted-foreground">
                     {t("settings.agents.agentId")}
                   </FieldLabel>
-                  <Input
-                    {...field}
-                    id="stdio-id"
-                    placeholder={t("settings.agents.agentId")}
-                    aria-invalid={fieldState.invalid}
-                    disabled={!!initialAgent?.id}
-                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      {...field}
+                      id="stdio-id"
+                      placeholder={t("settings.agents.agentId")}
+                      aria-invalid={fieldState.invalid}
+                      disabled={!!initialAgent?.id}
+                      className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-8 shrink-0"
+                            title={t("settings.agents.quickPreset", "Quick preset")}
+                          />
+                        }
+                      >
+                        <Ellipsis className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-full">
+                        {BUILT_IN_PRESETS.map((preset) => (
+                          <DropdownMenuItem key={preset.id} onClick={() => applyPreset(preset)}>
+                            <span className="truncate text-[10px] mr-auto text-muted-foreground/60">
+                              {preset.id}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-mono pl-3">
+                              {[preset.command, ...preset.args].join(" ")}
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   {fieldState.invalid && (
                     <FieldError
                       errors={[

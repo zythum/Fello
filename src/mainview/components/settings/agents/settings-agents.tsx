@@ -301,7 +301,7 @@ export function SettingsAgents() {
               className="h-7 text-xs text-foreground/70"
             >
               <Plus className="mr-1 size-3" />
-              {t("settings.agents.addStdioAgent", "Add Stdio Agent")}
+              {t("settings.agents.addStdioAgent", "Add via ACP Agent")}
             </Button>
             <Button
               variant="outline"
@@ -310,7 +310,7 @@ export function SettingsAgents() {
               className="h-7 text-xs text-foreground/70"
             >
               <Plus className="mr-1 size-3" />
-              {t("settings.agents.addApiAgent", "Add API Agent")}
+              {t("settings.agents.addApiAgent", "Add via API Key")}
             </Button>
           </div>
         </div>

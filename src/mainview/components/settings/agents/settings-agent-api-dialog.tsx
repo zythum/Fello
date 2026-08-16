@@ -141,8 +141,8 @@ export function SettingsAgentApiDialog({
         <DialogHeader>
           <DialogTitle>
             {initialAgent?.id
-              ? t("settings.agents.editAgent", "Edit Agent")
-              : t("settings.agents.addAgent", "Add Agent")}
+              ? t("settings.agents.editApiAgent", "Edit API Agent")
+              : t("settings.agents.addApiAgent", "Add via API Key")}
           </DialogTitle>
           <DialogDescription>
             {t(
