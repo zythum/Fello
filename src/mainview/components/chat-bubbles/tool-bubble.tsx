@@ -389,7 +389,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                   value={`content-${index}`}
                   className="h-full flex-none text-xs font-normal opacity-70"
                 >
-                  <ListCheck className="size-3.5 -ml-1" />
+                  <ListCheck className="size-3 -ml-1" />
                   {content.type === "diff"
                     ? `${content.path.split("/").pop()}`
                     : t("toolBubble.result")}
@@ -400,7 +400,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                   value="terminal"
                   className="h-full flex-none px-2 text-xs font-normal opacity-70"
                 >
-                  <Terminal className="size-3.5 -ml-1" />
+                  <Terminal className="size-3 -ml-1" />
                   {t("toolBubble.terminal")}
                 </TabsTrigger>
               )}
