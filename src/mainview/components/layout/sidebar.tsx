@@ -525,6 +525,11 @@ export function Sidebar() {
                   <HoverCardTrigger render={<div />} delay={50}>
                     <div
                       onClick={() => toggleProject(project.id)}
+                      onContextMenu={(e) => {
+                        // 右键点击也触发预览卡片（等同 hover 效果），并阻止系统右键菜单
+                        e.preventDefault();
+                        setHoverId(projectHoverId(project.id));
+                      }}
                       className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
                         hoverId === projectHoverId(project.id)
                           ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
@@ -660,6 +665,11 @@ export function Sidebar() {
                         <HoverCardTrigger render={<div />} delay={50}>
                           <div
                             onClick={() => handleSelectSession(session)}
+                            onContextMenu={(e) => {
+                              // 右键点击也触发预览卡片（等同 hover 效果），并阻止系统右键菜单
+                              e.preventDefault();
+                              setHoverId(sessionHoverId(session.id));
+                            }}
                             className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
                               activeSessionId === session.id
                                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
