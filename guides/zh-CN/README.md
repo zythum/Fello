@@ -1,5 +1,7 @@
 # Fello 使用手册
 
+[English](./../en/README.md) | 中文
+
 > 🚀 **Fello** 是一款桌面 AI 协作客户端，将本地与云端 AI Agent 无缝融入你的日常开发工作流。本手册帮助你快速上手并充分利用 Fello 的全部能力。
 
 
@@ -11,6 +13,7 @@
 | [Agent 配置与管理](./agents.md) | 添加本地 Stdio Agent 和 API Agent，切换模型，管理多个 Agent |
 | → [Kiro 作为 Agent](./agents-kiro.md) | 配置 Kiro Stdio Agent（ACP） |
 | → [Kimi 作为 Agent](./agents-kimi.md) | 配置 Kimi API / Stdio Agent + Exa MCP |
+| → [CodeBuddy 作为 Agent](./agents-codebuddy.md) | 配置 CodeBuddy Stdio Agent（ACP）+ Agent Teams |
 | → [DeepSeek 作为 Agent](./agents-deepseek.md) | 配置 DeepSeek API Agent + Exa MCP |
 | [MCP 服务器配置](./mcp-servers.md) | 为 Agent 扩展工具能力，配置 Stdio 和 HTTP 类型的 MCP 服务器 |
 | [文件工作区与终端](./file-workspace.md) | 文件浏览、编辑、预览、Diff 对比，以及终端的创建和使用 |

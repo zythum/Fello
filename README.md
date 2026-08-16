@@ -1,9 +1,11 @@
 # 🚀 Fello — Your AI Desktop Companion
 
-**Fello** is a desktop AI collaboration client built on the [**Agent Client Protocol (ACP)**](https://agentclientprotocol.com/).
-It brings local and cloud AI agents into your development workflow — all inside a native desktop app.
+> **Talk to your codebase. Let AI handle the heavy lifting.**
 
-**Fello** 是一款通过 [**ACP（Agent Client Protocol）**](https://agentclientprotocol.com/) 协议实现的桌面 AI 协作客户端，将本地与云端 AI Agent 无缝融入你的日常开发工作流。
+**English** · [**中文**](./README.zh-CN.md)
+
+**Fello** is a desktop AI workspace built on the open [**Agent Client Protocol (ACP)**](https://agentclientprotocol.com/).
+It's not tied to any single AI vendor — connect local agents (via ACP, e.g. `kiro-cli acp`) or any OpenAI-compatible API, and bring chat, files, terminal, diffs, project memory and MCP tools together in one native app.
 
 ![Fello Screenshot](screenshots/screenshot-theme.png)
 
@@ -11,233 +13,128 @@ It brings local and cloud AI agents into your development workflow — all insid
 
 ---
 
-## 📖 User Manual / 用户手册
+## 📖 User Manual
 
-🚀 [**Fello User Manual**](./guides/README.md) — Getting started, agent configuration, MCP setup, and more.
-
-🚀 [**Fello 用户手册**](./guides/README.md) — 快速开始、Agent 配置、MCP 设置等完整指南。
+🚀 [**Fello User Manual**](./guides/en/README.md) — Getting started, agent configuration, MCP setup, and more.
 
 ---
 
-## 🌟 Why Fello?
+## What is Fello?
 
-> **Talk to your codebase. Let AI handle the heavy lifting.**
-> **与你的代码对话，让 AI 处理繁重工作。**
+Most AI tools lock you into one model, one subscription, one way of working. Fello takes a different approach: instead of being yet another agent, it's an **agent-neutral desktop client** that lets you bring your own agents.
 
-- **🧠 Multiple Agent Support** — Run local Stdio agents (via ACP, like `kiro-cli acp`) or connect to any OpenAI-compatible API. Switch freely between them per session.
-- **🧠 多种 Agent 支持** — 运行本地 Stdio Agent（通过 ACP 协议，如 `kiro-cli acp`），或连接任意 OpenAI 兼容 API，会话间自由切换。
+- 🧩 Built on the open ACP protocol — like LSP for language servers, but for AI agents
+- 🔁 Bring your own agent: local Stdio agents or OpenAI-compatible APIs
+- 📂 Work in a real workspace: files, terminal, and diffs alongside your chat
 
-- **🔧 MCP Server Integration** — Dynamically attach Model Context Protocol servers (Stdio or HTTP) to supercharge your agent with extra tools.
-- **🔧 MCP 服务器集成** — 动态配置 MCP 服务器（Stdio 或 HTTP），为 Agent 扩展更多能力。
+## Who is it for?
 
-- **🧠 Persistent Project Memory** — Preserve project conventions, preferences, decisions, and corrections across sessions with focused retrieval and transactional updates.
-- **🧠 项目级持久记忆** — 跨会话保存项目约定、偏好、决策和纠正信息，并通过定向检索与事务更新保持准确。
-
-- **📁 File Workspace + Terminal** — Browse, edit, preview files and run terminals side by side with your AI chat. All in one panel, all synced.
-- **📁 文件工作区 + 终端** — 在 AI 对话旁浏览、编辑、预览文件，同时运行终端。一体面板，实时联动。
-
-- **🌐 WebUI Remote Access** — Access your Fello from a browser on the same network. Full functionality, zero compromise.
-- **🌐 WebUI 远程访问** — 在同网络的浏览器中远程使用 Fello 的全部功能，毫无妥协。
-
-- **💬 WeChat iLink** — Connect Fello to WeChat. Receive messages, reply, and stay in the loop — right from your desktop.
-- **💬 微信 iLink** — 将 Fello 接入微信，在桌面端收发消息，时刻在线。
-
-- **⏰ Automation** — Schedule AI tasks with cron expressions. Let agents run on autopilot — daily reports, periodic checks, or any recurring workflow.
-- **⏰ 自动化** — 通过 cron 表达式配置定时 AI 任务计划，让 Agent 自动执行日报生成、定期检查等重复性工作流。
-
-- **🎨 Beautiful & Modern UI** — Dark/light themes, responsive layout, tabbed panels, and smooth streaming chat.
-- **🎨 美观现代的界面** — 深色/浅色主题、响应式布局、标签面板、流畅的流式对话。
-
-- **🛡️ Permission Control** — Granular tool permission with "Always Allow" memory. Stay in control, avoid repetitive approvals.
-- **🛡️ 权限控制** — 细粒度的工具权限管理，支持"始终允许"记忆，掌控一切，免去重复确认。
+- **Developers** who want to switch between multiple agents freely
+- **Privacy-conscious users** who want local-first AI
+- **Teams** that need remote access or self-hosted deployment
 
 ---
 
-## ✨ Features at a Glance
+## Why Fello?
 
-| Feature | Description |
-|---------|-------------|
-| **Local Agents** | Stdio agents via ACP protocol for private, offline-capable workflows |
-| **API Agents** | Connect to OpenAI-compatible APIs (streaming text, reasoning, file content) |
-| **MCP Servers** | Dynamic tool integration via Model Context Protocol |
-| **Project Memory** | Persistent project-level conventions and decisions with semantic retrieval, critical-constraint injection, and transactional updates |
-| **File Tree** | Browse, create, rename, delete, drag-drop files — with preview for images, markdown, code, PDF, DOCX, XLSX |
-| **Terminal** | Full xterm.js terminal with `node-pty`, multi-tab support, auto-persisted logs |
-| **Diff View** | Side-by-side file diffing (Git-style) for code reviews |
-| **WebUI** | Browser access over local network via WebSocket |
-| **WeChat iLink** | Mobile ↔ Desktop messaging bridge |
-| **Automation** | Cron-based scheduled AI tasks with file output and history tracking |
-| **Skills** | Browse & install from [skills.sh](https://skills.sh) marketplace |
-| **Chat Timeline** | Jump between messages with timeline dots |
-| **Auto Titles** | Sessions auto-name themselves from your first message |
-| **Multi-language** | English & Chinese (more locales extensible via i18next) |
-| **Token Stats** | Real-time input/output/thinking token counters |
+- 🧩 **No Vendor Lock-in** — Connect any ACP-compatible agent or any OpenAI-compatible API, and switch freely between them per session. Your tools, your choice.
 
----
+- 🔒 **Local-First & Private** — Run agents locally and keep your code and data on your machine. Nothing leaves your computer unless you choose a cloud API.
 
-## 🔧 For Developers
+- 🖥️ **All-in-One Workspace** — Browse, edit, preview files, view diffs and run terminals side by side with your AI chat. One panel, fully synced.
 
-### 🎯 Quick Start
+- 🧠 **Persistent Project Memory** — Project conventions, preferences, decisions and corrections survive across sessions, with focused retrieval and transactional updates.
 
-```bash
-# Install dependencies
-# 安装依赖
-npm install
+- 🛡️ **Granular Permission Control** — Approve every tool call or use "Always Allow" memory. Stay in control without repetitive confirmations.
 
-# Launch in development mode
-# 启动开发模式
-npm run dev
+- 🌐 **Remote Access & Self-Hosting** — Access Fello from any browser on your LAN, or deploy its headless server on your own machine. Full functionality, zero compromise.
 
-# Build for production
-# 构建生产版本
-npm run build
+- ⏰ **Automation** — Schedule AI tasks with cron expressions. Daily reports, periodic checks, or any recurring workflow — on autopilot.
 
-# Package for your platform
-# 打包为桌面应用
-npm run pack:mac     # macOS
-npm run pack:win     # Windows
-npm run pack:linux   # Linux
+- 💬 **WeChat iLink** — Bridge Fello to WeChat. Receive messages and reply right from your desktop.
 
-# Package as npm package (headless server)
-# 打包为 npm 包（无头服务器）
-npm run pack:npm     # → npm-package/
-```
-
-> **Download the latest release** → [Releases](https://github.com/Zythum/fello/releases)
+- 🎨 **Beautiful & Modern UI** — Dark/light themes, tabbed panels, and smooth streaming chat.
 
 ---
 
-### 🖥️ Headless Server (npm package)
+## ⚡ Deep Integrations
 
-Run Fello as a pure Node.js server — no Electron, no display required. Perfect for Linux servers or CI environments.
+Fello goes beyond basic connectivity — it ships **purpose-built optimizations** for Kiro and CodeBuddy, so you get a smoother experience out of the box.
 
-```bash
-# Via npx (no install needed)
-npx @zythum02/fello-server --port 9090 --token mysecret
+**Kiro** ([guide](./guides/en/agents-kiro.md))
 
-# Or install globally
-npm install -g @zythum02/fello-server
-fello-server -p 9090 -t mysecret
+- 📊 **Live context usage** — see how much of your context window is in use in real time.
+- ⌨️ **Slash commands** — Kiro's commands are detected and surfaced right in the chat UI.
+- 🤖 **Sub-agent status** — Kiro's subagents appear as live sub-tasks with up-to-date status.
 
-# Package locally
-npm run pack:npm
-cd npm-package
-npm publish --access public
-```
+**CodeBuddy** ([guide](./guides/en/agents-codebuddy.md))
 
-The server serves the same WEBUI frontend over HTTP/WebSocket, with full session/agent/file/terminal support.
-
-#### WEBUI Authentication
-
-When accessing the WEBUI in a browser:
-
-1. Visit the provided URL with `?token=xxx` (e.g. `http://192.168.1.100:9090/?token=abc123`)
-2. The server validates the token and sets a **session cookie** (`fello_token`)
-3. Subsequent requests (JS, CSS, WebSocket, project files) authenticate via cookie
-4. Page requests (`/`) always require `?token=` in the URL — cookie alone is not accepted for initial page loads
-5. The cookie is a session cookie (no `Max-Age`), cleared when the browser closes
-
-This means each browser session needs the token URL once; refreshing the page works as long as the browser is open.
-
-#### Clipboard in HTTP
-
-`navigator.clipboard` requires a secure context (HTTPS). When accessing WEBUI over plain HTTP, the app automatically falls back to `document.execCommand("copy")` for copy operations. Paste requires `navigator.clipboard.readText()` which has no HTTP fallback — the paste button is hidden when the API is unavailable.
+- 👥 **Agent Teams** — multi-agent collaboration with live member and sub-task status (in progress / completed / failed).
+- 🔁 **Turn replay filtering** — CodeBuddy re-broadcasts the previous turn when a new prompt starts; Fello filters those replays automatically so your history stays clean.
+- ⚙️ **Auto environment setup** — recommended runtime environment variables are injected automatically.
 
 ---
 
-### Tech Stack
+## Quick Start
 
-- **Desktop Shell**: Electron
-- **Renderer**: React + Vite + Tailwind CSS
-- **AI Protocol**: [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) SDK + AI SDK
-- **State Management**: Zustand
-- **i18n**: i18next + react-i18next
-- **Terminal**: xterm.js + node-pty
-- **Build**: electron-vite + electron-builder
+1. **Download** Fello for macOS / Windows / Linux from [Releases](https://github.com/Zythum/fello/releases).
+2. **Add an Agent** — a local Stdio agent (via ACP) or an OpenAI-compatible API. See the [Agent guide](./guides/en/agents.md).
+3. **Start chatting** — create a project, open a session, and let AI handle the heavy lifting.
 
-### How HMR Works
+📖 Full guide: [Fello User Manual](./guides/en/README.md)
 
-`npm run dev` starts:
+---
 
-1. **Vite dev server** on `http://localhost:6234` with HMR enabled
-2. **Electron** loads the renderer from the Vite dev server
-3. React components update instantly without full page reload
+## 📱 Connect Anywhere
 
-Main/preload changes typically require restarting the dev process.
+Fello isn't just a desktop app — reach your agents from WeChat or any browser on your network.
 
-### Project Structure
+### 💬 WeChat iLink
 
-```
-├── src/
-│   ├── shared/               # Typed IPC contracts & shared types
-│   ├── agents/               # Agent session logic (ACP + MCP tools, permissions, system prompts)
-│   ├── backend/              # IPC handlers, FS, Terminal, WebUI, Skills
-│   │   ├── agent/            # Agent bridge and session coordination
-│   │   ├── automation/       # Cron scheduling & task execution
-│   │   └── ilink/            # WeChat iLink integration
-│   ├── electron/             # Electron main process
-│   ├── server/               # Headless server entry point (npm package)
-│   ├── scripts/              # Preload, MCP servers, workers
-│   │   ├── electron-preload/ # Context bridge preload
-│   │   ├── mcp-*/            # Built-in MCP server scripts
-│   │   └── worker-*/         # Worker scripts (file outline, ripgrep)
-│   └── mainview/             # React app (components, routing, store, i18n, styles)
-├── docs/                     # Architecture, guides, conventions
-├── tools/                    # Build scripts
-└── icons/                    # App icons
-```
+Bridge Fello to WeChat: receive messages and reply right from your desktop, wherever you are.
 
-### Customization Points
+1. Open Fello → **Settings** → **WeChat iLink**
+2. Click **Connect** and scan the QR code with WeChat
+3. Right-click a session in the sidebar → **Set as WeChat Active**
 
-| What | Where to Edit |
-|------|---------------|
-| React components | `src/mainview/` |
-| Routing | `src/mainview/router.tsx` |
-| i18n translations | `src/mainview/locales/*.json` |
-| Window / lifecycle | `src/electron/main.ts` |
-| Backend logic | `src/backend/backend.ts` + `src/backend/agent/agent-bridge.ts` |
-| IPC bridge | `src/scripts/electron-preload/preload.ts`, `src/mainview/backend.ts` |
-| IPC types | `src/shared/schema.ts`, `src/shared/constants.ts`, `src/shared/zod/` |
-| Agent implementations | `src/agents/` + `src/backend/agent/` |
-| Build config | `electron.vite.config.ts` |
+WeChat messages are routed into that session automatically, and the agent's replies are sent back to WeChat.
 
-### Scripts
+> 💡 Detailed walkthrough: [WeChat iLink guide](./guides/en/wechat-ilink.md)
 
-```bash
-npm run dev          # Development with HMR
-npm run build        # Production build (includes server bundle)
-npm run preview      # Preview built app
-npm run lint         # Lint with oxlint
-npm run typecheck    # TypeScript checking
-npm run format       # Format with oxfmt
+### 🌐 WebUI Remote Access
 
-# Package
-npm run pack:npm     # Build npm package → npm-package/
-npm run pack:mac     # macOS .dmg
-npm run pack:win     # Windows .exe
-npm run pack:linux   # Linux .AppImage
+Use the full Fello interface from any browser on your LAN — no installation needed on the client device.
 
-# Utilities
-npm run prepare:icon:mac  # Generate macOS app icons
-npm run download:grammars # Download tree-sitter WASM grammars
-```
+1. Open Fello → **Settings** → **WebUI**
+2. Toggle **Enable WebUI**, then set a port (auto-assigned by default) and a token
+3. Open the displayed access URL in a browser on the same network
 
-### 📖 Developer Guide
+> 💡 Detailed walkthrough: [WebUI guide](./guides/en/webui.md)
 
-- [Overview](./docs/overview.md)
-- [Tech Stack](./docs/tech-stack.md)
-- [Architecture](./docs/architecture.md)
-- [Project Structure](./docs/project-structure.md)
-- [Coding Conventions](./docs/coding-conventions.md)
-- [Custom Events](./docs/custom-events.md)
-- [IPC Protocol](./docs/ipc-protocol.md)
-- [Socket Server](./docs/socket-server.md)
-- [Built-in ACP Tools](./docs/builtin-tools.md)
-- [Skills](./docs/skills.md)
-- [Ask User](./docs/ask-user.md)
-- [Automation](./docs/automation.md)
-- [Project Memory](./docs/memory.md)
-- [Storage & Data](./docs/storage.md)
+---
+
+## Platform Support
+
+| Platform | Desktop App | WebUI Remote Access |
+|----------|-------------|---------------------|
+| macOS | ✅ | ✅ |
+| Windows | ✅ | ✅ |
+| Linux | ✅ | ✅ |
+| Server (headless) | — | ✅ via browser through `@zythum02/fello-server` |
+
+---
+
+## Community & Support
+
+- 📖 [User Manual](./guides/en/README.md)
+- 🐛 [GitHub Issues](https://github.com/Zythum/fello/issues) — report bugs & request features
+- 📜 [GPL-3.0-or-later](./LICENSE) — open source
+
+---
+
+## For Developers
+
+Fello is open source. Want to build, customize, or contribute? See the [**Developer Guide**](./DEVELOPER.md).
 
 ---
 
