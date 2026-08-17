@@ -2,7 +2,7 @@ import { Download } from "lucide-react";
 import GitHubIcon from "./GitHubIcon";
 import { useI18n } from "../i18n";
 import { LINKS } from "../links";
-import screenshot from "../../../screenshots/screenshot-theme.png";
+import screenshot from "../../../screenshots/screenshot-theme.png?webp";
 
 export default function Hero() {
   const { t } = useI18n();
