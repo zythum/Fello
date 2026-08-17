@@ -466,6 +466,8 @@
     "tokensTotal": "{{total}}k tokens",
     "generationFailed": "Generation failed.",
     "attach": "Attach file",
+    "reference": "Reference",
+    "mention": "Mention",
     "snippets": "Snippets",
     "snippetsEmpty": "No snippets. Click to add in Settings.",
     "selectModel": "Select model",

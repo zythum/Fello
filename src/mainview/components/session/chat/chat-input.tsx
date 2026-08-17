@@ -31,6 +31,8 @@ import {
   Astroid,
   Gauge,
   Eclipse,
+  Hash,
+  AtSign,
 } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -311,6 +313,26 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const getTextarea = useCallback(
     () => containerRef.current?.querySelector("textarea") as HTMLTextAreaElement | null,
     [],
+  );
+
+  /**
+   * 在光标处插入 # 或 @ 并触发展开建议弹层。
+   * react-mentions 只在 selectionchange → onSelect 时刷新建议（真实输入会触发），
+   * 而 execCommand 只触发 input 不触发 selectionchange，因此需要手动补发一次。
+   * 空格规则：光标前已有内容且非空白时补 1 个前导空格（trigger 匹配要求行首或空白）。
+   */
+  const insertTriggerChar = useCallback(
+    (char: "#" | "@") => {
+      const textarea = getTextarea();
+      if (!textarea) return;
+      textarea.focus();
+      const before = textarea.value.slice(0, textarea.selectionStart);
+      const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+      const prefix = needsLeadingSpace ? " " : "";
+      document.execCommand("insertText", false, `${prefix}${char}`);
+      textarea.ownerDocument.dispatchEvent(new Event("selectionchange"));
+    },
+    [getTextarea],
   );
 
   /** 将一组绝对路径解析为 mention 并插入到 textarea 光标处 */
@@ -1172,6 +1194,26 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  disabled={disabled}
+                  aria-label={t("chatInput.reference", "Reference")}
+                  onClick={() => insertTriggerChar("#")}
+                >
+                  <Hash className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  disabled={disabled}
+                  aria-label={t("chatInput.mention", "Mention")}
+                  onClick={() => insertTriggerChar("@")}
+                >
+                  <AtSign className="size-3.5" />
+                </Button>
               </div>
             </div>
             <div className="flex items-center gap-2 overflow-hidden">

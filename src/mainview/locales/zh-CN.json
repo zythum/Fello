@@ -466,6 +466,8 @@
     "tokensTotal": "{{total}}k tokens",
     "generationFailed": "生成失败。",
     "attach": "附加文件",
+    "reference": "引用",
+    "mention": "应用",
     "snippets": "快捷短语",
     "snippetsEmpty": "暂无短语，点击前往设置添加。",
     "selectModel": "选择模型",
