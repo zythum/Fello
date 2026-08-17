@@ -290,7 +290,19 @@
       "useOriginalImage": "Use Original Image",
       "useOriginalImageDesc": "Send full-size images to the model (uses more tokens). When off, thumbnails are used.",
       "keepaliveMaxCount": "Keepalive Messages",
-      "keepaliveMaxCountDesc": "Max consecutive keepalive messages while thinking."
+      "keepaliveMaxCountDesc": "Max consecutive keepalive messages while thinking.",
+      "commandsTitle": "WeChat \"!\" Commands",
+      "commandsDesc": "Messages starting with ! or ！ are commands. They interrupt the current agent execution (cancelling an ongoing reply) and then run the corresponding action.",
+      "cmdSwitchSession": "Switch Session",
+      "cmdSwitchSessionDesc": "List all sessions (grouped by project); reply with a number to switch.",
+      "cmdNewSession": "New Session",
+      "cmdNewSessionDesc": "List all projects; reply with a number to create a session in that project and switch to it.",
+      "cmdSwitchModel": "Switch Model",
+      "cmdSwitchModelDesc": "List models available in the current session; reply with a number to switch (API agents only).",
+      "cmdSnippet": "Quick Snippet",
+      "cmdSnippetDesc": "List configured snippets; reply with a number to send that content to the agent.",
+      "cmdStatus": "View Status",
+      "cmdStatusDesc": "Show active session info (title, project, agent, features, MCP status)."
     },
     "snippets": {
       "title": "Snippets",

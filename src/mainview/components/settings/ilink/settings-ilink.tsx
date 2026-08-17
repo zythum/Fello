@@ -337,8 +337,8 @@ export function SettingsILink() {
             </div>
           )}
 
-          {/* Info */}
-          <div className="rounded-lg border border-border bg-muted/20 p-4">
+          {/* Usage & WeChat Commands */}
+          <div className="rounded-lg border border-border bg-card p-4">
             <h3 className="text-sm font-medium mb-2">
               {t("settings.ilink.howItWorks", "How it works")}
             </h3>
@@ -361,6 +361,101 @@ export function SettingsILink() {
                 )}
               </li>
             </ol>
+
+            {/* WeChat "!" Commands */}
+            <div className="mt-5 pt-4 border-t border-border">
+              <h3 className="text-sm font-medium mb-1.5">
+                {t("settings.ilink.commandsTitle", "WeChat \"!\" Commands")}
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                {t(
+                  "settings.ilink.commandsDesc",
+                  "Messages starting with ! or ！ are commands. They interrupt the current agent execution (cancelling an ongoing reply) and then run the corresponding action.",
+                )}
+              </p>
+              <div className="divide-y divide-border">
+                <div className="flex items-start gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                    !s
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdSwitchSession", "Switch Session")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdSwitchSessionDesc",
+                        "List all sessions (grouped by project); reply with a number to switch.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                    !n
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdNewSession", "New Session")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdNewSessionDesc",
+                        "List all projects; reply with a number to create a session in that project and switch to it.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                    !m
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdSwitchModel", "Switch Model")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdSwitchModelDesc",
+                        "List models available in the current session; reply with a number to switch (API agents only).",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                    !q
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdSnippet", "Quick Snippet")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdSnippetDesc",
+                        "List configured snippets; reply with a number to send that content to the agent.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                    !
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdStatus", "View Status")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdStatusDesc",
+                        "Show active session info (title, project, agent, features, MCP status).",
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </ScrollArea>
