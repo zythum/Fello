@@ -665,11 +665,13 @@
   },
   "askUser": {
     "title": "请求",
-    "other": "其他...",
-    "back": "返回",
+    "other": "自定义回复",
+    "back": "使用选项",
     "inputPlaceholder": "输入你的回复...（回车发送）",
     "submit": "提交",
-    "autoClose": "超时后自动关闭"
+    "autoClose": "超时后自动关闭",
+    "collapse": "收起",
+    "expand": "展开"
   },
   "shareToUser": {
     "copyToProject": "复制到项目",

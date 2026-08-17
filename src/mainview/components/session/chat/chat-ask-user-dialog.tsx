@@ -1,12 +1,51 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { MentionsInput, Mention, type MentionsInputStyle } from "react-mentions";
 import { useSessionAskUserRequests } from "../../../lib/session-selectors";
 import * as backend from "../../../backend";
+import { useAppStore } from "../../../store";
+import { electron } from "../../../electron";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { HelpCircle, ArrowLeft, ArrowUp, Clock } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  HelpCircle,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Folder,
+  FileText,
+  Wrench,
+  Library,
+  ImageIcon,
+  Paperclip,
+  Clipboard,
+  Hash,
+  AtSign,
+} from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
+import {
+  MENTION_MARKUP,
+  AT_SUGGESTION_MAX,
+  resolveMentions,
+  insertMentionsAtCursor,
+  absPathToMention,
+  isImagePath,
+  searchFileItemToSuggestItem,
+  skillInfoToSuggestItem,
+  mcpServerInfoToSuggestItem,
+  type SuggestItem,
+} from "../../../lib/mention-utils";
 import type { AskUserRequest } from "../../../../shared/schema";
 
 interface Props {
@@ -18,6 +57,16 @@ export function AskUserDialog({ sessionId }: Props) {
   const askUserRequests = useSessionAskUserRequests(sessionId);
   const [activeIndex, setActiveIndex] = useState(0);
   const [animState, setAnimState] = useState<"enter" | "idle" | "exit" | "hidden">("hidden");
+  // 收起（下降）状态：折叠 description 与选项区，仅保留标题行，让下方聊天区露出来
+  const [collapsed, setCollapsed] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const currentRequest = askUserRequests ? askUserRequests[activeIndex] : null;
+
+  // 请求切换时：复位收起状态
+  useEffect(() => {
+    setCollapsed(false);
+  }, [currentRequest?.askUserId]);
 
   // 当 askUserRequests 变化时，管理排队和动画
   useEffect(() => {
@@ -53,8 +102,6 @@ export function AskUserDialog({ sessionId }: Props) {
     }
   }, [askUserRequests, askUserRequests?.length, animState]);
 
-  const currentRequest = askUserRequests ? askUserRequests[activeIndex] : null;
-
   // 当前请求被 resolve 后，进入下一个
   const handleResolved = () => {
     setAnimState("exit");
@@ -75,7 +122,7 @@ export function AskUserDialog({ sessionId }: Props) {
           : animState === "exit"
             ? "translate-y-4 opacity-0"
             : "translate-y-0 opacity-100"
-      }`}
+      } ${collapsed ? "translate-y-full mb-35" : ""}`}
     >
       <div className="w-full max-w-6xl px-6 pb-4 mx-auto">
         {/*
@@ -87,16 +134,39 @@ export function AskUserDialog({ sessionId }: Props) {
           max-h-[90vh] 约束整体高度，1fr 行在内容超出时会获得明确高度，
           使内部的 ScrollArea → Viewport(height:100%) 高度链生效。
         */}
-        <div className="grid grid-rows-[auto_1fr_auto] rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5 max-h-[90vh] overflow-hidden">
+        <div
+          ref={cardRef}
+          onClick={() => setCollapsed(false)}
+          className="grid grid-rows-[auto_1fr_auto] rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5 max-h-[90vh]"
+        >
           {/* 标题 — 固定不折叠 */}
           <div className="flex items-center gap-2 mb-3 min-h-0">
             <HelpCircle className="size-4.5 shrink-0 text-sky-500" />
             <h3 className="text-sm font-medium leading-snug truncate">
               {currentRequest.title || t("askUser.title", "Request")}
             </h3>
-            {currentRequest.timeoutAt != null && (
-              <AskUserCountdown timeoutAt={currentRequest.timeoutAt} />
-            )}
+            <div className="flex items-center ml-auto gap-1">
+              {currentRequest.timeoutAt != null && (
+                <AskUserCountdown timeoutAt={currentRequest.timeoutAt} />
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 rounded-md shrink-0 text-muted-foreground hover:bg-secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCollapsed((c) => !c);
+                }}
+                aria-label={
+                  collapsed ? t("askUser.expand", "Expand") : t("askUser.collapse", "Collapse")
+                }
+                title={
+                  collapsed ? t("askUser.expand", "Expand") : t("askUser.collapse", "Collapse")
+                }
+              >
+                {collapsed ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </Button>
+            </div>
           </div>
 
           {/* description — 可滚动 */}
@@ -113,7 +183,7 @@ export function AskUserDialog({ sessionId }: Props) {
           )}
 
           {/* 选项 / 输入 — 固定不折叠 */}
-          <div className="pt-3 min-h-0">
+          <div className={cn("pt-3 min-h-0", collapsed ? "pointer-events-none" : "")}>
             <AskUserOptions
               key={currentRequest.askUserId}
               request={currentRequest}
@@ -137,6 +207,12 @@ function formatDescription(text: string): string {
   }
   return text;
 }
+
+/**
+ * 拖拽 / 补全的 #image / #file / #folder / #resource 标记统一复用 mention-utils 的
+ * absPathToMention / searchFileItemToSuggestItem，优先级与 chat-input 完全一致：
+ * 图片 → #image:，项目内 → #file:/#folder:，项目外 → #resource:。
+ */
 
 function AskUserCountdown({ timeoutAt }: { timeoutAt: number }) {
   const { t } = useTranslation();
@@ -182,6 +258,193 @@ function AskUserOptions({
   const [mode, setMode] = useState<"options" | "input">(hasOptions ? "options" : "input");
   const [inputValue, setInputValue] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const snippets = useAppStore((s) => s.snippets);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getTextarea = useCallback(
+    () => inputContainerRef.current?.querySelector("textarea") as HTMLTextAreaElement | null,
+    [],
+  );
+
+  /**
+   * 在光标处插入 # 或 @ 并触发展开建议弹层（与 chat-input 行为一致）。
+   * react-mentions 只在 selectionchange → onSelect 时刷新建议，execCommand 不触发
+   * selectionchange，因此手动补发一次。光标前已有内容且非空白时补 1 个前导空格。
+   */
+  const insertTriggerChar = useCallback(
+    (char: "#" | "@") => {
+      const textarea = getTextarea();
+      if (!textarea) return;
+      textarea.focus();
+      const before = textarea.value.slice(0, textarea.selectionStart);
+      const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+      const prefix = needsLeadingSpace ? " " : "";
+      document.execCommand("insertText", false, `${prefix}${char}`);
+      textarea.ownerDocument.dispatchEvent(new Event("selectionchange"));
+    },
+    [getTextarea],
+  );
+
+  /** Attach file：选择文件 → 与拖拽一致生成 #image:/#file:/#resource: tag 插入光标处 */
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      const session = useAppStore.getState().sessions.find((s) => s.id === request.sessionId);
+      const projectId = session?.projectId;
+      const projectCwd = session?.cwd;
+      const textarea = getTextarea();
+      if (!projectId || !textarea) return;
+
+      const paths: { path: string; isImage: boolean }[] = [];
+      for (const file of files) {
+        const absPath = electron.getPathForFile(file);
+        if (absPath) paths.push({ path: absPath, isImage: file.type.startsWith("image/") });
+      }
+      if (paths.length === 0) return;
+
+      textarea.focus();
+      const tags = await Promise.all(
+        paths.map(({ path, isImage }) => absPathToMention(path, projectId, projectCwd, isImage)),
+      );
+      insertMentionsAtCursor(textarea, tags);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    [request.sessionId, getTextarea],
+  );
+
+  /** 拖入文件 → 解析为绝对路径，异步生成 mention 并插入光标处 */
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      const session = useAppStore.getState().sessions.find((s) => s.id === request.sessionId);
+      const projectId = session?.projectId;
+      const projectCwd = session?.cwd;
+      if (!projectId) return;
+
+      const paths: { path: string; isImage: boolean }[] = [];
+
+      // Handle files drop (desktop: File.path via electron)
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        for (const file of Array.from(e.dataTransfer.files)) {
+          const absPath = electron.getPathForFile(file);
+          if (absPath) paths.push({ path: absPath, isImage: file.type.startsWith("image/") });
+        }
+      }
+
+      // Handle file:// URIs from external sources (VS Code file tree drag, webUI, etc.)
+      if (paths.length === 0) {
+        const uriList = e.dataTransfer.getData("text/uri-list");
+        const uris =
+          uriList
+            ?.split("\n")
+            .map((u) => u.trim())
+            .filter(Boolean) ?? [];
+        for (const uri of uris) {
+          if (!uri.startsWith("file://")) continue;
+          const absPath = decodeURIComponent(uri.replace(/^file:\/\//, ""));
+          if (absPath) paths.push({ path: absPath, isImage: isImagePath(absPath) });
+        }
+      }
+
+      if (paths.length === 0) return;
+
+      void (async () => {
+        const textarea = inputContainerRef.current?.querySelector("textarea");
+        if (!textarea) return;
+        // execCommand("insertText") 需要 textarea 处于聚焦状态，否则静默失败；
+        // 未聚焦时拖入文件会出现高亮但内容插不进去（与 chat-input 的 insertPathMentions 一致）
+        textarea.focus();
+        const tags = await Promise.all(
+          paths.map(({ path, isImage }) => absPathToMention(path, projectId, projectCwd, isImage)),
+        );
+        insertMentionsAtCursor(textarea, tags);
+      })();
+    },
+    [request.sessionId],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    // Must always preventDefault on dragover to allow drop
+    if (e.dataTransfer.types.includes("Files") || e.dataTransfer.types.includes("text/uri-list")) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  /** Fetch file suggestions from backend (called by react-mentions on each keystroke) */
+  const fetchFileSuggestions = useCallback(
+    (search: string, callback: (data: SuggestItem[]) => void) => {
+      const session = useAppStore.getState().sessions.find((s) => s.id === request.sessionId);
+      if (!session?.projectId) {
+        callback([]);
+        return;
+      }
+      void backend.request
+        .searchFiles({ projectId: session.projectId, query: search || undefined })
+        .then((results) => callback(results.map((f) => searchFileItemToSuggestItem(f))))
+        .catch(() => callback([]));
+    },
+    [request.sessionId],
+  );
+
+  /** Fetch @ suggestions: skills + MCP servers (cached and filtered locally) */
+  const fetchAtSuggestions = useCallback(
+    (search: string, callback: (data: SuggestItem[]) => void) => {
+      const lowerSearch = (search || "").toLowerCase();
+      const session = useAppStore.getState().sessions.find((s) => s.id === request.sessionId);
+      const enabledMcpServers = useAppStore
+        .getState()
+        .configuredMcpServers.filter((m) => session?.mcpServers.includes(m.id) ?? false);
+      const mcpItems = enabledMcpServers
+        .filter(
+          (m) =>
+            !lowerSearch ||
+            m.id.toLowerCase().includes(lowerSearch) ||
+            (m.type === "stdio" && m.command.toLowerCase().includes(lowerSearch)) ||
+            (m.type === "http" && m.url.toLowerCase().includes(lowerSearch)),
+        )
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((m) => mcpServerInfoToSuggestItem(m))
+        .slice(0, AT_SUGGESTION_MAX);
+
+      const projectId = session?.projectId;
+      if (!projectId) {
+        callback(mcpItems);
+        return;
+      }
+      void backend.request
+        .getSkillsCatalog({ projectId })
+        .then((results) => {
+          const skills = results
+            .filter(
+              (s) =>
+                !lowerSearch ||
+                s.name.toLowerCase().includes(lowerSearch) ||
+                s.description?.toLowerCase().includes(lowerSearch),
+            )
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((s) => skillInfoToSuggestItem(s))
+            .slice(0, AT_SUGGESTION_MAX);
+          callback([...mcpItems, ...skills]);
+        })
+        .catch(() => callback(mcpItems));
+    },
+    [request.sessionId],
+  );
 
   const handleSelectOption = useCallback(
     (value: string) => {
@@ -220,7 +483,7 @@ function AskUserOptions({
 
   // 否则作为自定义回复
   const handleSubmitInput = () => {
-    const trimmed = inputValue.trim();
+    const trimmed = resolveMentions(inputValue).trim();
     backend.request
       .respondAskUser({
         sessionId: request.sessionId,
@@ -239,6 +502,13 @@ function AskUserOptions({
       handleSubmitInput();
     }
   };
+
+  // 切换到输入模式时聚焦（@types/react-mentions 未声明 autoFocus，手动聚焦）
+  useEffect(() => {
+    if (mode === "input") {
+      inputContainerRef.current?.querySelector("textarea")?.focus();
+    }
+  }, [mode]);
 
   return (
     <>
@@ -282,10 +552,11 @@ function AskUserOptions({
             <Button
               variant="ghost"
               size="sm"
-              className="justify-start h-8 px-3 text-xs text-muted-foreground mt-1"
+              className="justify-start h-8 px-2 text-xs text-muted-foreground"
               onClick={() => setMode("input")}
             >
-              {t("askUser.other", "Other...")}
+              <span>{t("askUser.other", "Custom reply")}</span>
+              <ArrowRight className="size-3" />
             </Button>
           )}
         </div>
@@ -301,20 +572,180 @@ function AskUserOptions({
               className="self-start h-6 px-1 text-xs text-muted-foreground -ml-1"
               onClick={() => setMode("options")}
             >
-              <ArrowLeft className="size-3.5 mr-1" />
-              {t("askUser.back", "Back")}
+              <ArrowLeft className="size-3" />
+              <span>{t("askUser.back", "Use options")}</span>
             </Button>
           )}
-          <div className="rounded-lg border border-input bg-card focus-within:border-ring focus-within:ring-ring relative">
-            <Textarea
+          <div
+            ref={inputContainerRef}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`rounded-lg border bg-card focus-within:border-ring focus-within:ring-ring relative transition-colors ${
+              isDragOver ? "border-primary ring-0.5 ring-primary bg-primary/5" : "border-input"
+            }`}
+          >
+            <MentionsInput
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(_e, newValue) => setInputValue(newValue)}
               onKeyDown={handleKeyDown}
               placeholder={t("askUser.inputPlaceholder", "Type your response... (Enter to send)")}
-              className="min-h-19 text-xs! max-h-50 block resize-none border-none shadow-none focus-visible:ring-0 leading-relaxed p-2 pb-8 text-foreground/80 placeholder:text-muted-foreground/50 break-all"
-              autoFocus
-            />
-            <div className="absolute bottom-1.5 right-1.5">
+              style={askUserMentionsStyle}
+              aria-label={t("chatInput.messageInput", "Message input")}
+              a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
+              className="chat-mentions-input"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+            >
+              <Mention
+                trigger="#"
+                data={fetchFileSuggestions}
+                markup={MENTION_MARKUP}
+                displayTransform={(_id, display) => display}
+                style={mentionStyle}
+                appendSpaceOnAdd
+                renderSuggestion={(suggestion) => {
+                  const display = suggestion.display ?? "";
+                  const isFolder = display.startsWith("#folder:");
+                  const isImage = display.startsWith("#image:");
+                  const name = String(suggestion.id).split("/").pop();
+                  return (
+                    <div className="flex items-center gap-1">
+                      {isFolder ? (
+                        <Folder className="size-3.5 text-muted-foreground" />
+                      ) : isImage ? (
+                        <ImageIcon className="size-3.5 text-muted-foreground" />
+                      ) : (
+                        <FileText className="size-3.5 text-muted-foreground" />
+                      )}
+                      <span className="text-xs whitespace-nowrap text-foreground">{name}</span>
+                      <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
+                        {suggestion.display?.slice(1)}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+              <Mention
+                trigger="@"
+                data={fetchAtSuggestions}
+                markup={MENTION_MARKUP}
+                displayTransform={(_id, display) => display}
+                style={mentionStyle}
+                appendSpaceOnAdd
+                renderSuggestion={(suggestion) => {
+                  const display = suggestion.display ?? "";
+                  if (display.startsWith("@mcp:")) {
+                    const mcp = useAppStore
+                      .getState()
+                      .configuredMcpServers.find((m) => m.id === suggestion.id);
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Wrench className="size-3.5 text-muted-foreground" />
+                        <span className="text-xs whitespace-nowrap text-foreground">
+                          {mcp?.id ?? suggestion.id}
+                        </span>
+                        <span className="ml-1 text-[10px] text-muted-foreground/50 flex-1 truncate">
+                          {mcp?.type === "stdio"
+                            ? `${mcp.command} ${(mcp.args ?? []).join(" ")}`
+                            : mcp?.type === "http"
+                              ? mcp.url
+                              : ""}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-1">
+                      <Library className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs whitespace-nowrap text-foreground">
+                        {suggestion.id}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+            </MentionsInput>
+            {/* 底部工具栏：Attach file / Snippets / # / @ + 提交按钮（与 chat-input 一致） */}
+            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-0.5">
+                <input
+                  type="file"
+                  multiple
+                  accept="*/*"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label={t("chatInput.attach", "Attach file")}
+                >
+                  <Paperclip className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  aria-label={t("chatInput.reference", "Reference")}
+                  onClick={() => insertTriggerChar("#")}
+                >
+                  <Hash className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  aria-label={t("chatInput.mention", "Mention")}
+                  onClick={() => insertTriggerChar("@")}
+                >
+                  <AtSign className="size-3.5" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-lg text-muted-foreground"
+                        aria-label={t("chatInput.snippets", "Snippets")}
+                      >
+                        <Clipboard className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent side="top" align="start" className="w-60">
+                    {snippets.length > 0 ? (
+                      snippets.map((s) => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          onClick={() => {
+                            getTextarea()?.focus();
+                            document.execCommand("insertText", false, s.content);
+                          }}
+                        >
+                          <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
+                            <span className="text-xs">{s.title}</span>
+                            <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
+                              {s.content}
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem onClick={() => navigate("/settings/snippets")}>
+                        <span className="text-xs text-muted-foreground">
+                          {t("chatInput.snippetsEmpty", "No snippets. Click to add in Settings.")}
+                        </span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <Button
                 size="icon"
                 className="size-7 rounded-lg"
@@ -330,3 +761,65 @@ function AskUserOptions({
     </>
   );
 }
+
+/** Inline styles for MentionsInput in the ask-user input (height aligned with chat-input: input area ≈54px) */
+const askUserMentionsStyle: MentionsInputStyle = {
+  control: {
+    fontSize: 12,
+    lineHeight: "1.625",
+  },
+  "&multiLine": {
+    control: {
+      minHeight: 104,
+    },
+    highlighter: {
+      padding: "12px 12px 38px",
+      border: "none",
+      maxHeight: 200,
+    },
+    input: {
+      padding: "12px 12px 38px",
+      border: "none",
+      outline: "none",
+      overflow: "auto",
+      maxHeight: 200,
+      color: "var(--foreground)",
+      fontSize: 12,
+      lineHeight: "1.625",
+      opacity: 0.8,
+      wordBreak: "break-all",
+    },
+  },
+  suggestions: {
+    zIndex: 30,
+    left: -1,
+    right: -1,
+    top: "auto",
+    bottom: "100%",
+    marginBottom: 4,
+    marginTop: 0,
+    backgroundColor: "transparent",
+    list: {
+      backgroundColor: "var(--card)",
+      border: "1px solid var(--border)",
+      borderRadius: 7.2,
+      fontSize: 12,
+      overflow: "hidden",
+    },
+    item: {
+      padding: "6px 12px",
+      "&focused": {
+        backgroundColor: "var(--accent)",
+      },
+    },
+  },
+};
+
+const mentionStyle = {
+  backgroundColor: "var(--secondary)",
+  boxShadow: "0 0 0 1px var(--ring)",
+  opacity: 0.5,
+  borderRadius: 2,
+  margin: -0.5,
+  padding: 0.5,
+};

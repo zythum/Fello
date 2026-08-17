@@ -3,6 +3,18 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MentionsInput, Mention } from "react-mentions";
 import {
+  MENTION_MARKUP,
+  AT_SUGGESTION_MAX,
+  resolveMentions,
+  searchFileItemToSuggestItem,
+  skillInfoToSuggestItem,
+  mcpServerInfoToSuggestItem,
+  absPathToMention,
+  insertMentionsAtCursor,
+  nodesToMentionText,
+  type SearchFileItem,
+} from "../../../lib/mention-utils";
+import {
   useSessionIsLoading,
   useSessionAskUserRequests,
   useSessionDraftInput,
@@ -47,88 +59,8 @@ import {
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
-import type { SessionInfo, SkillInfo, McpServerInfo } from "../../../../shared/schema";
+import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-
-interface SearchFileItem {
-  id: string;
-  filename: string;
-  isFolder: boolean;
-}
-
-interface SuggestItem {
-  id: string;
-  display: string;
-}
-
-function skillInfoToSuggestItem(s: SkillInfo): SuggestItem {
-  return {
-    id: s.id,
-    display: `@skill:${s.name}`,
-  };
-}
-
-function mcpServerInfoToSuggestItem(m: McpServerInfo): SuggestItem {
-  return {
-    id: m.id,
-    display: `@mcp:${m.id}`,
-  };
-}
-
-function searchFileItemToSuggestItem(f: SearchFileItem): SuggestItem {
-  return {
-    id: f.id,
-    display: f.isFolder ? `#folder:${f.filename}` : `#file:${f.filename}`,
-  };
-}
-
-/** 根据绝对路径判断是否属于当前项目，返回合适的 mention 标记（#file: / #folder: / #resource:） */
-async function absPathToMention(
-  absPath: string,
-  projectId: string,
-  projectCwd?: string,
-): Promise<string> {
-  // Project root itself or paths outside the project → treat as external resource
-  if (
-    projectCwd &&
-    (absPath === projectCwd ||
-      absPath === projectCwd.replace(/\/$/, "") ||
-      !absPath.startsWith(projectCwd.replace(/\/?$/, "/")))
-  ) {
-    const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
-    return `@[#resource:${fileUri}](${fileUri})`;
-  }
-  try {
-    const relPath = await request.getSystemFilePath({
-      projectId,
-      path: absPath,
-      isAbsolute: false,
-    });
-    const info = await request.getFileInfo({ projectId, relativePath: relPath });
-    if (info) {
-      const prefix = info.isFile ? "#file:" : "#folder:";
-      return `@[${prefix}${relPath}](${absPath})`;
-    }
-  } catch {
-    // not within project
-  }
-  const fileUri = `file://${absPath.replace(/\\/g, "/")}`;
-  return `@[#resource:${fileUri}](${fileUri})`;
-}
-
-/**
- * 在 textarea 光标处插入 mentions（#file: / #folder: / #resource: 标记）。
- * 空格规则与 fello-add-to-chat（source 加入）保持一致：
- * - 光标前已有内容且非空白 → 补 1 个前导空格
- * - 多个 mention 之间 1 个空格
- * - 末尾固定 1 个空格
- */
-function insertMentionsAtCursor(textarea: HTMLTextAreaElement, mentions: string[]): void {
-  const before = textarea.value.slice(0, textarea.selectionStart);
-  const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
-  const prefix = needsLeadingSpace ? " " : "";
-  document.execCommand("insertText", false, `${prefix}${mentions.join(" ")} `);
-}
 
 /** 将 File 读取为 base64（不含 data: URL 前缀） */
 function readFileAsBase64(file: File): Promise<string> {
@@ -168,11 +100,6 @@ async function addFileAsAttachment(
   }));
 }
 
-/** 将文件树节点数组拼成 mention markup 文本 */
-function nodesToMentionText(nodes: { id: string; name: string; isFolder: boolean }[]): string {
-  return nodes.map((n) => `@[${n.isFolder ? "#folder:" : "#file:"}${n.name}](${n.id})`).join(" ");
-}
-
 /** 将暂存的附件信息构建成 ContentBlock 列表 */
 function buildAttachmentBlocks(attachments: StagedAttachmentInfo[]): ContentBlock[] {
   return attachments.map((att) => {
@@ -191,18 +118,6 @@ function buildAttachmentBlocks(attachments: StagedAttachmentInfo[]): ContentBloc
       },
     } satisfies ContentBlock;
   });
-}
-
-/** Max suggestions shown for skills / MCP in the @ mention autocomplete */
-const AT_SUGGESTION_MAX = 6;
-
-/** Markup format used by react-mentions: @[display](id) */
-const MENTION_MARKUP = "@[__display__](__id__)";
-const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
-
-/** Replace all mention markup with the raw absolute path */
-function resolveMentions(value: string): string {
-  return value.replace(MENTION_REGEX, (_match, display: string, _id: string) => display);
 }
 
 export function ChatInput({ session }: { session: SessionInfo }) {
@@ -1010,11 +925,15 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 {
                   /* display format is determined by searchFileItemToSuggestItem above */
                 }
-                const isFolder = suggestion.display?.startsWith("#folder:");
+                const display = suggestion.display ?? "";
+                const isFolder = display.startsWith("#folder:");
+                const isImage = display.startsWith("#image:");
                 return (
                   <div className="flex items-center gap-1">
                     {isFolder ? (
                       <Folder className="size-3.5 text-muted-foreground" />
+                    ) : isImage ? (
+                      <ImageIcon className="size-3.5 text-muted-foreground" />
                     ) : (
                       <FileText className="size-3.5 text-muted-foreground" />
                     )}
@@ -1153,6 +1072,26 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     </Button>
                   </>
                 ) : null}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  disabled={disabled}
+                  aria-label={t("chatInput.reference", "Reference")}
+                  onClick={() => insertTriggerChar("#")}
+                >
+                  <Hash className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-lg text-muted-foreground"
+                  disabled={disabled}
+                  aria-label={t("chatInput.mention", "Mention")}
+                  onClick={() => insertTriggerChar("@")}
+                >
+                  <AtSign className="size-3.5" />
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -1194,26 +1133,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 rounded-lg text-muted-foreground"
-                  disabled={disabled}
-                  aria-label={t("chatInput.reference", "Reference")}
-                  onClick={() => insertTriggerChar("#")}
-                >
-                  <Hash className="size-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 rounded-lg text-muted-foreground"
-                  disabled={disabled}
-                  aria-label={t("chatInput.mention", "Mention")}
-                  onClick={() => insertTriggerChar("@")}
-                >
-                  <AtSign className="size-3.5" />
-                </Button>
               </div>
             </div>
             <div className="flex items-center gap-2 overflow-hidden">

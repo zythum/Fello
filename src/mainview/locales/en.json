@@ -665,11 +665,13 @@
   },
   "askUser": {
     "title": "Request",
-    "other": "Other...",
-    "back": "Back",
+    "other": "Custom reply",
+    "back": "Use options",
     "inputPlaceholder": "Type your response... (Enter to send)",
     "submit": "Submit",
-    "autoClose": "Auto closes on timeout"
+    "autoClose": "Auto closes on timeout",
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "shareToUser": {
     "copyToProject": "Copy to project",
