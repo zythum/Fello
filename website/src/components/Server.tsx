@@ -25,7 +25,7 @@ export default function Server() {
         <SectionHeading label={s.label} title={s.title} subtitle={s.subtitle} />
 
         <div className="mb-10 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8">
+          <div className="rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8 overflow-hidden">
             <div className="mb-4 flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-teal-400/10 text-teal-300 ring-1 ring-teal-400/20">
                 <Terminal className="h-5 w-5" />
@@ -36,7 +36,7 @@ export default function Server() {
             <CodeBlock commands={s.runNpx.commands} />
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8">
+          <div className="rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8 overflow-hidden">
             <div className="mb-4 flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-teal-400/10 text-teal-300 ring-1 ring-teal-400/20">
                 <Terminal className="h-5 w-5" />
@@ -65,7 +65,7 @@ export default function Server() {
           </dl>
         </div>
 
-        <div className="mb-10 rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8">
+        <div className="mb-10 rounded-2xl border border-white/10 bg-surface/50 p-6 sm:p-8 overflow-hidden">
           <h3 className="mb-2 text-lg font-semibold text-white">{s.accessTitle}</h3>
           <p className="mb-4 text-sm text-slate-400">{s.accessDesc}</p>
           <CodeBlock commands={[s.accessUrl]} />

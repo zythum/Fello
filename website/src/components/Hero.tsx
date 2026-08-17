@@ -62,7 +62,7 @@ export default function Hero() {
 
         <div className="relative mx-auto mt-14 max-w-4xl">
           <div className="absolute -inset-1.5 rounded-[1.75rem] bg-gradient-to-r from-teal-500/30 via-cyan-500/20 to-indigo-500/30 blur-2xl" />
-          <div className="relative -mx-16">
+          <div className="relative -mx-4">
             <img src={screenshot} alt={t.hero.screenshotAlt} className="w-full" />
           </div>
         </div>
