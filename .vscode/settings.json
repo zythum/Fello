@@ -1,2 +1,8 @@
 {
+  // Debug: 启用 Source Map 支持
+  "debug.javascript.autoAttachFilter": "smart",
+  "debug.javascript.terminalOptions": {
+    "sourceMaps": true
+  },
+  "debug.toolBarLocation": "floating"
 }

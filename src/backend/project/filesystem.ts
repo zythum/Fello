@@ -487,6 +487,23 @@ export function createFilesystemState(ctx: BackendContext) {
     return process.platform;
   }
 
+  async function writeFileContent({
+    projectId,
+    relativePath,
+    content,
+  }: {
+    projectId: string;
+    relativePath: string;
+    content: string;
+  }) {
+    const project = storage.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, content, "utf8");
+    markProjectFsDirty(projectId);
+  }
+
   return {
     markProjectFsDirty,
     initProjectFsVersion,
@@ -503,6 +520,7 @@ export function createFilesystemState(ctx: BackendContext) {
     readFile,
     getFileInfo,
     writeExternalFile,
+    writeFile: writeFileContent,
     getGitStatus,
     readGitHeadFile,
     getPlatform,

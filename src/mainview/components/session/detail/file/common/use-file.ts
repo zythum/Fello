@@ -27,6 +27,7 @@ interface UseFileResult {
   filePath: string;
   search: string;
   hash: string;
+  setContent: (value: string) => void;
 }
 
 export function useFile(
@@ -101,5 +102,5 @@ export function useFile(
     [content, encoding],
   );
 
-  return { content, gitContent, arrayBuffer, loading, errorMsg, filePath, search, hash };
+  return { content, gitContent, arrayBuffer, loading, errorMsg, filePath, search, hash, setContent };
 }

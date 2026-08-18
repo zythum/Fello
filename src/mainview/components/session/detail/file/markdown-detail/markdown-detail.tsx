@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../../common/code-view";
@@ -30,11 +30,29 @@ interface MarkdownDetailProps {
 
 export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const { t } = useTranslation();
-  const { content, gitContent, loading, errorMsg, filePath, hash } = useFile(projectId, file, {
+  const { content, gitContent, loading, errorMsg, filePath, hash, setContent } = useFile(projectId, file, {
     gitHead: true,
   });
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+
+  // Edit state
+  const [draft, setDraft] = useState(content);
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedHint, setSavedHint] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Initialize draft when entering edit mode / when file content reloads
+  useEffect(() => {
+    setDraft(content);
+    setIsDirty(false);
+    setSavedHint(false);
+  }, [content]);
+
+  useEffect(() => {
+    if (viewMode === "edit") textareaRef.current?.focus();
+  }, [viewMode]);
 
   const resolvePath = useCallback(
     (src: string) => {
@@ -62,7 +80,9 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   }, [projectId, resolvePath]);
 
   const viewModes: ViewMode[] =
-    gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
+    gitContent != null
+      ? ["preview", "code", "compare", "edit"]
+      : ["preview", "code", "edit"];
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     if (open) setContextSelectedText(window.getSelection()?.toString() ?? "");
@@ -116,6 +136,32 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
     electron.openInEditor(absPath, editorName);
   }, [projectId, filePath]);
 
+  const handleSave = useCallback(async () => {
+    if (saving || !isDirty) return;
+    setSaving(true);
+    setSavedHint(false);
+    try {
+      await request.writeFile({ projectId, relativePath: filePath, content: draft });
+      setContent(draft);
+      setIsDirty(false);
+      setSavedHint(true);
+    } catch (err) {
+      console.error("Failed to save file", err);
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, isDirty, projectId, filePath, draft, setContent]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void handleSave();
+      }
+    },
+    [handleSave],
+  );
+
   if (loading) return <LoadingState />;
   if (errorMsg) return <ErrorState message={errorMsg} />;
 
@@ -158,7 +204,37 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
 
   return (
     <div className="relative h-full overflow-hidden">
-      {viewMode === "preview" ? (
+      {viewMode === "edit" ? (
+        <div className="absolute inset-0 flex flex-col bg-background">
+          <div className="shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 border-b border-border">
+            {savedHint && !isDirty && (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                {t("fileDetail.saved")}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground hidden sm:inline">⌘/Ctrl + S</span>
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={saving || !isDirty}
+              className="px-3 py-1 rounded text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+            >
+              {saving ? "…" : t("fileDetail.save")}
+            </button>
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setIsDirty(e.target.value !== content);
+            }}
+            onKeyDown={handleKeyDown}
+            spellCheck={false}
+            className="flex-1 min-h-0 w-full resize-none bg-background p-4 pb-16 font-mono text-sm leading-relaxed outline-none text-foreground"
+          />
+        </div>
+      ) : viewMode === "preview" ? (
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger className="h-full select-text">

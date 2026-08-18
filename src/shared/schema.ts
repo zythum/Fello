@@ -788,6 +788,11 @@ export type FelloIPCRequests = {
     params: { projectId: string; fileName: string; base64: string; destRelativeDir?: string };
     response: void;
   };
+  /** 写回文件内容（覆盖写入，UTF-8） */
+  writeFile: {
+    params: { projectId: string; relativePath: string; content: string };
+    response: void;
+  };
 
   /** 注册客户端 */
   registerClient: { params: { clientId: string }; response: void };

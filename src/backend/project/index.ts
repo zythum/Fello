@@ -22,6 +22,7 @@ export interface ProjectModule {
   readFile: ReturnType<typeof createFilesystemState>["readFile"];
   getFileInfo: ReturnType<typeof createFilesystemState>["getFileInfo"];
   writeExternalFile: ReturnType<typeof createFilesystemState>["writeExternalFile"];
+  writeFile: ReturnType<typeof createFilesystemState>["writeFile"];
   getGitStatus: ReturnType<typeof createFilesystemState>["getGitStatus"];
   readGitHeadFile: ReturnType<typeof createFilesystemState>["readGitHeadFile"];
   getPlatform: ReturnType<typeof createFilesystemState>["getPlatform"];

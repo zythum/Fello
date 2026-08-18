@@ -356,6 +356,9 @@ export function initBackend(
     async writeExternalFile(params) {
       return project.writeExternalFile(params);
     },
+    async writeFile(params) {
+      return project.writeFile(params);
+    },
     async getPlatform() {
       return project.getPlatform();
     },
