@@ -174,12 +174,7 @@ function calculateToolCallUpdate(
     }
     if (Object.prototype.hasOwnProperty.call(update, "content")) {
       const newContent = update.content ?? [];
-      // 已展示结构化结果（diff）时，避免被后续仅含状态文本的更新整体覆盖。
-      // 例如 CodeBuddy 的 Edit：diff 在 tool_call(pending) 中下发，
-      // 后续 tool_call_update(completed) 只带 "Successfully edited file" 文本。
-      const hasDiff = message.content?.some((c) => c.type === "diff") ?? false;
-      const nextHasDiff = newContent.some((c) => c.type === "diff");
-      if (!hasDiff || nextHasDiff) {
+      if (newContent.length > 0) {
         message.content = newContent;
       }
     }

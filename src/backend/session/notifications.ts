@@ -53,7 +53,12 @@ function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, upd
   if (Object.prototype.hasOwnProperty.call(update, "title")) merged.title = update.title;
   if (Object.prototype.hasOwnProperty.call(update, "status") && update.status != null)
     merged.status = update.status;
-  if (Object.prototype.hasOwnProperty.call(update, "content")) merged.content = update.content;
+  if (
+    Object.prototype.hasOwnProperty.call(update, "content") &&
+    update.content &&
+    update.content.length > 0
+  )
+    merged.content = update.content;
   if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null)
     merged.kind = update.kind;
   if (Object.prototype.hasOwnProperty.call(update, "rawInput")) merged.rawInput = update.rawInput;
