@@ -116,7 +116,12 @@ export function parseFelloTools(
     const candidates: unknown[] = [];
     if (Array.isArray(parsed)) {
       for (const item of parsed) {
-        if (item && typeof item === "object" && item.type === "text" && typeof item.text === "string") {
+        if (
+          item &&
+          typeof item === "object" &&
+          item.type === "text" &&
+          typeof item.text === "string"
+        ) {
           try {
             candidates.push(JSON.parse(item.text));
             continue;
@@ -188,7 +193,7 @@ function tryUnwrapContentBlocks(text: string): string | null {
   if (!Array.isArray(parsed)) return null;
   const texts: string[] = [];
   for (const item of parsed) {
-    if (item && typeof item === "object" && item.type === "text" && typeof item.text === 'string') {
+    if (item && typeof item === "object" && item.type === "text" && typeof item.text === "string") {
       texts.push(item.text);
     }
   }
