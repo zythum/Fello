@@ -1,7 +1,9 @@
+import { statSync } from "fs";
 import watcher from "@parcel/watcher";
-import { relative } from "path";
+import { join, relative } from "path";
 import type { BackendContext } from "./types";
 import { toPosixPath } from "./utils";
+import { isSelfWrite } from "./self-write";
 
 const MAX_BATCH_CHANGES = 1000;
 
@@ -65,7 +67,23 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
 
     const flush = () => {
       if (changes.size > 0) {
-        sendEvent("fs-changed", { projectId, changes: Array.from(changes) });
+        const allChanges = Array.from(changes);
+        // 命中「应用自写」记录的变更单独标记，供前端区分自保存与外部修改
+        const selfChanges = allChanges.filter((p) => {
+          let st: ReturnType<typeof statSync> | undefined;
+          try {
+            st = statSync(join(cwd, p), { throwIfNoEntry: false });
+          } catch {
+            // stat 失败（如权限错误）时按非自写处理，避免中断整个事件派发
+            st = undefined;
+          }
+          return isSelfWrite(projectId, p, st ? { mtimeMs: st.mtimeMs, size: st.size } : null);
+        });
+        sendEvent("fs-changed", {
+          projectId,
+          changes: allChanges,
+          ...(selfChanges.length > 0 ? { selfChanges } : {}),
+        });
         changes.clear();
         overflowed = false;
       }

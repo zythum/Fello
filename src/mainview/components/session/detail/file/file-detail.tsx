@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { X, RefreshCw } from "lucide-react";
+import { X, RefreshCw, Code, FolderOpen } from "lucide-react";
 import { FileIcon } from "../../../common/file-icon";
-import { subscribe } from "../../../../backend";
+import { request, subscribe, isWebUI } from "../../../../backend";
+import { electron } from "../../../../electron";
+import { useAppStore } from "../../../../store";
+import { useMessage } from "../../../providers/message";
+import { EDITOR_LABELS } from "../../../../../shared/constants";
 import type { FileDetailProps } from "./file-types";
 import { getFileKind } from "./file-types";
 import { parseFileReference } from "../../../common/file-reference";
@@ -18,24 +22,29 @@ import { FallbackDetail } from "./fallback-detail/fallback-detail";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
+  const { confirm } = useMessage();
+  const editorName = useAppStore((s) => s.editor.name);
   const filePath = file ? parseFileReference(file).path : "";
   const fileKind = getFileKind(filePath);
   const [fileModified, setFileModified] = useState(false);
+  const [editDirty, setEditDirty] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Reset modified state when file changes
   useEffect(() => {
     setFileModified(false);
+    setEditDirty(false);
     setRefreshKey(0);
   }, [projectId, filePath]);
 
   // Listen for external file modifications
   useEffect(() => {
     if (!projectId || !filePath) return;
-    const handler = (payload: { projectId: string; changes: string[] }) => {
-      if (payload.projectId === projectId && payload.changes.includes(filePath)) {
-        setFileModified(true);
-      }
+    const handler = (payload: { projectId: string; changes: string[]; selfChanges?: string[] }) => {
+      if (payload.projectId !== projectId || !payload.changes.includes(filePath)) return;
+      // 应用自身保存触发的变更（selfChanges）不提示「文件已被修改」
+      if (payload.selfChanges?.includes(filePath)) return;
+      setFileModified(true);
     };
     subscribe.on("fs-changed", handler);
     return () => {
@@ -47,6 +56,45 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     setFileModified(false);
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // 关闭详情：编辑区存在未保存更改时先确认，避免内容静默丢失
+  const handleClose = useCallback(() => {
+    if (!onClose) return;
+    if (!editDirty) {
+      onClose();
+      return;
+    }
+    void confirm({
+      title: t("fileDetail.unsavedTitle"),
+      content: t("fileDetail.unsavedContent"),
+      buttons: [
+        { text: t("filePanel.cancel"), value: null, variant: "outline" },
+        { text: t("fileDetail.discard"), value: "discard", variant: "destructive" },
+      ],
+    }).then((result) => {
+      if (result === "discard") onClose();
+    });
+  }, [editDirty, onClose, confirm, t]);
+
+  const handleRevealInFinder = useCallback(async () => {
+    if (isWebUI || !projectId || !filePath) return;
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
+    electron.revealInFinder(absPath);
+  }, [projectId, filePath]);
+
+  const handleOpenInEditor = useCallback(async () => {
+    if (isWebUI || !projectId || !filePath) return;
+    const absPath = await request.getSystemFilePath({
+      projectId,
+      path: filePath,
+      isAbsolute: true,
+    });
+    electron.openInEditor(absPath, editorName);
+  }, [projectId, filePath, editorName]);
 
   return (
     <div className="flex flex-col w-full h-full min-w-0 relative overflow-hidden">
@@ -61,6 +109,31 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             <div className="flex flex-col min-w-0">
               <span className="text-xs truncate leading-tight text-foreground/60">{filePath}</span>
             </div>
+            {!isWebUI && (
+              <div
+                className="flex items-center gap-0.5 ml-0.5 shrink-0"
+                style={{ WebkitAppRegion: "no-drag" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleRevealInFinder}
+                  title={t("filePanel.revealInFinder")}
+                  className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+                >
+                  <FolderOpen className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenInEditor}
+                  title={t("filePanel.openInEditor", {
+                    editor: EDITOR_LABELS[editorName] ?? "Editor",
+                  })}
+                  className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+                >
+                  <Code className="size-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -83,7 +156,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
           {onClose && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
               style={{ WebkitAppRegion: "no-drag" }}
             >
@@ -97,9 +170,19 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       {projectId && filePath && file && (
         <div className="relative flex-1 min-h-0 overflow-hidden">
           {fileKind === "text" ? (
-            <CodeDetail key={refreshKey} projectId={projectId} file={file} />
+            <CodeDetail
+              key={refreshKey}
+              projectId={projectId}
+              file={file}
+              onEditDirtyChange={setEditDirty}
+            />
           ) : fileKind === "markdown" ? (
-            <MarkdownDetail key={refreshKey} projectId={projectId} file={file} />
+            <MarkdownDetail
+              key={refreshKey}
+              projectId={projectId}
+              file={file}
+              onEditDirtyChange={setEditDirty}
+            />
           ) : fileKind === "image" ? (
             <ImageDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "pdf" ? (

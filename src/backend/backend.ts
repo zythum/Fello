@@ -350,6 +350,9 @@ export function initBackend(
     async readFile(params) {
       return project.readFile(params);
     },
+    async writeFile(params) {
+      return project.writeFile(params);
+    },
     async getFileInfo(params) {
       return project.getFileInfo(params);
     },

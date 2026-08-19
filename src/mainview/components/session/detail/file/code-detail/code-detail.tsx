@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../../common/code-view";
@@ -16,26 +16,44 @@ import { useAppStore } from "../../../../../store";
 import { request, isWebUI } from "../../../../../backend";
 import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
+import { useMessage } from "../../../../providers/message";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
 import { LoadingState, ErrorState } from "../common/loading-state";
 import { useFile } from "../common/use-file";
+import {
+  EditPanel,
+  MAX_EDIT_SIZE,
+  switchViewModeWithEditGuard,
+  type EditPanelHandle,
+} from "../common/edit-panel";
 import { useFileSearch } from "./use-file-search";
 import { SearchBar } from "./search-bar";
 
 interface CodeDetailProps {
   projectId: string;
   file: string;
+  /** 编辑区 dirty 状态上报（FileDetail 用于关闭详情前的未保存确认） */
+  onEditDirtyChange?: (dirty: boolean) => void;
 }
 
-export function CodeDetail({ projectId, file }: CodeDetailProps) {
+export function CodeDetail({ projectId, file, onEditDirtyChange }: CodeDetailProps) {
   const { t } = useTranslation();
-  const { content, gitContent, loading, errorMsg, filePath } = useFile(projectId, file, {
-    gitHead: true,
-  });
+  const { confirm } = useMessage();
+  const { content, gitContent, loading, errorMsg, filePath, fileSize, reload } = useFile(
+    projectId,
+    file,
+    { gitHead: true },
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("code");
+  // 进入编辑前所在的视图，取消编辑时返回
+  const [editReturnMode, setEditReturnMode] = useState<ViewMode>("code");
   const [codeViewContainer, setCodeViewContainer] = useState<HTMLDivElement | null>(null);
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+  const editPanelRef = useRef<EditPanelHandle>(null);
+
+  // 编辑入口：加载完成、无错误且文件未超过大小上限（加载中 fileSize 为 0，避免入口闪现）
+  const canEdit = !loading && !errorMsg && fileSize <= MAX_EDIT_SIZE;
 
   // Search
   const {
@@ -54,7 +72,32 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
     codeViewContainer?.children[0]?.shadowRoot ?? null,
   );
 
-  const viewModes: ViewMode[] = gitContent != null ? ["code", "compare"] : ["code"];
+  const viewModes: ViewMode[] = [
+    "code",
+    ...(gitContent != null ? (["compare"] as const) : []),
+    ...(canEdit ? (["edit"] as const) : []),
+  ];
+
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      switchViewModeWithEditGuard({
+        mode,
+        viewMode,
+        editReturnMode,
+        onEditReturnModeChange: setEditReturnMode,
+        editPanelRef,
+        confirm,
+        t,
+        setViewMode,
+      });
+    },
+    [viewMode, editReturnMode, confirm, t],
+  );
+
+  // 离开编辑视图时同步 dirty 上报，避免关闭详情误弹未保存确认
+  useEffect(() => {
+    if (viewMode !== "edit") onEditDirtyChange?.(false);
+  }, [viewMode, onEditDirtyChange]);
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     if (open) setContextSelectedText(window.getSelection()?.toString() ?? "");
@@ -164,7 +207,7 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
             {contextMenuItems}
           </ContextMenu>
         </ScrollArea>
-      ) : (
+      ) : viewMode === "compare" ? (
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger className="h-full">
@@ -179,6 +222,17 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
             {contextMenuItems}
           </ContextMenu>
         </ScrollArea>
+      ) : (
+        <EditPanel
+          ref={editPanelRef}
+          projectId={projectId}
+          filePath={filePath}
+          content={content}
+          loading={loading}
+          onSaved={reload}
+          onCancel={() => handleViewModeChange(editReturnMode)}
+          onDirtyChange={onEditDirtyChange}
+        />
       )}
 
       {/* search overlay */}
@@ -195,7 +249,11 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
       )}
 
       {/* bottom tabs */}
-      <FileViewTabs viewMode={viewMode} viewModes={viewModes} onViewModeChange={setViewMode} />
+      <FileViewTabs
+        viewMode={viewMode}
+        viewModes={viewModes}
+        onViewModeChange={handleViewModeChange}
+      />
     </div>
   );
 }

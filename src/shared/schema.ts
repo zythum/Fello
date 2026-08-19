@@ -778,6 +778,11 @@ export type FelloIPCRequests = {
     params: { projectId: string; relativePath: string; encoding?: "utf8" | "base64" };
     response: string;
   };
+  /** 写入文件内容（UTF-8 文本） */
+  writeFile: {
+    params: { projectId: string; relativePath: string; content: string };
+    response: void;
+  };
   /** 获取文件元信息（大小、是否为文件、是否为二进制等） */
   getFileInfo: {
     params: { projectId: string; relativePath: string };
@@ -1009,8 +1014,9 @@ export type FelloIPCEvents = {
   /**
    * 文件系统发生变更的事件（如文件被增删改）
    * 载荷中的 `changes` 列表，在从后端发送到前端前，已被统一转换为 POSIX 风格的相对路径。
+   * `selfChanges` 为可选字段：由应用自身写入（如编辑器保存）触发的变更子集，前端可按需忽略。
    */
-  "fs-changed": { projectId: string; changes: string[] };
+  "fs-changed": { projectId: string; changes: string[]; selfChanges?: string[] };
   /** Prompt 开始处理 */
   "prompt-start": { sessionId: string };
   /** Prompt 处理结束 */

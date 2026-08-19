@@ -81,11 +81,10 @@
 | 技术 | 版本 | 说明 |
 | --- | --- | --- |
 | streamdown | ^2.5.0 | 流式 Markdown 渲染 |
-| @streamdown/code | ^1.1.1 | 代码高亮扩展 |
 | @streamdown/cjk | ^1.0.3 | CJK 中日韩字符优化扩展 |
 | @streamdown/math | ^1.0.2 | 数学公式扩展 |
 | @streamdown/mermaid | ^1.0.2 | Mermaid 图表扩展 |
-| @pierre/diffs | ^1.3.3 | 代码 Diff 双栏/单栏对比视图 + 代码高亮（内置 shiki） |
+| @pierre/diffs | ^1.3.5 | 代码 Diff 双栏/单栏对比视图 + 代码高亮（内置 shiki） |
 | remark-breaks | ^4.0.0 | Markdown 换行支持 |
 
 ## 文档预览

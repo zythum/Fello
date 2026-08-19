@@ -218,7 +218,7 @@ sendPrompt: {
 | `ilink-active-session-changed` | `{ sessionId: string \| null }` | iLink 活跃会话变更 |
 | `projects-changed` | `void` | 项目列表变更（新增/删除/重命名） |
 | `sessions-changed` | `void` | 会话列表变更 |
-| `fs-changed` | `{ projectId, changes }` | 文件系统变更 |
+| `fs-changed` | `{ projectId, changes, selfChanges? }` | 文件系统变更（selfChanges 为应用自写触发的子集） |
 | `prompt-start` | `{ sessionId }` | Prompt 开始处理 |
 | `prompt-end` | `{ sessionId, stopReason?, error? }` | Prompt 处理结束 |
 | `schedules-changed` | `void` | 调度列表发生变更（新增/删除/更新） |

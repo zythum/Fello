@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export type ViewMode = "preview" | "code" | "compare";
+export type ViewMode = "preview" | "code" | "compare" | "edit";
 
 interface FileViewTabsProps {
   viewMode: ViewMode;
@@ -28,7 +28,9 @@ export function FileViewTabs({ viewMode, viewModes, onViewModeChange }: FileView
                 ? t("fileDetail.preview")
                 : mode === "code"
                   ? t("fileDetail.code")
-                  : t("fileDetail.compare")}
+                  : mode === "compare"
+                    ? t("fileDetail.compare")
+                    : t("fileDetail.edit")}
             </TabsTrigger>
           ))}
         </TabsList>

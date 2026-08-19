@@ -14,6 +14,7 @@ import * as mimeTypes from "mime-types";
 import { dirname, join, relative, extname, basename } from "path";
 import type { BackendContext } from "../types";
 import { resolveSafePath, toPosixPath } from "../utils";
+import { recordSelfWrite } from "../self-write";
 import * as git from "./git-utils";
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -392,6 +393,28 @@ export function createFilesystemState(ctx: BackendContext) {
     return fsReadFile(targetPath, encoding ?? "utf8");
   }
 
+  async function writeFileContent({
+    projectId,
+    relativePath,
+    content,
+  }: {
+    projectId: string;
+    relativePath: string;
+    content: string;
+  }) {
+    const project = storage.getProject(projectId);
+    if (!project) throw new Error("Project not found");
+    const targetPath = resolveSafePath(project.cwd, relativePath);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, content, "utf8");
+    markProjectFsDirty(projectId);
+    // 记录本次自写（mtime+size），供 watcher 在 fs-changed 中标记 selfChanges
+    const st = await stat(targetPath).catch(() => null);
+    if (st) {
+      recordSelfWrite(projectId, toPosixPath(relativePath), { mtimeMs: st.mtimeMs, size: st.size });
+    }
+  }
+
   async function getFileInfo({
     projectId,
     relativePath,
@@ -501,6 +524,7 @@ export function createFilesystemState(ctx: BackendContext) {
     renameFile,
     moveFile,
     readFile,
+    writeFile: writeFileContent,
     getFileInfo,
     writeExternalFile,
     getGitStatus,

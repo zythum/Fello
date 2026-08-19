@@ -20,6 +20,7 @@ export interface ProjectModule {
   renameFile: ReturnType<typeof createFilesystemState>["renameFile"];
   moveFile: ReturnType<typeof createFilesystemState>["moveFile"];
   readFile: ReturnType<typeof createFilesystemState>["readFile"];
+  writeFile: ReturnType<typeof createFilesystemState>["writeFile"];
   getFileInfo: ReturnType<typeof createFilesystemState>["getFileInfo"];
   writeExternalFile: ReturnType<typeof createFilesystemState>["writeExternalFile"];
   getGitStatus: ReturnType<typeof createFilesystemState>["getGitStatus"];

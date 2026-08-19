@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../../common/code-view";
@@ -18,23 +18,38 @@ import { request, isWebUI } from "../../../../../backend";
 import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
+import { useMessage } from "../../../../providers/message";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
 import { LoadingState, ErrorState } from "../common/loading-state";
 import { useFile } from "../common/use-file";
+import {
+  EditPanel,
+  MAX_EDIT_SIZE,
+  switchViewModeWithEditGuard,
+  type EditPanelHandle,
+} from "../common/edit-panel";
 
 interface MarkdownDetailProps {
   projectId: string;
   file: string;
+  /** 编辑区 dirty 状态上报（FileDetail 用于关闭详情前的未保存确认） */
+  onEditDirtyChange?: (dirty: boolean) => void;
 }
 
-export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
+export function MarkdownDetail({ projectId, file, onEditDirtyChange }: MarkdownDetailProps) {
   const { t } = useTranslation();
-  const { content, gitContent, loading, errorMsg, filePath, hash } = useFile(projectId, file, {
-    gitHead: true,
-  });
+  const { confirm } = useMessage();
+  const { content, gitContent, loading, errorMsg, filePath, hash, fileSize, reload } = useFile(
+    projectId,
+    file,
+    { gitHead: true },
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
+  // 进入编辑前所在的视图，取消编辑时返回
+  const [editReturnMode, setEditReturnMode] = useState<ViewMode>("preview");
   const [contextSelectedText, setContextSelectedText] = useState<string | null>(null);
+  const editPanelRef = useRef<EditPanelHandle>(null);
 
   const resolvePath = useCallback(
     (src: string) => {
@@ -61,8 +76,36 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
     };
   }, [projectId, resolvePath]);
 
-  const viewModes: ViewMode[] =
-    gitContent != null ? ["preview", "code", "compare"] : ["preview", "code"];
+  // 编辑入口：加载完成、无错误且文件未超过大小上限（加载中 fileSize 为 0，避免入口闪现）
+  const canEdit = !loading && !errorMsg && fileSize <= MAX_EDIT_SIZE;
+
+  const viewModes: ViewMode[] = [
+    "preview",
+    "code",
+    ...(gitContent != null ? (["compare"] as const) : []),
+    ...(canEdit ? (["edit"] as const) : []),
+  ];
+
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      switchViewModeWithEditGuard({
+        mode,
+        viewMode,
+        editReturnMode,
+        onEditReturnModeChange: setEditReturnMode,
+        editPanelRef,
+        confirm,
+        t,
+        setViewMode,
+      });
+    },
+    [viewMode, editReturnMode, confirm, t],
+  );
+
+  // 离开编辑视图时同步 dirty 上报，避免关闭详情误弹未保存确认
+  useEffect(() => {
+    if (viewMode !== "edit") onEditDirtyChange?.(false);
+  }, [viewMode, onEditDirtyChange]);
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     if (open) setContextSelectedText(window.getSelection()?.toString() ?? "");
@@ -196,7 +239,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
             {contextMenuItems}
           </ContextMenu>
         </ScrollArea>
-      ) : (
+      ) : viewMode === "compare" ? (
         <ScrollArea className="w-full h-full">
           <ContextMenu onOpenChange={handleMenuOpenChange}>
             <ContextMenuTrigger className="h-full">
@@ -211,10 +254,25 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
             {contextMenuItems}
           </ContextMenu>
         </ScrollArea>
+      ) : (
+        <EditPanel
+          ref={editPanelRef}
+          projectId={projectId}
+          filePath={filePath}
+          content={content}
+          loading={loading}
+          onSaved={reload}
+          onCancel={() => handleViewModeChange(editReturnMode)}
+          onDirtyChange={onEditDirtyChange}
+        />
       )}
 
       {/* bottom tabs */}
-      <FileViewTabs viewMode={viewMode} viewModes={viewModes} onViewModeChange={setViewMode} />
+      <FileViewTabs
+        viewMode={viewMode}
+        viewModes={viewModes}
+        onViewModeChange={handleViewModeChange}
+      />
     </div>
   );
 }
