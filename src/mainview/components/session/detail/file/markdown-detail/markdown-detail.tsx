@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeView } from "../../../../common/code-view";
@@ -18,28 +18,19 @@ import { request, isWebUI } from "../../../../../backend";
 import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
-import { useMessage } from "../../../../providers/message";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
 import { LoadingState, ErrorState } from "../common/loading-state";
 import { useFile } from "../common/use-file";
-import {
-  EditPanel,
-  MAX_EDIT_SIZE,
-  switchViewModeWithEditGuard,
-  type EditPanelHandle,
-} from "../common/edit-panel";
+import { EditPanel, MAX_EDIT_SIZE, type EditPanelHandle } from "../common/edit-panel";
 
 interface MarkdownDetailProps {
   projectId: string;
   file: string;
-  /** 编辑区 dirty 状态上报（FileDetail 用于关闭详情前的未保存确认） */
-  onEditDirtyChange?: (dirty: boolean) => void;
 }
 
-export function MarkdownDetail({ projectId, file, onEditDirtyChange }: MarkdownDetailProps) {
+export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
   const { t } = useTranslation();
-  const { confirm } = useMessage();
   const { content, gitContent, loading, errorMsg, filePath, hash, fileSize, reload } = useFile(
     projectId,
     file,
@@ -88,24 +79,13 @@ export function MarkdownDetail({ projectId, file, onEditDirtyChange }: MarkdownD
 
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
-      switchViewModeWithEditGuard({
-        mode,
-        viewMode,
-        editReturnMode,
-        onEditReturnModeChange: setEditReturnMode,
-        editPanelRef,
-        confirm,
-        t,
-        setViewMode,
-      });
+      if (mode === viewMode) return;
+      // 进入编辑前记录当前视图，取消编辑时返回
+      if (mode === "edit") setEditReturnMode(viewMode);
+      setViewMode(mode);
     },
-    [viewMode, editReturnMode, confirm, t],
+    [viewMode],
   );
-
-  // 离开编辑视图时同步 dirty 上报，避免关闭详情误弹未保存确认
-  useEffect(() => {
-    if (viewMode !== "edit") onEditDirtyChange?.(false);
-  }, [viewMode, onEditDirtyChange]);
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     if (open) setContextSelectedText(window.getSelection()?.toString() ?? "");
@@ -263,7 +243,6 @@ export function MarkdownDetail({ projectId, file, onEditDirtyChange }: MarkdownD
           loading={loading}
           onSaved={reload}
           onCancel={() => handleViewModeChange(editReturnMode)}
-          onDirtyChange={onEditDirtyChange}
         />
       )}
 

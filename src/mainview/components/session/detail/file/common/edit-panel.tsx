@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -16,9 +15,7 @@ import { extractErrorMessage } from "@/lib/utils";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { request } from "../../../../../backend";
 import { useMessage } from "../../../../providers/message";
-import type { DialogOptions } from "../../../../providers/message";
 import { LoadingState } from "./loading-state";
-import type { ViewMode } from "./file-view-tabs";
 import type { CodeEditorHandle } from "../code-detail/code-editor";
 
 // 懒加载 monaco 编辑器（monaco-editor-core 体积较大，独立 chunk 按需加载）
@@ -45,8 +42,6 @@ interface EditPanelProps {
   onSaved?: () => void;
   /** 内容加载中（切换文件等场景）：先显示加载态，避免编辑器以空内容创建 */
   loading?: boolean;
-  /** dirty 状态上报（父级用于关闭详情前的未保存确认） */
-  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -55,21 +50,18 @@ interface EditPanelProps {
  * 保存、Cmd/Ctrl+S、dirty 状态均在内部维护，父组件可通过 ref 查询/保存。
  */
 export const EditPanel = forwardRef<EditPanelHandle, EditPanelProps>(function EditPanel(
-  { projectId, filePath, content, loading = false, onCancel, onSaved, onDirtyChange },
+  { projectId, filePath, content, loading = false, onCancel, onSaved },
   ref,
 ) {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { toast } = useMessage();
   const editorRef = useRef<CodeEditorHandle>(null);
-  const onDirtyChangeRef = useRef(onDirtyChange);
-  onDirtyChangeRef.current = onDirtyChange;
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => {
     setDirty(nextDirty);
-    onDirtyChangeRef.current?.(nextDirty);
   }, []);
 
   const handleSave = useCallback(async (): Promise<boolean> => {
@@ -104,7 +96,7 @@ export const EditPanel = forwardRef<EditPanelHandle, EditPanelProps>(function Ed
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        // 有模态弹窗（如未保存确认、设置对话框）时让位，避免误触发编辑器保存
+        // 有模态弹窗（如设置对话框）时让位，避免误触发编辑器保存
         if (document.querySelector('[role="dialog"]')) return;
         e.preventDefault();
         void handleSave();
@@ -174,46 +166,3 @@ export const EditPanel = forwardRef<EditPanelHandle, EditPanelProps>(function Ed
     </div>
   );
 });
-
-/**
- * 视图切换的统一守卫：从编辑视图切走且存在未保存更改时弹出确认。
- * 供 CodeDetail / MarkdownDetail 共用，避免两处重复实现。
- */
-export function switchViewModeWithEditGuard(args: {
-  mode: ViewMode;
-  viewMode: ViewMode;
-  editReturnMode: ViewMode;
-  onEditReturnModeChange: (mode: ViewMode) => void;
-  editPanelRef: RefObject<EditPanelHandle | null>;
-  confirm: (options: DialogOptions) => Promise<string | null>;
-  t: (key: string) => string;
-  setViewMode: (mode: ViewMode) => void;
-}): void {
-  const { mode, viewMode } = args;
-  if (mode === viewMode) return;
-  if (mode === "edit") args.onEditReturnModeChange(viewMode);
-  if (viewMode === "edit" && args.editPanelRef.current?.isDirty()) {
-    void args
-      .confirm({
-        title: args.t("fileDetail.unsavedTitle"),
-        content: args.t("fileDetail.unsavedContent"),
-        buttons: [
-          { text: args.t("filePanel.cancel"), value: null, variant: "outline" },
-          { text: args.t("fileDetail.discard"), value: "discard", variant: "destructive" },
-          {
-            text: args.t("fileDetail.save"),
-            value: async () => {
-              const ok = await args.editPanelRef.current?.save();
-              return ok ? "saved" : null;
-            },
-            variant: "default",
-          },
-        ],
-      })
-      .then((result) => {
-        if (result === "discard" || result === "saved") args.setViewMode(mode);
-      });
-    return;
-  }
-  args.setViewMode(mode);
-}

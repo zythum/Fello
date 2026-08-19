@@ -5,7 +5,6 @@ import { FileIcon } from "../../../common/file-icon";
 import { request, subscribe, isWebUI } from "../../../../backend";
 import { electron } from "../../../../electron";
 import { useAppStore } from "../../../../store";
-import { useMessage } from "../../../providers/message";
 import { EDITOR_LABELS } from "../../../../../shared/constants";
 import type { FileDetailProps } from "./file-types";
 import { getFileKind } from "./file-types";
@@ -22,18 +21,15 @@ import { FallbackDetail } from "./fallback-detail/fallback-detail";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
-  const { confirm } = useMessage();
   const editorName = useAppStore((s) => s.editor.name);
   const filePath = file ? parseFileReference(file).path : "";
   const fileKind = getFileKind(filePath);
   const [fileModified, setFileModified] = useState(false);
-  const [editDirty, setEditDirty] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Reset modified state when file changes
   useEffect(() => {
     setFileModified(false);
-    setEditDirty(false);
     setRefreshKey(0);
   }, [projectId, filePath]);
 
@@ -57,24 +53,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  // 关闭详情：编辑区存在未保存更改时先确认，避免内容静默丢失
   const handleClose = useCallback(() => {
-    if (!onClose) return;
-    if (!editDirty) {
-      onClose();
-      return;
-    }
-    void confirm({
-      title: t("fileDetail.unsavedTitle"),
-      content: t("fileDetail.unsavedContent"),
-      buttons: [
-        { text: t("filePanel.cancel"), value: null, variant: "outline" },
-        { text: t("fileDetail.discard"), value: "discard", variant: "destructive" },
-      ],
-    }).then((result) => {
-      if (result === "discard") onClose();
-    });
-  }, [editDirty, onClose, confirm, t]);
+    onClose?.();
+  }, [onClose]);
 
   const handleRevealInFinder = useCallback(async () => {
     if (isWebUI || !projectId || !filePath) return;
@@ -170,19 +151,9 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
       {projectId && filePath && file && (
         <div className="relative flex-1 min-h-0 overflow-hidden">
           {fileKind === "text" ? (
-            <CodeDetail
-              key={refreshKey}
-              projectId={projectId}
-              file={file}
-              onEditDirtyChange={setEditDirty}
-            />
+            <CodeDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "markdown" ? (
-            <MarkdownDetail
-              key={refreshKey}
-              projectId={projectId}
-              file={file}
-              onEditDirtyChange={setEditDirty}
-            />
+            <MarkdownDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "image" ? (
             <ImageDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "pdf" ? (
