@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Link2, Link2Off, Loader2, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  Link2,
+  Link2Off,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  BookOpen,
+} from "lucide-react";
 import { useAppStore } from "@/store";
 import { request, subscribe } from "@/backend";
 import { electron } from "@/electron";
+import { openGuide } from "@/lib/open-guide";
 import {
   Select,
   SelectContent,
@@ -17,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function SettingsILink() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const ilinkStatus = useAppStore((s) => s.ilinkStatus);
   const setIlinkStatus = useAppStore((s) => s.setIlinkStatus);
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
@@ -189,7 +198,17 @@ export function SettingsILink() {
         <div className="space-y-6 px-5 py-4 w-full max-w-4xl mx-auto">
           {/* Header */}
           <div>
-            <h2 className="text-lg font-semibold">{t("settings.ilink.title", "WeChat iLink")}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{t("settings.ilink.title", "WeChat iLink")}</h2>
+              <button
+                type="button"
+                onClick={() => openGuide(i18n.language, "wechat-ilink.md")}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-default"
+              >
+                <BookOpen className="size-3.5" />
+                {t("settings.ilink.guide", "User Guide")}
+              </button>
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               {t(
                 "settings.ilink.description",

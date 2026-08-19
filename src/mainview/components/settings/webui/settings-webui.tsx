@@ -2,17 +2,18 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../../store";
 import { request, isWebUI } from "../../../backend";
+import { openGuide } from "@/lib/open-guide";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { copyText } from "@/lib/clipboard";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 
 export function SettingsWebUI() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { webUIStatus } = useAppStore();
   const { toast } = useMessage();
   const [copied, setCopied] = useState(false);
@@ -53,7 +54,17 @@ export function SettingsWebUI() {
       <div className="flex-1 flex flex-col h-full">
         <div className="space-y-6 px-5 py-4 w-full max-w-4xl mx-auto">
           <div>
-            <h3 className="text-lg font-medium">{t("settings.webui.title", "WebUI Settings")}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">{t("settings.webui.title", "WebUI Settings")}</h3>
+              <button
+                type="button"
+                onClick={() => openGuide(i18n.language, "webui.md")}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-default"
+              >
+                <BookOpen className="size-3.5" />
+                {t("settings.webui.guide", "User Guide")}
+              </button>
+            </div>
             <p className="text-sm text-muted-foreground">
               {t(
                 "settings.webui.disabledInWebUI",
@@ -71,7 +82,17 @@ export function SettingsWebUI() {
       <ScrollArea className="flex-1 overflow-hidden">
         <div className="space-y-6 px-5 py-4 w-full max-w-4xl mx-auto">
           <div>
-            <h3 className="text-lg font-medium">{t("settings.webui.title", "WebUI Settings")}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">{t("settings.webui.title", "WebUI Settings")}</h3>
+              <button
+                type="button"
+                onClick={() => openGuide(i18n.language, "webui.md")}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-default"
+              >
+                <BookOpen className="size-3.5" />
+                {t("settings.webui.guide", "User Guide")}
+              </button>
+            </div>
             <p className="text-sm text-muted-foreground">
               {t("settings.webui.desc", "Configure remote access to the Fello interface.")}
             </p>

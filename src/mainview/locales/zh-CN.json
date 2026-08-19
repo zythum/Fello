@@ -146,6 +146,7 @@
       "desc": "管理智能体的配置和启动命令。",
       "description": "配置智能体",
       "title": "智能体",
+      "guide": "使用手册",
       "addStdioAgent": "通过 ACP Agent 添加",
       "addApiAgent": "通过 API Key 添加",
       "editStdioAgent": "编辑 ACP Agent",
@@ -203,6 +204,7 @@
       "desc": "管理 MCP 服务器的配置和启动命令。",
       "description": "配置 MCP 服务器",
       "title": "MCP 服务器",
+      "guide": "使用手册",
       "addMcp": "添加 MCP 服务器",
       "addStdioMcp": "添加 Stdio MCP",
       "addHttpMcp": "添加 HTTP MCP",
@@ -251,6 +253,7 @@
     "webui": {
       "desc": "配置对 Fello 界面的远程访问。",
       "title": "WebUI",
+      "guide": "使用手册",
       "enable": "启用 WebUI",
       "enableDesc": "允许通过浏览器远程访问 Fello 界面",
       "enableAccess": "启用 WebUI 访问",
@@ -266,6 +269,7 @@
     },
     "ilink": {
       "title": "微信 iLink",
+      "guide": "使用手册",
       "description": "通过 iLink Bot API 将 Fello 接入微信。连接后，微信中会出现一个 ClawBot 联系人，你可以随时随地与 AI 智能体对话。",
       "connected": "已连接",
       "notConnected": "未连接",

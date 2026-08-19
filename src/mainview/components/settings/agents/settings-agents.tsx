@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { AgentInfo, ApiAgentInfo, StdioAgentInfo } from "../../../../shared/schema";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
+import { openGuide } from "@/lib/open-guide";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -13,7 +14,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { Plus, Pencil, Trash2, RefreshCw, XCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, RefreshCw, XCircle, BookOpen } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import {
@@ -76,7 +77,7 @@ function isApiAgent(agent: AgentInfo): agent is ApiAgentInfo {
 }
 
 export function SettingsAgents() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { configuredAgents, sessions, setConfiguredAgents } = useAppStore();
   const { toast, confirm } = useMessage();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -282,7 +283,17 @@ export function SettingsAgents() {
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="px-5 py-4 w-full max-w-4xl mx-auto">
-        <h3 className="text-lg font-medium">{t("settings.agents.title", "Agents")}</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">{t("settings.agents.title", "Agents")}</h3>
+          <button
+            type="button"
+            onClick={() => openGuide(i18n.language, "agents.md")}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-default"
+          >
+            <BookOpen className="size-3.5" />
+            {t("settings.agents.guide", "User Guide")}
+          </button>
+        </div>
         <p className="text-sm text-muted-foreground">
           {t("settings.agents.desc", "Manage agent configurations and startup commands.")}
         </p>

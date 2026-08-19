@@ -146,6 +146,7 @@
       "desc": "Manage agent configurations and startup commands.",
       "description": "Configure agents",
       "title": "Agents",
+      "guide": "User Guide",
       "addStdioAgent": "Add via ACP Agent",
       "addApiAgent": "Add via API Key",
       "editStdioAgent": "Edit ACP Agent",
@@ -203,6 +204,7 @@
       "desc": "Manage MCP server configurations and startup commands.",
       "description": "Configure MCP Servers",
       "title": "MCP Servers",
+      "guide": "User Guide",
       "addMcp": "Add MCP Server",
       "addStdioMcp": "Add Stdio MCP",
       "addHttpMcp": "Add HTTP MCP",
@@ -251,6 +253,7 @@
     "webui": {
       "desc": "Configure remote access to the Fello interface.",
       "title": "WebUI",
+      "guide": "User Guide",
       "enable": "Enable WebUI",
       "enableDesc": "Allow remote access to Fello interface via browser",
       "accessUrl": "Access URL",
@@ -266,6 +269,7 @@
     },
     "ilink": {
       "title": "WeChat iLink",
+      "guide": "User Guide",
       "description": "Connect Fello to WeChat via iLink Bot API. Once connected, a ClawBot contact will appear in your WeChat, allowing you to chat with your AI agent from anywhere.",
       "connected": "Connected",
       "notConnected": "Not Connected",
