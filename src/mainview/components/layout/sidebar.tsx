@@ -513,20 +513,21 @@ export function Sidebar() {
                 <HoverCard
                   open={hoverId === projectHoverId(project.id)}
                   onOpenChange={(open) => {
-                    setHoverId((prev) =>
-                      open
-                        ? projectHoverId(project.id)
-                        : prev === projectHoverId(project.id)
-                          ? null
-                          : prev,
-                    );
+                    // 仅右键触发预览卡片，hover 不再打开；移出时关闭
+                    if (!open && hoverId === projectHoverId(project.id)) {
+                      setHoverId(null);
+                    }
                   }}
                 >
                   <HoverCardTrigger render={<div />} delay={50}>
                     <div
                       onClick={() => toggleProject(project.id)}
+                      onPointerEnter={() => {
+                        // 已有卡片展开时（右键触发后），hover 切换到自己的卡片；否则 hover 不展开
+                        if (hoverId !== null) setHoverId(projectHoverId(project.id));
+                      }}
                       onContextMenu={(e) => {
-                        // 右键点击也触发预览卡片（等同 hover 效果），并阻止系统右键菜单
+                        // 右键点击触发预览卡片，并阻止系统右键菜单
                         e.preventDefault();
                         setHoverId(projectHoverId(project.id));
                       }}
@@ -653,20 +654,21 @@ export function Sidebar() {
                         key={session.id}
                         open={hoverId === sessionHoverId(session.id)}
                         onOpenChange={(open) => {
-                          setHoverId((prev) =>
-                            open
-                              ? sessionHoverId(session.id)
-                              : prev === sessionHoverId(session.id)
-                                ? null
-                                : prev,
-                          );
+                          // 仅右键触发预览卡片，hover 不再打开；移出时关闭
+                          if (!open && hoverId === sessionHoverId(session.id)) {
+                            setHoverId(null);
+                          }
                         }}
                       >
                         <HoverCardTrigger render={<div />} delay={50}>
                           <div
                             onClick={() => handleSelectSession(session)}
+                            onPointerEnter={() => {
+                              // 已有卡片展开时（右键触发后），hover 切换到自己的卡片；否则 hover 不展开
+                              if (hoverId !== null) setHoverId(sessionHoverId(session.id));
+                            }}
                             onContextMenu={(e) => {
-                              // 右键点击也触发预览卡片（等同 hover 效果），并阻止系统右键菜单
+                              // 右键点击触发预览卡片，并阻止系统右键菜单
                               e.preventDefault();
                               setHoverId(sessionHoverId(session.id));
                             }}
