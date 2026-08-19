@@ -254,7 +254,13 @@ function ImageGenerationDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="ig-baseurl" className="text-[11px] text-muted-foreground">
-                    {t("settings.imageGeneration.form.baseUrl", "Base URL")}
+                    <span>{t("settings.imageGeneration.form.baseUrl", "Base URL")}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      {t(
+                        "settings.imageGeneration.form.baseUrlHint",
+                        "Request → {baseUrl}/images/generations",
+                      )}
+                    </span>
                   </FieldLabel>
                   <div className="flex items-center gap-1">
                     <Input
@@ -299,12 +305,6 @@ function ImageGenerationDialog({
                       </DropdownMenu>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {t(
-                      "settings.imageGeneration.form.baseUrlHint",
-                      "Request → {baseUrl}/images/generations",
-                    )}
-                  </p>
                   {fieldState.invalid && (
                     <FieldError
                       errors={[
@@ -390,7 +390,13 @@ function ImageGenerationDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="ig-extra-body" className="text-[11px] text-muted-foreground">
-                    {t("settings.imageGeneration.form.extraBody", "Extra Body (JSON)")}
+                    <span>{t("settings.imageGeneration.form.extraBody", "Extra Body (JSON)")}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      {t(
+                        "settings.imageGeneration.form.extraBodyHint",
+                        "Additional parameters merged into request body (e.g. quality, style).",
+                      )}
+                    </span>
                   </FieldLabel>
                   <Textarea
                     {...field}
@@ -399,12 +405,6 @@ function ImageGenerationDialog({
                     aria-invalid={fieldState.invalid}
                     className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {t(
-                      "settings.imageGeneration.form.extraBodyHint",
-                      "Additional parameters merged into request body (e.g. quality, style).",
-                    )}
-                  </p>
                   {fieldState.invalid && (
                     <FieldError
                       errors={[

@@ -384,7 +384,7 @@ export function SettingsILink() {
             {/* WeChat "!" Commands */}
             <div className="mt-5 pt-4 border-t border-border">
               <h3 className="text-sm font-medium mb-1.5">
-                {t("settings.ilink.commandsTitle", "WeChat \"!\" Commands")}
+                {t("settings.ilink.commandsTitle", 'WeChat "!" Commands')}
               </h3>
               <p className="text-xs text-muted-foreground mb-2">
                 {t(

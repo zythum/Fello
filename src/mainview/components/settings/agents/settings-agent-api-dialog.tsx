@@ -390,7 +390,7 @@ export function SettingsAgentApiDialog({
                       {...field}
                       id="api-models"
                       aria-invalid={fieldState.invalid}
-                      className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                      className="text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5 min-h-46"
                     />
                     <p className="text-[10px] text-muted-foreground/70">
                       {t(
