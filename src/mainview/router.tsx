@@ -57,7 +57,6 @@ export function AppRouter() {
     <div className="flex h-full bg-background text-foreground">
       <Sidebar />
       <Routes>
-        {" "}
         <Route path="/" element={<Welcome />} />
         <Route path="/session-view/:sessionId" element={<SessionWrapper />} />
         <Route path="/settings" element={<SettingsLayout />}>
