@@ -5,6 +5,25 @@
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiPgoJPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgcng9IjIyMCIgZmlsbD0iI0ZGRkZGRiIvPgoJPHBhdGggZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiM0RDRENEQiIHN0cm9rZS13aWR0aD0iODAiIGQ9Ik03NzggNjMyLjY1OWMwIDI5LjQ4LTIzLjg2MyA1My4zOC01My4zIDUzLjM4SDM3My42NjZhNTMuMjYgNTMuMjYgMCAwIDAtMzcuNjgzIDE1LjY0TDI3Ny4zIDc2MC40NWExOC45IDE4LjkgMCAwIDEtMjAuNjIgNC4xMDdBMTguOTUgMTguOTUgMCAwIDEgMjQ1IDc0Ny4wNTJWMzEyLjM4YzAtMjkuNDgxIDIzLjg2My01My4zOCA1My4zLTUzLjM4aDQyNi40YzI5LjQzNyAwIDUzLjMgMjMuODk5IDUzLjMgNTMuMzh6Ii8+Cjwvc3ZnPg==" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fello</title>
+    <!-- boot-splash：在 React 挂载前同步设置主题背景色，避免首屏白闪（dark 模式下尤为明显） -->
+    <style>
+      html { background: #ffffff; }
+      html.dark { background: #09090b; }
+    </style>
+    <script>
+      // next-themes 将主题明文串直接写入 localStorage["theme"]（如 "dark"/"system"/"light"），不做 JSON 编码
+      (function () {
+        try {
+          var theme = localStorage.getItem("theme") || "system";
+          var dark =
+            theme === "dark" ||
+            (theme === "system" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

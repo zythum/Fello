@@ -477,7 +477,8 @@ function AppContent() {
   }, [isMacApp, setIsFullScreen, toast, t, navigate]);
 
   if (!isReady) {
-    return null; // Don't render anything until initial data and theme are loaded
+    // 首屏数据/主题加载期间渲染主题背景色，避免空白（白闪）
+    return <div className="h-full w-full bg-background" />;
   }
 
   return (
