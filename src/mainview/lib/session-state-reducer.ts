@@ -172,11 +172,17 @@ function calculateToolCallUpdate(
         message.status = next;
       }
     }
-    if (Object.prototype.hasOwnProperty.call(update, "content")) {
-      const newContent = update.content ?? [];
-      if (newContent.length > 0) {
-        message.content = newContent;
-      }
+    if (
+      Object.prototype.hasOwnProperty.call(update, "content") &&
+      update.content &&
+      update.content.length > 0
+    ) {
+      const prevContent = message.content ?? [];
+      const nextContent = update.content;
+      // 同类型覆盖：update 中出现的类型用 update 项覆盖，prev 中独有类型（如 terminal）原样保留
+      const nextTypes = new Set(nextContent.map((item) => item.type));
+      const kept = prevContent.filter((item) => !nextTypes.has(item.type));
+      message.content = [...kept, ...nextContent];
     }
     if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null) {
       message.kind = update.kind;

@@ -57,8 +57,14 @@ function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, upd
     Object.prototype.hasOwnProperty.call(update, "content") &&
     update.content &&
     update.content.length > 0
-  )
-    merged.content = update.content;
+  ) {
+    const prevContent = merged.content ?? [];
+    const nextContent = update.content;
+    // 同类型覆盖：update 中出现的类型用 update 项覆盖，prev 中独有类型（如 terminal）原样保留
+    const nextTypes = new Set(nextContent.map((item) => item.type));
+    const kept = prevContent.filter((item) => !nextTypes.has(item.type));
+    merged.content = [...kept, ...nextContent];
+  }
   if (Object.prototype.hasOwnProperty.call(update, "kind") && update.kind != null)
     merged.kind = update.kind;
   if (Object.prototype.hasOwnProperty.call(update, "rawInput")) merged.rawInput = update.rawInput;
@@ -185,7 +191,7 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
         }
       }
 
-      if (update.status === "in_progress") {
+      if (update.status !== "completed" && update.status !== "failed") {
         if (base) {
           pendingToolCalls.set(key, mergeToolCallUpdate(base, update));
         } else {
