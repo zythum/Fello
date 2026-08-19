@@ -10,9 +10,9 @@ export default function Hero() {
   return (
     <section id="top" className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-25%] h-[560px] w-[880px] -translate-x-1/2 rounded-full bg-teal-500/15 blur-[130px]" />
-        <div className="absolute right-[-12%] top-[25%] h-[420px] w-[520px] rounded-full bg-indigo-500/10 blur-[130px]" />
-        <div className="absolute left-[-12%] top-[55%] h-[380px] w-[480px] rounded-full bg-cyan-500/10 blur-[130px]" />
+        <div className="absolute left-1/2 top-[-25%] h-140 w-220 -translate-x-1/2 rounded-full bg-teal-500/15 blur-[130px]" />
+        <div className="absolute right-[-12%] top-[25%] h-105 w-130 rounded-full bg-indigo-500/10 blur-[130px]" />
+        <div className="absolute left-[-12%] top-[55%] h-95 w-120 rounded-full bg-cyan-500/10 blur-[130px]" />
       </div>
 
       <div className="mx-auto max-w-6xl px-6 pb-20 pt-16 text-center sm:pt-24">
@@ -23,7 +23,7 @@ export default function Hero() {
         <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-6xl">
           {t.hero.title1}
           <br />
-          <span className="bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-teal-300 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">
             {t.hero.title2}
           </span>
         </h1>
@@ -61,7 +61,7 @@ export default function Hero() {
         </dl>
 
         <div className="relative mx-auto mt-14 max-w-4xl">
-          <div className="absolute -inset-1.5 rounded-[1.75rem] bg-gradient-to-r from-teal-500/30 via-cyan-500/20 to-indigo-500/30 blur-2xl" />
+          <div className="absolute -inset-1.5 rounded-[1.75rem] bg-linear-to-r from-teal-500/30 via-cyan-500/20 to-indigo-500/30 blur-2xl" />
           <div className="relative -mx-4">
             <img src={screenshot} alt={t.hero.screenshotAlt} className="w-full" />
           </div>
