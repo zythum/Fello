@@ -116,15 +116,12 @@ export function parseFelloTools(
     const candidates: unknown[] = [];
     if (Array.isArray(parsed)) {
       for (const item of parsed) {
-        if (item && typeof item === "object" && "text" in item) {
-          const inner = (item as { text?: unknown }).text;
-          if (typeof inner === "string") {
-            try {
-              candidates.push(JSON.parse(inner));
-              continue;
-            } catch {
-              // fall through: keep the raw block as a candidate
-            }
+        if (item && typeof item === "object" && item.type === "text" && typeof item.text === "string") {
+          try {
+            candidates.push(JSON.parse(item.text));
+            continue;
+          } catch {
+            // fall through: keep the raw block as a candidate
           }
         }
         candidates.push(item);
@@ -165,6 +162,40 @@ export function parseFelloTools(
 }
 
 /**
+ * Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display.
+ */
+function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "").replace(/\[[0-9;]*[0-9]m/g, "");
+}
+
+/**
+ * Some tool results wrap their payload as a JSON array of Anthropic-style
+ * content blocks, e.g. `[{"type":"text","text":"(no matches)"}]`. Unwrap a
+ * single level and concatenate the inner `text` fields into a plain string.
+ * Returns null when the text is not such a wrapper (so caller can fall back
+ * to displaying the raw text).
+ */
+function tryUnwrapContentBlocks(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("[")) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const texts: string[] = [];
+  for (const item of parsed) {
+    if (item && typeof item === "object" && item.type === "text" && typeof item.text === 'string') {
+      texts.push(item.text);
+    }
+  }
+  return texts.length > 0 ? texts.join("\n") : null;
+}
+
+/**
  * Render a single tool call content item (content block or diff).
  * Shared by the stacked layout and the tabbed layout.
  */
@@ -176,13 +207,12 @@ function renderContentItem(content: ToolCallContent, index: number, cwd: string)
           <ScrollArea className="-mx-2" viewportClassName="max-h-[70vh]">
             <pre className="m-0 p-2 text-[11px]">
               <code>
-                {
-                  // Strip ANSI escape sequences (e.g. \x1b[38;5;250m, [38;5;250m) for clean display
-                  content.content.text
-                    // eslint-disable-next-line no-control-regex
-                    .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "")
-                    .replace(/\[[0-9;]*[0-9]m/g, "")
-                }
+                {stripAnsi(
+                  // CodeBuddy may wrap the result as a JSON array of content
+                  // blocks; unwrap it so the actual text is shown, not the raw
+                  // JSON wrapper (e.g. `[{"type":"text","text":"(no matches)"}]`).
+                  tryUnwrapContentBlocks(content.content.text) ?? content.content.text,
+                )}
               </code>
             </pre>
           </ScrollArea>
