@@ -508,31 +508,34 @@ export function Sidebar() {
           {sortedProjects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
+            const currentHoverId = projectHoverId(project.id);
             return (
               <div key={project.id} className="space-y-0.5 group">
                 <HoverCard
-                  open={hoverId === projectHoverId(project.id)}
+                  open={hoverId === currentHoverId}
                   onOpenChange={(open) => {
-                    // 仅右键触发预览卡片，hover 不再打开；移出时关闭
-                    if (!open && hoverId === projectHoverId(project.id)) {
+                    // hover 停留 1.5s 或右键均可触发预览卡片；移出时关闭
+                    if (!open && hoverId === currentHoverId) {
                       setHoverId(null);
+                    } else if (open && !hoverId) {
+                      setHoverId(currentHoverId);
                     }
                   }}
                 >
-                  <HoverCardTrigger render={<div />} delay={50}>
+                  <HoverCardTrigger render={<div />} delay={1500}>
                     <div
                       onClick={() => toggleProject(project.id)}
                       onPointerEnter={() => {
-                        // 已有卡片展开时（右键触发后），hover 切换到自己的卡片；否则 hover 不展开
-                        if (hoverId !== null) setHoverId(projectHoverId(project.id));
+                        // 已有卡片展开时 hover 切换到自己的卡片；否则 hover 停留 1.5s 后由 HoverCard 触发展开
+                        if (hoverId !== null) setHoverId(currentHoverId);
                       }}
                       onContextMenu={(e) => {
                         // 右键点击触发预览卡片，并阻止系统右键菜单
                         e.preventDefault();
-                        setHoverId(projectHoverId(project.id));
+                        setHoverId(currentHoverId);
                       }}
                       className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
-                        hoverId === projectHoverId(project.id)
+                        hoverId === currentHoverId
                           ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                           : ""
                       }`}
@@ -569,7 +572,7 @@ export function Sidebar() {
                     side="right"
                     align="start"
                     sideOffset={12}
-                    alignOffset={1}
+                    alignOffset={-5}
                     className="max-w-60 min-w-48 w-auto p-3"
                   >
                     <div className="flex flex-col gap-2">
@@ -647,36 +650,39 @@ export function Sidebar() {
                 </HoverCard>
                 {expanded &&
                   projectSessions.map((session) => {
+                    const currentHoverId = sessionHoverId(session.id);
                     const agentLabel =
                       configuredAgents.find((a) => a.id === session.agentId)?.id || session.agentId;
                     return (
                       <HoverCard
                         key={session.id}
-                        open={hoverId === sessionHoverId(session.id)}
+                        open={hoverId === currentHoverId}
                         onOpenChange={(open) => {
                           // 仅右键触发预览卡片，hover 不再打开；移出时关闭
-                          if (!open && hoverId === sessionHoverId(session.id)) {
+                          if (!open && hoverId === currentHoverId) {
                             setHoverId(null);
+                          } else if (open && !hoverId) {
+                            setHoverId(currentHoverId);
                           }
                         }}
                       >
-                        <HoverCardTrigger render={<div />} delay={50}>
+                        <HoverCardTrigger render={<div />} delay={1500}>
                           <div
                             onClick={() => handleSelectSession(session)}
                             onPointerEnter={() => {
                               // 已有卡片展开时（右键触发后），hover 切换到自己的卡片；否则 hover 不展开
-                              if (hoverId !== null) setHoverId(sessionHoverId(session.id));
+                              if (hoverId !== null) setHoverId(currentHoverId);
                             }}
                             onContextMenu={(e) => {
                               // 右键点击触发预览卡片，并阻止系统右键菜单
                               e.preventDefault();
-                              setHoverId(sessionHoverId(session.id));
+                              setHoverId(currentHoverId);
                             }}
                             className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
                               activeSessionId === session.id
                                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-                            } ${hoverId === sessionHoverId(session.id) ? "bg-sidebar-accent" : ""}`}
+                            } ${hoverId === currentHoverId ? "bg-sidebar-accent" : ""}`}
                           >
                             <div
                               className={cn(
@@ -727,7 +733,7 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           sideOffset={12}
-                          alignOffset={1}
+                          alignOffset={-5}
                           className="max-w-60 min-w-48 w-auto p-3"
                         >
                           <div className="flex flex-col gap-2">
