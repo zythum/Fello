@@ -2,6 +2,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore, type StagedAttachmentInfo } from "../store";
 import type { ChatMessage, ToolCallMessage } from "./chat-message";
 import type { AskUserRequest } from "../../shared/schema";
+import type { ContextSnapshot, ContextEvent } from "../../shared/schema";
 import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
 
 /**
@@ -81,4 +82,26 @@ export function useSessionAvailableCommands(sessionId: string | null): Available
     const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
     return state?.availableCommands ?? [];
   });
+}
+
+/** 订阅上下文洞察数据（时间线 / 事件 / 最新快照） */
+export function useSessionContext(sessionId: string | null): {
+  timeline: ContextSnapshot[];
+  events: ContextEvent[];
+  latest: ContextSnapshot | null;
+  windowSize: number;
+} {
+  return useAppStore(
+    useShallow((s) => {
+      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
+      const timeline = state?.contextTimeline ?? [];
+      const latest = timeline[timeline.length - 1] ?? null;
+      return {
+        timeline,
+        events: state?.contextEvents ?? [],
+        latest,
+        windowSize: latest?.composition.windowSize ?? 0,
+      };
+    }),
+  );
 }

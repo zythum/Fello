@@ -21,6 +21,7 @@ import type {
   PromptResponse,
   ResumeSessionRequest,
   ResumeSessionResponse,
+  SessionNotification,
   SessionConfigOption,
   SetSessionConfigOptionRequest,
   SetSessionConfigOptionResponse,
@@ -30,12 +31,21 @@ import type {
   Usage,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
-import type { ApiAgentInfo } from "../shared/schema";
+import type {
+  ApiAgentInfo,
+  ContextEvent,
+  ContextSnapshot,
+  FelloContextUpdate,
+} from "../shared/schema";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
+import { composeContext, extractContextContent } from "./context-tokenizer";
 import {
+  appendContextEvent,
+  appendContextSnapshot,
   appendPersistedSessionHistory,
+  loadContextTimeline,
   loadPersistedSessionHistory,
   loadPersistedSessionState,
   savePersistedSessionHistory,
@@ -307,6 +317,90 @@ export class OpenaiCompatibleAgent implements Agent {
     });
   }
 
+  /** 通过 ACP session/update 通道推送上下文洞察数据（SDK 边界放宽类型）。 */
+  private async emitContext(sessionId: string, update: FelloContextUpdate): Promise<void> {
+    if (!this.connection) return;
+    await this.connection.sessionUpdate({
+      sessionId,
+      update: update as unknown as SessionNotification["update"],
+    });
+  }
+
+  /** 基于一组消息（一次请求实际组装进上下文的输入）估算组成快照。 */
+  private buildSnapshotFromMessages(
+    session: SessionState,
+    turnId: string,
+    messages: ModelMessage[],
+    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number },
+    includeContent = false,
+  ): ContextSnapshot {
+    const system = buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories);
+    const tools = [
+      ...Object.values(session.mcp.tools),
+      ...Object.values(session.acp.tools),
+    ] as unknown[];
+    const { composition, topToolSchemas } = composeContext({
+      system,
+      tools,
+      history: messages,
+      windowSize: this.contextWindowTokens,
+    });
+    const index = session.contextTimeline.length;
+    return {
+      stepId: randomUUID(),
+      turnId,
+      index,
+      timestamp: Date.now(),
+      composition,
+      usage: {
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
+        total: usage?.totalTokens,
+      },
+      topToolSchemas,
+      ...(includeContent
+        ? { content: extractContextContent({ system, tools, history: messages }) }
+        : {}),
+    };
+  }
+
+  /** 记录并广播一个上下文快照。 */
+  private async recordContextSnapshot(
+    session: SessionState,
+    snapshot: ContextSnapshot,
+  ): Promise<void> {
+    session.contextTimeline.push(snapshot);
+    await this.emitContext(session.id, { sessionUpdate: "context_snapshot", snapshot });
+    try {
+      await appendContextSnapshot({
+        agentId: this.agentId,
+        sessionId: session.id,
+        snapshot,
+      });
+    } catch (error) {
+      console.warn(
+        `[OpenaiCompatibleAgent] Failed to persist context snapshot for ${session.id}: ${error}`,
+      );
+    }
+  }
+
+  /** 记录并广播一个上下文事件。 */
+  private async recordContextEvent(session: SessionState, event: ContextEvent): Promise<void> {
+    session.contextEvents.push(event);
+    await this.emitContext(session.id, { sessionUpdate: "context_event", event });
+    try {
+      await appendContextEvent({
+        agentId: this.agentId,
+        sessionId: session.id,
+        event,
+      });
+    } catch (error) {
+      console.warn(
+        `[OpenaiCompatibleAgent] Failed to persist context event for ${session.id}: ${error}`,
+      );
+    }
+  }
+
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const modelState = await this.getModels();
     const sessionId = randomUUID();
@@ -337,12 +431,16 @@ export class OpenaiCompatibleAgent implements Agent {
 
   async resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     const modelState = await this.getModels();
-    const [persistedState, persistedHistory] = await Promise.all([
+    const [persistedState, persistedHistory, persistedContext] = await Promise.all([
       loadPersistedSessionState({
         agentId: this.agentId,
         sessionId: params.sessionId,
       }),
       loadPersistedSessionHistory({
+        agentId: this.agentId,
+        sessionId: params.sessionId,
+      }),
+      loadContextTimeline({
         agentId: this.agentId,
         sessionId: params.sessionId,
       }),
@@ -384,6 +482,10 @@ export class OpenaiCompatibleAgent implements Agent {
     if (persistedState) {
       active.contextUsedTokens = persistedState.contextUsedTokens;
     }
+    if (persistedContext) {
+      active.contextTimeline = persistedContext.timeline;
+      active.contextEvents = persistedContext.events;
+    }
     if (this.connection) {
       await this.connection.sessionUpdate({
         sessionId: params.sessionId,
@@ -418,6 +520,12 @@ export class OpenaiCompatibleAgent implements Agent {
     if (!session) return {};
     session.modelId = params.modelId;
     await this.persistSessionState(session);
+    await this.recordContextEvent(session, {
+      id: randomUUID(),
+      kind: "switch",
+      timestamp: Date.now(),
+      detail: params.modelId,
+    });
     return {};
   }
 
@@ -437,6 +545,12 @@ export class OpenaiCompatibleAgent implements Agent {
       }
       session.modelId = value;
       await this.persistSessionState(session);
+      await this.recordContextEvent(session, {
+        id: randomUUID(),
+        kind: "switch",
+        timestamp: Date.now(),
+        detail: value,
+      });
     }
     return {
       configOptions: (await this.buildConfigOptions(session.modelId)) || [],
@@ -471,6 +585,8 @@ export class OpenaiCompatibleAgent implements Agent {
       }
       return { stopReason: "end_turn" };
     }
+
+    const beforeTokens = session.contextUsedTokens;
 
     const summaryResult = await generateText({
       model: this.provider.chatModel(session.modelId),
@@ -526,6 +642,23 @@ export class OpenaiCompatibleAgent implements Agent {
         },
       });
     }
+
+    // 上下文洞察：记录 compact 事件 + 压缩后的新快照
+    const reclaimed = session.contextUsedTokens - beforeTokens;
+    await this.recordContextEvent(session, {
+      id: randomUUID(),
+      kind: "compact",
+      timestamp: Date.now(),
+      stepIndex: session.contextTimeline.length,
+      detail: `${reclaimed < 0 ? "" : "+"}${reclaimed.toLocaleString()}`,
+      tokens: reclaimed,
+    });
+    await this.recordContextSnapshot(
+      session,
+      this.buildSnapshotFromMessages(session, randomUUID(), session.history, {
+        inputTokens: outputTokens,
+      }, true),
+    );
 
     await this.persistSessionState(session);
     return { stopReason: "end_turn" };
@@ -698,6 +831,47 @@ export class OpenaiCompatibleAgent implements Agent {
         }
       }
       const response = await result.response;
+
+      // 上下文洞察：按 step 生成快照。每个 step 的「输入上下文」= 会话历史 +
+      // 之前各 step 产生的回复（assistant/tool），逐步累加即模拟组装层。
+      const turnId = randomUUID();
+      const steps = (await result.steps) ?? [];
+      let cumulative: ModelMessage[] = [...session.history]; // 已含本次 userMessage 及历史
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        await this.recordContextSnapshot(
+          session,
+          this.buildSnapshotFromMessages(
+            session,
+            turnId,
+            cumulative,
+            {
+              inputTokens: step.usage?.inputTokens,
+              outputTokens: step.usage?.outputTokens,
+              totalTokens: step.usage?.totalTokens,
+            },
+            i === steps.length - 1,
+          ),
+        );
+        cumulative = [
+          ...cumulative,
+          ...((step.response?.messages as unknown as ModelMessage[] | undefined) ?? []),
+        ];
+      }
+      if (steps.length === 0) {
+        // 无 step 数据兜底：用整轮 messages 生成单条快照
+        await this.recordContextSnapshot(
+          session,
+          this.buildSnapshotFromMessages(
+            session,
+            turnId,
+            [...session.history, ...response.messages],
+            undefined,
+            true,
+          ),
+        );
+      }
+
       session.history.push(...response.messages);
       await this.appendSessionHistory(session.id, ...response.messages);
 

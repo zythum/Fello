@@ -447,6 +447,7 @@
   "panel": {
     "files": "文件",
     "terminal": "终端",
+    "context": "上下文",
     "noProjectSelected": "未选择项目"
   },
   "contentBlock": {
@@ -587,6 +588,66 @@
         "5": "周五",
         "6": "周六"
       }
+    }
+  },
+  "context": {
+    "title": "上下文",
+    "estimated": "估算 token",
+    "empty": "暂无上下文数据",
+    "used": "已用",
+    "percentUsed": "已用 {{pct}}%",
+    "overReserve": "超过自动压缩预留带",
+    "topTools": "按 token 成本最高的工具",
+    "category": {
+      "system": "系统提示",
+      "tools": "工具",
+      "user": "用户消息",
+      "assistant": "助手回复",
+      "toolResults": "工具结果",
+      "injections": "注入上下文"
+    },
+    "stats": {
+      "title": "会话统计",
+      "turns": "轮次",
+      "steps": "步骤",
+      "injections": "注入",
+      "compactions": "压缩",
+      "prunes": "剪枝"
+    },
+    "composition": {
+      "title": "当前组成"
+    },
+    "history": {
+      "title": "上下文历史",
+      "step": "步骤",
+      "turn": "回合",
+      "hint": "悬停预览 · 点击固定",
+      "empty": "暂无历史"
+    },
+    "events": {
+      "title": "上下文事件",
+      "empty": "暂无上下文事件",
+      "all": "全部",
+      "compact": "压缩",
+      "prune": "剪枝",
+      "inject": "注入",
+      "switch": "切换"
+    },
+    "browser": {
+      "title": "上下文浏览器",
+      "empty": "选择一个步骤以查看其上下文",
+      "emptyCategory": "暂无内容",
+      "noContent": "该步骤未保留内容"
+    },
+    "tool": {
+      "name": "名称",
+      "type": "类型",
+      "description": "描述"
+    },
+    "messages": {
+      "title": "消息",
+      "estimated": "token 估算（~4 字符/token）",
+      "emptyMessages": "暂无消息"
     }
   }
 }

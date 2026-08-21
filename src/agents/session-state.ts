@@ -3,6 +3,7 @@ import type { ModelMessage } from "ai";
 import { createACPClientTools, type ACPSessionTools } from "./acp-client-tools";
 import { createMCPSessionTools, type MCPSessionTools } from "./mcp-tools";
 import { createPermissionMemory, type AllowedToolKinds, type PermissionKind } from "./permission";
+import type { ContextEvent, ContextSnapshot } from "../shared/schema";
 
 export type SessionState = {
   id: string;
@@ -16,6 +17,10 @@ export type SessionState = {
   mcp: MCPSessionTools;
   /** Tokens currently in context window after the most recent turn. */
   contextUsedTokens: number;
+  /** 上下文快照时间线（每个 step 一条），用于洞察面板。 */
+  contextTimeline: ContextSnapshot[];
+  /** 上下文生命周期事件（compact/prune/inject/switch）。 */
+  contextEvents: ContextEvent[];
 };
 
 function normalizeAdditionalDirectories(value: string[] | undefined): string[] {
@@ -69,5 +74,7 @@ export async function createSessionState(params: {
     acp,
     mcp,
     contextUsedTokens: 0,
+    contextTimeline: [],
+    contextEvents: [],
   };
 }

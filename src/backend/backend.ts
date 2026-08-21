@@ -41,6 +41,7 @@ import type {
   AgentInfo,
   SessionNotificationFelloExt,
   FelloIPCSchema,
+  FelloContextUpdate,
   AskUserRequest,
   AskUserRequestOption,
   Feature,
@@ -65,7 +66,7 @@ import {
   extractMessageText,
   extractVoiceText,
 } from "./ilink/ilink-bridge";
-import { deletePersistedSessionDirectory } from "../agents/storage";
+import { deletePersistedSessionDirectory, loadContextTimeline } from "../agents/storage";
 import {
   store as autoStore,
   initRunner,
@@ -1056,6 +1057,18 @@ function broadcastAndSaveSessionUpdate(sessionId: string, notification: SessionN
         update: omit(enrichedNotification.update, ["rawInput", "rawOutput"]),
       });
     }
+  } else if (
+    (sessionUpdate as string) === "context_snapshot" ||
+    (sessionUpdate as string) === "context_event" ||
+    (sessionUpdate as string) === "context_timeline"
+  ) {
+    // 上下文洞察数据：不写入聊天历史，走独立 context-update 事件推送。
+    // 持久化由 agent 侧单独处理（context.jsonl）。
+    sendEvent("context-update", {
+      sessionId,
+      update: enrichedNotification.update as unknown as FelloContextUpdate,
+    });
+    return;
   } else {
     storageOps.appendSessionMessage(sessionId, enrichedNotification);
   }
@@ -1832,6 +1845,20 @@ export const backendHandlers: {
     return {
       messages,
     };
+  },
+
+  async getContextTimeline({ sessionId }) {
+    const session = storageOps.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    try {
+      const { timeline, events } = await loadContextTimeline({
+        agentId: session.agentId,
+        sessionId: session.resumeId,
+      });
+      return { timeline, events };
+    } catch {
+      return { timeline: [], events: [] };
+    }
   },
 
   async sendPrompt({ sessionId, contents }) {

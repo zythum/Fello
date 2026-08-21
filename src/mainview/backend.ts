@@ -110,6 +110,7 @@ export const subscribe = { on, off };
 
 bridge.on("session-changed", (payload) => emit("session-changed", payload));
 bridge.on("session-update", (payload) => emit("session-update", payload));
+bridge.on("context-update", (payload) => emit("context-update", payload));
 bridge.on("ask-user-request", (payload) => emit("ask-user-request", payload));
 bridge.on("ask-user-response", (payload) => emit("ask-user-response", payload));
 bridge.on("terminal-output", (payload) => emit("terminal-output", payload));

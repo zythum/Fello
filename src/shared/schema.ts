@@ -7,6 +7,103 @@ import type {
   Usage,
 } from "@agentclientprotocol/sdk";
 
+// ── Context Insight（上下文洞察面板）类型 ─────────────────────────────
+// 用于对标 dsh-context 的「上下文可视化与管理」能力。
+// 注：组成为 token 估算值（基于 gpt-tokenizer / cl100k_base），可能与
+// provider 上报的真实值存在偏差，UI 上以 "estimated" 标注。
+
+/** 上下文六大组成类别 */
+export type ContextCategory =
+  | "system"
+  | "tools"
+  | "user"
+  | "assistant"
+  | "toolResults"
+  | "injections";
+
+/** 某一步请求的上下文窗口组成（token 估算） */
+export interface ContextComposition {
+  /** 系统提示（含 AGENTS.md / 工作区信息） */
+  system: number;
+  /** 工具 schema（MCP + ACP） */
+  tools: number;
+  /** 用户消息 */
+  user: number;
+  /** 助手回复 */
+  assistant: number;
+  /** 工具结果 */
+  toolResults: number;
+  /** 注入上下文（skills / 其他注入） */
+  injections: number;
+  /** 六类之和（应近似 provider 上报的 inputTokens） */
+  total: number;
+  /** 上下文窗口 token 上限 */
+  windowSize: number;
+}
+
+/** 单个工具 schema 的 token 成本（用于 Top-N 展示） */
+export interface ToolSchemaCost {
+  name: string;
+  tokens: number;
+}
+
+/** 上下文浏览器可展开的真实内容（仅保留每回合最后一步，控制体积） */
+export interface ContextContent {
+  system?: string[];
+  tools?: Array<{ name: string; schema: string }>;
+  messages?: Array<{ role: string; text: string }>;
+  injections?: string[];
+}
+
+/** 一次请求（或其中一个 step）的上下文快照 */
+export interface ContextSnapshot {
+  /** 步骤唯一 ID */
+  stepId: string;
+  /** 所属回合 ID（一次 prompt() 调用为同一回合，可能含多个 step） */
+  turnId: string;
+  /** 在时间线中的序号（从 0 递增） */
+  index: number;
+  /** 本地时间戳（毫秒） */
+  timestamp: number;
+  /** 组成 */
+  composition: ContextComposition;
+  /** 该步的 usage（provider 上报，若存在） */
+  usage: { inputTokens?: number; outputTokens?: number; total?: number };
+  /** 相对上一步的各类别 token Δ（仅展示用） */
+  deltas?: Partial<Record<ContextCategory, number>>;
+  /** token 成本最高的前 N 个工具 schema */
+  topToolSchemas?: ToolSchemaCost[];
+  /** 浏览器下钻用的真实内容（仅每回合最后一步包含） */
+  content?: ContextContent;
+}
+
+/** 上下文事件类型 */
+export type ContextEventKind = "compact" | "prune" | "inject" | "switch";
+
+/** 上下文生命周期事件（压缩 / 剪枝 / 注入 / 模型切换） */
+export interface ContextEvent {
+  id: string;
+  kind: ContextEventKind;
+  timestamp: number;
+  turnId?: string;
+  /** 关联的时间线步骤序号 */
+  stepIndex?: number;
+  /** 人类可读详情（如 "-535.5k tokens" 或目标模型 ID） */
+  detail?: string;
+  /** 事件带来的 token 变化（正为增加，负为回收） */
+  tokens?: number;
+}
+
+/** Fello 扩展的上下文洞察更新（独立于 ACP session-update 通道，通过 context-update 事件推送） */
+export type FelloContextUpdate =
+  | { sessionUpdate: "context_snapshot"; snapshot: ContextSnapshot }
+  | { sessionUpdate: "context_event"; event: ContextEvent }
+  | {
+      sessionUpdate: "context_timeline";
+      timeline: ContextSnapshot[];
+      events: ContextEvent[];
+    };
+
 /**
  * 扩展 SessionNotification 结构
  * 包含 Fello 注入的元数据，用于前后端消息去重、时间戳等功能
@@ -485,6 +582,14 @@ export type FelloIPCRequests = {
       messages: SessionNotificationFelloExt[];
     };
   };
+  /** 获取会话的上下文洞察时间线与事件（用于面板初始加载/重连恢复） */
+  getContextTimeline: {
+    params: { sessionId: string };
+    response: {
+      timeline: ContextSnapshot[];
+      events: ContextEvent[];
+    };
+  };
   /** 向会话发送用户 Prompt */
   sendPrompt: {
     params: {
@@ -764,6 +869,8 @@ export type FelloIPCEvents = {
   "session-changed": { session: SessionInfo };
   /** 会话状态更新的事件（如消息流、状态变更等） */
   "session-update": { sessionId: string; notification: SessionNotificationFelloExt };
+  /** 上下文洞察数据实时推送（context_snapshot / context_event / context_timeline） */
+  "context-update": { sessionId: string; update: FelloContextUpdate };
   /** 通用 askUser 请求事件（替换 permission-request） */
   "ask-user-request": AskUserRequest;
   /** 通用 askUser 响应事件（替换 permission-resolved） */

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
-import { reduceSessionUpdate } from "./lib/session-state-reducer";
+import { reduceSessionUpdate, reduceContextUpdate } from "./lib/session-state-reducer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
@@ -183,6 +183,15 @@ function AppContent() {
       scheduleFlushPendingSessionUpdates();
     };
 
+    const handleContextUpdate = (detail: BackendEvents["context-update"]) => {
+      const sid = detail.sessionId;
+      const store = useAppStore.getState();
+      if (!store.sessionStates.has(sid)) {
+        return; // Hibernated, discard
+      }
+      store.updateSessionState(sid, (s) => reduceContextUpdate(s, detail.update));
+    };
+
     const handleAskUserRequest = (detail: BackendEvents["ask-user-request"]) => {
       const sid = detail.sessionId;
       if (!sid) return;
@@ -291,6 +300,7 @@ function AppContent() {
     };
 
     subscribe.on("session-update", handleSessionUpdate);
+    subscribe.on("context-update", handleContextUpdate);
     subscribe.on("ask-user-request", handleAskUserRequest);
     subscribe.on("ask-user-response", handleAskUserResponse);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
@@ -421,6 +431,7 @@ function AppContent() {
       if (unlistenFullScreen) unlistenFullScreen();
       if (unlistenUpdater) unlistenUpdater();
       subscribe.off("session-update", handleSessionUpdate);
+      subscribe.off("context-update", handleContextUpdate);
       subscribe.off("ask-user-request", handleAskUserRequest);
       subscribe.off("ask-user-response", handleAskUserResponse);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);

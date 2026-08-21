@@ -4,6 +4,7 @@ import { join } from "path";
 import { FELLO_DIR } from "../backend/storage";
 import type { ModelMessage } from "ai";
 import type { PermissionKind } from "./permission";
+import type { ContextEvent, ContextSnapshot } from "../shared/schema";
 
 type SessionJson = {
   modelId: string | null;
@@ -39,6 +40,10 @@ function sessionJsonPath(agentId: string, sessionId: string): string {
 
 function historyJsonlPath(agentId: string, sessionId: string): string {
   return join(apiAgentSessionDir(agentId, sessionId), "history.jsonl");
+}
+
+function contextJsonlPath(agentId: string, sessionId: string): string {
+  return join(apiAgentSessionDir(agentId, sessionId), "context.jsonl");
 }
 
 function isModelMessage(value: unknown): value is ModelMessage {
@@ -162,4 +167,56 @@ export function deletePersistedSessionDirectory(params: {
     recursive: true,
     force: true,
   });
+}
+
+/**
+ * 读取会话的上下文时间线与事件（来自 context.jsonl）。
+ * 每行是一条 snapshot 或 event，含 `_t` 判别字段。
+ */
+export async function loadContextTimeline(params: {
+  agentId: string;
+  sessionId: string;
+}): Promise<{ timeline: ContextSnapshot[]; events: ContextEvent[] }> {
+  const raw = await readFileIfExists(contextJsonlPath(params.agentId, params.sessionId));
+  if (!raw) return { timeline: [], events: [] };
+  const timeline: ContextSnapshot[] = [];
+  const events: ContextEvent[] = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line) as { _t?: string } & (ContextSnapshot | ContextEvent);
+      if (obj._t === "snapshot") {
+        const { _t, ...snapshot } = obj as { _t: string } & ContextSnapshot;
+        timeline.push(snapshot);
+      } else if (obj._t === "event") {
+        const { _t, ...event } = obj as { _t: string } & ContextEvent;
+        events.push(event);
+      }
+    } catch {
+      // 忽略损坏行
+    }
+  }
+  return { timeline, events };
+}
+
+/** 追加一条上下文快照（不重写整文件）。 */
+export async function appendContextSnapshot(params: {
+  agentId: string;
+  sessionId: string;
+  snapshot: ContextSnapshot;
+}): Promise<void> {
+  ensureSessionDirSync(params.agentId, params.sessionId);
+  const line = JSON.stringify({ _t: "snapshot", ...params.snapshot });
+  appendFileSync(contextJsonlPath(params.agentId, params.sessionId), `${line}\n`, "utf8");
+}
+
+/** 追加一条上下文事件。 */
+export async function appendContextEvent(params: {
+  agentId: string;
+  sessionId: string;
+  event: ContextEvent;
+}): Promise<void> {
+  ensureSessionDirSync(params.agentId, params.sessionId);
+  const line = JSON.stringify({ _t: "event", ...params.event });
+  appendFileSync(contextJsonlPath(params.agentId, params.sessionId), `${line}\n`, "utf8");
 }

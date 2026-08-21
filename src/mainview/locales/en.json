@@ -447,6 +447,7 @@
   "panel": {
     "files": "Files",
     "terminal": "Terminal",
+    "context": "Context",
     "noProjectSelected": "No project selected"
   },
   "contentBlock": {
@@ -587,6 +588,66 @@
         "5": "Fri",
         "6": "Sat"
       }
+    }
+  },
+  "context": {
+    "title": "Context",
+    "estimated": "estimated tokens",
+    "empty": "No context data yet",
+    "used": "Used",
+    "percentUsed": "{{pct}}% used",
+    "overReserve": "over auto-compact reserve",
+    "topTools": "Top tools by tokens",
+    "category": {
+      "system": "System",
+      "tools": "Tools",
+      "user": "User",
+      "assistant": "Assistant",
+      "toolResults": "Tool results",
+      "injections": "Injections"
+    },
+    "stats": {
+      "title": "Session stats",
+      "turns": "Turns",
+      "steps": "Steps",
+      "injections": "Injections",
+      "compactions": "Compactions",
+      "prunes": "Prunes"
+    },
+    "composition": {
+      "title": "Current composition"
+    },
+    "history": {
+      "title": "Context history",
+      "step": "Step",
+      "turn": "Turn",
+      "hint": "hover to preview · click to pin",
+      "empty": "No history yet"
+    },
+    "events": {
+      "title": "Context events",
+      "empty": "No context events yet",
+      "all": "All",
+      "compact": "Compact",
+      "prune": "Prune",
+      "inject": "Inject",
+      "switch": "Switch"
+    },
+    "browser": {
+      "title": "Context browser",
+      "empty": "Pick a step to inspect its context",
+      "emptyCategory": "Nothing here",
+      "noContent": "Content not retained for this step"
+    },
+    "tool": {
+      "name": "Name",
+      "type": "Type",
+      "description": "Description"
+    },
+    "messages": {
+      "title": "Messages",
+      "estimated": "Token estimates (~4 chars/token)",
+      "emptyMessages": "No messages yet"
     }
   }
 }

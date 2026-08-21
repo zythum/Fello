@@ -7,6 +7,8 @@ import type {
   SettingSoundInfo,
   SessionNotificationFelloExt,
   AskUserRequest,
+  ContextSnapshot,
+  ContextEvent,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage } from "./lib/chat-message";
 import type { AvailableCommand, Usage, UsageUpdate } from "@agentclientprotocol/sdk";
@@ -67,6 +69,10 @@ export interface SessionState {
   completedStatus: "success" | "error" | null;
   /** 会话历史加载完成的时间戳（毫秒） */
   loadedAt: number | null;
+  /** 上下文洞察：快照时间线（每个 step 一条） */
+  contextTimeline: ContextSnapshot[];
+  /** 上下文洞察：生命周期事件（compact/prune/inject/switch） */
+  contextEvents: ContextEvent[];
 }
 
 const emptySessionState = (): SessionState => ({
@@ -84,6 +90,8 @@ const emptySessionState = (): SessionState => ({
   completedAt: null,
   completedStatus: null,
   loadedAt: null,
+  contextTimeline: [],
+  contextEvents: [],
 });
 
 export interface AppState {

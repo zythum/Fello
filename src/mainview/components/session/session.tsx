@@ -210,6 +210,7 @@ export function Session({ session }: { session: SessionInfo }) {
                 tab={panelTab}
                 onTabChange={(tab) => setPanelTab(tab)}
                 projectId={currentProjectId}
+                sessionId={sessionId}
                 previewFileId={detailType === "file" ? detailFile : null}
                 activeTerminalId={detailType === "terminal" ? detailTerminalId : null}
                 onPreviewFile={handlePreviewFile}

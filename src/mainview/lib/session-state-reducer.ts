@@ -1,4 +1,10 @@
 import type { SessionNotificationFelloExt } from "../../shared/schema";
+import type {
+  ContextCategory,
+  ContextSnapshot,
+  ContextEvent,
+  FelloContextUpdate,
+} from "../../shared/schema";
 import type { SessionState } from "../store";
 import type { ToolCallMessage, ChatMessage, PlanMessage } from "./chat-message";
 import { generateUUID } from "./utils";
@@ -6,6 +12,28 @@ import { generateUUID } from "./utils";
 // ---------------------------------------------------------------------------
 // Pure Functions for State Calculation
 // ---------------------------------------------------------------------------
+
+const CONTEXT_CATEGORIES: ContextCategory[] = [
+  "system",
+  "tools",
+  "user",
+  "assistant",
+  "toolResults",
+  "injections",
+];
+
+/** 计算 snapshot 相对前一个快照的各类别 token Δ。 */
+function withContextDeltas(
+  snapshot: ContextSnapshot,
+  prev: ContextSnapshot | undefined,
+): ContextSnapshot {
+  if (!prev) return { ...snapshot, deltas: undefined };
+  const deltas: Partial<Record<ContextCategory, number>> = {};
+  for (const key of CONTEXT_CATEGORIES) {
+    deltas[key] = snapshot.composition[key] - prev.composition[key];
+  }
+  return { ...snapshot, deltas };
+}
 
 type UpdatePayload<T extends SessionNotificationFelloExt["update"]["sessionUpdate"]> = Extract<
   SessionNotificationFelloExt["update"],
@@ -176,6 +204,66 @@ function calculateUsageUpdate(
       _meta: update._meta,
     },
   };
+}
+
+function calculateContextSnapshot(state: SessionState, snapshot: ContextSnapshot): SessionState {
+  const prev = state.contextTimeline[state.contextTimeline.length - 1];
+  return {
+    ...state,
+    contextTimeline: [...state.contextTimeline, withContextDeltas(snapshot, prev)],
+  };
+}
+
+function calculateContextEvent(state: SessionState, event: ContextEvent): SessionState {
+  // 避免重复记录（如重连后 agent 重放）
+  if (state.contextEvents.some((e) => e.id === event.id)) return state;
+  return { ...state, contextEvents: [...state.contextEvents, event] };
+}
+
+function calculateContextTimeline(
+  state: SessionState,
+  timeline: ContextSnapshot[],
+  events: ContextEvent[],
+): SessionState {
+  const withDeltas = timeline.map((snap, i) =>
+    withContextDeltas(snap, i > 0 ? timeline[i - 1] : undefined),
+  );
+  return {
+    ...state,
+    contextTimeline: withDeltas,
+    contextEvents: events,
+  };
+}
+
+/**
+ * 处理 context-update 事件（context_snapshot / context_event / context_timeline）。
+ * 与 reduceSessionUpdate 分离：上下文洞察数据走独立通道，不进入聊天消息流。
+ */
+export function reduceContextUpdate(
+  currentState: SessionState,
+  update: FelloContextUpdate,
+): SessionState {
+  switch (update.sessionUpdate) {
+    case "context_snapshot":
+      if (update.snapshot) {
+        return calculateContextSnapshot(currentState, update.snapshot);
+      }
+      break;
+    case "context_event":
+      if (update.event) {
+        return calculateContextEvent(currentState, update.event);
+      }
+      break;
+    case "context_timeline":
+      return calculateContextTimeline(
+        currentState,
+        update.timeline ?? [],
+        update.events ?? [],
+      );
+    default:
+      break;
+  }
+  return currentState;
 }
 
 // ---------------------------------------------------------------------------
