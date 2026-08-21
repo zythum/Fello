@@ -37,6 +37,23 @@ function parseParameters(schema: string): BrowserItem["toolRows"] {
   }
 }
 
+/**
+ * 工具展示名：优先用快照里存的工具名（修复后为 map key，如 mcp_skills__list_skills）；
+ * 旧快照里可能是 "unknown"（修复前生成），此时从 schema JSON 里解析 title 兜底。
+ */
+function toolDisplayName(tool: { name: string; schema: string }): string {
+  if (tool.name && tool.name !== "unknown") return tool.name;
+  try {
+    const parsed = JSON.parse(tool.schema) as { title?: unknown };
+    if (typeof parsed.title === "string" && parsed.title.trim()) {
+      return parsed.title.trim();
+    }
+  } catch {
+    // ignore malformed schema
+  }
+  return tool.name || "unknown";
+}
+
 function frontendMessageItems(
   messages: ChatMessage[] | null,
   match: (role: ChatMessage["role"]) => boolean,
@@ -84,7 +101,7 @@ export function ContextBrowser({ snapshot, sessionId }: ContextBrowserProps) {
     // tools
     const toolItems: BrowserItem[] = (content?.tools ?? []).map((tool, i) => ({
       id: `tool-${i}`,
-      title: tool.name,
+      title: toolDisplayName(tool),
       content: tool.schema,
       kind: "tool",
       toolRows: parseParameters(tool.schema),
