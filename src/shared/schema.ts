@@ -29,13 +29,13 @@ export interface ContextComposition {
   tools: number;
   /** 用户消息 */
   user: number;
-  /** 助手回复 */
+  /** 助手回复（模型自身输出，仅保留展示，不计入 total） */
   assistant: number;
   /** 工具结果 */
   toolResults: number;
   /** 注入上下文（skills / 其他注入） */
   injections: number;
-  /** 六类之和（应近似 provider 上报的 inputTokens） */
+  /** 给模型的输入上下文合计（排除助手回复，应近似 provider 上报的 inputTokens） */
   total: number;
   /** 上下文窗口 token 上限 */
   windowSize: number;

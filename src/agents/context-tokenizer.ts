@@ -32,8 +32,8 @@ function countTokens(value: unknown): number {
 export interface ComposeContextInput {
   /** 已渲染的完整 system 提示文本 */
   system: string;
-  /** 工具列表（MCP + ACP），每个含 name/description/parameters */
-  tools: unknown[];
+  /** 工具列表（MCP + ACP），[工具名, 工具定义]，工具名取自 ToolSet 的 key */
+  tools: Array<[string, unknown]>;
   /** 当前会话历史消息 */
   history: ModelMessage[];
   /** 上下文窗口大小（token） */
@@ -51,8 +51,8 @@ export interface ComposeContextResult {
 export function composeContext(input: ComposeContextInput): ComposeContextResult {
   let systemTokens = countTokens(input.system);
 
-  const toolTokens = input.tools.map((tool) => ({
-    name: (tool as { name?: string })?.name ?? "unknown",
+  const toolTokens = input.tools.map(([name, tool]) => ({
+    name: name || "unknown",
     tokens: countTokens(tool),
   }));
   const toolsTokens = toolTokens.reduce((sum, t) => sum + t.tokens, 0);
@@ -74,7 +74,8 @@ export function composeContext(input: ComposeContextInput): ComposeContextResult
         userTokens += tokens;
         break;
       case "assistant":
-        assistantTokens += tokens;
+        // 助手回复（模型自身输出）不计入"给模型的上下文"统计；
+        // 相关内容仍在上下文浏览器 / 消息列表中保留展示。
         break;
       case "tool":
         toolResultsTokens += tokens;
@@ -88,8 +89,8 @@ export function composeContext(input: ComposeContextInput): ComposeContextResult
     }
   }
 
-  const total =
-    systemTokens + toolsTokens + userTokens + assistantTokens + toolResultsTokens + injectionsTokens;
+  // 统计口径：只统计"给模型的输入上下文"，排除助手回复（模型自身输出）
+  const total = systemTokens + toolsTokens + userTokens + toolResultsTokens + injectionsTokens;
 
   return {
     composition: {
@@ -112,14 +113,14 @@ export function composeContext(input: ComposeContextInput): ComposeContextResult
  */
 export function extractContextContent(input: {
   system: string;
-  tools: unknown[];
+  tools: Array<[string, unknown]>;
   history: ModelMessage[];
 }): ContextContent {
   const content: ContextContent = {};
   content.system = [input.system];
   if (input.tools.length > 0) {
-    content.tools = input.tools.map((tool) => ({
-      name: (tool as { name?: string })?.name ?? "unknown",
+    content.tools = input.tools.map(([name, tool]) => ({
+      name: name || "unknown",
       schema: JSON.stringify(tool, null, 2),
     }));
   }

@@ -95,7 +95,7 @@ export function ContextDashboard({ sessionId, open, onOpenChange }: ContextDashb
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] w-full max-w-5xl flex-col gap-0 p-0 sm:max-w-5xl">
+      <DialogContent className="flex h-[85vh] max-h-[85vh] w-full max-w-5xl flex-col gap-0 p-0 overflow-hidden sm:max-w-5xl">
         <DialogTitle className="sr-only">{t("context.title", "Context")}</DialogTitle>
 
         {/* 头部 */}
@@ -110,7 +110,7 @@ export function ContextDashboard({ sessionId, open, onOpenChange }: ContextDashb
           </div>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="px-0 py-0">
+        <ScrollArea className="min-h-0 flex-1 overflow-hidden" viewportClassName="px-0 py-0">
           <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
             {/* 统计 */}
             <div className="lg:col-span-2">

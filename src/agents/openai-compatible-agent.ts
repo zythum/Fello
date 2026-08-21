@@ -335,10 +335,10 @@ export class OpenaiCompatibleAgent implements Agent {
     includeContent = false,
   ): ContextSnapshot {
     const system = buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories);
-    const tools = [
-      ...Object.values(session.mcp.tools),
-      ...Object.values(session.acp.tools),
-    ] as unknown[];
+    const tools: Array<[string, unknown]> = [
+      ...Object.entries(session.mcp.tools),
+      ...Object.entries(session.acp.tools),
+    ];
     const { composition, topToolSchemas } = composeContext({
       system,
       tools,
