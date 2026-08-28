@@ -253,6 +253,9 @@ export function initBackend(
     async getSessionHistory(params) {
       return session.getSessionHistory(params);
     },
+    async getSessionTokenUsage(params) {
+      return session.getSessionTokenUsage(params);
+    },
     async sendPrompt(params) {
       return session.sendPrompt(params);
     },

@@ -7,6 +7,7 @@ import {
   streamText,
   generateText,
   type ModelMessage,
+  type StepResult,
   type TextPart,
   type ToolSet,
 } from "ai";
@@ -33,11 +34,17 @@ import type {
   SetSessionConfigOptionRequest,
   SetSessionConfigOptionResponse,
   Usage,
+  UsageUpdate,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { AgentContext } from "@agentclientprotocol/sdk";
 import { AgentClientProxy } from "./agent-client-proxy";
-import type { ApiAgentInfo, ModelInfo, SessionModelState } from "../shared/schema";
+import type {
+  ApiAgentInfo,
+  ModelInfo,
+  SessionModelState,
+  SessionTokenBreakdown,
+} from "../shared/schema";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
@@ -60,6 +67,11 @@ import {
   resourceLinkToFilePart,
   textContentToTextPart,
 } from "./utils";
+import {
+  buildStepBreakdown,
+  estimateInputComposition,
+  serializeMessagesForCounting,
+} from "./token-breakdown";
 
 const MODEL_CONFIG_ID = "model";
 const THOUGHT_LEVEL_CONFIG_ID = "thought_level";
@@ -175,6 +187,14 @@ function buildSafeUserMessage(prompt: ContentBlock[]): ModelMessage {
 const AVAILABLE_COMMANDS: AvailableCommand[] = [
   { name: "compact", description: "Compress conversation context" },
 ];
+
+/** /compact 命令使用的压缩提示词（同时用于 token 用量估算）。 */
+const COMPACT_PROMPT = `Compress the conversation into a structured markdown summary.
+ Include: key decisions, code changes (with file paths),
+ technical context, and pending tasks.
+ Use headings and bullet points for clarity.
+ Detect the user's commonly used language from the conversation history and respond in that language.
+ Output only the summary.`;
 
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
@@ -386,15 +406,80 @@ export class OpenaiCompatibleAgent implements Agent {
     }
   }
 
-  private async pushAvailableCommands(sessionId: string): Promise<void> {
+  private async pushUsageUpdate(sessionId: string, usageUpdate: UsageUpdate): Promise<void> {
+    if (!this.connection) return;
+    await this.connection.sessionUpdate({
+      sessionId,
+      update: {
+        sessionUpdate: "usage_update",
+        ...usageUpdate,
+      },
+    });
+  }
+
+  private async pushAvailableCommands(
+    sessionId: string,
+    commands: AvailableCommand[],
+  ): Promise<void> {
     if (!this.connection) return;
     await this.connection.sessionUpdate({
       sessionId,
       update: {
         sessionUpdate: "available_commands_update",
-        availableCommands: AVAILABLE_COMMANDS,
+        availableCommands: commands,
       },
     });
+  }
+
+  /**
+   * Build per-turn token breakdown metadata (best-effort).
+   * Shared by normal prompts and slash commands (e.g. /compact).
+   * Must never throw — breakdown is optional metadata that must not fail the prompt.
+   */
+  private async buildTokenBreakdown(params: {
+    systemPrompt: string;
+    tools: ToolSet;
+    history: ReadonlyArray<ModelMessage>;
+    userMessage: ModelMessage;
+    steps: ReadonlyArray<StepResult<ToolSet>>;
+  }): Promise<SessionTokenBreakdown> {
+    try {
+      const stepBreakdown = buildStepBreakdown(params.steps);
+      const historyText = serializeMessagesForCounting(params.history);
+      const userMessageText = serializeMessagesForCounting([params.userMessage]);
+      const inputComposition = await estimateInputComposition({
+        systemPrompt: params.systemPrompt,
+        tools: params.tools,
+        historyText,
+        userMessageText,
+        actualInputTokens: params.steps[0]?.usage.inputTokens ?? 0,
+      });
+      return {
+        stepCount: params.steps.length,
+        inputComposition,
+        steps: stepBreakdown.steps,
+        performance: stepBreakdown.performance,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[OpenaiCompatibleAgent] Failed to build token breakdown for a prompt: ${message}`,
+      );
+      return {
+        stepCount: params.steps.length,
+        inputComposition: {
+          systemPrompt: 0,
+          toolsDefinition: { total: 0, perTool: [] },
+          history: 0,
+          userMessage: 0,
+          userMessageText: "",
+          estimatedTotal: 0,
+          delta: 0,
+        },
+        steps: [],
+        performance: { totalTimeMs: 0, effectiveOutputTokensPerSecond: 0 },
+      };
+    }
   }
 
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
@@ -420,7 +505,7 @@ export class OpenaiCompatibleAgent implements Agent {
     await this.persistSessionState(session);
     // 消息不能推太早，等客户端连接就绪后再推送
     setTimeout(() => {
-      this.pushAvailableCommands(sessionId).catch(() => {});
+      this.pushAvailableCommands(sessionId, AVAILABLE_COMMANDS).catch(() => {});
     }, 500);
     return {
       sessionId,
@@ -474,22 +559,17 @@ export class OpenaiCompatibleAgent implements Agent {
     if (!currentModelExists) {
       active.modelId = modelState.currentModelId || null;
     }
-    // Restore context usage from persisted state and notify client
-    if (persistedState) {
-      active.contextUsedTokens = persistedState.contextUsedTokens;
-    }
-    if (this.connection) {
-      await this.connection.sessionUpdate({
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: "usage_update",
-          used: active.contextUsedTokens,
-          size: this.contextWindowTokens,
-        },
-      });
-    }
+    // Restore context usage from persisted state and notify client.
+    const contextUsageUpdate = {
+      used: persistedState?.contextUsedTokens ?? 0,
+      size: this.contextWindowTokens,
+    } satisfies UsageUpdate;
+    active.contextUsedTokens = contextUsageUpdate.used;
     await this.persistSessionState(active);
-    await this.pushAvailableCommands(params.sessionId);
+    setTimeout(() => {
+      this.pushUsageUpdate(params.sessionId, contextUsageUpdate).catch(() => {});
+      this.pushAvailableCommands(params.sessionId, AVAILABLE_COMMANDS).catch(() => {});
+    }, 500);
     return {
       configOptions: await this.buildConfigOptions(active.modelId, active.thoughtLevel),
     };
@@ -556,18 +636,14 @@ export class OpenaiCompatibleAgent implements Agent {
       return { stopReason: "end_turn" };
     }
 
+    const historyBeforeCompact = session.history.slice();
     const summaryResult = await generateText({
       model: this.provider.chatModel(session.modelId),
       messages: [
-        ...session.history,
+        ...historyBeforeCompact,
         {
           role: "user",
-          content: `Compress the conversation into a structured markdown summary.
- Include: key decisions, code changes (with file paths),
- technical context, and pending tasks.
- Use headings and bullet points for clarity.
- Detect the user's commonly used language from the conversation history and respond in that language.
- Output only the summary.`,
+          content: COMPACT_PROMPT,
         },
       ],
       maxOutputTokens: 5000,
@@ -604,19 +680,31 @@ export class OpenaiCompatibleAgent implements Agent {
     const outputTokens = summaryUsage.outputTokens ?? 0;
     session.contextUsedTokens = outputTokens;
 
-    if (this.connection) {
-      await this.connection.sessionUpdate({
-        sessionId,
-        update: {
-          sessionUpdate: "usage_update",
-          used: session.contextUsedTokens,
-          size: this.contextWindowTokens,
-        },
-      });
-    }
-
+    await this.pushUsageUpdate(sessionId, {
+      used: session.contextUsedTokens,
+      size: this.contextWindowTokens,
+    });
     await this.persistSessionState(session);
-    return { stopReason: "end_turn" };
+
+    // Build per-turn token breakdown (best-effort, same as normal prompts)
+    const tokenBreakdown = await this.buildTokenBreakdown({
+      systemPrompt: "",
+      tools: {},
+      history: historyBeforeCompact,
+      userMessage: { role: "user", content: COMPACT_PROMPT },
+      steps: summaryResult.steps,
+    });
+    const usage: Usage = {
+      totalTokens: summaryUsage.totalTokens ?? 0,
+      inputTokens: summaryUsage.inputTokens ?? 0,
+      outputTokens: summaryUsage.outputTokens ?? 0,
+      thoughtTokens: summaryUsage.outputTokenDetails?.reasoningTokens,
+      cachedReadTokens: summaryUsage.inputTokenDetails?.cacheReadTokens,
+      cachedWriteTokens: summaryUsage.inputTokenDetails?.cacheWriteTokens,
+      _meta: { fello: { tokenBreakdown } },
+    };
+
+    return { stopReason: "end_turn", usage };
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
@@ -745,15 +833,16 @@ export class OpenaiCompatibleAgent implements Agent {
         getModel: () => this.provider.chatModel(session.modelId!),
         parentSignal: abortController.signal,
       });
+      const allTools: ToolSet = {
+        ...sharedTools,
+        ...subagentTool,
+        ...imageAnalysisTool,
+      };
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
         system: systemPrompt,
         messages: [...session.history, userMessage],
-        tools: {
-          ...sharedTools,
-          ...subagentTool,
-          ...imageAnalysisTool,
-        },
+        tools: allTools,
         stopWhen: isStepCount(128),
         abortSignal: abortController.signal,
         providerOptions: {
@@ -818,17 +907,34 @@ export class OpenaiCompatibleAgent implements Agent {
         }
       }
 
-      const response = await result.response;
-      session.history.push(userMessage, ...response.messages);
-      await this.appendSessionHistory(session.id, userMessage, ...response.messages);
-
       // result.usage 是所有 step 的合计（per-turn 总量，用于 ACP 上报；totalUsage 已废弃）。
-      // 上下文窗口占用应按下一次请求实际会发送的内容估算：
-      // 下一轮会把最后一个 step 的完整消息发出去，所以取 finalStep 的 input + output tokens。
-      const [turnUsage, finalStep] = await Promise.all([result.usage, result.finalStep]);
+      // responseMessages 包含本轮所有 step 的 assistant/tool 消息，必须完整写入历史，
+      // 否则多步工具调用的中间消息会在下一轮丢失。
+      // 上下文窗口占用仍按最后一个 step 的 input + output tokens 估算。
+      const [turnUsage, finalStep, steps, responseMessages] = await Promise.all([
+        result.usage,
+        result.finalStep,
+        result.steps,
+        result.responseMessages,
+      ]);
+
       const finalStepUsage = finalStep.usage;
-      session.contextUsedTokens =
+      const contextUsedTokens =
         (finalStepUsage.inputTokens ?? 0) + (finalStepUsage.outputTokens ?? 0);
+      const historyBeforeTurn = session.history.slice();
+      session.history.push(userMessage, ...responseMessages);
+      await this.appendSessionHistory(session.id, userMessage, ...responseMessages);
+      session.contextUsedTokens = contextUsedTokens;
+
+      // Build per-step token breakdown and estimate input composition.
+      // These are optional metadata and must not fail the completed prompt.
+      const tokenBreakdown = await this.buildTokenBreakdown({
+        systemPrompt,
+        tools: allTools,
+        history: historyBeforeTurn,
+        userMessage,
+        steps,
+      });
 
       // Build ACP usage object (per-turn data)
       const usage: Usage = {
@@ -838,19 +944,14 @@ export class OpenaiCompatibleAgent implements Agent {
         thoughtTokens: turnUsage.outputTokenDetails?.reasoningTokens,
         cachedReadTokens: turnUsage.inputTokenDetails?.cacheReadTokens,
         cachedWriteTokens: turnUsage.inputTokenDetails?.cacheWriteTokens,
+        _meta: { fello: { tokenBreakdown } },
       };
 
       // Send context window usage_update via session/update
-      if (this.connection) {
-        await this.connection.sessionUpdate({
-          sessionId: params.sessionId,
-          update: {
-            sessionUpdate: "usage_update",
-            used: session.contextUsedTokens,
-            size: this.contextWindowTokens,
-          },
-        });
-      }
+      await this.pushUsageUpdate(params.sessionId, {
+        used: session.contextUsedTokens,
+        size: this.contextWindowTokens,
+      });
 
       return {
         stopReason: "end_turn",

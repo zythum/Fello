@@ -88,6 +88,17 @@ export function Session({ session }: { session: SessionInfo }) {
     return () => document.removeEventListener("fello-preview-file", handlePreviewFileEvent);
   }, [currentProjectId, handlePreviewFile]);
 
+  // Listen for fello-open-token-usage events (from UsageButton)
+  useEffect(() => {
+    const handleOpenTokenUsage = () => {
+      setDetailType("token-usage");
+      setDetailFile(null);
+      setDetailTerminalId(null);
+    };
+    document.addEventListener("fello-open-token-usage", handleOpenTokenUsage);
+    return () => document.removeEventListener("fello-open-token-usage", handleOpenTokenUsage);
+  }, []);
+
   // Auto load session if not loaded
   const fetchingRef = useRef<string | null>(null);
   const [connectionError, setConnectionError] = useState(false);
@@ -222,6 +233,7 @@ export function Session({ session }: { session: SessionInfo }) {
                         projectId={currentProjectId}
                         file={detailFile}
                         terminalId={detailTerminalId}
+                        session={session}
                         onClose={handleDetailClose}
                       />
                     </ResizablePanel>

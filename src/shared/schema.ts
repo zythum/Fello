@@ -37,6 +37,96 @@ export interface SessionNotificationFelloExt extends SessionNotification {
   };
 }
 
+/**
+ * 持久化的一次 Prompt token 用量记录。
+ * 由 API Agent 在 prompt 完成后写入 token-usage.jsonl，并通过 IPC 返回给前端。
+ */
+export interface SessionTokenUsage {
+  timestamp: number;
+  usage: SessionTokenUsageData;
+}
+
+/** ACP Usage 的 Fello 扩展，包含本地计算的 token breakdown。 */
+export type SessionTokenUsageData = Omit<Usage, "_meta"> & {
+  _meta?: {
+    [key: string]: unknown;
+    fello?: {
+      tokenBreakdown?: SessionTokenBreakdown;
+    };
+  } | null;
+};
+
+export interface SessionTokenBreakdown {
+  stepCount: number;
+  inputComposition: SessionTokenInputComposition;
+  steps: SessionTokenStep[];
+  performance: SessionTokenPerformance;
+}
+
+export interface SessionTokenInputComposition {
+  systemPrompt: number;
+  toolsDefinition: SessionTokenToolsDefinition;
+  history: number;
+  userMessage: number;
+  /** 本轮用户消息的文本内容（序列化后），用于展示与排查。 */
+  userMessageText: string;
+  estimatedTotal: number;
+  delta: number;
+}
+
+export interface SessionTokenToolsDefinition {
+  total: number;
+  perTool: SessionTokenToolDefinition[];
+}
+
+export interface SessionTokenToolDefinition {
+  name: string;
+  tokens: number;
+}
+
+export interface SessionTokenStep {
+  stepNumber: number;
+  finishReason: string;
+  inputTokens: number;
+  outputTokens: number;
+  inputDetails: SessionTokenInputDetails;
+  outputDetails: SessionTokenOutputDetails;
+  toolCalls: SessionTokenToolCall[];
+  performance: SessionTokenStepPerformance;
+}
+
+export interface SessionTokenInputDetails {
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  noCacheTokens?: number;
+}
+
+export interface SessionTokenOutputDetails {
+  textTokens?: number;
+  reasoningTokens?: number;
+}
+
+export interface SessionTokenToolCall {
+  toolName: string;
+  /** 工具调用参数（序列化后的 JSON 字符串），用于展示与排查。 */
+  args: string;
+  argumentsOutputTokens: number;
+  resultInputTokens: number;
+  executionMs?: number;
+}
+
+export interface SessionTokenStepPerformance {
+  stepTimeMs: number;
+  responseTimeMs: number;
+  timeToFirstOutputMs?: number;
+  outputTokensPerSecond?: number;
+}
+
+export interface SessionTokenPerformance {
+  totalTimeMs: number;
+  effectiveOutputTokensPerSecond: number;
+}
+
 export interface ModelInfo {
   /**
    * Optional description of the model.
@@ -649,6 +739,13 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: {
       messages: SessionNotificationFelloExt[];
+    };
+  };
+  /** 获取会话 token 使用记录 */
+  getSessionTokenUsage: {
+    params: { sessionId: string };
+    response: {
+      records: SessionTokenUsage[];
     };
   };
   /** 向会话发送用户 Prompt */

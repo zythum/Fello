@@ -18,6 +18,7 @@ import type {
   SessionModeState,
   SessionThoughtLevelState,
   SessionNotificationFelloExt,
+  SessionTokenUsage,
   FelloIPCSchema,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
@@ -54,6 +55,9 @@ export interface SessionModule {
   getSessionHistory: (params: {
     sessionId: string;
   }) => Promise<{ messages: SessionNotificationFelloExt[] }>;
+  getSessionTokenUsage: (params: {
+    sessionId: string;
+  }) => Promise<{ records: SessionTokenUsage[] }>;
   sendPrompt: (params: {
     sessionId: string;
     contents: ContentBlock[];
@@ -432,6 +436,12 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     return { messages: notif.mergeNotifications(storage.readSessionMessages(sessionId)) };
   }
 
+  async function getSessionTokenUsage({ sessionId }: { sessionId: string }) {
+    const session = storage.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    return { records: storage.readTokenUsage(sessionId) };
+  }
+
   async function sendPrompt({
     sessionId,
     contents,
@@ -557,6 +567,18 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
         isStreaming: false,
         ...(promptResponse?.usage ? { lastTurnUsage: promptResponse.usage } : {}),
       });
+
+      // Persist token usage log (best-effort, non-blocking)
+      if (promptResponse?.usage?._meta) {
+        try {
+          storage.appendTokenUsage(sessionId, {
+            timestamp: Date.now(),
+            usage: promptResponse.usage,
+          });
+        } catch {
+          // best-effort
+        }
+      }
       const updated2 = storage.getSession(sessionId);
       if (updated2) sendEvent("session-changed", { session: updated2 });
 
@@ -864,6 +886,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     newSession,
     loadSession,
     getSessionHistory,
+    getSessionTokenUsage,
     sendPrompt,
     cancelPrompt,
     updateSession,

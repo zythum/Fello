@@ -11,7 +11,7 @@ import {
   reduceSessionNotification,
 } from "../../../lib/session-state-reducer";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { useMessage } from "../../providers/message";
@@ -306,7 +306,12 @@ export function ChatHeader({ session }: ChatHeaderProps) {
 
 function UsageButton({ session }: Pick<ChatHeaderProps, "session">) {
   const { t } = useTranslation();
+  const configuredAgents = useAppStore((s) => s.configuredAgents);
   const { lastTurnUsage, usage } = session;
+  const isApiAgent = configuredAgents.some(
+    (agent) => agent.id === session.agentId && agent.type === "api",
+  );
+
   const hasData = usage || lastTurnUsage;
 
   if (!hasData) return null;
@@ -394,6 +399,21 @@ function UsageButton({ session }: Pick<ChatHeaderProps, "session">) {
                     </div>
                   </div>
                 </div>
+              )}
+              {/* View Breakdown button */}
+              {isApiAgent && (
+                <PopoverPrimitive.Close
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "xs",
+                    className: "w-full py-3 font-normal border-border!",
+                  })}
+                  onClick={() => {
+                    document.dispatchEvent(new CustomEvent("fello-open-token-usage"));
+                  }}
+                >
+                  {t("chatHeader.viewBreakdown", "View Breakdown")}
+                </PopoverPrimitive.Close>
               )}
             </div>
           </PopoverPrimitive.Popup>

@@ -25,7 +25,7 @@ import {
 
 import { FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR } from "./constant";
 
-import { SessionNotificationFelloExt } from "../../shared/schema";
+import type { SessionNotificationFelloExt, SessionTokenUsage } from "../../shared/schema";
 
 function appendSessionMessage(
   sessionIdOrSubSessionId: string,
@@ -81,6 +81,58 @@ function readTerminalOutput(sessionIdOrSubSessionId: string, terminalId: string)
   return readFileSync(filePath, "utf-8");
 }
 
+/**
+ * Append a token usage record to the session's token-usage.jsonl file.
+ * Each line is a self-contained JSON object with timestamp, prompt correlation,
+ * and the full token breakdown.
+ */
+function appendTokenUsage(sessionId: string, record: SessionTokenUsage) {
+  const dir = sessionDir(sessionId);
+  if (!dir) return;
+  mkdirSync(dir, { recursive: true });
+  const filePath = join(dir, "token-usage.jsonl");
+  appendFileSync(filePath, JSON.stringify(record) + "\n");
+}
+
+function isSessionTokenUsage(value: unknown): value is SessionTokenUsage {
+  if (!value || typeof value !== "object") return false;
+  const record = value as { timestamp?: unknown; usage?: unknown };
+  if (!record || typeof record.timestamp !== "number" || !record.usage) return false;
+  if (typeof record.usage !== "object") return false;
+  const usage = record.usage as {
+    totalTokens?: unknown;
+    inputTokens?: unknown;
+    outputTokens?: unknown;
+  };
+  return (
+    typeof usage.totalTokens === "number" &&
+    typeof usage.inputTokens === "number" &&
+    typeof usage.outputTokens === "number"
+  );
+}
+
+/**
+ * Read all token usage records for a session.
+ */
+function readTokenUsage(sessionId: string): SessionTokenUsage[] {
+  const dir = sessionDir(sessionId);
+  if (!dir) return [];
+  const filePath = join(dir, "token-usage.jsonl");
+  if (!existsSync(filePath)) return [];
+  const content = readFileSync(filePath, "utf-8");
+  return content
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => {
+      try {
+        return JSON.parse(line) as unknown;
+      } catch {
+        return null;
+      }
+    })
+    .filter((value): value is SessionTokenUsage => isSessionTokenUsage(value));
+}
+
 export const storageOps = {
   getSettings,
   updateSettings,
@@ -103,6 +155,8 @@ export const storageOps = {
   readSessionMessages,
   appendTerminalOutput,
   readTerminalOutput,
+  appendTokenUsage,
+  readTokenUsage,
 };
 
 export { FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR };
