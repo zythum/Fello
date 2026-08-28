@@ -9,6 +9,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={resolvedTheme as ToasterProps["theme"]}
       position="top-center"
+      // Keep toasts below the draggable title bar (h-12 = 48px) so they
+      // don't sit in the region that captures window-drag events at the top.
+      offset="56px"
       className="toaster group"
       icons={{
         success: (

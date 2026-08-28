@@ -32,12 +32,15 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  // Reserve space below the draggable title bar (h-12 = 48px) so the popup
+  // never overlaps the region that captures window-drag events at the top.
+  collisionPadding = { top: 56, right: 5, bottom: 5, left: 5 },
   className,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
+    "align" | "alignOffset" | "side" | "sideOffset" | "collisionPadding"
   >) {
   return (
     <MenuPrimitive.Portal>
@@ -47,6 +50,7 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"

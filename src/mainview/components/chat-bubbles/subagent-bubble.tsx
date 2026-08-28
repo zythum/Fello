@@ -127,7 +127,7 @@ export const SubagentBubble = memo(function SubagentBubble({
         <div className="relative">
           {open && message.messages.length > 0 && (
             <>
-              <MessageSquareMore className="size-4 absolute top-6 -left-6 bg-background text-muted-foreground/70 scale-70" />
+              <MessageSquareMore className="size-4 absolute top-2 -left-6 bg-background text-muted-foreground/70 scale-70" />
               {message.messages.map((message, index, list) => {
                 return (
                   <MessageBubble
