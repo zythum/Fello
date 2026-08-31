@@ -61,10 +61,7 @@ import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import {
-  VoiceInputButton,
-  type VoiceInputButtonRef,
-} from "../../common/voice-input-button";
+import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
 
 /** 将 File 读取为 base64（不含 data: URL 前缀） */
 function readFileAsBase64(file: File): Promise<string> {
@@ -598,16 +595,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       updateSession({ ...session, isStreaming: false });
     }
-  }, [
-    session,
-    isStreaming,
-    addMessage,
-    localInput,
-    updateSessionState,
-    t,
-    toast,
-    updateSession,
-  ]);
+  }, [session, isStreaming, addMessage, localInput, updateSessionState, t, toast, updateSession]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;

@@ -530,7 +530,7 @@
   "chatHeader": {
     "sessionId": "会话编号",
     "openSessionFolder": "打开会话文件夹",
-    "projectId": "项目",
+    "projectId": "项目目录",
     "openProjectFolder": "打开项目文件夹",
     "refresh": "重启会话",
     "closeSession": "关闭会话",

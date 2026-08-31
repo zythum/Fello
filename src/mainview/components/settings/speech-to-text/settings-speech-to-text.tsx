@@ -149,7 +149,10 @@ function SpeechToTextDialog({
                 control={commonForm.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="stt-provider" className="text-[11px] text-muted-foreground">
+                    <FieldLabel
+                      htmlFor="stt-provider"
+                      className="text-[11px] text-muted-foreground"
+                    >
                       {t("settings.speechToText.form.provider", "Provider")}
                     </FieldLabel>
                     <Select name={field.name} value={field.value} onValueChange={field.onChange}>
@@ -286,7 +289,10 @@ export function SettingsSpeechToText() {
   const handleDelete = async (id: string) => {
     const result = await confirm({
       title: t("settings.speechToText.confirmDeleteTitle", "Delete Provider"),
-      content: t("settings.speechToText.confirmDeleteDesc", "Are you sure you want to delete this speech provider?"),
+      content: t(
+        "settings.speechToText.confirmDeleteDesc",
+        "Are you sure you want to delete this speech provider?",
+      ),
       buttons: [
         { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
         {
@@ -315,7 +321,9 @@ export function SettingsSpeechToText() {
     <div className="flex h-full flex-col">
       <div className="mx-auto w-full max-w-4xl px-5 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">{t("settings.speechToText.title", "Speech to Text")}</h3>
+          <h3 className="text-lg font-medium">
+            {t("settings.speechToText.title", "Speech to Text")}
+          </h3>
           <button
             type="button"
             onClick={() => openGuide(i18n.language, "speech-to-text.md")}

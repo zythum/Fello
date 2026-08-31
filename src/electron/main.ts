@@ -670,7 +670,9 @@ app.on("before-quit", (event) => {
 });
 
 app.whenReady().then(async () => {
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => permission === "media");
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission) => permission === "media",
+  );
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === "media");
   });

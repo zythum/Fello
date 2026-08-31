@@ -47,7 +47,7 @@ function buildOptions(provider: SpeechToTextProviderInfo): RealtimeASROptions {
     autoReconnect: false,
     transcriptionModel:
       provider.provider === "openai"
-        ? optionalString(provider.model) ?? DEFAULT_OPENAI_MODEL
+        ? (optionalString(provider.model) ?? DEFAULT_OPENAI_MODEL)
         : undefined,
   };
 }

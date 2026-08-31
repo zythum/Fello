@@ -215,64 +215,69 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
     }
   }, []);
 
-  const start = useCallback(async (deviceId = "default") => {
-    if (recordingRef.current || !configured) return;
-    const asrSessionId = `asr_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    asrSessionIdRef.current = asrSessionId;
-    stoppedRef.current = false;
-    stoppingRef.current = false;
+  const start = useCallback(
+    async (deviceId = "default") => {
+      if (recordingRef.current || !configured) return;
+      const asrSessionId = `asr_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      asrSessionIdRef.current = asrSessionId;
+      stoppedRef.current = false;
+      stoppingRef.current = false;
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          ...(deviceId !== "default" ? { deviceId: { exact: deviceId } } : {}),
-        },
-      });
-      streamRef.current = stream;
-
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
-      await audioContext.resume();
-      const workletUrl = URL.createObjectURL(new Blob([workletSource], { type: "application/javascript" }));
       try {
-        await audioContext.audioWorklet.addModule(workletUrl);
-      } finally {
-        URL.revokeObjectURL(workletUrl);
-      }
-      const source = audioContext.createMediaStreamSource(stream);
-      const node = new AudioWorkletNode(audioContext, "fello-pcm-processor");
-      const silentGain = audioContext.createGain();
-      silentGain.gain.value = 0;
-      node.port.onmessage = (message: MessageEvent<ArrayBuffer>) => {
-        if (stoppedRef.current || asrSessionIdRef.current !== asrSessionId) return;
-        updateAudioLevel(message.data);
-        void request
-          .sendRealtimeAsrFrame({
-            clientId,
-            asrSessionId,
-            audioB64: arrayBufferToBase64(message.data),
-          })
-          .catch((error: unknown) => callbacksRef.current.onError?.(errorMessage(error)));
-      };
-      sourceRef.current = source;
-      nodeRef.current = node;
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            ...(deviceId !== "default" ? { deviceId: { exact: deviceId } } : {}),
+          },
+        });
+        streamRef.current = stream;
 
-      await request.startRealtimeAsr({ clientId, asrSessionId });
-      source.connect(node);
-      node.connect(silentGain);
-      silentGain.connect(audioContext.destination);
-      setRecordingState(true);
-    } catch (error) {
-      await cleanupAudio();
-      await request.stopRealtimeAsr({ clientId, asrSessionId }).catch(() => undefined);
-      asrSessionIdRef.current = null;
-      callbacksRef.current.onError?.(errorMessage(error));
-      setRecordingState(false);
-    }
-  }, [cleanupAudio, configured, setRecordingState, updateAudioLevel]);
+        const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
+        await audioContext.resume();
+        const workletUrl = URL.createObjectURL(
+          new Blob([workletSource], { type: "application/javascript" }),
+        );
+        try {
+          await audioContext.audioWorklet.addModule(workletUrl);
+        } finally {
+          URL.revokeObjectURL(workletUrl);
+        }
+        const source = audioContext.createMediaStreamSource(stream);
+        const node = new AudioWorkletNode(audioContext, "fello-pcm-processor");
+        const silentGain = audioContext.createGain();
+        silentGain.gain.value = 0;
+        node.port.onmessage = (message: MessageEvent<ArrayBuffer>) => {
+          if (stoppedRef.current || asrSessionIdRef.current !== asrSessionId) return;
+          updateAudioLevel(message.data);
+          void request
+            .sendRealtimeAsrFrame({
+              clientId,
+              asrSessionId,
+              audioB64: arrayBufferToBase64(message.data),
+            })
+            .catch((error: unknown) => callbacksRef.current.onError?.(errorMessage(error)));
+        };
+        sourceRef.current = source;
+        nodeRef.current = node;
+
+        await request.startRealtimeAsr({ clientId, asrSessionId });
+        source.connect(node);
+        node.connect(silentGain);
+        silentGain.connect(audioContext.destination);
+        setRecordingState(true);
+      } catch (error) {
+        await cleanupAudio();
+        await request.stopRealtimeAsr({ clientId, asrSessionId }).catch(() => undefined);
+        asrSessionIdRef.current = null;
+        callbacksRef.current.onError?.(errorMessage(error));
+        setRecordingState(false);
+      }
+    },
+    [cleanupAudio, configured, setRecordingState, updateAudioLevel],
+  );
 
   const stop = useCallback(async () => {
     const asrSessionId = asrSessionIdRef.current;

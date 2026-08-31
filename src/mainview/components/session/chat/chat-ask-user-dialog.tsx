@@ -47,10 +47,7 @@ import {
   type SuggestItem,
 } from "../../../lib/mention-utils";
 import type { AskUserRequest } from "../../../../shared/schema";
-import {
-  VoiceInputButton,
-  type VoiceInputButtonRef,
-} from "../../common/voice-input-button";
+import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
 
 interface Props {
   sessionId: string;

@@ -33,7 +33,13 @@ function OptionalLabel({ htmlFor, children }: { htmlFor: string; children: React
   );
 }
 
-export function DashScopeForm({ open, initial, submitRef, submitAll, onValid }: DashScopeFormProps) {
+export function DashScopeForm({
+  open,
+  initial,
+  submitRef,
+  submitAll,
+  onValid,
+}: DashScopeFormProps) {
   const { t } = useTranslation();
   const form = useForm<DashScopeFormValues>({
     resolver: standardSchemaResolver(dashscopeSchema),
