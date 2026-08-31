@@ -389,6 +389,40 @@
         "jsonObject": "必须是有效的 JSON 对象（值为字符串）。"
       }
     },
+    "speechToText": {
+      "title": "语音识别",
+      "desc": "配置聊天输入框使用的实时语音识别服务商。",
+      "guide": "使用手册",
+      "providers": "服务商",
+      "add": "添加服务商",
+      "addProvider": "添加服务商",
+      "editProvider": "编辑服务商",
+      "dialogDesc": "配置实时语音输入的服务商和认证信息。",
+      "edit": "编辑",
+      "delete": "删除",
+      "empty": "尚未配置语音识别服务商",
+      "updateFailed": "更新配置失败。",
+      "confirmDeleteTitle": "删除服务商",
+      "confirmDeleteDesc": "确定删除这个语音识别服务商吗？",
+      "cancel": "取消",
+      "save": "保存",
+      "validation": {
+        "enterName": "请输入名称。",
+        "selectProvider": "请选择服务商。",
+        "enterApiKey": "请输入 API Key。",
+        "enterAppId": "请输入 App ID。",
+        "enterApiSecret": "请输入 API Secret。"
+      },
+      "form": {
+        "name": "名称",
+        "provider": "服务商",
+        "appId": "App ID",
+        "apiKey": "API Key",
+        "apiSecret": "API Secret",
+        "optional": "（可选）",
+        "language": "语言（可选）"
+      }
+    },
     "proxy": {
       "title": "网络代理",
       "mode": "代理模式",

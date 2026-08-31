@@ -389,6 +389,40 @@
         "jsonObject": "Must be a valid JSON object with string values."
       }
     },
+    "speechToText": {
+      "title": "Speech to Text",
+      "desc": "Configure realtime speech recognition providers for chat voice input.",
+      "guide": "User Guide",
+      "providers": "Providers",
+      "add": "Add Provider",
+      "addProvider": "Add Provider",
+      "editProvider": "Edit Provider",
+      "dialogDesc": "Configure a realtime speech-to-text provider for voice input.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "empty": "No speech-to-text providers configured",
+      "updateFailed": "Failed to update configuration.",
+      "confirmDeleteTitle": "Delete Provider",
+      "confirmDeleteDesc": "Delete this speech provider?",
+      "cancel": "Cancel",
+      "save": "Save",
+      "validation": {
+        "enterName": "Please enter a name.",
+        "selectProvider": "Please select a provider.",
+        "enterApiKey": "Please enter an API key.",
+        "enterAppId": "Please enter an App ID.",
+        "enterApiSecret": "Please enter an API secret."
+      },
+      "form": {
+        "name": "Name",
+        "provider": "Provider",
+        "appId": "App ID",
+        "apiKey": "API Key",
+        "apiSecret": "API Secret",
+        "optional": " (optional)",
+        "language": "Language (optional)"
+      }
+    },
     "proxy": {
       "title": "Network Proxy",
       "mode": "Proxy Mode",

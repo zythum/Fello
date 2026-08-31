@@ -9,6 +9,7 @@ import {
   Clipboard,
   Brain,
   ImageIcon,
+  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "../../store";
@@ -49,6 +50,12 @@ export function SettingsLayout() {
       href: "/settings/image-generation",
       icon: <ImageIcon className="size-4" />,
       label: t("settings.imageGeneration.title", "Image Generation"),
+    },
+    {
+      id: "speech-to-text",
+      href: "/settings/speech-to-text",
+      icon: <Mic className="size-4" />,
+      label: t("settings.speechToText.title", "Speech to Text"),
     },
     {
       id: "snippets",

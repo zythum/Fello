@@ -125,6 +125,7 @@ export interface AppState {
   sound: SettingSoundInfo;
   snippets: SettingsInfo["snippets"];
   imageGeneration: SettingsInfo["imageGeneration"];
+  speechToText: SettingsInfo["speechToText"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
     connected: boolean;
@@ -190,6 +191,7 @@ export interface AppState {
   setSound: (sound: SettingSoundInfo) => void;
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setImageGeneration: (imageGeneration: SettingsInfo["imageGeneration"]) => void;
+  setSpeechToText: (speechToText: SettingsInfo["speechToText"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -235,6 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sound: { volume: 50, muted: false, theme: "soft" },
   snippets: [],
   imageGeneration: [],
+  speechToText: [],
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
@@ -388,6 +391,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSound: (sound) => set({ sound }),
   setSnippets: (snippets) => set({ snippets }),
   setImageGeneration: (imageGeneration) => set({ imageGeneration }),
+  setSpeechToText: (speechToText) => set({ speechToText }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),
