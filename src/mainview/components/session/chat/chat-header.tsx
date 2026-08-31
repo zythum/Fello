@@ -170,19 +170,34 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
               <PopoverPrimitive.Popup className="z-10 min-w-96 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
-                {/* Session & Project ID */}
-                <div className="px-2 py-1.5 space-y-1">
-                  <CopyableRow
-                    label={t("chatHeader.sessionId", "Session")}
-                    value={session.id}
-                    openFolderTitle={t("chatHeader.openSessionFolder", "Open Session Folder")}
-                    onOpenFolder={async () => {
-                      const dirPath = await request.getSessionDataSystemPath({
-                        sessionId: session.id,
-                      });
-                      if (dirPath) electron.revealInFinder(dirPath);
-                    }}
-                  />
+                <div className="space-y-1 py-1">
+                  {/* Session */}
+                  <div className="px-2">
+                    <CopyableRow
+                      label={t("chatHeader.sessionId", "Session")}
+                      value={session.id}
+                      openFolderTitle={t("chatHeader.openSessionFolder", "Open Session Folder")}
+                      onOpenFolder={async () => {
+                        const dirPath = await request.getSessionDataSystemPath({
+                          sessionId: session.id,
+                        });
+                        if (dirPath) electron.revealInFinder(dirPath);
+                      }}
+                    />
+                  </div>
+
+                  {/* Project */}
+                  <div className="px-2">
+                    <CopyableRow
+                      label={t("chatHeader.projectId", "Project")}
+                      value={currentProjectInfo?.cwd ?? session.projectTitle}
+                      openFolderTitle={t("chatHeader.openProjectFolder", "Open Project Folder")}
+                      onOpenFolder={async () => {
+                        const dirPath = currentProjectInfo?.cwd;
+                        if (dirPath) electron.revealInFinder(dirPath);
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Divider */}

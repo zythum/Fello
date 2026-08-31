@@ -530,6 +530,8 @@
   "chatHeader": {
     "sessionId": "Session",
     "openSessionFolder": "Open Session Folder",
+    "projectId": "Project",
+    "openProjectFolder": "Open Project Folder",
     "refresh": "Restart Session",
     "closeSession": "Close Session",
     "closingSession": "Closing…",
