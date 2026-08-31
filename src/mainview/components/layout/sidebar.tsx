@@ -27,6 +27,13 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { Separator } from "@/components/ui/separator";
 import { useMessage } from "../providers/message";
 import { extractErrorMessage } from "@/lib/utils";
@@ -171,6 +178,16 @@ export function Sidebar() {
   );
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [contextMenuId, setContextMenuId] = useState<string | null>(null);
+  // 预览卡片操作按钮展开态：绑定到具体卡片（projectHoverId/sessionHoverId），每次打开默认折叠
+  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hoverId !== actionsOpenId) {
+      setActionsOpenId(null);
+    }
+  }, [hoverId, actionsOpenId]);
+
   const { prompt, confirm, toast } = useMessage();
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
@@ -509,71 +526,114 @@ export function Sidebar() {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
             const currentHoverId = projectHoverId(project.id);
+            // 项目最近更新时间：取项目下会话 updatedAt 的最大值；无会话时回退到项目创建时间
+            const latestProjectUpdateAt =
+              projectSessions.length > 0
+                ? projectSessions.reduce((max, session) => Math.max(max, session.updatedAt), 0)
+                : project.createdAt;
             return (
               <div key={project.id} className="space-y-0.5 group">
                 <HoverCard
                   open={hoverId === currentHoverId}
                   onOpenChange={(open) => {
-                    // hover 停留 1.5s 或右键均可触发预览卡片；移出时关闭
-                    if (!open && hoverId === currentHoverId) {
+                    // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+                    if (open) {
+                      if (contextMenuId === null) setHoverId(currentHoverId);
+                    } else if (hoverId === currentHoverId) {
                       setHoverId(null);
-                    } else if (open && !hoverId) {
-                      setHoverId(currentHoverId);
                     }
                   }}
                 >
-                  <HoverCardTrigger render={<div />} delay={1500}>
-                    <div
-                      onClick={() => toggleProject(project.id)}
-                      onPointerEnter={() => {
-                        // 已有卡片展开时 hover 切换到自己的卡片；否则 hover 停留 1.5s 后由 HoverCard 触发展开
-                        if (hoverId !== null) setHoverId(currentHoverId);
+                  <HoverCardTrigger render={<div />} delay={0}>
+                    <ContextMenu
+                      onOpenChange={(open) => {
+                        // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮
+                        setContextMenuId(open ? currentHoverId : null);
+                        if (open) setHoverId(null);
                       }}
-                      onContextMenu={(e) => {
-                        // 右键点击触发预览卡片，并阻止系统右键菜单
-                        e.preventDefault();
-                        setHoverId(currentHoverId);
-                      }}
-                      className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
-                        hoverId === currentHoverId
-                          ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
-                          : ""
-                      }`}
                     >
-                      {expanded ? (
-                        <FolderOpen className="size-3.5" />
-                      ) : (
-                        <FolderClosed className="size-3.5" />
-                      )}
-                      <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
-                        {project.title}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openNewSessionDialog(project.id);
-                        }}
-                        className={`flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70 transition-opacity duration-300 ${
-                          projectSessions.length === 0
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
-                        }`}
-                        aria-label={t("sidebar.createChatInProject", {
-                          defaultValue: "Create chat in {{title}}",
-                          title: project.title,
-                        })}
+                      <ContextMenuTrigger
+                        render={
+                          <div
+                            onClick={() => toggleProject(project.id)}
+                            className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                              hoverId === currentHoverId || contextMenuId === currentHoverId
+                                ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
+                                : ""
+                            }`}
+                          />
+                        }
                       >
-                        <MessageCirclePlus className="size-3.5" />
-                      </button>
-                    </div>
+                        {expanded ? (
+                          <FolderOpen className="size-3.5" />
+                        ) : (
+                          <FolderClosed className="size-3.5" />
+                        )}
+                        <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
+                          {project.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNewSessionDialog(project.id);
+                          }}
+                          className={`flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/40 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/70 transition-opacity duration-300 ${
+                            projectSessions.length === 0
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100"
+                          }`}
+                          aria-label={t("sidebar.createChatInProject", {
+                            defaultValue: "Create chat in {{title}}",
+                            title: project.title,
+                          })}
+                        >
+                          <MessageCirclePlus className="size-3.5" />
+                        </button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onClick={() => openNewSessionDialog(project.id)}>
+                          <MessageCirclePlus className="size-3" />
+                          {t("sidebar.newChat", "New Chat")}
+                        </ContextMenuItem>
+                        {!isWebUI && (
+                          <ContextMenuItem
+                            onClick={() => void handleRevealProjectInFinder(project)}
+                          >
+                            <FolderOpen className="size-3" />
+                            {t("sidebar.revealInFinder")}
+                          </ContextMenuItem>
+                        )}
+                        {!isWebUI && (
+                          <ContextMenuItem onClick={() => void handleOpenProjectInEditor(project)}>
+                            <Code className="size-3" />
+                            {t("filePanel.openInEditor", {
+                              editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                            })}
+                          </ContextMenuItem>
+                        )}
+                        <ContextMenuItem onClick={() => void handleRenameProject(project)}>
+                          <Pencil className="size-3" />
+                          {t("sidebar.rename")}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          variant="destructive"
+                          onClick={() => void handleDeleteProject(project)}
+                        >
+                          <Trash2 className="size-3" />
+                          {t("sidebar.delete")}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </HoverCardTrigger>
                   <HoverCardContent
                     side="right"
                     align="start"
-                    sideOffset={-30}
-                    alignOffset={2}
+                    sideOffset={12}
+                    alignOffset={0}
                     className="max-w-60 min-w-48 w-auto p-3"
+                    onPointerEnter={() => setActionsOpenId(currentHoverId)}
                   >
                     <div className="flex flex-col gap-2">
                       <div className="text-sm font-medium leading-snug">
@@ -596,55 +656,86 @@ export function Sidebar() {
                           </button>
                         )}
                       </div>
-                    </div>
-                    <Separator className="my-2.5" />
-                    <div className="flex flex-col -mx-2 -my-1">
-                      <button
-                        type="button"
-                        onClick={() => openNewSessionDialog(project.id)}
-                        className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <MessageCirclePlus className="size-3 shrink-0" />
-                        {t("sidebar.newChat", "New Chat")}
-                      </button>
-                      {!isWebUI && (
-                        <button
-                          type="button"
-                          onClick={() => void handleRevealProjectInFinder(project)}
-                          className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        >
-                          <FolderOpen className="size-3 shrink-0" />
-                          {t("sidebar.revealInFinder")}
-                        </button>
-                      )}
-                      {!isWebUI && (
-                        <button
-                          type="button"
-                          onClick={() => void handleOpenProjectInEditor(project)}
-                          className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        >
-                          <Code className="size-3 shrink-0" />
-                          {t("filePanel.openInEditor", {
-                            editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                        <MessageCircle className="size-3 shrink-0" />
+                        <span className="truncate">
+                          {t("sidebar.sessionCount", "{{count}} sessions", {
+                            count: projectSessions.length,
                           })}
-                        </button>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                        <Clock className="size-3 shrink-0" />
+                        <span className="truncate">
+                          <span className="mr-1">
+                            {t(
+                              projectSessions.length > 0 ? "sidebar.updated" : "sidebar.created",
+                              projectSessions.length > 0 ? "Updated" : "Created",
+                            )}
+                            :
+                          </span>
+                          <span>{formatRelativeTime(latestProjectUpdateAt, i18n.language)}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        "-mx-2 -my-1 grid transition-[grid-template-rows] duration-200 ease-out",
+                        actionsOpenId === currentHoverId ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleRenameProject(project)}
-                        className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <Pencil className="size-3 shrink-0" />
-                        {t("sidebar.rename")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteProject(project)}
-                        className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
-                      >
-                        <Trash2 className="size-3 shrink-0" />
-                        {t("sidebar.delete")}
-                      </button>
+                    >
+                      <div className="min-h-0 mt-2 -mb-1 overflow-hidden">
+                        <Separator className="my-1" />
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            onClick={() => openNewSessionDialog(project.id)}
+                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <MessageCirclePlus className="size-3 shrink-0" />
+                            {t("sidebar.newChat", "New Chat")}
+                          </button>
+                          {!isWebUI && (
+                            <button
+                              type="button"
+                              onClick={() => void handleRevealProjectInFinder(project)}
+                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <FolderOpen className="size-3 shrink-0" />
+                              {t("sidebar.revealInFinder")}
+                            </button>
+                          )}
+                          {!isWebUI && (
+                            <button
+                              type="button"
+                              onClick={() => void handleOpenProjectInEditor(project)}
+                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Code className="size-3 shrink-0" />
+                              {t("filePanel.openInEditor", {
+                                editor:
+                                  EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                              })}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRenameProject(project)}
+                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <Pencil className="size-3 shrink-0" />
+                            {t("sidebar.rename")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteProject(project)}
+                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                          >
+                            <Trash2 className="size-3 shrink-0" />
+                            {t("sidebar.delete")}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </HoverCardContent>
                 </HoverCard>
@@ -658,83 +749,131 @@ export function Sidebar() {
                         key={session.id}
                         open={hoverId === currentHoverId}
                         onOpenChange={(open) => {
-                          // 仅右键触发预览卡片，hover 不再打开；移出时关闭
-                          if (!open && hoverId === currentHoverId) {
+                          // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+                          if (open) {
+                            if (contextMenuId === null) setHoverId(currentHoverId);
+                          } else if (hoverId === currentHoverId) {
                             setHoverId(null);
-                          } else if (open && !hoverId) {
-                            setHoverId(currentHoverId);
                           }
                         }}
                       >
-                        <HoverCardTrigger render={<div />} delay={1500}>
-                          <div
-                            onClick={() => handleSelectSession(session)}
-                            onPointerEnter={() => {
-                              // 已有卡片展开时（右键触发后），hover 切换到自己的卡片；否则 hover 不展开
-                              if (hoverId !== null) setHoverId(currentHoverId);
+                        <HoverCardTrigger render={<div />} delay={0}>
+                          <ContextMenu
+                            onOpenChange={(open) => {
+                              // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮
+                              setContextMenuId(open ? currentHoverId : null);
+                              if (open) setHoverId(null);
                             }}
-                            onContextMenu={(e) => {
-                              // 右键点击触发预览卡片，并阻止系统右键菜单
-                              e.preventDefault();
-                              setHoverId(currentHoverId);
-                            }}
-                            className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
-                              activeSessionId === session.id
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-                            } ${hoverId === currentHoverId ? "bg-sidebar-accent" : ""}`}
                           >
-                            <div
-                              className={cn(
-                                "flex min-w-0 flex-1 items-center gap-1.5",
-                                session.connectionStatus === "connected" ? "" : "opacity-60",
-                              )}
+                            <ContextMenuTrigger
+                              render={
+                                <div
+                                  onClick={() => handleSelectSession(session)}
+                                  className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
+                                    activeSessionId === session.id
+                                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                                  } ${
+                                    hoverId === currentHoverId || contextMenuId === currentHoverId
+                                      ? "bg-sidebar-accent"
+                                      : ""
+                                  }`}
+                                />
+                              }
                             >
-                              {(() => {
-                                const state = sessionStates.get(session.id);
-                                const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
-                                const isStreaming = session.isStreaming;
-                                const completedStatus = state?.completedStatus;
-                                if (hasAskUser) {
-                                  return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
-                                }
-                                if (isStreaming) {
-                                  return <LoaderCircle className="size-3 animate-spin shrink-0" />;
-                                }
-                                if (
-                                  completedStatus === "success" ||
-                                  (state?.completedAt && !completedStatus)
-                                ) {
-                                  return <Check className="size-3 shrink-0 text-green-500" />;
-                                }
-                                if (completedStatus === "error") {
-                                  return (
-                                    <TriangleAlert className="size-3 shrink-0 text-yellow-500" />
-                                  );
-                                }
-                                return <div className="size-3 shrink-0" />;
-                              })()}
-                              <Badge
-                                variant="outline"
-                                className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                              <div
+                                className={cn(
+                                  "flex min-w-0 flex-1 items-center gap-1.5",
+                                  session.connectionStatus === "connected" ? "" : "opacity-60",
+                                )}
                               >
-                                {agentLabel}
-                              </Badge>
-                              <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                                {session.title || t("sidebar.newChat", "New Chat")}
-                              </span>
-                              {activeIlinkSessionId === session.id && (
-                                <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                {(() => {
+                                  const state = sessionStates.get(session.id);
+                                  const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
+                                  const isStreaming = session.isStreaming;
+                                  const completedStatus = state?.completedStatus;
+                                  if (hasAskUser) {
+                                    return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+                                  }
+                                  if (isStreaming) {
+                                    return (
+                                      <LoaderCircle className="size-3 animate-spin shrink-0" />
+                                    );
+                                  }
+                                  if (
+                                    completedStatus === "success" ||
+                                    (state?.completedAt && !completedStatus)
+                                  ) {
+                                    return <Check className="size-3 shrink-0 text-green-500" />;
+                                  }
+                                  if (completedStatus === "error") {
+                                    return (
+                                      <TriangleAlert className="size-3 shrink-0 text-yellow-500" />
+                                    );
+                                  }
+                                  return <div className="size-3 shrink-0" />;
+                                })()}
+                                <Badge
+                                  variant="outline"
+                                  className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                                >
+                                  {agentLabel}
+                                </Badge>
+                                <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                                  {session.title || t("sidebar.newChat", "New Chat")}
+                                </span>
+                                {activeIlinkSessionId === session.id && (
+                                  <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                )}
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent className="w-48">
+                              <ContextMenuItem onClick={() => handleRenameSession(session)}>
+                                <Pencil className="size-3" />
+                                {t("sidebar.rename")}
+                              </ContextMenuItem>
+                              {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                                <ContextMenuItem
+                                  onClick={() => {
+                                    request
+                                      .setActiveIlinkSession({ sessionId: session.id })
+                                      .catch(() => {});
+                                  }}
+                                >
+                                  <MessageCircle className="size-3" />
+                                  {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                                </ContextMenuItem>
                               )}
-                            </div>
-                          </div>
+                              {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                                <ContextMenuItem
+                                  onClick={() => {
+                                    request
+                                      .setActiveIlinkSession({ sessionId: "" })
+                                      .catch(() => {});
+                                  }}
+                                >
+                                  <MessageCircle className="size-3 text-green-500" />
+                                  {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                                </ContextMenuItem>
+                              )}
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                variant="destructive"
+                                onClick={() => void handleDeleteSession(session)}
+                              >
+                                <Trash2 className="size-3" />
+                                {t("sidebar.delete")}
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
                         </HoverCardTrigger>
                         <HoverCardContent
                           side="right"
                           align="start"
-                          sideOffset={-30}
-                          alignOffset={2}
+                          sideOffset={12}
+                          alignOffset={0}
                           className="max-w-60 min-w-48 w-auto p-3"
+                          onPointerEnter={() => setActionsOpenId(currentHoverId)}
                         >
                           <div className="flex flex-col gap-2">
                             <div className="text-sm font-medium leading-snug">
@@ -774,50 +913,63 @@ export function Sidebar() {
                               </span>
                             </div>
                           </div>
-                          <Separator className="my-2.5" />
-                          <div className="flex flex-col -mx-2 -my-1">
-                            <button
-                              type="button"
-                              onClick={() => handleRenameSession(session)}
-                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                            >
-                              <Pencil className="size-3 shrink-0" />
-                              {t("sidebar.rename")}
-                            </button>
-                            {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  request
-                                    .setActiveIlinkSession({ sessionId: session.id })
-                                    .catch(() => {});
-                                }}
-                                className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                              >
-                                <MessageCircle className="size-3 shrink-0" />
-                                {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                              </button>
+                          <div
+                            className={cn(
+                              "-mx-2 -my-1 grid transition-[grid-template-rows] duration-200 ease-out",
+                              actionsOpenId === currentHoverId
+                                ? "grid-rows-[1fr]"
+                                : "grid-rows-[0fr]",
                             )}
-                            {ilinkStatus.connected && activeIlinkSessionId === session.id && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  request.setActiveIlinkSession({ sessionId: "" }).catch(() => {});
-                                }}
-                                className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                              >
-                                <MessageCircle className="size-3 shrink-0 text-green-500" />
-                                {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteSession(session)}
-                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
-                            >
-                              <Trash2 className="size-3 shrink-0" />
-                              {t("sidebar.delete")}
-                            </button>
+                          >
+                            <div className="min-h-0 mt-2 -mb-1 overflow-hidden">
+                              <Separator className="my-1" />
+                              <div className="flex flex-col">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameSession(session)}
+                                  className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                >
+                                  <Pencil className="size-3 shrink-0" />
+                                  {t("sidebar.rename")}
+                                </button>
+                                {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      request
+                                        .setActiveIlinkSession({ sessionId: session.id })
+                                        .catch(() => {});
+                                    }}
+                                    className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                  >
+                                    <MessageCircle className="size-3 shrink-0" />
+                                    {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                                  </button>
+                                )}
+                                {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      request
+                                        .setActiveIlinkSession({ sessionId: "" })
+                                        .catch(() => {});
+                                    }}
+                                    className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                  >
+                                    <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                    {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteSession(session)}
+                                  className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="size-3 shrink-0" />
+                                  {t("sidebar.delete")}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </HoverCardContent>
                       </HoverCard>

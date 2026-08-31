@@ -46,6 +46,8 @@
     "expand": "Expand sidebar",
     "updated": "Updated",
     "created": "Created",
+    "sessionCount": "{{count}} sessions",
+    "sessionCount_one": "{{count}} session",
     "newSessionDialog": {
       "title": "Create session",
       "agent": "Agent",

@@ -46,6 +46,7 @@
     "expand": "展开侧边栏",
     "updated": "更新于",
     "created": "创建于",
+    "sessionCount": "{{count}} 个会话",
     "newSessionDialog": {
       "title": "新建会话",
       "agent": "智能体",
