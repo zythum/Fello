@@ -16,6 +16,7 @@
 | → [CodeBuddy 作为 Agent](./agents-codebuddy.md) | 配置 CodeBuddy Stdio Agent（ACP）+ Agent Teams |
 | → [DeepSeek 作为 Agent](./agents-deepseek.md) | 配置 DeepSeek API Agent + Exa MCP |
 | [MCP 服务器配置](./mcp-servers.md) | 为 Agent 扩展工具能力，配置 Stdio 和 HTTP 类型的 MCP 服务器 |
+| [语音识别](./speech-to-text.md) | 配置实时语音识别服务商，在聊天输入框中使用麦克风输入 |
 | [文件工作区与终端](./file-workspace.md) | 文件浏览、编辑、预览、Diff 对比，以及终端的创建和使用 |
 | [WebUI 远程访问](./webui.md) | 在局域网浏览器中远程使用 Fello 的完整功能 |
 | [微信 iLink](./wechat-ilink.md) | 将 Fello 接入微信，在桌面端收发消息 |

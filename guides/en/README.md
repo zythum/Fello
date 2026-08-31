@@ -15,6 +15,7 @@
 | → [CodeBuddy as an Agent](./agents-codebuddy.md) | Configure the CodeBuddy Stdio Agent (ACP) + Agent Teams |
 | → [DeepSeek as an Agent](./agents-deepseek.md) | Configure the DeepSeek API Agent + Exa MCP |
 | [MCP Servers](./mcp-servers.md) | Extend your Agent's tool capabilities by configuring Stdio and HTTP MCP servers |
+| [Speech to Text](./speech-to-text.md) | Configure realtime speech providers and use microphone input in chat |
 | [File Workspace & Terminal](./file-workspace.md) | File browsing, editing, preview, diff comparison, and creating/using terminals |
 | [WebUI Remote Access](./webui.md) | Use Fello's full feature set from a browser on your local network |
 | [WeChat iLink](./wechat-ilink.md) | Connect Fello to WeChat and send/receive messages from the desktop |
