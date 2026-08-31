@@ -181,6 +181,8 @@ export function Sidebar() {
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   // 预览卡片操作按钮展开态：绑定到具体卡片（projectHoverId/sessionHoverId），每次打开默认折叠
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  // 记录鼠标当前悬停的条目（用于右键菜单关闭后恢复 hover 卡片，避免出现后立即消失的闪现）
+  const hoveredTriggerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (hoverId !== actionsOpenId) {
@@ -537,9 +539,13 @@ export function Sidebar() {
                   open={hoverId === currentHoverId}
                   onOpenChange={(open) => {
                     // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+                    // 关闭仅当鼠标已离开条目时生效，避免右键菜单关闭后恢复的卡片被残留事件误关（闪现）
                     if (open) {
                       if (contextMenuId === null) setHoverId(currentHoverId);
-                    } else if (hoverId === currentHoverId) {
+                    } else if (
+                      hoverId === currentHoverId &&
+                      hoveredTriggerIdRef.current !== currentHoverId
+                    ) {
                       setHoverId(null);
                     }
                   }}
@@ -547,15 +553,26 @@ export function Sidebar() {
                   <HoverCardTrigger render={<div />} delay={0}>
                     <ContextMenu
                       onOpenChange={(open) => {
-                        // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮
+                        // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
+                        // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
                         setContextMenuId(open ? currentHoverId : null);
-                        if (open) setHoverId(null);
+                        if (open) {
+                          setHoverId(null);
+                        } else if (hoveredTriggerIdRef.current === currentHoverId) {
+                          setHoverId(currentHoverId);
+                        }
                       }}
                     >
                       <ContextMenuTrigger
                         render={
                           <div
                             onClick={() => toggleProject(project.id)}
+                            onPointerEnter={() => {
+                              hoveredTriggerIdRef.current = currentHoverId;
+                            }}
+                            onPointerLeave={() => {
+                              hoveredTriggerIdRef.current = null;
+                            }}
                             className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
                               hoverId === currentHoverId || contextMenuId === currentHoverId
                                 ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
@@ -750,9 +767,13 @@ export function Sidebar() {
                         open={hoverId === currentHoverId}
                         onOpenChange={(open) => {
                           // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+                          // 关闭仅当鼠标已离开条目时生效，避免右键菜单关闭后恢复的卡片被残留事件误关（闪现）
                           if (open) {
                             if (contextMenuId === null) setHoverId(currentHoverId);
-                          } else if (hoverId === currentHoverId) {
+                          } else if (
+                            hoverId === currentHoverId &&
+                            hoveredTriggerIdRef.current !== currentHoverId
+                          ) {
                             setHoverId(null);
                           }
                         }}
@@ -760,15 +781,26 @@ export function Sidebar() {
                         <HoverCardTrigger render={<div />} delay={0}>
                           <ContextMenu
                             onOpenChange={(open) => {
-                              // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮
+                              // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
+                              // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
                               setContextMenuId(open ? currentHoverId : null);
-                              if (open) setHoverId(null);
+                              if (open) {
+                                setHoverId(null);
+                              } else if (hoveredTriggerIdRef.current === currentHoverId) {
+                                setHoverId(currentHoverId);
+                              }
                             }}
                           >
                             <ContextMenuTrigger
                               render={
                                 <div
                                   onClick={() => handleSelectSession(session)}
+                                  onPointerEnter={() => {
+                                    hoveredTriggerIdRef.current = currentHoverId;
+                                  }}
+                                  onPointerLeave={() => {
+                                    hoveredTriggerIdRef.current = null;
+                                  }}
                                   className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
                                     activeSessionId === session.id
                                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
