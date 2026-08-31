@@ -670,6 +670,11 @@ app.on("before-quit", (event) => {
 });
 
 app.whenReady().then(async () => {
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => permission === "media");
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media");
+  });
+
   // Register custom fello:// protocol handler for serving files.
   // 仅响应 fello://web/...，统一由 file-routes.ts 解析:
   //   fello://web/project/<projectId>/<relativePath>

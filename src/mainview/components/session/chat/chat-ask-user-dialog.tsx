@@ -47,6 +47,10 @@ import {
   type SuggestItem,
 } from "../../../lib/mention-utils";
 import type { AskUserRequest } from "../../../../shared/schema";
+import {
+  VoiceInputButton,
+  type VoiceInputButtonRef,
+} from "../../common/voice-input-button";
 
 interface Props {
   sessionId: string;
@@ -260,14 +264,13 @@ function AskUserOptions({
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voiceInputRef = useRef<VoiceInputButtonRef>(null);
   const navigate = useNavigate();
   const snippets = useAppStore((s) => s.snippets);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getTextarea = useCallback(
-    () => inputContainerRef.current?.querySelector("textarea") as HTMLTextAreaElement | null,
-    [],
-  );
+  const getTextarea = useCallback(() => textareaRef.current, []);
 
   /**
    * 在光标处插入 # 或 @ 并触发展开建议弹层（与 chat-input 行为一致）。
@@ -356,7 +359,7 @@ function AskUserOptions({
       if (paths.length === 0) return;
 
       void (async () => {
-        const textarea = inputContainerRef.current?.querySelector("textarea");
+        const textarea = textareaRef.current;
         if (!textarea) return;
         // execCommand("insertText") 需要 textarea 处于聚焦状态，否则静默失败；
         // 未聚焦时拖入文件会出现高亮但内容插不进去（与 chat-input 的 insertPathMentions 一致）
@@ -482,7 +485,8 @@ function AskUserOptions({
   }, [mode, hasOptions, request.options, handleSelectOption]);
 
   // 否则作为自定义回复
-  const handleSubmitInput = () => {
+  const handleSubmitInput = async () => {
+    await voiceInputRef.current?.stop();
     const trimmed = resolveMentions(inputValue).trim();
     backend.request
       .respondAskUser({
@@ -499,14 +503,14 @@ function AskUserOptions({
     if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmitInput();
+      void handleSubmitInput();
     }
   };
 
   // 切换到输入模式时聚焦（@types/react-mentions 未声明 autoFocus，手动聚焦）
   useEffect(() => {
     if (mode === "input") {
-      inputContainerRef.current?.querySelector("textarea")?.focus();
+      textareaRef.current?.focus();
     }
   }, [mode]);
 
@@ -587,6 +591,7 @@ function AskUserOptions({
           >
             <MentionsInput
               value={inputValue}
+              inputRef={textareaRef}
               onChange={(_e, newValue) => setInputValue(newValue)}
               onKeyDown={handleKeyDown}
               placeholder={t("askUser.inputPlaceholder", "Type your response... (Enter to send)")}
@@ -746,14 +751,17 @@ function AskUserOptions({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <Button
-                size="icon"
-                className="size-7 rounded-lg"
-                onClick={handleSubmitInput}
-                aria-label={t("askUser.submit", "Submit")}
-              >
-                <ArrowUp className="size-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <VoiceInputButton ref={voiceInputRef} inputRef={textareaRef} />
+                <Button
+                  size="icon"
+                  className="size-7 rounded-lg"
+                  onClick={handleSubmitInput}
+                  aria-label={t("askUser.submit", "Submit")}
+                >
+                  <ArrowUp className="size-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>

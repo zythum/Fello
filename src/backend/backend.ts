@@ -27,6 +27,7 @@ import { createAutomationModule } from "./automation";
 import { createMemoryModule } from "./memory";
 import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
+import { createAsrManager } from "./speech/manager";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -73,6 +74,7 @@ export function initBackend(
   const _inference = createInferenceModule(ctx, { skills, search, toolbox });
   const memory = createMemoryModule(ctx, { inference: _inference });
   const imageGeneration = createImageGenerationModule(ctx, { ilink: ilink.state });
+  const asr = createAsrManager(ctx);
 
   // ── Layer 4: session, project, terminal ──
   const session = createSessionModule(ctx, {
@@ -508,6 +510,17 @@ export function initBackend(
     async getMemorySystemFilePath({ projectId }: { projectId: string }) {
       return memory.getFilePath(projectId);
     },
+
+    // Realtime ASR
+    async startRealtimeAsr({ clientId, asrSessionId }) {
+      return asr.start(clientId, asrSessionId);
+    },
+    async sendRealtimeAsrFrame({ clientId, asrSessionId, audioB64 }) {
+      asr.frame(clientId, asrSessionId, audioB64);
+    },
+    async stopRealtimeAsr({ clientId, asrSessionId }) {
+      await asr.stop(clientId, asrSessionId);
+    },
   };
 
   // Inject handlers into webui (after assembly)
@@ -516,6 +529,7 @@ export function initBackend(
   // ── closeBackend ─────────────────────────────────────────────────
   async function closeBackend() {
     automation.stopAllCrons();
+    await asr.closeAll();
     webui.stop();
     await ilink.stopIlink({ logout: false });
     session.clearSession();

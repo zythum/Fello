@@ -138,5 +138,8 @@ bridge.on("prompt-start", (payload) => emit("prompt-start", payload));
 bridge.on("prompt-end", (payload) => emit("prompt-end", payload));
 bridge.on("schedules-changed", (payload) => emit("schedules-changed", payload));
 bridge.on("task-update", (payload) => emit("task-update", payload));
+bridge.on("asr-transcript", (payload) => emit("asr-transcript", payload));
+bridge.on("asr-error", (payload) => emit("asr-error", payload));
+bridge.on("asr-closed", (payload) => emit("asr-closed", payload));
 // Register client identity
 void invokeIPC("registerClient", { clientId }).catch(() => {});

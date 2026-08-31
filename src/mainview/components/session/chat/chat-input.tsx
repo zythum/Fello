@@ -61,6 +61,10 @@ import { generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import type { SessionInfo, SkillInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import {
+  VoiceInputButton,
+  type VoiceInputButtonRef,
+} from "../../common/voice-input-button";
 
 /** 将 File 读取为 base64（不含 data: URL 前缀） */
 function readFileAsBase64(file: File): Promise<string> {
@@ -225,10 +229,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const supportsImage = promptCapabilities?.image ?? false;
   const supportsEmbedded = promptCapabilities?.embeddedContext ?? false;
 
-  const getTextarea = useCallback(
-    () => containerRef.current?.querySelector("textarea") as HTMLTextAreaElement | null,
-    [],
-  );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voiceInputRef = useRef<VoiceInputButtonRef>(null);
+  const getTextarea = useCallback(() => textareaRef.current, []);
 
   /**
    * 在光标处插入 # 或 @ 并触发展开建议弹层。
@@ -278,6 +281,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const [localInput, setLocalInput] = useState(draftInput);
   const localInputRef = useRef(localInput);
   localInputRef.current = localInput;
+
   const prevSessionIdRef = useRef(session.id);
   // 当前 session 切换时：存旧的，读新的
   useEffect(() => {
@@ -493,6 +497,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   );
 
   const handleSubmit = useCallback(async () => {
+    await voiceInputRef.current?.stop();
     tiks.click();
     const state = useAppStore.getState().getSessionState(session.id);
     const currentAttachments = state.draftAttachments;
@@ -593,7 +598,16 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
       updateSession({ ...session, isStreaming: false });
     }
-  }, [session, isStreaming, addMessage, localInput, updateSessionState, t, toast, updateSession]);
+  }, [
+    session,
+    isStreaming,
+    addMessage,
+    localInput,
+    updateSessionState,
+    t,
+    toast,
+    updateSession,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
@@ -877,7 +891,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           {/* MentionsInput */}
           <MentionsInput
             value={localInput}
-            onChange={(_e, newValue) => setLocalInput(newValue)}
+            inputRef={textareaRef}
+            onChange={(_e, newValue) => {
+              setLocalInput(newValue);
+            }}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder={
@@ -1280,6 +1297,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+              <VoiceInputButton
+                ref={voiceInputRef}
+                inputRef={textareaRef}
+                disabled={disabled || isStreaming}
+              />
               {isStreaming ? (
                 <Button
                   variant="destructive"

@@ -68,6 +68,23 @@ interface ImageGenerationProviderMeta {
   active: boolean;
 }
 
+interface SpeechToTextProviderMeta {
+  id: string;
+  name: string;
+  provider: "volcengine" | "dashscope" | "openai" | "iflytek";
+  apiKey: string;
+  appId?: string;
+  apiSecret?: string;
+  resourceId?: string;
+  model?: string;
+  baseUrl?: string;
+  workspaceId?: string;
+  region?: "cn-beijing" | "ap-southeast-1";
+  workspace?: string;
+  language?: string;
+  active: boolean;
+}
+
 interface SettingsMeta {
   agents: {
     [id: string]: AgentMeta;
@@ -98,6 +115,7 @@ interface SettingsMeta {
   proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
+  speechToText?: SpeechToTextProviderMeta[];
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -367,6 +385,42 @@ function readSettings(): SettingsMeta {
           }))
       : [];
 
+    const speechToText: SpeechToTextProviderMeta[] = Array.isArray(rawObj?.speechToText)
+      ? (rawObj.speechToText as unknown[])
+          .filter((value): value is Record<string, unknown> => isObject(value))
+          .filter((value) => {
+            const provider = value.provider;
+            return (
+              typeof value.id === "string" &&
+              typeof value.name === "string" &&
+              typeof value.apiKey === "string" &&
+              (provider === "volcengine" ||
+                provider === "dashscope" ||
+                provider === "openai" ||
+                provider === "iflytek")
+            );
+          })
+          .map((value) => ({
+            id: value.id as string,
+            name: value.name as string,
+            provider: value.provider as SpeechToTextProviderMeta["provider"],
+            apiKey: value.apiKey as string,
+            appId: typeof value.appId === "string" ? value.appId : undefined,
+            apiSecret: typeof value.apiSecret === "string" ? value.apiSecret : undefined,
+            resourceId: typeof value.resourceId === "string" ? value.resourceId : undefined,
+            model: typeof value.model === "string" ? value.model : undefined,
+            baseUrl: typeof value.baseUrl === "string" ? value.baseUrl : undefined,
+            workspaceId: typeof value.workspaceId === "string" ? value.workspaceId : undefined,
+            region:
+              value.region === "cn-beijing" || value.region === "ap-southeast-1"
+                ? value.region
+                : undefined,
+            workspace: typeof value.workspace === "string" ? value.workspace : undefined,
+            language: typeof value.language === "string" ? value.language : undefined,
+            active: typeof value.active === "boolean" ? value.active : false,
+          }))
+      : [];
+
     const editor: SettingsMeta["editor"] = (() => {
       const raw = rawObj && isObject(rawObj.editor) ? rawObj.editor : null;
       if (raw && typeof raw.name === "string" && raw.name.trim()) {
@@ -387,6 +441,7 @@ function readSettings(): SettingsMeta {
       proxy,
       snippets,
       imageGeneration,
+      speechToText,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -493,6 +548,22 @@ export function getSettings(): SettingsInfo {
       headers: Object.assign({}, p.headers || {}),
       extraBody: p.extraBody ?? undefined,
       model: p.model,
+      active: p.active,
+    })),
+    speechToText: (meta.speechToText ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      provider: p.provider,
+      apiKey: p.apiKey,
+      appId: p.appId,
+      apiSecret: p.apiSecret,
+      resourceId: p.resourceId,
+      model: p.model,
+      baseUrl: p.baseUrl,
+      workspaceId: p.workspaceId,
+      region: p.region,
+      workspace: p.workspace,
+      language: p.language,
       active: p.active,
     })),
   };
@@ -676,6 +747,24 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           active: p.active,
         }))
       : prevMeta.imageGeneration,
+    speechToText: settings.speechToText
+      ? settings.speechToText.map((p) => ({
+          id: p.id,
+          name: p.name,
+          provider: p.provider,
+          apiKey: p.apiKey,
+          appId: p.appId?.trim() || undefined,
+          apiSecret: p.apiSecret?.trim() || undefined,
+          resourceId: p.resourceId?.trim() || undefined,
+          model: p.model?.trim() || undefined,
+          baseUrl: p.baseUrl?.trim() || undefined,
+          workspaceId: p.workspaceId?.trim() || undefined,
+          region: p.region,
+          workspace: p.workspace?.trim() || undefined,
+          language: p.language?.trim() || undefined,
+          active: p.active,
+        }))
+      : prevMeta.speechToText,
   };
   writeSettings(meta);
 }

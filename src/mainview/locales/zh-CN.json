@@ -569,7 +569,12 @@
     "stopReasonMaxTokens": "已达到最大 token 限制",
     "stopReasonMaxTurnRequests": "已达到最大轮次限制",
     "stopReasonRefusal": "模型拒绝回答",
-    "stopReasonCancelled": "生成已取消"
+    "stopReasonCancelled": "生成已取消",
+    "voiceInput": "语音输入",
+    "selectVoiceInputDevice": "选择麦克风",
+    "stopVoiceInput": "停止语音输入",
+    "voiceInputNotConfigured": "请先在设置中配置语音识别",
+    "noAudioInputDevices": "未找到音频输入设备"
   },
   "filePanel": {
     "title": "文件",

@@ -569,7 +569,12 @@
     "stopReasonMaxTokens": "Reached maximum token limit",
     "stopReasonMaxTurnRequests": "Reached maximum turn limit",
     "stopReasonRefusal": "Model refused to respond",
-    "stopReasonCancelled": "Generation was cancelled"
+    "stopReasonCancelled": "Generation was cancelled",
+    "voiceInput": "Voice input",
+    "selectVoiceInputDevice": "Select microphone",
+    "stopVoiceInput": "Stop voice input",
+    "voiceInputNotConfigured": "Configure voice input in Settings",
+    "noAudioInputDevices": "No audio input devices found"
   },
   "filePanel": {
     "title": "Files",

@@ -437,6 +437,26 @@ export interface ImageGenerationProviderInfo {
 }
 
 /**
+ * 实时语音识别 Provider 配置。凭据只在主进程中使用，渲染层仅通过 IPC 读取设置。
+ */
+export interface SpeechToTextProviderInfo {
+  id: string;
+  name: string;
+  provider: "volcengine" | "dashscope" | "openai" | "iflytek";
+  apiKey: string;
+  appId?: string;
+  apiSecret?: string;
+  resourceId?: string;
+  model?: string;
+  baseUrl?: string;
+  workspaceId?: string;
+  region?: "cn-beijing" | "ap-southeast-1";
+  workspace?: string;
+  language?: string;
+  active: boolean;
+}
+
+/**
  * 应用的全局设置信息
  */
 export interface SettingsInfo {
@@ -462,6 +482,8 @@ export interface SettingsInfo {
   snippets: SnippetInfo[];
   /** 图片生成 Provider 列表 */
   imageGeneration: ImageGenerationProviderInfo[];
+  /** 实时语音识别 Provider 列表 */
+  speechToText: SpeechToTextProviderInfo[];
 }
 
 /**
@@ -758,6 +780,23 @@ export type FelloIPCRequests = {
   };
   /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };
+
+  /** 开始一次实时语音识别会话 */
+  startRealtimeAsr: {
+    params: { clientId: string; asrSessionId: string };
+    response: { ok: boolean };
+  };
+  /** 发送一帧 Base64 编码的 16-bit PCM 音频 */
+  sendRealtimeAsrFrame: {
+    params: { clientId: string; asrSessionId: string; audioB64: string };
+    response: void;
+  };
+  /** 停止一次实时语音识别会话 */
+  stopRealtimeAsr: {
+    params: { clientId: string; asrSessionId: string };
+    response: void;
+  };
+
   /** 响应通用 askUser 请求（支持自定义选项） */
   respondAskUser: {
     params: { sessionId: string; askUserId: string; value: string | null; reason?: string };
@@ -1125,6 +1164,25 @@ export type FelloIPCEvents = {
   "schedules-changed": void;
   /** 任务状态更新 */
   "task-update": { scheduleId: string; task: Task };
+  /** 实时 ASR 的 partial/final 结果 */
+  "asr-transcript": {
+    clientId: string;
+    asrSessionId: string;
+    text: string;
+    isFinal: boolean;
+    id?: string;
+    index?: number;
+    speaker?: string;
+  };
+  /** 实时 ASR 错误 */
+  "asr-error": { clientId: string; asrSessionId: string; message: string };
+  /** 实时 ASR 连接关闭 */
+  "asr-closed": {
+    clientId: string;
+    asrSessionId: string;
+    code?: number;
+    reason?: string;
+  };
 };
 
 /**
