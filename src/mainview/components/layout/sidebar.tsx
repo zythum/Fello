@@ -653,7 +653,7 @@ export function Sidebar() {
                     onPointerEnter={() => setActionsOpenId(currentHoverId)}
                   >
                     <div className="flex flex-col gap-2">
-                      <div className="text-sm font-medium leading-snug">
+                      <div className="text-sm font-medium leading-snug -mt-0.5">
                         <span>{project.title}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
@@ -908,7 +908,7 @@ export function Sidebar() {
                           onPointerEnter={() => setActionsOpenId(currentHoverId)}
                         >
                           <div className="flex flex-col gap-2">
-                            <div className="text-sm font-medium leading-snug">
+                            <div className="text-sm font-medium leading-snug -mt-0.5">
                               <span>{session.title || t("sidebar.newChat", "New Chat")}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
