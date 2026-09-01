@@ -2,7 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- 麦克风 / 实时语音输入 -->
   <key>com.apple.security.device.audio-input</key>
+  <true/>
+
+  <!-- Electron 在 hardenedRuntime 下运行 V8/JIT 所必需 -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+
+  <!-- 关键：关闭 library validation。
+       ad-hoc 签名(TeamID 为空)加载带 Electron 官方签名的 framework 时，
+       若不关闭会因 "different Team IDs" 被 dyld 拒绝加载而在启动时崩溃。 -->
+  <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
 </dict>
 </plist>
