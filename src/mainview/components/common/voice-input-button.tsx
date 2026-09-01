@@ -214,98 +214,119 @@ export function VoiceInputButton({
 
   if (!asr.configured) return null;
 
-  return asr.recording ? (
-    <Button
-      variant="default"
-      size="sm"
+  return (
+    <div
       className={cn(
-        "h-7 w-18 rounded-lg bg-muted hover:bg-input border border-input text-amber-300/50 hover:text-amber-200",
+        "relative inline-flex h-7 transition-[width] duration-300 ease-out",
+        asr.recording ? "w-18" : "w-12.5",
         className,
       )}
-      onClick={() => void handleStop()}
-      aria-label={t("chatInput.stopVoiceInput", "Stop voice input")}
-      aria-pressed="true"
-      title={t("chatInput.stopVoiceInput", "Stop voice input")}
     >
-      <Mic className="size-3.5 shrink-0 animate-pulse" />
-      <span
-        className="flex h-4 flex-1 items-center justify-center gap-0.5 overflow-hidden"
-        aria-hidden="true"
-      >
-        {ASR_WAVEFORM_BARS.map((scale, index) => (
-          <span
-            key={index}
-            className="border-l rounded-full bg-amber-300 transition-[height] duration-75"
-            style={{
-              height: `${Math.max(2, Math.round(2 + asr.audioLevel * 16 * scale))}px`,
-            }}
-          />
-        ))}
-      </span>
-    </Button>
-  ) : (
-    <DropdownMenu open={deviceMenuOpen} onOpenChange={handleDeviceMenuChange}>
-      <div className="inline-flex items-stretch">
-        <Button
-          size="sm"
-          className={cn(
-            "h-7 w-8 rounded-r-none border-r-0 bg-muted hover:bg-input border border-input text-amber-300/50 hover:text-amber-200",
-            className,
-          )}
-          onClick={() => void handleMicClick()}
-          disabled={disabled || !asr.configured}
-          aria-label={t("chatInput.voiceInput", "Voice input")}
-          title={
-            asr.configured
-              ? t("chatInput.voiceInput", "Voice input")
-              : t("chatInput.voiceInputNotConfigured", "Configure voice input in Settings")
-          }
-        >
-          <Mic className="size-3.5" />
-        </Button>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="icon"
-              className="h-7 w-4.5 rounded-l-none bg-muted hover:bg-input border border-input border-l-0 px-0 text-amber-300/50 hover:text-amber-200"
-              disabled={disabled || !asr.configured}
-              aria-label={t("chatInput.selectVoiceInputDevice", "Select microphone")}
-              title={t("chatInput.selectVoiceInputDevice", "Select microphone")}
-            />
-          }
-        >
-          <ChevronDown className="size-3" />
-        </DropdownMenuTrigger>
-      </div>
-      <DropdownMenuContent
-        side="top"
-        align="center"
-        className="w-auto! max-w-72 min-w-(--anchor-width)"
-      >
-        {asr.inputDevices.length > 0 ? (
-          asr.inputDevices.map((device) => (
-            <DropdownMenuItem
-              key={device.deviceId}
-              onClick={() => void handleSelectDevice(device.deviceId)}
-              className="gap-2"
-            >
-              <Check
-                className={cn(
-                  "size-3 shrink-0",
-                  device.deviceId === savedDeviceId ? "opacity-100" : "opacity-0",
-                )}
-              />
-              <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                <span className="truncate">{device.label}</span>
-              </div>
-            </DropdownMenuItem>
-          ))
-        ) : (
-          <DropdownMenuItem disabled>
-            {t("chatInput.noAudioInputDevices", "No audio input devices found")}
-          </DropdownMenuItem>
+      <div
+        className={cn(
+          "absolute inset-0 transition-[opacity,transform,visibility] duration-300 ease-out",
+          asr.recording
+            ? "visible scale-100 opacity-100"
+            : "pointer-events-none invisible scale-90 opacity-0",
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        aria-hidden={!asr.recording}
+      >
+        <Button
+          variant="default"
+          size="sm"
+          className="h-full w-full rounded-lg bg-muted hover:bg-input border border-input text-amber-300/50 hover:text-amber-200"
+          onClick={() => void handleStop()}
+          aria-label={t("chatInput.stopVoiceInput", "Stop voice input")}
+          aria-pressed="true"
+          title={t("chatInput.stopVoiceInput", "Stop voice input")}
+        >
+          <Mic className="size-3.5 shrink-0 animate-pulse" />
+          <span
+            className="flex h-4 flex-1 items-center justify-center gap-0.5 overflow-hidden"
+            aria-hidden="true"
+          >
+            {ASR_WAVEFORM_BARS.map((scale, index) => (
+              <span
+                key={index}
+                className="border-l rounded-full bg-amber-300 transition-[height] duration-75"
+                style={{
+                  height: `${Math.max(2, Math.round(2 + asr.audioLevel * 16 * scale))}px`,
+                }}
+              />
+            ))}
+          </span>
+        </Button>
+      </div>
+      <div
+        className={cn(
+          "absolute inset-0 transition-[opacity,transform,visibility] duration-300 ease-out",
+          asr.recording
+            ? "pointer-events-none invisible scale-90 opacity-0"
+            : "visible scale-100 opacity-100",
+        )}
+        aria-hidden={asr.recording}
+      >
+        <DropdownMenu open={deviceMenuOpen} onOpenChange={handleDeviceMenuChange}>
+          <div className="flex h-full items-stretch">
+            <Button
+              size="sm"
+              className="h-full w-8 rounded-r-none border-r-0 bg-muted hover:bg-input border border-input text-amber-300/50 hover:text-amber-200"
+              onClick={() => void handleMicClick()}
+              disabled={disabled || !asr.configured}
+              aria-label={t("chatInput.voiceInput", "Voice input")}
+              title={
+                asr.configured
+                  ? t("chatInput.voiceInput", "Voice input")
+                  : t("chatInput.voiceInputNotConfigured", "Configure voice input in Settings")
+              }
+            >
+              <Mic className="size-3.5" />
+            </Button>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size="icon"
+                  className="h-full w-4.5 rounded-l-none bg-muted hover:bg-input border border-input border-l-0 px-0 text-amber-300/50 hover:text-amber-200"
+                  disabled={disabled || !asr.configured}
+                  aria-label={t("chatInput.selectVoiceInputDevice", "Select microphone")}
+                  title={t("chatInput.selectVoiceInputDevice", "Select microphone")}
+                />
+              }
+            >
+              <ChevronDown className="size-3" />
+            </DropdownMenuTrigger>
+          </div>
+          <DropdownMenuContent
+            side="top"
+            align="center"
+            className="w-auto! max-w-72 min-w-(--anchor-width)"
+          >
+            {asr.inputDevices.length > 0 ? (
+              asr.inputDevices.map((device) => (
+                <DropdownMenuItem
+                  key={device.deviceId}
+                  onClick={() => void handleSelectDevice(device.deviceId)}
+                  className="gap-2"
+                >
+                  <Check
+                    className={cn(
+                      "size-3 shrink-0",
+                      device.deviceId === savedDeviceId ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                    <span className="truncate">{device.label}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <DropdownMenuItem disabled>
+                {t("chatInput.noAudioInputDevices", "No audio input devices found")}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   );
 }
