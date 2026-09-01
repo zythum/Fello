@@ -62,8 +62,8 @@
       ],
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "entitlements": "configs/entitlements.mac.plist",
+      "entitlementsInherit": "configs/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Fello uses the microphone for realtime voice input."
       }

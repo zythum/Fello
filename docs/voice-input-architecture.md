@@ -94,7 +94,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 ## 7. 权限与打包
 
 - **Electron 权限**：`src/electron/main.ts` 注册 `setPermissionCheckHandler` / `setPermissionRequestHandler`，仅放行 `media`（麦克风）。
-- **macOS**：`resources/entitlements.mac.plist` 声明 `NSMicrophoneUsageDescription`，electron-builder `extendInfo` 注入，否则首次使用会被系统拦截。
+- **macOS**：`configs/entitlements.mac.plist` 声明 `com.apple.security.device.audio-input`（麦克风）等权限；`NSMicrophoneUsageDescription` 由 electron-builder `extendInfo` 注入到 Info.plist，否则首次使用会被系统拦截。
 - 凭据（API Key / App ID / API Secret）只保存在本机设置文件，渲染层仅通过 IPC 读取，不落 localStorage。
 
 ## 8. 关键设计决策
