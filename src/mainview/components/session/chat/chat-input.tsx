@@ -1288,7 +1288,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
               <VoiceInputButton
                 ref={voiceInputRef}
                 inputRef={textareaRef}
-                disabled={disabled || isStreaming}
+                disabled={disabled}
               />
               {isStreaming ? (
                 <Button

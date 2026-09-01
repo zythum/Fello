@@ -165,12 +165,11 @@ export function VoiceInputButton({
   }, []);
 
   const handleSelectDevice = useCallback(
-    async (deviceId: string) => {
+    (deviceId: string) => {
       rememberDevice(deviceId);
       setDeviceMenuOpen(false);
-      await handleStart(deviceId);
     },
-    [handleStart, rememberDevice],
+    [rememberDevice],
   );
 
   const handleMicClick = useCallback(async () => {
@@ -305,7 +304,7 @@ export function VoiceInputButton({
               asr.inputDevices.map((device) => (
                 <DropdownMenuItem
                   key={device.deviceId}
-                  onClick={() => void handleSelectDevice(device.deviceId)}
+                  onClick={() => handleSelectDevice(device.deviceId)}
                   className="gap-2"
                 >
                   <Check
