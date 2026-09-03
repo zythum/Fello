@@ -245,6 +245,7 @@ function renderContentItem(content: ToolCallContent, index: number, cwd: string)
                 oldContent={content.oldText}
                 newContent={content.newText}
                 filename={content.path.split("/").pop()}
+                hideNoNewlineNotice
               />
             )}
           </ScrollArea>

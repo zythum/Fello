@@ -550,7 +550,7 @@ export function Sidebar() {
                     }
                   }}
                 >
-                  <HoverCardTrigger render={<div />} delay={0}>
+                  <HoverCardTrigger render={<div />} delay={hoverId ? 0 : 1000}>
                     <ContextMenu
                       onOpenChange={(open) => {
                         // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
@@ -649,7 +649,7 @@ export function Sidebar() {
                     align="start"
                     sideOffset={12}
                     alignOffset={0}
-                    className="max-w-60 min-w-48 w-auto p-3"
+                    className="w-60 p-3"
                     onPointerEnter={() => setActionsOpenId(currentHoverId)}
                   >
                     <div className="flex flex-col gap-2">
@@ -778,7 +778,7 @@ export function Sidebar() {
                           }
                         }}
                       >
-                        <HoverCardTrigger render={<div />} delay={0}>
+                        <HoverCardTrigger render={<div />} delay={hoverId ? 0 : 1000}>
                           <ContextMenu
                             onOpenChange={(open) => {
                               // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
@@ -904,11 +904,11 @@ export function Sidebar() {
                           align="start"
                           sideOffset={12}
                           alignOffset={0}
-                          className="max-w-60 min-w-48 w-auto p-3"
+                          className="w-60 p-3"
                           onPointerEnter={() => setActionsOpenId(currentHoverId)}
                         >
                           <div className="flex flex-col gap-2">
-                            <div className="text-sm font-medium leading-snug -mt-0.5">
+                            <div className="text-sm font-medium leading-snug -mt-0.5 line-clamp-2">
                               <span>{session.title || t("sidebar.newChat", "New Chat")}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">

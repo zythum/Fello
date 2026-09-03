@@ -169,7 +169,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           </PopoverPrimitive.Trigger>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
-              <PopoverPrimitive.Popup className="z-10 min-w-96 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+              <PopoverPrimitive.Popup className="z-10 w-110 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
                 <div className="space-y-1 py-1">
                   {/* Session */}
                   <div className="px-2">
@@ -478,6 +478,13 @@ function CopyableRow({
       <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground/70 select-all">
         {value}
       </span>
+      <button
+        type="button"
+        className="shrink-0 flex items-center justify-center size-5 rounded hover:bg-accent/50 text-muted-foreground/50 hover:text-muted-foreground transition-colors -mr-1"
+        onClick={handleCopy}
+      >
+        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      </button>
       {!isWebUI && onOpenFolder && (
         <button
           type="button"
@@ -488,13 +495,6 @@ function CopyableRow({
           <FolderOpen className="size-3" />
         </button>
       )}
-      <button
-        type="button"
-        className="shrink-0 flex items-center justify-center size-5 rounded hover:bg-accent/50 text-muted-foreground/50 hover:text-muted-foreground transition-colors -mr-1"
-        onClick={handleCopy}
-      >
-        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-      </button>
     </div>
   );
 }

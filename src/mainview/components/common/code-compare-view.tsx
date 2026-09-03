@@ -20,6 +20,13 @@ const unsafeCSS = `
 }
 `;
 
+const hideNoNewlineCSS = `
+[data-no-newline],
+[data-gutter-buffer="metadata"] {
+  display: none;
+}
+`;
+
 export interface CodeCompareViewProps {
   className?: string;
   oldContent: string;
@@ -27,6 +34,7 @@ export interface CodeCompareViewProps {
   filename?: string;
   addLineToChat?: boolean;
   diffStyle?: "split" | "unified" | undefined;
+  hideNoNewlineNotice?: boolean;
 }
 
 export function CodeCompareView({
@@ -36,6 +44,7 @@ export function CodeCompareView({
   filename,
   addLineToChat,
   diffStyle,
+  hideNoNewlineNotice,
 }: CodeCompareViewProps) {
   const { resolvedTheme } = useTheme();
   const { t } = useTranslation();
@@ -127,7 +136,7 @@ export function CodeCompareView({
         theme: isDark ? "github-dark" : "github-light",
         themeType: isDark ? "dark" : "light",
         diffStyle: diffStyle ?? fallbackDiffStyle,
-        unsafeCSS,
+        unsafeCSS: hideNoNewlineNotice ? `${unsafeCSS}${hideNoNewlineCSS}` : unsafeCSS,
         enableLineSelection: addLineToChat,
         enableGutterUtility: addLineToChat,
         onGutterUtilityClick,
