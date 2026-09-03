@@ -330,7 +330,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
           {message.title || t("toolBubble.tool")}
         </span>
         {message.locations && message.locations.length > 0 && (
-          <div className="flex min-w-0 max-w-[45%] flex-nowrap items-center justify-end gap-1 overflow-x-auto">
+          <div className="flex min-w-0 max-w-[65%] flex-nowrap items-center justify-end gap-1 overflow-x-auto">
             {message.locations.map((loc, i) => {
               const fileName = loc.path.split("/").pop() ?? loc.path;
               const label = `${fileName}${loc.line != null ? `:${loc.line}` : ""}`;
