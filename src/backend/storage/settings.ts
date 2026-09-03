@@ -112,6 +112,9 @@ interface SettingsMeta {
     muted: boolean;
     theme: "soft" | "crisp";
   };
+  voiceInput: {
+    altDoublePress: boolean;
+  };
   proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
@@ -138,6 +141,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     volume: 50,
     muted: false,
     theme: "soft",
+  },
+  voiceInput: {
+    altDoublePress: true,
   },
   proxy: {
     mode: "off",
@@ -322,6 +328,16 @@ function readSettings(): SettingsMeta {
       };
     })();
 
+    const voiceInput: SettingsMeta["voiceInput"] = (() => {
+      const raw = rawObj && isObject(rawObj.voiceInput) ? rawObj.voiceInput : null;
+      return {
+        altDoublePress:
+          typeof raw?.altDoublePress === "boolean"
+            ? raw.altDoublePress
+            : DEFAULT_SETTINGS.voiceInput.altDoublePress,
+      };
+    })();
+
     const proxy: SettingProxyInfo = (() => {
       const raw = rawObj && isObject(rawObj.proxy) ? rawObj.proxy : null;
       if (!raw) return DEFAULT_SETTINGS.proxy!;
@@ -438,6 +454,7 @@ function readSettings(): SettingsMeta {
       ilink,
       editor,
       sound,
+      voiceInput,
       proxy,
       snippets,
       imageGeneration,
@@ -536,6 +553,9 @@ export function getSettings(): SettingsInfo {
       volume: meta.sound.volume,
       muted: meta.sound.muted,
       theme: meta.sound.theme,
+    },
+    voiceInput: {
+      altDoublePress: meta.voiceInput.altDoublePress,
     },
     proxy: meta.proxy ?? DEFAULT_SETTINGS.proxy!,
     snippets: meta.snippets ?? [],
@@ -710,6 +730,17 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           settings.sound.theme === "soft" || settings.sound.theme === "crisp"
             ? settings.sound.theme
             : prevMeta.sound.theme,
+      };
+    })(),
+    voiceInput: (() => {
+      if (!settings.voiceInput) {
+        return prevMeta.voiceInput;
+      }
+      return {
+        altDoublePress:
+          typeof settings.voiceInput.altDoublePress === "boolean"
+            ? settings.voiceInput.altDoublePress
+            : prevMeta.voiceInput.altDoublePress,
       };
     })(),
     proxy: (() => {

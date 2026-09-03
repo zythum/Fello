@@ -30,6 +30,7 @@ function AppContent() {
     setSnippets,
     setImageGeneration,
     setSpeechToText,
+    setVoiceInput,
     setProxy,
     isMacApp,
     setIsFullScreen,
@@ -87,6 +88,7 @@ function AppContent() {
       if (settings.snippets) setSnippets(settings.snippets);
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
       if (settings.speechToText) setSpeechToText(settings.speechToText);
+      if (settings.voiceInput) setVoiceInput(settings.voiceInput);
       // 恢复所有 session 中 pending 的 askUser 请求
       for (const session of sessions ?? []) {
         try {
@@ -123,6 +125,7 @@ function AppContent() {
     setSnippets,
     setImageGeneration,
     setSpeechToText,
+    setVoiceInput,
     setProxy,
     setIlinkStatus,
     setActiveIlinkSessionId,

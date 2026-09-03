@@ -377,6 +377,11 @@ export interface SettingSoundInfo {
   theme: "soft" | "crisp";
 }
 
+export interface SettingVoiceInputInfo {
+  /** 是否启用双击 Alt 切换语音录音 */
+  altDoublePress: boolean;
+}
+
 /**
  * 网络代理配置信息
  */
@@ -476,6 +481,8 @@ export interface SettingsInfo {
   editor: SettingEditorInfo;
   /** 音效设置 */
   sound: SettingSoundInfo;
+  /** 语音输入设置 */
+  voiceInput: SettingVoiceInputInfo;
   /** 网络代理设置 */
   proxy: SettingProxyInfo;
   /** Snippets 列表 */

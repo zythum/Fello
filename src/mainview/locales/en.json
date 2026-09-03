@@ -119,6 +119,10 @@
       "autoWatchFiles": "Auto Watch Files",
       "autoWatchFilesDesc": "Automatically watch project file changes",
       "saveFileWatcherFailed": "Failed to save file watcher setting.",
+      "groupVoiceInput": "Voice Input",
+      "altDoublePress": "Double-press Alt",
+      "altDoublePressDesc": "Double-press Alt quickly while an input is focused to start or stop voice input.",
+      "saveVoiceInputFailed": "Failed to save voice input setting.",
       "groupNetwork": "Network",
       "proxy": "Network Proxy",
       "proxyDesc": "Configure the network proxy used by Fello for Node requests, subprocesses and the UI.",
@@ -577,6 +581,7 @@
     "voiceInput": "Voice input",
     "selectVoiceInputDevice": "Select microphone",
     "stopVoiceInput": "Stop voice input",
+    "startingVoiceInput": "Starting voice input",
     "voiceInputNotConfigured": "Configure voice input in Settings",
     "noAudioInputDevices": "No audio input devices found"
   },

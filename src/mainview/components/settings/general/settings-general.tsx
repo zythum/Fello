@@ -32,6 +32,8 @@ export function SettingsGeneral() {
     setEditor,
     sound,
     setSound,
+    voiceInput,
+    setVoiceInput,
     proxy,
   } = useAppStore();
   const { toast } = useMessage();
@@ -83,6 +85,21 @@ export function SettingsGeneral() {
     } catch {
       toast.error(
         t("settings.general.saveFileWatcherFailed", "Failed to save file watcher setting."),
+      );
+    }
+  };
+
+  const handleVoiceInputShortcutChange = async (checked: boolean) => {
+    const newVoiceInput = { ...voiceInput, altDoublePress: checked };
+    setVoiceInput(newVoiceInput);
+    try {
+      await request.updateSettings({ voiceInput: newVoiceInput });
+    } catch {
+      toast.error(
+        t(
+          "settings.general.saveVoiceInputFailed",
+          "Failed to save voice input setting.",
+        ),
       );
     }
   };
@@ -195,6 +212,32 @@ export function SettingsGeneral() {
                     </span>
                   </div>
                   <Switch checked={fileWatcher.enabled} onCheckedChange={handleFileWatcherChange} />
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-border"></div>
+            {/* ── Voice Input ── */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">
+                {t("settings.general.groupVoiceInput", "Voice Input")}
+              </h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.altDoublePress", "Double-press Alt")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t(
+                        "settings.general.altDoublePressDesc",
+                        "Double-press Alt quickly while an input is focused to start or stop voice input.",
+                      )}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={voiceInput.altDoublePress}
+                    onCheckedChange={handleVoiceInputShortcutChange}
+                  />
                 </div>
               </div>
             </div>

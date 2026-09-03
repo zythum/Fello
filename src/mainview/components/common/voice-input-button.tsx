@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronDown, Mic } from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,12 +17,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "../../store";
 import { useMessage } from "../providers/message";
 import { useRealtimeAsr, type RealtimeAsrTranscript } from "./use-realtime-asr";
 
 const ASR_WAVEFORM_BARS = [0.35, 0.65, 0.95, 0.55, 0.8, 0.45, 0.9, 0.6, 0.38];
 const DEFAULT_MAX_DURATION = 5 * 60 * 1000;
+const ALT_DOUBLE_PRESS_WINDOW = 350;
 const VOICE_INPUT_DEVICE_STORAGE_KEY = "fello.voice-input.device-id";
+
+type ActiveVoiceRecording = {
+  owner: symbol;
+  stop: () => Promise<void>;
+};
+
+// VoiceInputButton instances share the renderer process, so keep the active
+// recording at module scope to prevent multiple microphones from recording at once.
+let activeVoiceRecording: ActiveVoiceRecording | null = null;
+let voiceRecordingStartChain = Promise.resolve();
 
 function getInputCursor(input: HTMLInputElement | HTMLTextAreaElement): number {
   return input.selectionStart ?? input.value.length;
@@ -51,11 +63,16 @@ export function VoiceInputButton({
 }: VoiceInputButtonProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
+  const altDoublePressEnabled = useAppStore((state) => state.voiceInput.altDoublePress);
+  const [instanceId] = useState(() => Symbol("VoiceInputButton"));
+  const stopAsrRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const asrApplyingRef = useRef(false);
   const asrSegmentsRef = useRef(new Map<string, { start: number; length: number }>());
   const asrTailRef = useRef(0);
   const asrCurrentKeyRef = useRef<string | null>(null);
   const asrSequenceRef = useRef(0);
+  const lastAltTapAtRef = useRef<number | null>(null);
+  const suppressAltUntilRef = useRef(0);
 
   const freezeAsrSegments = useCallback(() => {
     asrSegmentsRef.current.clear();
@@ -101,18 +118,34 @@ export function VoiceInputButton({
     [inputRef],
   );
 
+  const handleRecordingChange = useCallback(
+    (recording: boolean) => {
+      if (recording) {
+        activeVoiceRecording = {
+          owner: instanceId,
+          stop: () => stopAsrRef.current(),
+        };
+      } else {
+        freezeAsrSegments();
+        if (activeVoiceRecording?.owner === instanceId) {
+          activeVoiceRecording = null;
+        }
+      }
+    },
+    [freezeAsrSegments, instanceId],
+  );
+
   const asr = useRealtimeAsr({
     onTranscript: applyAsrTranscript,
     onError: (message) => toast.error(message),
-    onRecordingChange: (recording) => {
-      if (!recording) freezeAsrSegments();
-    },
+    onRecordingChange: handleRecordingChange,
   });
   const { start: startAsr, stop: stopAsr, refreshInputDevices } = asr;
 
   const handleStop = useCallback(async () => {
     await stopAsr();
   }, [stopAsr]);
+  stopAsrRef.current = handleStop;
 
   useImperativeHandle(
     ref,
@@ -124,24 +157,30 @@ export function VoiceInputButton({
 
   const handleStart = useCallback(
     async (deviceId?: string) => {
-      const textarea = inputRef.current;
-      if (!textarea) return;
+      const startOperation = voiceRecordingStartChain.then(async () => {
+        await activeVoiceRecording?.stop();
 
-      textarea.focus();
-      const cursorPosition = getInputCursor(textarea);
-      const before = textarea.value.slice(0, cursorPosition);
-      if (before.length > 0 && !/\s$/.test(before)) {
-        asrApplyingRef.current = true;
-        try {
-          document.execCommand("insertText", false, " ");
-        } finally {
-          asrApplyingRef.current = false;
+        const textarea = inputRef.current;
+        if (!textarea) return;
+
+        textarea.focus();
+        const cursorPosition = getInputCursor(textarea);
+        const before = textarea.value.slice(0, cursorPosition);
+        if (before.length > 0 && !/\s$/.test(before)) {
+          asrApplyingRef.current = true;
+          try {
+            document.execCommand("insertText", false, " ");
+          } finally {
+            asrApplyingRef.current = false;
+          }
         }
-      }
-      asrSegmentsRef.current.clear();
-      asrCurrentKeyRef.current = null;
-      asrTailRef.current = getInputCursor(textarea);
-      await startAsr(deviceId);
+        asrSegmentsRef.current.clear();
+        asrCurrentKeyRef.current = null;
+        asrTailRef.current = getInputCursor(textarea);
+        await startAsr(deviceId);
+      });
+      voiceRecordingStartChain = startOperation.catch(() => undefined);
+      await startOperation;
     },
     [startAsr, inputRef],
   );
@@ -154,6 +193,7 @@ export function VoiceInputButton({
     }
   });
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   const rememberDevice = useCallback((deviceId: string) => {
     setSavedDeviceId(deviceId);
@@ -173,15 +213,55 @@ export function VoiceInputButton({
   );
 
   const handleMicClick = useCallback(async () => {
-    const devices = await refreshInputDevices();
-    const hasSavedDevice =
-      savedDeviceId != null && devices.some((device) => device.deviceId === savedDeviceId);
-    if (hasSavedDevice) {
-      await handleStart(savedDeviceId);
-    } else {
-      setDeviceMenuOpen(true);
+    if (disabled || !asr.configured || starting) return;
+    setStarting(true);
+    try {
+      const devices = await refreshInputDevices();
+      const hasSavedDevice =
+        savedDeviceId != null && devices.some((device) => device.deviceId === savedDeviceId);
+      if (hasSavedDevice) {
+        await handleStart(savedDeviceId);
+      } else {
+        setDeviceMenuOpen(true);
+      }
+    } finally {
+      setStarting(false);
     }
-  }, [refreshInputDevices, handleStart, savedDeviceId]);
+  }, [
+    asr.configured,
+    disabled,
+    handleStart,
+    refreshInputDevices,
+    savedDeviceId,
+    starting,
+  ]);
+
+  const handleShortcutToggle = useCallback(async () => {
+    if (disabled || !asr.configured || starting) return;
+    if (asr.recording) {
+      await handleStop();
+      return;
+    }
+
+    setStarting(true);
+    try {
+      const devices = await refreshInputDevices();
+      const hasSavedDevice =
+        savedDeviceId != null && devices.some((device) => device.deviceId === savedDeviceId);
+      await handleStart(hasSavedDevice ? savedDeviceId : undefined);
+    } finally {
+      setStarting(false);
+    }
+  }, [
+    asr.configured,
+    asr.recording,
+    disabled,
+    handleStart,
+    handleStop,
+    refreshInputDevices,
+    savedDeviceId,
+    starting,
+  ]);
 
   const handleDeviceMenuChange = useCallback(
     (open: boolean) => {
@@ -190,6 +270,99 @@ export function VoiceInputButton({
     },
     [refreshInputDevices],
   );
+
+  useEffect(() => {
+    lastAltTapAtRef.current = null;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const input = inputRef.current;
+      if (!input || document.activeElement !== input) {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+
+      if (event.key === "Escape") {
+        lastAltTapAtRef.current = null;
+        suppressAltUntilRef.current = 0;
+        if (
+          !event.repeat &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.shiftKey &&
+          asr.recording
+        ) {
+          event.preventDefault();
+          void handleStop();
+        }
+        return;
+      }
+
+      if (event.key !== "Alt") {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+      if (!altDoublePressEnabled || event.repeat || event.ctrlKey || event.metaKey || event.shiftKey) {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+
+      const now = Date.now();
+      if (now < suppressAltUntilRef.current) {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+
+      if (asr.recording) {
+        lastAltTapAtRef.current = null;
+        suppressAltUntilRef.current = now + ALT_DOUBLE_PRESS_WINDOW;
+        event.preventDefault();
+        void handleStop();
+        return;
+      }
+
+      const lastTapAt = lastAltTapAtRef.current;
+      if (lastTapAt !== null && now - lastTapAt <= ALT_DOUBLE_PRESS_WINDOW) {
+        lastAltTapAtRef.current = null;
+        event.preventDefault();
+        void handleShortcutToggle();
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key !== "Alt") return;
+
+      const input = inputRef.current;
+      if (!input || document.activeElement !== input) {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+      if (Date.now() < suppressAltUntilRef.current) {
+        lastAltTapAtRef.current = null;
+        return;
+      }
+      lastAltTapAtRef.current = Date.now();
+    };
+
+    const resetAltTap = () => {
+      lastAltTapAtRef.current = null;
+      suppressAltUntilRef.current = 0;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", resetAltTap);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", resetAltTap);
+    };
+  }, [
+    altDoublePressEnabled,
+    asr.recording,
+    handleShortcutToggle,
+    handleStop,
+    inputRef,
+  ]);
 
   useEffect(() => {
     const textarea = inputRef.current;
@@ -271,22 +444,33 @@ export function VoiceInputButton({
               size="sm"
               className="h-full w-8 rounded-r-none border-r-0 bg-muted hover:bg-input border border-input text-amber-300/50 hover:text-amber-200"
               onClick={() => void handleMicClick()}
-              disabled={disabled || !asr.configured}
-              aria-label={t("chatInput.voiceInput", "Voice input")}
+              disabled={disabled || !asr.configured || starting}
+              aria-busy={starting}
+              aria-label={
+                starting
+                  ? t("chatInput.startingVoiceInput", "Starting voice input")
+                  : t("chatInput.voiceInput", "Voice input")
+              }
               title={
-                asr.configured
-                  ? t("chatInput.voiceInput", "Voice input")
-                  : t("chatInput.voiceInputNotConfigured", "Configure voice input in Settings")
+                starting
+                  ? t("chatInput.startingVoiceInput", "Starting voice input")
+                  : asr.configured
+                    ? t("chatInput.voiceInput", "Voice input")
+                    : t("chatInput.voiceInputNotConfigured", "Configure voice input in Settings")
               }
             >
-              <Mic className="size-3.5" />
+              {starting ? (
+                <LoaderCircle className="size-3.5 animate-spin" />
+              ) : (
+                <Mic className="size-3.5" />
+              )}
             </Button>
             <DropdownMenuTrigger
               render={
                 <Button
                   size="icon"
                   className="h-full w-4.5 rounded-l-none bg-muted hover:bg-input border border-input border-l-0 px-0 text-amber-300/50 hover:text-amber-200"
-                  disabled={disabled || !asr.configured}
+                  disabled={disabled || !asr.configured || starting}
                   aria-label={t("chatInput.selectVoiceInputDevice", "Select microphone")}
                   title={t("chatInput.selectVoiceInputDevice", "Select microphone")}
                 />

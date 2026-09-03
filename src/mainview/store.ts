@@ -123,6 +123,7 @@ export interface AppState {
   ilink: SettingsInfo["ilink"];
   editor: SettingEditorInfo;
   sound: SettingSoundInfo;
+  voiceInput: SettingsInfo["voiceInput"];
   snippets: SettingsInfo["snippets"];
   imageGeneration: SettingsInfo["imageGeneration"];
   speechToText: SettingsInfo["speechToText"];
@@ -189,6 +190,7 @@ export interface AppState {
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
   setEditor: (editor: SettingEditorInfo) => void;
   setSound: (sound: SettingSoundInfo) => void;
+  setVoiceInput: (voiceInput: SettingsInfo["voiceInput"]) => void;
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setImageGeneration: (imageGeneration: SettingsInfo["imageGeneration"]) => void;
   setSpeechToText: (speechToText: SettingsInfo["speechToText"]) => void;
@@ -235,6 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ilink: { useOriginalImage: false },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
+  voiceInput: { altDoublePress: true },
   snippets: [],
   imageGeneration: [],
   speechToText: [],
@@ -389,6 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIlink: (ilink) => set({ ilink }),
   setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),
+  setVoiceInput: (voiceInput) => set({ voiceInput }),
   setSnippets: (snippets) => set({ snippets }),
   setImageGeneration: (imageGeneration) => set({ imageGeneration }),
   setSpeechToText: (speechToText) => set({ speechToText }),

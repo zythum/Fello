@@ -118,6 +118,10 @@
       "autoWatchFiles": "自动监听文件",
       "autoWatchFilesDesc": "自动监听项目文件变更",
       "saveFileWatcherFailed": "保存文件监听设置失败。",
+      "groupVoiceInput": "语音输入",
+      "altDoublePress": "双击 Alt 快捷键",
+      "altDoublePressDesc": "输入框聚焦时快速双击 Alt，开始或停止语音输入。",
+      "saveVoiceInputFailed": "保存语音输入设置失败。",
       "groupNetwork": "网络",
       "proxy": "网络代理",
       "proxyDesc": "配置 Fello 的网络代理，应用于 Node 请求、子进程与界面。",
@@ -576,6 +580,7 @@
     "voiceInput": "语音输入",
     "selectVoiceInputDevice": "选择麦克风",
     "stopVoiceInput": "停止语音输入",
+    "startingVoiceInput": "正在启动语音输入",
     "voiceInputNotConfigured": "请先在设置中配置语音识别",
     "noAudioInputDevices": "未找到音频输入设备"
   },
