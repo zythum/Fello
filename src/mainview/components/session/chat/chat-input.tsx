@@ -1285,11 +1285,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              <VoiceInputButton
-                ref={voiceInputRef}
-                inputRef={textareaRef}
-                disabled={disabled}
-              />
+              <VoiceInputButton ref={voiceInputRef} inputRef={textareaRef} disabled={disabled} />
               {isStreaming ? (
                 <Button
                   variant="destructive"
