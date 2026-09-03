@@ -54,7 +54,7 @@ function SnippetSortableItem({ id, children }: { id: string; children: React.Rea
           type="button"
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
+          className="-ml-4.5 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
           title={t("settings.snippets.dragToReorder", "Drag to reorder")}
         >
           <GripVertical className="size-3.5 -ml-1" />
