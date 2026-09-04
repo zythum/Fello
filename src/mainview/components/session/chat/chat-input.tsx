@@ -894,6 +894,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             className="chat-mentions-input"
             autoCorrect="off"
             autoComplete="off"
+            autoFocus
             spellCheck={false}
             a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
@@ -1330,14 +1331,14 @@ const mentionsInputStyle = {
     highlighter: {
       padding: "12px 16px 8px",
       border: "none",
-      maxHeight: 200,
+      maxHeight: "80vh",
     },
     input: {
       padding: "12px 16px 8px",
       border: "none",
       outline: "none",
       overflow: "auto",
-      maxHeight: 200,
+      maxHeight: "80vh",
       color: "var(--foreground)",
       fontSize: 13,
       lineHeight: "1.5",
