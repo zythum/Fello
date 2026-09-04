@@ -389,7 +389,7 @@ export function VoiceInputButton({
   return (
     <div
       className={cn(
-        "relative inline-flex h-7 transition-[width] duration-300 ease-out",
+        "relative inline-flex h-7 transition-[width] duration-300 ease-out flex-none",
         asr.recording ? "w-18" : "w-12.5",
         className,
       )}

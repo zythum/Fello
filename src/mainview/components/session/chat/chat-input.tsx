@@ -1013,7 +1013,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
+                        className="h-7 min-w-16 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
                       />
                     }
                   >
@@ -1148,7 +1148,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
+                        className="h-7 min-w-16 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
                       />
                     }
                   >
