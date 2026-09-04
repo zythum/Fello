@@ -627,7 +627,7 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-      <div className="flex items-center justify-between px-3 pb-2 pt-2">
+      <div className="flex items-center justify-between px-3 pt-2">
         <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
           {t("sidebar.projects")}
         </span>
@@ -651,6 +651,10 @@ export function Sidebar() {
               projectSessions.length > 0
                 ? projectSessions.reduce((max, session) => Math.max(max, session.updatedAt), 0)
                 : project.createdAt;
+            const connectedSessions = projectSessions.filter(
+              (session) => session.connectionStatus === "connected",
+            );
+
             return (
               <div key={project.id} className="space-y-0.5 group">
                 <HoverCard
@@ -691,11 +695,13 @@ export function Sidebar() {
                             onPointerLeave={() => {
                               hoveredTriggerIdRef.current = null;
                             }}
-                            className={`flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 ${
+                            className={cn(
+                              "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80",
+                              connectedSessions.length > 0 ? "text-sidebar-foreground/70" : "",
                               hoverId === currentHoverId || contextMenuId === currentHoverId
                                 ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
-                                : ""
-                            }`}
+                                : "",
+                            )}
                           />
                         }
                       >
@@ -863,7 +869,7 @@ export function Sidebar() {
                                   onPointerLeave={() => {
                                     hoveredTriggerIdRef.current = null;
                                   }}
-                                  className={`group flex h-8 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
+                                  className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
                                     activeSessionId === session.id
                                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
