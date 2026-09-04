@@ -697,7 +697,7 @@ export function Sidebar() {
                             }}
                             className={cn(
                               "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80",
-                              connectedSessions.length > 0 ? "text-sidebar-foreground/70" : "",
+                              connectedSessions.length > 0 ? "text-sidebar-foreground/60" : "",
                               hoverId === currentHoverId || contextMenuId === currentHoverId
                                 ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
                                 : "",
