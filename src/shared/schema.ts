@@ -522,7 +522,7 @@ export interface SessionInfo {
    * 主要用于前端 UI 路由和列表区分
    */
   id: string;
-  /** 会话的显示标题（默认：'New Chat'） */
+  /** 会话的显示标题（默认：'New Session'） */
   title: string;
   /** 会话当前的工作目录 */
   cwd: string;

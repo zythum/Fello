@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { AgentInfo, ApiAgentInfo, StdioAgentInfo } from "../../../../shared/schema";
 import { useAppStore } from "../../../store";
-import { request } from "../../../backend";
 import { openGuide } from "@/lib/open-guide";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +15,11 @@ import {
 } from "@/components/ui/context-menu";
 import { Plus, Pencil, Trash2, RefreshCw, XCircle, BookOpen } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
+import {
+  clearAgentSessions,
+  resetAgent,
+  updateAgentSettings,
+} from "../../../lib/session-lifecycle";
 import { useMessage } from "../../providers/message";
 import {
   DndContext,
@@ -95,7 +99,23 @@ export function SettingsAgents() {
 
   const handleSave = async (updatedAgents: AgentInfo[]) => {
     try {
-      await request.updateSettings({ agents: updatedAgents });
+      const currentAgents = useAppStore.getState().configuredAgents;
+      const currentById = new Map(currentAgents.map((agent) => [agent.id, agent]));
+      const updatedById = new Map(updatedAgents.map((agent) => [agent.id, agent]));
+      const affectedAgentIds = new Set<string>();
+
+      for (const [id, currentAgent] of currentById) {
+        const updatedAgent = updatedById.get(id);
+        if (!updatedAgent || JSON.stringify(currentAgent) !== JSON.stringify(updatedAgent)) {
+          affectedAgentIds.add(id);
+        }
+      }
+
+      const sessionIds = useAppStore
+        .getState()
+        .sessions.filter((session) => affectedAgentIds.has(session.agentId))
+        .map((session) => session.id);
+      await updateAgentSettings(updatedAgents, sessionIds);
       setConfiguredAgents(updatedAgents);
     } catch (err) {
       toast.error(
@@ -211,7 +231,11 @@ export function SettingsAgents() {
 
   const handleReset = async (id: string) => {
     try {
-      await request.resetAgent({ agentId: id });
+      const sessionIds = useAppStore
+        .getState()
+        .sessions.filter((session) => session.agentId === id)
+        .map((session) => session.id);
+      await resetAgent(id, sessionIds);
       toast.success(t("settings.agents.resetSuccess", "Agent reset."));
     } catch (err) {
       toast.error(
@@ -234,7 +258,11 @@ export function SettingsAgents() {
     });
     if (!result) return;
     try {
-      const res = await request.clearAgentSessions({ agentId: id });
+      const sessionIds = useAppStore
+        .getState()
+        .sessions.filter((session) => session.agentId === id)
+        .map((session) => session.id);
+      const res = await clearAgentSessions(id, sessionIds);
       toast.success(
         t("settings.agents.deleteAllSessionsSuccess", "{{count}} session(s) deleted.", {
           count: res.deletedSessionIds.length,

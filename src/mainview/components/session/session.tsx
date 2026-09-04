@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { reduceFlushStreaming, reduceSessionNotification } from "../../lib/session-state-reducer";
 import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { Detail, type DetailType } from "./detail/detail";
 import { Panel, type PanelTab } from "./panel/panel";
 import { Loader2, RotateCw } from "lucide-react";
-import { request } from "../../backend";
+import {
+  loadSession,
+  SessionLifecycleBusyError,
+} from "../../lib/session-lifecycle";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import type { SessionInfo } from "../../../shared/schema";
@@ -99,76 +101,25 @@ export function Session({ session }: { session: SessionInfo }) {
     return () => document.removeEventListener("fello-open-token-usage", handleOpenTokenUsage);
   }, []);
 
-  // Auto load session if not loaded
+  // Coordinate initial loading and history hydration with restart/close/delete actions.
   const fetchingRef = useRef<string | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   useEffect(() => {
     setConnectionError(false);
-    // Always call loadSession to ensure backend bridge state is synced (fast-path if already loaded)
-    request.loadSession({ sessionId }).catch((err) => {
-      setConnectionError(true);
-      toast.error(err instanceof Error ? err.message : String(err));
-    });
 
     const sessionState = useAppStore.getState().getSessionState(sessionId);
-    if (sessionState.messages.length > 0 || isCreatingSession || sessionState.loadedAt !== null) {
-      return;
-    }
-    if (fetchingRef.current === sessionId) return;
-    fetchingRef.current = sessionId;
+    const shouldLoadHistory =
+      sessionState.messages.length === 0 && !isCreatingSession && sessionState.loadedAt === null;
+    if (shouldLoadHistory && fetchingRef.current === sessionId) return;
+    if (shouldLoadHistory) fetchingRef.current = sessionId;
 
-    async function fetchHistory() {
-      useAppStore.getState().updateSessionState(sessionId, (prev) => ({
-        ...reduceFlushStreaming(prev),
-        isLoading: true,
-      }));
-
-      try {
-        const result = await request.getSessionHistory({ sessionId });
-        let state = useAppStore.getState().getSessionState(sessionId);
-        state = { ...state, messages: [], activeToolCalls: new Map(), activeSubagents: new Map() };
-
-        const displayIds = new Set<string>();
-        for (const notification of result.messages) {
-          const displayId = notification?.update?._meta?.fello?.displayId;
-          if (displayId) {
-            displayIds.add(displayId);
-          }
-          if (!notification?.update) continue;
-          state = reduceSessionNotification(sessionId, state, notification);
-        }
-
-        for (const notification of state.pendingNotifications) {
-          const did = notification.update._meta?.fello?.displayId;
-          if (did && displayIds.has(did)) {
-            continue;
-          }
-          state = reduceSessionNotification(sessionId, state, notification);
-        }
-
-        // 回放历史后收尾：把残留的 in_progress/pending 工具调用统一标记为 completed，
-        // 否则若 trailing completed 未落库（如运行中断），历史回看会永远停在 pending。
-        state = reduceFlushStreaming(state);
-
-        state = {
-          ...state,
-          isLoading: false,
-          pendingNotifications: [],
-          loadedAt: Date.now(),
-        };
-
-        useAppStore.getState().updateSessionState(sessionId, () => state);
-      } catch (err) {
-        console.error("Failed to fetch session history", err);
-        useAppStore
-          .getState()
-          .updateSessionState(sessionId, (prev) => ({ ...prev, isLoading: false }));
-      } finally {
-        fetchingRef.current = null;
-      }
-    }
-
-    void fetchHistory();
+    void loadSession(sessionId, { loadHistory: shouldLoadHistory }).catch((err) => {
+      if (err instanceof SessionLifecycleBusyError) return;
+      setConnectionError(true);
+      toast.error(err instanceof Error ? err.message : String(err));
+    }).finally(() => {
+      if (fetchingRef.current === sessionId) fetchingRef.current = null;
+    });
   }, [sessionId, isCreatingSession, toast]);
 
   return (
@@ -176,7 +127,7 @@ export function Session({ session }: { session: SessionInfo }) {
       {isLoading || sessionConnected !== "connected" || isCreatingSession ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
-          {connectionError && sessionConnected !== "connected" && !isCreatingSession ? (
+          {connectionError && !isCreatingSession ? (
             <>
               <p className="text-sm font-normal text-muted-foreground">
                 {t("session.connectionFailed")}
@@ -186,7 +137,8 @@ export function Session({ session }: { session: SessionInfo }) {
                 size="sm"
                 onClick={() => {
                   setConnectionError(false);
-                  request.loadSession({ sessionId, force: true }).catch((err) => {
+                  void loadSession(sessionId, { force: true, loadHistory: true }).catch((err) => {
+                    if (err instanceof SessionLifecycleBusyError) return;
                     setConnectionError(true);
                     toast.error(err instanceof Error ? err.message : String(err));
                   });

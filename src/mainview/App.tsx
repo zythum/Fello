@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
+import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
@@ -145,8 +146,22 @@ function AppContent() {
 
         let processedCount = 0;
 
-        // Apply batch of updates securely on top of the freshest state
+        // Drop queued updates for sessions that were deleted before this RAF ran.
+        if (!useAppStore.getState().sessions.some((session) => session.id === sid)) {
+          continue;
+        }
+
+        // Apply batch of updates securely on top of the freshest state.
+        // The loading check must happen inside the updater because a lifecycle
+        // operation may set isLoading after this RAF was scheduled.
         store.updateSessionState(sid, (currentState) => {
+          if (currentState.isLoading || isSessionLifecycleBusy(sid)) {
+            processedCount = notifications.length;
+            return {
+              pendingNotifications: [...currentState.pendingNotifications, ...notifications],
+            };
+          }
+
           let state = currentState;
           for (let i = 0; i < notifications.length; i++) {
             const notification = notifications[i];

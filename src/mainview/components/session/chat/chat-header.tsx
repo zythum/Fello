@@ -7,9 +7,11 @@ import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
 import {
-  reduceFlushStreaming,
-  reduceSessionNotification,
-} from "../../../lib/session-state-reducer";
+  closeSession,
+  restartSession,
+  RestartSessionError,
+  SessionLifecycleBusyError,
+} from "../../../lib/session-lifecycle";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -40,6 +42,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   // Local state: only used while the popover is open, synced from session on open
   const [localMcpServers, setLocalMcpServers] = useState<string[]>([]);
   const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
+  const [isRestarting, setIsRestarting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   const handleToggle = useCallback((mcpId: string) => {
@@ -49,79 +52,54 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   }, []);
 
   const handleSyncAndRefresh = async () => {
-    if (!session) return;
+    if (!session || isClosing || isRestarting) return;
+    setIsRestarting(true);
     try {
-      await request.updateSession({
-        sessionId: session.id,
+      await restartSession({
+        session,
         mcpServers: localMcpServers,
         features: localFeatures,
       });
     } catch (err) {
-      console.error("Failed to update MCP servers:", err);
-      toast.error(
-        extractErrorMessage(err) ||
-          t("chat.failedToUpdateMcpServers", "Failed to update MCP servers"),
-      );
-      return;
-    }
-
-    // Refresh session history
-    const { resetSessionState, updateSessionState, updateSession } = useAppStore.getState();
-    try {
-      updateSession({ ...session, isStreaming: false });
-      updateSessionState(session.id, (prev) => reduceFlushStreaming(prev));
-      resetSessionState(session.id);
-      updateSessionState(session.id, () => ({ isLoading: true }));
-      const result = await request.getSessionHistory({ sessionId: session.id });
-      if (!result) return;
-
-      let state = useAppStore.getState().getSessionState(session.id);
-      state = { ...state, messages: [], activeToolCalls: new Map(), activeSubagents: new Map() };
-      for (const notification of result.messages) {
-        state = reduceSessionNotification(session.id, state, notification);
-      }
-
-      const displayIds = new Set(
-        result.messages.map((m) => m?.update?._meta?.fello?.displayId).filter(Boolean),
-      );
-      for (const notification of state.pendingNotifications) {
-        const did = notification.update._meta?.fello?.displayId;
-        if (did && displayIds.has(did)) continue;
-        state = reduceSessionNotification(session.id, state, notification);
-      }
-
-      state = {
-        ...state,
-        pendingNotifications: [],
-        isLoading: false,
-      };
-
-      updateSessionState(session.id, () => state);
-
-      request.loadSession({ sessionId: session.id, force: true }).catch((err) => {
-        console.error("Failed to load session:", err);
+      console.error("Failed to restart session:", err);
+      if (err instanceof SessionLifecycleBusyError) {
         toast.error(
-          extractErrorMessage(err) || t("chat.failedToLoadSession", "Failed to load session."),
+          t(
+            "chatHeader.sessionOperationInProgress",
+            "Another session operation is already in progress.",
+          ),
         );
-      });
-    } catch (err) {
-      console.error("Failed to load session:", err);
-      const message =
-        extractErrorMessage(err) || t("chat.failedToLoadSession", "Failed to load session.");
-      toast.error(message);
+        return;
+      }
+      const lifecycleError = err instanceof RestartSessionError ? err : null;
+      const cause = lifecycleError?.cause ?? err;
+      const fallback =
+        lifecycleError?.stage === "update"
+          ? t("chat.failedToUpdateMcpServers", "Failed to update MCP servers")
+          : t("chat.failedToLoadSession", "Failed to load session.");
+      toast.error(extractErrorMessage(cause) || fallback);
     } finally {
-      useAppStore.getState().updateSessionState(session.id, () => ({ isLoading: false }));
+      setIsRestarting(false);
     }
   };
 
   const handleCloseSession = async () => {
-    if (isClosing) return;
+    if (isClosing || isRestarting) return;
     setIsClosing(true);
     try {
-      await request.closeSession({ sessionId: session.id });
+      await closeSession(session.id);
       navigate("/");
     } catch (err) {
       console.error("Failed to close session:", err);
+      if (err instanceof SessionLifecycleBusyError) {
+        toast.error(
+          t(
+            "chatHeader.sessionOperationInProgress",
+            "Another session operation is already in progress.",
+          ),
+        );
+        return;
+      }
       toast.error(
         extractErrorMessage(err) ||
           t("chatHeader.failedToCloseSession", "Failed to close session."),
@@ -144,7 +122,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
       </Badge>
       <div className="flex flex-1 min-w-0 items-baseline gap-2">
         <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
-          {session.title || t("sidebar.newChat", "New Chat")}
+          {session.title || t("sidebar.newSession", "New Session")}
         </span>
         <span className="flex-1 text-[10px] text-muted-foreground truncate">
           {currentProjectInfo?.cwd}
@@ -291,8 +269,9 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                     size="xs"
                     className="flex flex-3 items-center gap-2 h-7 text-xs font-normal"
                     onClick={handleSyncAndRefresh}
-                    disabled={isClosing}
+                    disabled={isClosing || isRestarting}
                   >
+                    {isRestarting && <Loader2 className="size-3 animate-spin" />}
                     <span>{t("chatHeader.refresh", "Restart Session")}</span>
                   </Button>
                   <Button
@@ -300,7 +279,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                     variant="destructive"
                     className="flex flex-1 items-center gap-1.5 h-7 text-xs font-normal"
                     onClick={handleCloseSession}
-                    disabled={isClosing}
+                    disabled={isClosing || isRestarting}
                   >
                     {isClosing && <Loader2 className="size-3 animate-spin" />}
                     <span>

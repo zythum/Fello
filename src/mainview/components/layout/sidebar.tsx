@@ -34,8 +34,17 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { Separator } from "@/components/ui/separator";
 import { useMessage } from "../providers/message";
+import {
+  closeSession,
+  deleteProject,
+  deleteSession,
+  newSession,
+  renameSession,
+  restartSession,
+  RestartSessionError,
+  SessionLifecycleBusyError,
+} from "../../lib/session-lifecycle";
 import { extractErrorMessage } from "@/lib/utils";
 import {
   CalendarDays,
@@ -55,6 +64,8 @@ import {
   MessageCircle,
   MessageCirclePlus,
   Pencil,
+  Power,
+  RefreshCw,
   Settings,
   Trash2,
   TriangleAlert,
@@ -179,18 +190,25 @@ export function Sidebar() {
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
-  // 预览卡片操作按钮展开态：绑定到具体卡片（projectHoverId/sessionHoverId），每次打开默认折叠
-  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  const [sessionAction, setSessionAction] = useState<
+    { id: string; type: "restart" | "close" | "delete" } | null
+  >(null);
   // 记录鼠标当前悬停的条目（用于右键菜单关闭后恢复 hover 卡片，避免出现后立即消失的闪现）
   const hoveredTriggerIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (hoverId !== actionsOpenId) {
-      setActionsOpenId(null);
-    }
-  }, [hoverId, actionsOpenId]);
-
   const { prompt, confirm, toast } = useMessage();
+
+  const handleSetActiveIlinkSession = async (sessionId: string) => {
+    try {
+      await request.setActiveIlinkSession({ sessionId });
+    } catch (err) {
+      console.error("Failed to update WeChat active session:", err);
+      toast.error(
+        extractErrorMessage(err) ||
+          t("sidebar.failedToUpdateIlinkSession", "Failed to update WeChat active session."),
+      );
+    }
+  };
 
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
 
@@ -239,7 +257,7 @@ export function Sidebar() {
 
   handleAddProjectRef.current = handleAddProject;
 
-  const handleNewChat = async (
+  const handleNewSession = async (
     projectId: string,
     agentId: string,
     params?: { mcpServers?: string[]; features?: Feature[]; permissionMode?: "ask" | "allow-all" },
@@ -247,20 +265,19 @@ export function Sidebar() {
     try {
       setExpandedProjects((prev) => ({ ...prev, [projectId]: true }));
       useAppStore.getState().setIsCreatingSession(true);
-      const result = await request.newSession({
+      const sessionId = await newSession({
         projectId,
         agentId,
         mcpServers: params?.mcpServers,
         features: params?.features,
         permissionMode: params?.permissionMode,
       });
-      useAppStore.getState().updateSessionState(result.sessionId, () => ({ loadedAt: Date.now() }));
       await refreshData();
-      handleNavigate(`/session-view/${result.sessionId}`);
+      handleNavigate(`/session-view/${sessionId}`);
       return true;
     } catch (err) {
-      console.error("Failed to create new chat:", err);
-      toast.error(getErrorMessage(err, t("sidebar.newChatFailed", "Failed to create a new chat.")));
+      console.error("Failed to create new session:", err);
+      toast.error(getErrorMessage(err, t("sidebar.newSessionFailed", "Failed to create a new session.")));
       return false;
     } finally {
       useAppStore.getState().setIsCreatingSession(false);
@@ -294,7 +311,7 @@ export function Sidebar() {
 
   const handleCreateNewSession = async () => {
     if (!newSessionProjectId || !newSessionAgentId) return;
-    const ok = await handleNewChat(newSessionProjectId, newSessionAgentId, {
+    const ok = await handleNewSession(newSessionProjectId, newSessionAgentId, {
       mcpServers: Array.from(newSessionMcpIds),
       features: newSessionFeatures,
       permissionMode: newSessionPermissionMode,
@@ -314,33 +331,109 @@ export function Sidebar() {
     handleNavigate(`/session-view/${session.id}`);
   };
 
+  const handleRestartSession = async (session: SessionInfo) => {
+    if (sessionAction) return;
+    setSessionAction({ id: session.id, type: "restart" });
+    try {
+      await restartSession({
+        session,
+        mcpServers: session.mcpServers,
+        features: session.features,
+      });
+    } catch (err) {
+      console.error("Failed to restart session:", err);
+      if (err instanceof SessionLifecycleBusyError) {
+        toast.error(
+          t(
+            "sidebar.sessionOperationInProgress",
+            "Another session operation is already in progress.",
+          ),
+        );
+        return;
+      }
+      const lifecycleError = err instanceof RestartSessionError ? err : null;
+      const cause = lifecycleError?.cause ?? err;
+      const fallback =
+        lifecycleError?.stage === "update"
+          ? t("sidebar.failedToUpdateMcpServers", "Failed to update MCP servers")
+          : t("sidebar.failedToLoadSession", "Failed to load session.");
+      toast.error(extractErrorMessage(cause) || fallback);
+    } finally {
+      setSessionAction(null);
+    }
+  };
+
+  const handleCloseSession = async (session: SessionInfo) => {
+    if (sessionAction) return;
+    setSessionAction({ id: session.id, type: "close" });
+    try {
+      await closeSession(session.id);
+      if (activeSessionId === session.id) {
+        handleNavigate("/");
+      }
+    } catch (err) {
+      console.error("Failed to close session:", err);
+      if (err instanceof SessionLifecycleBusyError) {
+        toast.error(
+          t(
+            "sidebar.sessionOperationInProgress",
+            "Another session operation is already in progress.",
+          ),
+        );
+        return;
+      }
+      toast.error(
+        extractErrorMessage(err) ||
+          t("sidebar.failedToCloseSession", "Failed to close session."),
+      );
+    } finally {
+      setSessionAction(null);
+    }
+  };
+
   const handleDeleteSession = async (session: SessionInfo) => {
-    const displayTitle = session.title || t("sidebar.newChat", "New Chat");
+    if (sessionAction) return;
+    const displayTitle = session.title || t("sidebar.newSession", "New Session");
     await confirm({
-      title: t("sidebar.deleteChat"),
-      content: t("sidebar.deleteChatConfirm", { title: displayTitle }),
+      title: t("sidebar.deleteSession"),
+      content: t("sidebar.deleteSessionConfirm", { title: displayTitle }),
       buttons: [
         { text: t("sidebar.cancel"), value: null, variant: "outline" },
         {
           text: t("sidebar.delete"),
           variant: "destructive",
           value: async () => {
-            // Remove from store immediately to prevent render loops
-            const store = useAppStore.getState();
-            if (activeSessionId === session.id) {
-              handleNavigate("/");
+            setSessionAction({ id: session.id, type: "delete" });
+            try {
+              await deleteSession(session.id);
+              if (activeSessionId === session.id) {
+                handleNavigate("/");
+              }
+
+              const store = useAppStore.getState();
+              store.setSessions(store.sessions.filter((item) => item.id !== session.id));
+              store.disposeSessionState(session.id);
+              await refreshData();
+
+              return "deleted";
+            } catch (err) {
+              console.error("Failed to delete session:", err);
+              if (err instanceof SessionLifecycleBusyError) {
+                toast.error(
+                  t(
+                    "sidebar.sessionOperationInProgress",
+                    "Another session operation is already in progress.",
+                  ),
+                );
+                return null;
+              }
+              toast.error(
+                extractErrorMessage(err) || t("sidebar.failedToDeleteSession", "Failed to delete session."),
+              );
+              return null;
+            } finally {
+              setSessionAction(null);
             }
-
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            setSessions(store.sessions.filter((s) => s.id !== session.id));
-
-            store.disposeSessionState(session.id);
-
-            await request.deleteSession(session.id);
-            await refreshData();
-
-            return "deleted";
           },
         },
       ],
@@ -363,17 +456,17 @@ export function Sidebar() {
   };
 
   const handleRenameSession = async (session: SessionInfo) => {
-    const displayTitle = session.title || t("sidebar.newChat", "New Chat");
+    const displayTitle = session.title || t("sidebar.newSession", "New Session");
     const newName = await prompt({
-      title: t("sidebar.renameChat"),
-      content: t("sidebar.enterNewChatName"),
+      title: t("sidebar.renameSession"),
+      content: t("sidebar.enterNewSessionName"),
       defaultValue: displayTitle,
       validate: (val) =>
-        val.trim() ? undefined : t("sidebar.chatNameEmpty", "Chat name cannot be empty"),
+        val.trim() ? undefined : t("sidebar.sessionNameEmpty", "Session name cannot be empty"),
     });
 
     if (newName) {
-      await request.updateSession({ sessionId: session.id, title: newName.trim() });
+      await renameSession(session.id, newName.trim());
       await refreshData();
     }
   };
@@ -388,23 +481,42 @@ export function Sidebar() {
           text: t("sidebar.delete"),
           value: async () => {
             const state = useAppStore.getState();
-            const activeSession = state.sessions.find((session) => session.id === activeSessionId);
-            if (activeSession && activeSession.projectId === project.id) {
+            const projectSessions = state.sessions.filter((session) => session.projectId === project.id);
+            const activeSession = projectSessions.find((session) => session.id === activeSessionId);
+            if (activeSession) {
               handleNavigate("/");
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            try {
+              await deleteProject(
+                project.id,
+                projectSessions.map((session) => session.id),
+              );
 
-            const map = new Map(state.sessionStates);
-            for (const session of state.sessions) {
-              if (session.projectId === project.id) map.delete(session.id);
+              const currentState = useAppStore.getState();
+              const map = new Map(currentState.sessionStates);
+              for (const session of projectSessions) map.delete(session.id);
+              useAppStore.setState({ sessionStates: map });
+              await refreshData();
+
+              return "deleted";
+            } catch (err) {
+              console.error("Failed to delete project:", err);
+              if (err instanceof SessionLifecycleBusyError) {
+                toast.error(
+                  t(
+                    "sidebar.sessionOperationInProgress",
+                    "Another session operation is already in progress.",
+                  ),
+                );
+                return null;
+              }
+              toast.error(
+                extractErrorMessage(err) ||
+                  t("sidebar.failedToDeleteProject", "Failed to delete project."),
+              );
+              return null;
             }
-            useAppStore.setState({ sessionStates: map });
-
-            await request.deleteProject(project.id);
-            await refreshData();
-
-            return "deleted";
           },
           variant: "destructive",
         },
@@ -600,8 +712,8 @@ export function Sidebar() {
                               ? "opacity-100"
                               : "opacity-0 group-hover:opacity-100"
                           }`}
-                          aria-label={t("sidebar.createChatInProject", {
-                            defaultValue: "Create chat in {{title}}",
+                          aria-label={t("sidebar.createSessionInProject", {
+                            defaultValue: "Create session in {{title}}",
                             title: project.title,
                           })}
                         >
@@ -611,8 +723,9 @@ export function Sidebar() {
                       <ContextMenuContent className="w-48">
                         <ContextMenuItem onClick={() => openNewSessionDialog(project.id)}>
                           <MessageCirclePlus className="size-3" />
-                          {t("sidebar.newChat", "New Chat")}
+                          {t("sidebar.newSession", "New Session")}
                         </ContextMenuItem>
+                        <ContextMenuSeparator />
                         {!isWebUI && (
                           <ContextMenuItem
                             onClick={() => void handleRevealProjectInFinder(project)}
@@ -639,7 +752,7 @@ export function Sidebar() {
                           onClick={() => void handleDeleteProject(project)}
                         >
                           <Trash2 className="size-3" />
-                          {t("sidebar.delete")}
+                          {t("sidebar.deleteProject")}
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
@@ -649,11 +762,10 @@ export function Sidebar() {
                     align="start"
                     sideOffset={12}
                     alignOffset={0}
-                    className="w-60 p-3"
-                    onPointerEnter={() => setActionsOpenId(currentHoverId)}
+                    className="w-54 max-w-[20vw] p-3"
                   >
                     <div className="flex flex-col gap-2">
-                      <div className="text-sm font-medium leading-snug -mt-0.5">
+                      <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
                         <span>{project.title}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
@@ -693,65 +805,6 @@ export function Sidebar() {
                           </span>
                           <span>{formatRelativeTime(latestProjectUpdateAt, i18n.language)}</span>
                         </span>
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "-mx-2 -my-1 grid transition-[grid-template-rows] duration-200 ease-out",
-                        actionsOpenId === currentHoverId ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                      )}
-                    >
-                      <div className="min-h-0 mt-2 -mb-1 overflow-hidden">
-                        <Separator className="my-1" />
-                        <div className="flex flex-col">
-                          <button
-                            type="button"
-                            onClick={() => openNewSessionDialog(project.id)}
-                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                          >
-                            <MessageCirclePlus className="size-3 shrink-0" />
-                            {t("sidebar.newChat", "New Chat")}
-                          </button>
-                          {!isWebUI && (
-                            <button
-                              type="button"
-                              onClick={() => void handleRevealProjectInFinder(project)}
-                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                            >
-                              <FolderOpen className="size-3 shrink-0" />
-                              {t("sidebar.revealInFinder")}
-                            </button>
-                          )}
-                          {!isWebUI && (
-                            <button
-                              type="button"
-                              onClick={() => void handleOpenProjectInEditor(project)}
-                              className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                            >
-                              <Code className="size-3 shrink-0" />
-                              {t("filePanel.openInEditor", {
-                                editor:
-                                  EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
-                              })}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleRenameProject(project)}
-                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                          >
-                            <Pencil className="size-3 shrink-0" />
-                            {t("sidebar.rename")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteProject(project)}
-                            className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
-                          >
-                            <Trash2 className="size-3 shrink-0" />
-                            {t("sidebar.delete")}
-                          </button>
-                        </div>
                       </div>
                     </div>
                   </HoverCardContent>
@@ -852,7 +905,7 @@ export function Sidebar() {
                                   {agentLabel}
                                 </Badge>
                                 <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                                  {session.title || t("sidebar.newChat", "New Chat")}
+                                  {session.title || t("sidebar.newSession", "New Session")}
                                 </span>
                                 {activeIlinkSessionId === session.id && (
                                   <MessageCircle className="size-3 shrink-0 text-green-500" />
@@ -860,17 +913,31 @@ export function Sidebar() {
                               </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent className="w-48">
+                              {!isWebUI && (
+                                <ContextMenuItem
+                                  onClick={() => void handleRevealProjectInFinder(project)}
+                                >
+                                  <FolderOpen className="size-3" />
+                                  {t("sidebar.revealInFinder")}
+                                </ContextMenuItem>
+                              )}
+                              {!isWebUI && (
+                                <ContextMenuItem onClick={() => void handleOpenProjectInEditor(project)}>
+                                  <Code className="size-3" />
+                                  {t("filePanel.openInEditor", {
+                                    editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                                  })}
+                                </ContextMenuItem>
+                              )}
                               <ContextMenuItem onClick={() => handleRenameSession(session)}>
                                 <Pencil className="size-3" />
                                 {t("sidebar.rename")}
                               </ContextMenuItem>
                               {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
                                 <ContextMenuItem
-                                  onClick={() => {
-                                    request
-                                      .setActiveIlinkSession({ sessionId: session.id })
-                                      .catch(() => {});
-                                  }}
+                                  onClick={() =>
+                                    void handleSetActiveIlinkSession(session.id)
+                                  }
                                 >
                                   <MessageCircle className="size-3" />
                                   {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
@@ -878,23 +945,54 @@ export function Sidebar() {
                               )}
                               {ilinkStatus.connected && activeIlinkSessionId === session.id && (
                                 <ContextMenuItem
-                                  onClick={() => {
-                                    request
-                                      .setActiveIlinkSession({ sessionId: "" })
-                                      .catch(() => {});
-                                  }}
+                                  onClick={() =>
+                                    void handleSetActiveIlinkSession("")
+                                  }
                                 >
                                   <MessageCircle className="size-3 text-green-500" />
                                   {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
                                 </ContextMenuItem>
                               )}
+                              {session.connectionStatus === "connected" && (
+                                <>
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem
+                                    onClick={() => void handleRestartSession(session)}
+                                    disabled={sessionAction !== null}
+                                  >
+                                    {sessionAction?.id === session.id &&
+                                    sessionAction.type === "restart" ? (
+                                      <LoaderCircle className="size-3 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="size-3" />
+                                    )}
+                                    {t("sidebar.restartSession", "Restart Session")}
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onClick={() => void handleCloseSession(session)}
+                                    disabled={sessionAction !== null}
+                                  >
+                                    {sessionAction?.id === session.id &&
+                                    sessionAction.type === "close" ? (
+                                      <LoaderCircle className="size-3 animate-spin" />
+                                    ) : (
+                                      <Power className="size-3" />
+                                    )}
+                                    {sessionAction?.id === session.id &&
+                                    sessionAction.type === "close"
+                                      ? t("sidebar.closingSession", "Closing…")
+                                      : t("sidebar.closeSession", "Close Session")}
+                                  </ContextMenuItem>
+                                </>
+                              )}
                               <ContextMenuSeparator />
                               <ContextMenuItem
                                 variant="destructive"
                                 onClick={() => void handleDeleteSession(session)}
+                                disabled={sessionAction !== null}
                               >
                                 <Trash2 className="size-3" />
-                                {t("sidebar.delete")}
+                                {t("sidebar.deleteSession")}
                               </ContextMenuItem>
                             </ContextMenuContent>
                           </ContextMenu>
@@ -904,12 +1002,11 @@ export function Sidebar() {
                           align="start"
                           sideOffset={12}
                           alignOffset={0}
-                          className="w-60 p-3"
-                          onPointerEnter={() => setActionsOpenId(currentHoverId)}
+                          className="w-54 max-w-[20vw] p-3"
                         >
                           <div className="flex flex-col gap-2">
-                            <div className="text-sm font-medium leading-snug -mt-0.5 line-clamp-2">
-                              <span>{session.title || t("sidebar.newChat", "New Chat")}</span>
+                            <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
+                              <span>{session.title || t("sidebar.newSession", "New Session")}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
                               <Bot className="size-3 shrink-0" />
@@ -944,64 +1041,34 @@ export function Sidebar() {
                                 <span>{formatRelativeTime(session.createdAt, i18n.language)}</span>
                               </span>
                             </div>
-                          </div>
-                          <div
-                            className={cn(
-                              "-mx-2 -my-1 grid transition-[grid-template-rows] duration-200 ease-out",
-                              actionsOpenId === currentHoverId
-                                ? "grid-rows-[1fr]"
-                                : "grid-rows-[0fr]",
-                            )}
-                          >
-                            <div className="min-h-0 mt-2 -mb-1 overflow-hidden">
-                              <Separator className="my-1" />
-                              <div className="flex flex-col">
+                            {ilinkStatus.connected && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                                <MessageCircle
+                                  className={cn(
+                                    "size-3 shrink-0",
+                                    activeIlinkSessionId === session.id && "text-green-500",
+                                  )}
+                                />
                                 <button
                                   type="button"
-                                  onClick={() => handleRenameSession(session)}
-                                  className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                  onClick={() =>
+                                    void handleSetActiveIlinkSession(
+                                      activeIlinkSessionId === session.id ? "" : session.id,
+                                    )
+                                  }
+                                  className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
                                 >
-                                  <Pencil className="size-3 shrink-0" />
-                                  {t("sidebar.rename")}
-                                </button>
-                                {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      request
-                                        .setActiveIlinkSession({ sessionId: session.id })
-                                        .catch(() => {});
-                                    }}
-                                    className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                                  >
-                                    <MessageCircle className="size-3 shrink-0" />
-                                    {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                                  </button>
-                                )}
-                                {ilinkStatus.connected && activeIlinkSessionId === session.id && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      request
-                                        .setActiveIlinkSession({ sessionId: "" })
-                                        .catch(() => {});
-                                    }}
-                                    className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                                  >
-                                    <MessageCircle className="size-3 shrink-0 text-green-500" />
-                                    {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteSession(session)}
-                                  className="flex h-7 items-center gap-2 rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="size-3 shrink-0" />
-                                  {t("sidebar.delete")}
+                                  {t(
+                                    activeIlinkSessionId === session.id
+                                      ? "sidebar.ilinkActiveStatus"
+                                      : "sidebar.ilinkInactiveStatus",
+                                    activeIlinkSessionId === session.id
+                                      ? "WeChat Active"
+                                      : "Not WeChat Active",
+                                  )}
                                 </button>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </HoverCardContent>
                       </HoverCard>
