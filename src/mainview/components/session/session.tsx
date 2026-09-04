@@ -5,10 +5,7 @@ import { Chat } from "./chat/chat";
 import { Detail, type DetailType } from "./detail/detail";
 import { Panel, type PanelTab } from "./panel/panel";
 import { Loader2, RotateCw } from "lucide-react";
-import {
-  loadSession,
-  SessionLifecycleBusyError,
-} from "../../lib/session-lifecycle";
+import { loadSession, SessionLifecycleBusyError } from "../../lib/session-lifecycle";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import type { SessionInfo } from "../../../shared/schema";
@@ -113,13 +110,15 @@ export function Session({ session }: { session: SessionInfo }) {
     if (shouldLoadHistory && fetchingRef.current === sessionId) return;
     if (shouldLoadHistory) fetchingRef.current = sessionId;
 
-    void loadSession(sessionId, { loadHistory: shouldLoadHistory }).catch((err) => {
-      if (err instanceof SessionLifecycleBusyError) return;
-      setConnectionError(true);
-      toast.error(err instanceof Error ? err.message : String(err));
-    }).finally(() => {
-      if (fetchingRef.current === sessionId) fetchingRef.current = null;
-    });
+    void loadSession(sessionId, { loadHistory: shouldLoadHistory })
+      .catch((err) => {
+        if (err instanceof SessionLifecycleBusyError) return;
+        setConnectionError(true);
+        toast.error(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (fetchingRef.current === sessionId) fetchingRef.current = null;
+      });
   }, [sessionId, isCreatingSession, toast]);
 
   return (

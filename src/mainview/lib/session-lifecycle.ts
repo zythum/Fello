@@ -110,7 +110,10 @@ function finishLoadingSession(sessionId: string): void {
   });
 }
 
-async function restoreSessionHistory(sessionId: string, keepLoading: boolean): Promise<Set<string>> {
+async function restoreSessionHistory(
+  sessionId: string,
+  keepLoading: boolean,
+): Promise<Set<string>> {
   const result = await request.getSessionHistory({ sessionId });
   if (!result) {
     throw new Error("Session history is unavailable.");
@@ -259,9 +262,7 @@ export function closeSession(sessionId: string): Promise<void> {
 }
 
 export function deleteProject(projectId: string, sessionIds: string[]): Promise<void> {
-  return withSessionLifecycleLocks(sessionIds, "delete", () =>
-    request.deleteProject(projectId),
-  );
+  return withSessionLifecycleLocks(sessionIds, "delete", () => request.deleteProject(projectId));
 }
 
 export function deleteSessions(sessionIds: string[]): Promise<void> {
@@ -276,19 +277,12 @@ export function deleteSession(sessionId: string): Promise<void> {
   return deleteSessions([sessionId]);
 }
 
-export function updateAgentSettings(
-  agents: AgentInfo[],
-  sessionIds: string[],
-): Promise<void> {
-  return withSessionLifecycleLocks(sessionIds, "reset", () =>
-    request.updateSettings({ agents }),
-  );
+export function updateAgentSettings(agents: AgentInfo[], sessionIds: string[]): Promise<void> {
+  return withSessionLifecycleLocks(sessionIds, "reset", () => request.updateSettings({ agents }));
 }
 
 export function resetAgent(agentId: string, sessionIds: string[]): Promise<void> {
-  return withSessionLifecycleLocks(sessionIds, "reset", () =>
-    request.resetAgent({ agentId }),
-  );
+  return withSessionLifecycleLocks(sessionIds, "reset", () => request.resetAgent({ agentId }));
 }
 
 export function clearAgentSessions(

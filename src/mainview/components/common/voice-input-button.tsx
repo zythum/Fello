@@ -227,14 +227,7 @@ export function VoiceInputButton({
     } finally {
       setStarting(false);
     }
-  }, [
-    asr.configured,
-    disabled,
-    handleStart,
-    refreshInputDevices,
-    savedDeviceId,
-    starting,
-  ]);
+  }, [asr.configured, disabled, handleStart, refreshInputDevices, savedDeviceId, starting]);
 
   const handleShortcutToggle = useCallback(async () => {
     if (disabled || !asr.configured || starting) return;
@@ -284,13 +277,7 @@ export function VoiceInputButton({
       if (event.key === "Escape") {
         lastAltTapAtRef.current = null;
         suppressAltUntilRef.current = 0;
-        if (
-          !event.repeat &&
-          !event.ctrlKey &&
-          !event.metaKey &&
-          !event.shiftKey &&
-          asr.recording
-        ) {
+        if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.shiftKey && asr.recording) {
           event.preventDefault();
           void handleStop();
         }
@@ -301,7 +288,13 @@ export function VoiceInputButton({
         lastAltTapAtRef.current = null;
         return;
       }
-      if (!altDoublePressEnabled || event.repeat || event.ctrlKey || event.metaKey || event.shiftKey) {
+      if (
+        !altDoublePressEnabled ||
+        event.repeat ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
         lastAltTapAtRef.current = null;
         return;
       }
@@ -356,13 +349,7 @@ export function VoiceInputButton({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", resetAltTap);
     };
-  }, [
-    altDoublePressEnabled,
-    asr.recording,
-    handleShortcutToggle,
-    handleStop,
-    inputRef,
-  ]);
+  }, [altDoublePressEnabled, asr.recording, handleShortcutToggle, handleStop, inputRef]);
 
   useEffect(() => {
     const textarea = inputRef.current;

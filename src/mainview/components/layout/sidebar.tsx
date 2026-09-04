@@ -52,6 +52,7 @@ import {
   Clock,
   Code,
   Bot,
+  Eye,
   Folder,
   FolderClosed,
   FolderOpen,
@@ -190,9 +191,10 @@ export function Sidebar() {
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
-  const [sessionAction, setSessionAction] = useState<
-    { id: string; type: "restart" | "close" | "delete" } | null
-  >(null);
+  const [sessionAction, setSessionAction] = useState<{
+    id: string;
+    type: "restart" | "close" | "delete";
+  } | null>(null);
   // 记录鼠标当前悬停的条目（用于右键菜单关闭后恢复 hover 卡片，避免出现后立即消失的闪现）
   const hoveredTriggerIdRef = useRef<string | null>(null);
 
@@ -277,7 +279,9 @@ export function Sidebar() {
       return true;
     } catch (err) {
       console.error("Failed to create new session:", err);
-      toast.error(getErrorMessage(err, t("sidebar.newSessionFailed", "Failed to create a new session.")));
+      toast.error(
+        getErrorMessage(err, t("sidebar.newSessionFailed", "Failed to create a new session.")),
+      );
       return false;
     } finally {
       useAppStore.getState().setIsCreatingSession(false);
@@ -383,8 +387,7 @@ export function Sidebar() {
         return;
       }
       toast.error(
-        extractErrorMessage(err) ||
-          t("sidebar.failedToCloseSession", "Failed to close session."),
+        extractErrorMessage(err) || t("sidebar.failedToCloseSession", "Failed to close session."),
       );
     } finally {
       setSessionAction(null);
@@ -428,7 +431,8 @@ export function Sidebar() {
                 return null;
               }
               toast.error(
-                extractErrorMessage(err) || t("sidebar.failedToDeleteSession", "Failed to delete session."),
+                extractErrorMessage(err) ||
+                  t("sidebar.failedToDeleteSession", "Failed to delete session."),
               );
               return null;
             } finally {
@@ -481,7 +485,9 @@ export function Sidebar() {
           text: t("sidebar.delete"),
           value: async () => {
             const state = useAppStore.getState();
-            const projectSessions = state.sessions.filter((session) => session.projectId === project.id);
+            const projectSessions = state.sessions.filter(
+              (session) => session.projectId === project.id,
+            );
             const activeSession = projectSessions.find((session) => session.id === activeSessionId);
             if (activeSession) {
               handleNavigate("/");
@@ -916,6 +922,14 @@ export function Sidebar() {
                               </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent className="w-48">
+                              <ContextMenuItem
+                                onClick={() => handleSelectSession(session)}
+                                className="font-medium text-foreground"
+                              >
+                                <Eye className="size-3" />
+                                {t("sidebar.viewSession", "View Session")}
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
                               {!isWebUI && (
                                 <ContextMenuItem
                                   onClick={() => void handleRevealProjectInFinder(project)}
@@ -925,10 +939,13 @@ export function Sidebar() {
                                 </ContextMenuItem>
                               )}
                               {!isWebUI && (
-                                <ContextMenuItem onClick={() => void handleOpenProjectInEditor(project)}>
+                                <ContextMenuItem
+                                  onClick={() => void handleOpenProjectInEditor(project)}
+                                >
                                   <Code className="size-3" />
                                   {t("filePanel.openInEditor", {
-                                    editor: EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
+                                    editor:
+                                      EDITOR_LABELS[useAppStore.getState().editor.name] ?? "Editor",
                                   })}
                                 </ContextMenuItem>
                               )}
@@ -938,9 +955,7 @@ export function Sidebar() {
                               </ContextMenuItem>
                               {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
                                 <ContextMenuItem
-                                  onClick={() =>
-                                    void handleSetActiveIlinkSession(session.id)
-                                  }
+                                  onClick={() => void handleSetActiveIlinkSession(session.id)}
                                 >
                                   <MessageCircle className="size-3" />
                                   {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
@@ -948,9 +963,7 @@ export function Sidebar() {
                               )}
                               {ilinkStatus.connected && activeIlinkSessionId === session.id && (
                                 <ContextMenuItem
-                                  onClick={() =>
-                                    void handleSetActiveIlinkSession("")
-                                  }
+                                  onClick={() => void handleSetActiveIlinkSession("")}
                                 >
                                   <MessageCircle className="size-3 text-green-500" />
                                   {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}

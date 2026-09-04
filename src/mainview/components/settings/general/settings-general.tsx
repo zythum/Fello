@@ -96,10 +96,7 @@ export function SettingsGeneral() {
       await request.updateSettings({ voiceInput: newVoiceInput });
     } catch {
       toast.error(
-        t(
-          "settings.general.saveVoiceInputFailed",
-          "Failed to save voice input setting.",
-        ),
+        t("settings.general.saveVoiceInputFailed", "Failed to save voice input setting."),
       );
     }
   };

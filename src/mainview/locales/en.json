@@ -37,6 +37,7 @@
     "projectNameEmpty": "Project name cannot be empty.",
     "sessionNameEmpty": "Session name cannot be empty.",
     "newSession": "New Session",
+    "viewSession": "View Session",
     "projectActions": "Project actions for {{title}}",
     "createSessionInProject": "Create session in {{title}}",
     "sessionActions": "Session actions for {{title}}",

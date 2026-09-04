@@ -37,6 +37,7 @@
     "projectNameEmpty": "项目名称不能为空。",
     "sessionNameEmpty": "会话名称不能为空。",
     "newSession": "新会话",
+    "viewSession": "查看会话",
     "projectActions": "项目操作：{{title}}",
     "createSessionInProject": "在 {{title}} 中创建会话",
     "sessionActions": "会话操作：{{title}}",
