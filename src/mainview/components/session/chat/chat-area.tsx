@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { copyText as clipboardCopyText } from "@/lib/clipboard";
 import { ArrowDown, ArrowUpToLine, Check, Copy, Bot } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
+import { useFocusTarget } from "../../../lib/keyboard";
 
 import type { SessionInfo } from "../../../../shared/schema";
 
@@ -64,6 +65,13 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   const getViewport = useCallback(() => {
     return scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
   }, []);
+
+  const focusChatArea = useCallback(() => {
+    const viewport = getViewport();
+    if (!viewport) return;
+    viewport.focus({ preventScroll: true });
+  }, [getViewport]);
+  useFocusTarget("chat-area", focusChatArea);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     if (scrollTimeoutRef.current) {

@@ -14,6 +14,7 @@ import {
   nodesToMentionText,
   type SearchFileItem,
 } from "../../../lib/mention-utils";
+import { useFocusTarget } from "../../../lib/keyboard";
 import {
   useSessionIsLoading,
   useSessionAskUserRequests,
@@ -229,6 +230,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
   const getTextarea = useCallback(() => textareaRef.current, []);
+
+  const focusInput = useCallback(() => {
+    getTextarea()?.focus({ preventScroll: true });
+  }, [getTextarea]);
+  useFocusTarget("chat-input", focusInput);
 
   /**
    * 在光标处插入 # 或 @ 并触发展开建议弹层。
@@ -894,7 +900,6 @@ export function ChatInput({ session }: { session: SessionInfo }) {
             className="chat-mentions-input"
             autoCorrect="off"
             autoComplete="off"
-            autoFocus
             spellCheck={false}
             a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
           >
