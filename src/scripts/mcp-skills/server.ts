@@ -54,7 +54,8 @@ server.registerTool(
   {
     title: "List Skills",
     description:
-      `Get available **Agent Skills** Catalog with their id, name and description.` +
+      "Get available **Agent Skills** Catalog with their id, name and description. " +
+      "If the user message contains a skill mention in the form `@skill:xxxxx`, call this tool to find the matching skill before proceeding, then use the returned skill id with `activate_skill`." +
       (() => {
         if (initialCatalog.length <= 0) {
           return "";
