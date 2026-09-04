@@ -721,7 +721,10 @@ export function Sidebar() {
                         </button>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-48">
-                        <ContextMenuItem onClick={() => openNewSessionDialog(project.id)}>
+                        <ContextMenuItem
+                          onClick={() => openNewSessionDialog(project.id)}
+                          className="font-medium text-foreground"
+                        >
                           <MessageCirclePlus className="size-3" />
                           {t("sidebar.newSession", "New Session")}
                         </ContextMenuItem>
@@ -1322,9 +1325,10 @@ export function Sidebar() {
             </Button>
             <Button
               size="sm"
-              className="h-8 text-xs"
+              className="h-8 text-xs focus:border-ring focus:ring-3 focus:ring-ring/50"
               variant="default"
               disabled={creating}
+              autoFocus
               onClick={handleCreateNewSession}
             >
               {creating && <LoaderCircle className="size-3 animate-spin" />}
