@@ -1,4 +1,11 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
@@ -35,6 +42,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { useMessage } from "../providers/message";
+import { useFocusTarget } from "../../lib/keyboard";
 import {
   closeSession,
   deleteProject,
@@ -99,6 +107,14 @@ function sessionHoverId(id: string): string {
   return `s:${id}`;
 }
 
+type SidebarNavigationItem =
+  | { type: "project"; id: string }
+  | { type: "session"; id: string; projectId: string };
+
+function sidebarNavigationItemKey(item: SidebarNavigationItem): string {
+  return item.type === "project" ? `project:${item.id}` : `session:${item.id}`;
+}
+
 export function Sidebar() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -148,6 +164,7 @@ export function Sidebar() {
     setProjects,
     setSessions,
     sidebarOpen,
+    setSidebarOpen,
     configuredAgents,
     configuredMcpServers,
     sessionStates,
@@ -570,6 +587,160 @@ export function Sidebar() {
     setExpandedProjects((prev) => ({ ...prev, [projectId]: !isProjectExpanded(projectId) }));
   };
 
+  const navigationItemRefs = useRef(new Map<string, HTMLDivElement>());
+  const sessionListRef = useRef<HTMLDivElement>(null);
+  const navigationItems = useMemo(() => {
+    const items: SidebarNavigationItem[] = [];
+    for (const project of sortedProjects) {
+      items.push({ type: "project", id: project.id });
+      if (expandedProjects[project.id] ?? true) {
+        for (const session of sessionsByProject[project.id] ?? []) {
+          items.push({ type: "session", id: session.id, projectId: project.id });
+        }
+      }
+    }
+    return items;
+  }, [expandedProjects, sessionsByProject, sortedProjects]);
+
+  const focusNavigationItem = useCallback(
+    (item: SidebarNavigationItem) => {
+      let element: HTMLElement | undefined = navigationItemRefs.current.get(
+        sidebarNavigationItemKey(item),
+      );
+      if (!element) {
+        const itemIndex = navigationItems.findIndex(
+          (navigationItem) =>
+            sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
+        );
+        element = sessionListRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]')[itemIndex];
+      }
+      if (!element) return;
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ block: "nearest" });
+    },
+    [navigationItems],
+  );
+
+  const focusSidebarSessions = useCallback(() => {
+    const focusVisibleItem = () => {
+      const activeSession = sessions.find((session) => session.id === activeSessionId);
+      const targetItem = activeSession
+        ? (navigationItems.find(
+            (item) => item.type === "session" && item.id === activeSession.id,
+          ) ??
+          navigationItems.find(
+            (item) => item.type === "project" && item.id === activeSession.projectId,
+          ))
+        : navigationItems[0];
+
+      if (targetItem) {
+        focusNavigationItem(targetItem);
+      } else {
+        sessionListRef.current?.focus({ preventScroll: true });
+      }
+    };
+
+    if (!sidebarOpen) {
+      setSidebarOpen(true);
+    }
+    window.requestAnimationFrame(focusVisibleItem);
+  }, [
+    activeSessionId,
+    focusNavigationItem,
+    navigationItems,
+    sessions,
+    setSidebarOpen,
+    sidebarOpen,
+  ]);
+
+  useFocusTarget("sidebar-sessions", focusSidebarSessions);
+
+  const handleNavigationKeyDown = (
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    item: SidebarNavigationItem,
+  ) => {
+    const { key } = event;
+    const isVerticalNavigationKey =
+      key === "ArrowUp" || key === "ArrowDown" || key === "Home" || key === "End";
+
+    if (isVerticalNavigationKey) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const currentIndex = navigationItems.findIndex(
+        (navigationItem) =>
+          sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
+      );
+      if (navigationItems.length === 0) return;
+      const nextIndex =
+        key === "Home"
+          ? 0
+          : key === "End"
+            ? navigationItems.length - 1
+            : Math.max(
+                0,
+                Math.min(navigationItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
+              );
+      const nextItem = navigationItems[nextIndex];
+      if (nextItem) focusNavigationItem(nextItem);
+      return;
+    }
+
+    if (key === "/") {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = event.currentTarget;
+      const rect = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          button: 2,
+          buttons: 2,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        }),
+      );
+      return;
+    }
+
+    if (key === "ArrowLeft" || key === "ArrowRight") {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (item.type === "project") {
+        if (key === "ArrowLeft") {
+          if (isProjectExpanded(item.id)) {
+            setExpandedProjects((prev) => ({ ...prev, [item.id]: false }));
+          }
+        } else if (!isProjectExpanded(item.id)) {
+          setExpandedProjects((prev) => ({ ...prev, [item.id]: true }));
+        } else {
+          const firstChild = navigationItems.find(
+            (navigationItem) =>
+              navigationItem.type === "session" && navigationItem.projectId === item.id,
+          );
+          if (firstChild) focusNavigationItem(firstChild);
+        }
+      } else if (key === "ArrowLeft") {
+        focusNavigationItem({ type: "project", id: item.projectId });
+      }
+      return;
+    }
+
+    if (key === "Enter" || key === " " || key === "Spacebar") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (item.type === "project") {
+        toggleProject(item.id);
+      } else {
+        const session = sessions.find((candidate) => candidate.id === item.id);
+        if (session) void handleSelectSession(session);
+      }
+    }
+  };
+
   return (
     <aside
       className={cn(
@@ -641,7 +812,13 @@ export function Sidebar() {
         </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-0.5 p-1.5">
+        <div
+          ref={sessionListRef}
+          tabIndex={-1}
+          role="tree"
+          aria-label={t("sidebar.sessions", "Sessions")}
+          className="space-y-0.5 p-1.5 outline-none focus:ring-1 focus:ring-ring/50"
+        >
           {sortedProjects.map((project) => {
             const projectSessions = sessionsByProject[project.id] ?? [];
             const expanded = isProjectExpanded(project.id);
@@ -688,7 +865,28 @@ export function Sidebar() {
                       <ContextMenuTrigger
                         render={
                           <div
+                            ref={(element) => {
+                              const key = sidebarNavigationItemKey({
+                                type: "project",
+                                id: project.id,
+                              });
+                              if (element) {
+                                navigationItemRefs.current.set(key, element);
+                              } else {
+                                navigationItemRefs.current.delete(key);
+                              }
+                            }}
+                            tabIndex={-1}
+                            role="treeitem"
+                            aria-level={1}
+                            aria-expanded={expanded}
                             onClick={() => toggleProject(project.id)}
+                            onKeyDown={(event) =>
+                              handleNavigationKeyDown(event, {
+                                type: "project",
+                                id: project.id,
+                              })
+                            }
                             onPointerEnter={() => {
                               hoveredTriggerIdRef.current = currentHoverId;
                             }}
@@ -696,7 +894,7 @@ export function Sidebar() {
                               hoveredTriggerIdRef.current = null;
                             }}
                             className={cn(
-                              "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80",
+                              "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
                               connectedSessions.length > 0 ? "text-sidebar-foreground/60" : "",
                               hoverId === currentHoverId || contextMenuId === currentHoverId
                                 ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
@@ -862,14 +1060,37 @@ export function Sidebar() {
                             <ContextMenuTrigger
                               render={
                                 <div
+                                  ref={(element) => {
+                                    const key = sidebarNavigationItemKey({
+                                      type: "session",
+                                      id: session.id,
+                                      projectId: project.id,
+                                    });
+                                    if (element) {
+                                      navigationItemRefs.current.set(key, element);
+                                    } else {
+                                      navigationItemRefs.current.delete(key);
+                                    }
+                                  }}
+                                  tabIndex={-1}
+                                  role="treeitem"
+                                  aria-level={2}
+                                  aria-current={activeSessionId === session.id ? "page" : undefined}
                                   onClick={() => handleSelectSession(session)}
+                                  onKeyDown={(event) =>
+                                    handleNavigationKeyDown(event, {
+                                      type: "session",
+                                      id: session.id,
+                                      projectId: project.id,
+                                    })
+                                  }
                                   onPointerEnter={() => {
                                     hoveredTriggerIdRef.current = currentHoverId;
                                   }}
                                   onPointerLeave={() => {
                                     hoveredTriggerIdRef.current = null;
                                   }}
-                                  className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors ${
+                                  className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring/50 ${
                                     activeSessionId === session.id
                                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
