@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { useMessage } from "../../providers/message";
 import { copyText } from "@/lib/clipboard";
@@ -50,6 +51,21 @@ export function ChatHeader({ session }: ChatHeaderProps) {
       prev.includes(mcpId) ? prev.filter((id) => id !== mcpId) : [...prev, mcpId],
     );
   }, []);
+
+  const handlePermissionChange = useCallback(
+    async (permissionMode: SessionInfo["permissionMode"]) => {
+      try {
+        await request.updateSession({ sessionId: session.id, permissionMode });
+      } catch (err) {
+        console.error("Failed to update session permission:", err);
+        toast.error(
+          extractErrorMessage(err) ||
+            t("chatHeader.failedToUpdatePermission", "Failed to update permission."),
+        );
+      }
+    },
+    [session.id, t, toast],
+  );
 
   const handleSyncAndRefresh = async () => {
     if (!session || isClosing || isRestarting) return;
@@ -148,7 +164,7 @@ export function ChatHeader({ session }: ChatHeaderProps) {
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
               <PopoverPrimitive.Popup className="z-10 w-110 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
-                <div className="space-y-1 py-1">
+                <div className="space-y-px py-1">
                   {/* Session */}
                   <div className="px-2">
                     <CopyableRow
@@ -177,6 +193,32 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                     />
                   </div>
                 </div>
+
+                {/* Divider */}
+                <div className="border-t border-border/50 my-1" />
+
+                {/* Permission segmented control */}
+                <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
+                  {t("sidebar.newSessionDialog.permission", "Permission")}
+                </div>
+                <Tabs
+                  value={session.permissionMode}
+                  onValueChange={(value) => {
+                    if (value === "ask" || value === "allow-all") {
+                      void handlePermissionChange(value);
+                    }
+                  }}
+                  className="w-full px-2 my-2"
+                >
+                  <TabsList className="w-full">
+                    <TabsTrigger value="ask" className="text-xs">
+                      {t("sidebar.newSessionDialog.permissionAsk", "Ask")}
+                    </TabsTrigger>
+                    <TabsTrigger value="allow-all" className="text-xs">
+                      {t("sidebar.newSessionDialog.permissionAllowAll", "Allow all")}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
                 {/* Divider */}
                 <div className="border-t border-border/50 my-1" />

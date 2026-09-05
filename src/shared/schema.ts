@@ -818,9 +818,11 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: AskUserRequest[];
   };
-  /** 更新会话属性（title / mcpServers / features 等） */
+  /** 更新会话属性（title / mcpServers / features / permissionMode 等） */
   updateSession: {
-    params: { sessionId: string } & Partial<Pick<SessionInfo, "title" | "mcpServers" | "features">>;
+    params: { sessionId: string } & Partial<
+      Pick<SessionInfo, "title" | "mcpServers" | "features" | "permissionMode">
+    >;
     response: void;
   };
   /** 更改会话的工作目录 */
