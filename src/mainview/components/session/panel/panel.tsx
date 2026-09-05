@@ -1,6 +1,8 @@
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Folders, SquareTerminal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
 import { FilePanel } from "./file-panel/file-panel";
 import { TerminalPanel } from "./terminal-panel/terminal-panel";
 
@@ -26,6 +28,32 @@ export function Panel({
   onSelectTerminal,
 }: PanelProps) {
   const { t } = useTranslation();
+  const { focus } = useFocusTargetRegistry();
+  const focusFileTree = useCallback(() => {
+    const focusFileTreeContent = () => focus("file-tree-content");
+    if (tab === "files") {
+      focusFileTreeContent();
+      return;
+    }
+
+    onTabChange("files");
+    window.requestAnimationFrame(focusFileTreeContent);
+  }, [focus, onTabChange, tab]);
+
+  useFocusTarget("file-tree", focusFileTree, Boolean(projectId));
+
+  const focusTerminalList = useCallback(() => {
+    const focusTerminalListContent = () => focus("terminal-list-content");
+    if (tab === "terminal") {
+      focusTerminalListContent();
+      return;
+    }
+
+    onTabChange("terminal");
+    window.requestAnimationFrame(focusTerminalListContent);
+  }, [focus, onTabChange, tab]);
+
+  useFocusTarget("terminal-list", focusTerminalList, Boolean(projectId));
 
   if (!projectId) {
     return (
@@ -55,7 +83,7 @@ export function Panel({
           </TabsList>
         </div>
 
-        <TabsContent value="files" className="flex-1 min-h-0">
+        <TabsContent value="files" keepMounted className="flex-1 min-h-0">
           <FilePanel
             projectId={projectId}
             previewFileId={previewFileId}
@@ -63,7 +91,7 @@ export function Panel({
           />
         </TabsContent>
 
-        <TabsContent value="terminal" className="flex-1 min-h-0">
+        <TabsContent value="terminal" keepMounted className="flex-1 min-h-0">
           <TerminalPanel
             projectId={projectId}
             activeTerminalId={activeTerminalId}

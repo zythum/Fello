@@ -600,6 +600,7 @@
   },
   "filePanel": {
     "title": "文件",
+    "view": "查看",
     "emptyDirectory": "空目录",
     "newFile": "新建文件",
     "newFolder": "新建文件夹",
@@ -702,7 +703,9 @@
   "terminalPanel": {
     "title": "终端",
     "noTerminalSelected": "未选择终端",
-    "addTerminal": "添加终端"
+    "addTerminal": "添加终端",
+    "view": "查看",
+    "delete": "删除终端"
   },
   "permission": {
     "title": "需要权限",

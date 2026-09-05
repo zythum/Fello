@@ -588,6 +588,7 @@ export function Sidebar() {
   };
 
   const navigationItemRefs = useRef(new Map<string, HTMLDivElement>());
+  const addProjectButtonRef = useRef<HTMLButtonElement>(null);
   const sessionListRef = useRef<HTMLDivElement>(null);
   const navigationItems = useMemo(() => {
     const items: SidebarNavigationItem[] = [];
@@ -636,7 +637,7 @@ export function Sidebar() {
       if (targetItem) {
         focusNavigationItem(targetItem);
       } else {
-        sessionListRef.current?.focus({ preventScroll: true });
+        addProjectButtonRef.current?.focus({ preventScroll: true });
       }
     };
 
@@ -672,6 +673,10 @@ export function Sidebar() {
           sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
       );
       if (navigationItems.length === 0) return;
+      if (key === "ArrowUp" && currentIndex === 0) {
+        addProjectButtonRef.current?.focus({ preventScroll: true });
+        return;
+      }
       const nextIndex =
         key === "Home"
           ? 0
@@ -741,6 +746,30 @@ export function Sidebar() {
     }
   };
 
+  const handleAddProjectKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const { key } = event;
+    if (key === "ArrowLeft" || key === "ArrowRight" || key === "Home" || key === "End") {
+      event.preventDefault();
+      event.stopPropagation();
+      addProjectButtonRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (key === "ArrowDown") {
+      event.preventDefault();
+      event.stopPropagation();
+      const firstItem = navigationItems[0];
+      if (firstItem) focusNavigationItem(firstItem);
+      return;
+    }
+
+    if (key === "Enter" || key === " " || key === "Spacebar") {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleAddProject();
+    }
+  };
+
   return (
     <aside
       className={cn(
@@ -803,10 +832,14 @@ export function Sidebar() {
           {t("sidebar.projects")}
         </span>
         <Button
+          ref={addProjectButtonRef}
           variant="ghost"
           size="icon"
-          className="size-4 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
+          tabIndex={-1}
+          className="size-6 -mr-2 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
           onClick={handleAddProject}
+          onKeyDown={handleAddProjectKeyDown}
+          aria-label={t("sidebar.addProject", "Add project")}
         >
           <FolderPlus className="size-3.5" />
         </Button>
@@ -814,7 +847,6 @@ export function Sidebar() {
       <ScrollArea className="min-h-0 flex-1">
         <div
           ref={sessionListRef}
-          tabIndex={-1}
           role="tree"
           aria-label={t("sidebar.sessions", "Sessions")}
           className="space-y-0.5 p-1.5 outline-none focus:ring-1 focus:ring-ring/50"

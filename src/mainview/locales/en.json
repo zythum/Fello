@@ -601,6 +601,7 @@
   },
   "filePanel": {
     "title": "Files",
+    "view": "View",
     "emptyDirectory": "Empty directory",
     "newFile": "New File",
     "newFolder": "New Folder",
@@ -703,7 +704,9 @@
   "terminalPanel": {
     "title": "Terminal",
     "noTerminalSelected": "No terminal selected",
-    "addTerminal": "Add terminal"
+    "addTerminal": "Add terminal",
+    "view": "View",
+    "delete": "Delete terminal"
   },
   "permission": {
     "title": "Permission Required",

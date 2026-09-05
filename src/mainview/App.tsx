@@ -60,6 +60,16 @@ function AppContent() {
       ignoreInputs: false,
     },
     {
+      shortcut: "Mod+Shift+D",
+      handler: () => focus("file-tree"),
+      ignoreInputs: false,
+    },
+    {
+      shortcut: "Mod+Shift+T",
+      handler: () => focus("terminal-list"),
+      ignoreInputs: false,
+    },
+    {
       shortcut: "Mod+Shift+E",
       handler: () => focus("sidebar-sessions"),
       ignoreInputs: false,

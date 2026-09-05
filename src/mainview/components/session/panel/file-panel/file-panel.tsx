@@ -35,10 +35,12 @@ import {
   Folders,
   Code,
   ListChevronsDownUp,
+  Eye,
 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { FileIcon } from "../../../common/file-icon";
+import { useFocusTarget } from "../../../../lib/keyboard";
 
 interface TreeNode {
   id: string;
@@ -83,6 +85,21 @@ const GIT_SUMMARY_BADGES = [
 
 type GitSummaryKey = (typeof GIT_SUMMARY_BADGES)[number]["key"];
 
+type FileNavigationAction =
+  | "reveal"
+  | "editor"
+  | "new-file"
+  | "new-folder"
+  | "refresh"
+  | "collapse";
+type FileNavigationItem =
+  | { type: "action"; action: FileNavigationAction }
+  | { type: "tree"; id: string };
+
+function fileNavigationItemKey(item: FileNavigationItem) {
+  return item.type === "action" ? `action:${item.action}` : `tree:${item.id}`;
+}
+
 function TreeItem({
   node,
   depth,
@@ -97,6 +114,9 @@ function TreeItem({
   onEditSubmit,
   onEditCancel,
   actions,
+  onKeyDown,
+  registerRef,
+  onFocus,
 }: {
   node: TreeNode;
   depth: number;
@@ -111,6 +131,9 @@ function TreeItem({
   onEditSubmit: () => void;
   onEditCancel: () => void;
   actions: Actions;
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, node: TreeNode) => void;
+  registerRef: (id: string, element: HTMLDivElement | null) => void;
+  onFocus: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const isOpen = openFolders.has(node.id);
@@ -123,6 +146,16 @@ function TreeItem({
     if (isEditing) setTimeout(() => inputRef.current?.focus(), 0);
   }, [isEditing]);
 
+  const handleView = (e: React.MouseEvent) => {
+    if (node.isFolder) {
+      actions.toggle(node);
+      actions.select(node.id, e);
+    } else {
+      actions.previewFile(node.id);
+      actions.select(node.id, e);
+    }
+  };
+
   const childProps = {
     selectedIds,
     openFolders,
@@ -134,6 +167,9 @@ function TreeItem({
     onEditSubmit,
     onEditCancel,
     actions,
+    onKeyDown,
+    registerRef,
+    onFocus,
   };
 
   const status = gitStatusMap.get(node.id);
@@ -171,7 +207,21 @@ function TreeItem({
     <>
       <ContextMenu>
         <ContextMenuTrigger
-          render={<div />}
+          render={
+            <div
+              ref={(element) => registerRef(node.id, element)}
+              tabIndex={-1}
+              role="treeitem"
+              aria-level={depth + 1}
+              aria-expanded={node.isFolder ? isOpen : undefined}
+              aria-selected={isSelected}
+              className="outline-0 focus-visible:inset-ring-1 focus-visible:inset-ring-ring/80 rounded-md"
+              onKeyDown={(e) => {
+                if (e.target === e.currentTarget) onKeyDown(e, node);
+              }}
+              onFocus={() => onFocus(node.id)}
+            />
+          }
           draggable={!isEditing}
           onDragStart={(e) => {
             e.stopPropagation();
@@ -189,7 +239,6 @@ function TreeItem({
           }}
           className={cn(
             "flex h-6 cursor-default select-none items-center gap-1.5 px-1.5 text-sx leading-none text-foreground/60",
-            node.ignored && "opacity-50",
             node.id === previewId
               ? "bg-primary/8 hover:bg-primary/10"
               : "hover:bg-primary/5 hover:text-foreground",
@@ -203,13 +252,7 @@ function TreeItem({
               actions.select(node.id, e);
               return;
             }
-            if (node.isFolder) {
-              actions.toggle(node);
-              actions.select(node.id, e);
-            } else {
-              actions.previewFile(node.id);
-              actions.select(node.id, e);
-            }
+            handleView(e);
           }}
         >
           {node.isFolder ? (
@@ -217,10 +260,11 @@ function TreeItem({
               className={cn(
                 "size-3.5 shrink-0 text-muted-foreground scale-110 transition-transform",
                 isOpen && "rotate-90",
+                node.ignored && "opacity-50",
               )}
             />
           ) : (
-            <FileIcon name={node.name} className="size-3.5 shrink-0 text-muted-foreground/90" />
+            <FileIcon name={node.name} className={cn("size-3.5 shrink-0 text-muted-foreground/90", node.ignored && "opacity-50")} />
           )}
           {isEditing ? (
             <input
@@ -241,6 +285,7 @@ function TreeItem({
                 className={cn(
                   "flex-1 truncate leading-normal",
                   statusText && !node.isFolder && statusColor,
+                  node.ignored && "opacity-50",
                 )}
               >
                 {node.name}
@@ -259,6 +304,11 @@ function TreeItem({
           )}
         </ContextMenuTrigger>
         <ContextMenuContent>
+          <ContextMenuItem onClick={handleView}>
+            <Eye />
+            {t("filePanel.view")}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           {node.isFolder ? (
             <>
               <ContextMenuItem onClick={() => actions.createIn(node.id, false)}>
@@ -388,7 +438,13 @@ export const FilePanel = memo(function FilePanel({
   onPreviewFile,
 }: FilePanelProps) {
   const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const treeItemRefs = useRef(new Map<string, HTMLDivElement>());
+  const navigationActionRefs = useRef(new Map<FileNavigationAction, HTMLElement>());
+  const lastFocusedActionRef = useRef<FileNavigationAction | null>(null);
+  const focusedTreeItemIdRef = useRef<string | null>(null);
+  const pendingFocusIdRef = useRef<string | null>(null);
+  const pendingFocusRestoreRef = useRef(false);
   const [data, setData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
@@ -649,6 +705,176 @@ export const FilePanel = memo(function FilePanel({
     [openFolders],
   );
 
+  const registerTreeItemRef = useCallback((id: string, element: HTMLDivElement | null) => {
+    if (element) {
+      treeItemRefs.current.set(id, element);
+    } else {
+      treeItemRefs.current.delete(id);
+    }
+  }, []);
+
+  const registerNavigationActionRef = useCallback(
+    (action: FileNavigationAction, element: HTMLElement | null) => {
+      if (element) {
+        navigationActionRefs.current.set(action, element);
+      } else {
+        navigationActionRefs.current.delete(action);
+      }
+    },
+    [],
+  );
+
+  const handleTreeItemFocus = useCallback((id: string) => {
+    focusedTreeItemIdRef.current = id;
+  }, []);
+
+  const focusTreeItem = useCallback(
+    (id: string) => {
+      let element = treeItemRefs.current.get(id);
+      if (!element) {
+        const visibleIds = flattenTree(data);
+        const itemIndex = visibleIds.indexOf(id);
+        if (itemIndex !== -1) {
+          element = treeRef.current?.querySelectorAll<HTMLDivElement>('[role="treeitem"]')[
+            itemIndex
+          ];
+        }
+      }
+      if (!element) return;
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ block: "nearest" });
+    },
+    [data, flattenTree],
+  );
+
+  const fileNavigationItems = useMemo<FileNavigationItem[]>(() => {
+    const items: FileNavigationItem[] = [];
+    if (!isWebUI && cwd) {
+      items.push({ type: "action", action: "reveal" });
+      items.push({ type: "action", action: "editor" });
+    }
+    if (!loading) {
+      items.push(
+        { type: "action", action: "new-file" },
+        { type: "action", action: "new-folder" },
+        { type: "action", action: "refresh" },
+        { type: "action", action: "collapse" },
+      );
+    }
+    items.push(...flattenTree(data).map((id): FileNavigationItem => ({ type: "tree", id })));
+    return items;
+  }, [cwd, data, flattenTree, loading]);
+
+  const fileActionItems = useMemo(
+    () =>
+      fileNavigationItems.filter(
+        (item): item is Extract<FileNavigationItem, { type: "action" }> =>
+          item.type === "action",
+      ),
+    [fileNavigationItems],
+  );
+  const treeNavigationItems = useMemo(
+    () =>
+      fileNavigationItems.filter(
+        (item): item is Extract<FileNavigationItem, { type: "tree" }> => item.type === "tree",
+      ),
+    [fileNavigationItems],
+  );
+
+  const focusFileNavigationItem = useCallback(
+    (item: FileNavigationItem) => {
+      if (item.type === "action") {
+        const element = navigationActionRefs.current.get(item.action);
+        if (!element) return;
+        element.focus({ preventScroll: true });
+        return;
+      }
+      focusTreeItem(item.id);
+    },
+    [focusTreeItem],
+  );
+
+  const handleFileNavigationKeyDown = useCallback(
+    (
+      event: React.KeyboardEvent<HTMLElement>,
+      items: FileNavigationItem[],
+      item: FileNavigationItem,
+    ) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (items.length === 0) return;
+
+      const currentIndex = items.findIndex(
+        (navigationItem) => fileNavigationItemKey(navigationItem) === fileNavigationItemKey(item),
+      );
+      const nextIndex =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? items.length - 1
+            : Math.max(
+                0,
+                Math.min(
+                  items.length - 1,
+                  currentIndex + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1),
+                ),
+              );
+      const nextItem = items[nextIndex];
+      if (nextItem) focusFileNavigationItem(nextItem);
+    },
+    [focusFileNavigationItem],
+  );
+
+  const focusFileTree = useCallback(() => {
+    const visibleIds = flattenTree(data);
+    const targetId =
+      (lastSelectedId && visibleIds.includes(lastSelectedId) && lastSelectedId) ||
+      visibleIds.find((id) => selectedIds.has(id)) ||
+      visibleIds[0];
+
+    if (targetId) {
+      focusTreeItem(targetId);
+    } else if (fileActionItems[0]) {
+      focusFileNavigationItem(fileActionItems[0]);
+    }
+  }, [
+    data,
+    fileActionItems,
+    flattenTree,
+    focusFileNavigationItem,
+    focusTreeItem,
+    lastSelectedId,
+    selectedIds,
+  ]);
+
+  useFocusTarget("file-tree-content", focusFileTree);
+
+  useEffect(() => {
+    if (!pendingFocusRestoreRef.current || loading) return;
+
+    const visibleIds = flattenTree(data);
+    const pendingId = pendingFocusIdRef.current;
+    const targetId = pendingId && visibleIds.includes(pendingId) ? pendingId : visibleIds[0];
+    const fallbackAction = fileActionItems[0];
+    pendingFocusRestoreRef.current = false;
+    pendingFocusIdRef.current = null;
+
+    window.requestAnimationFrame(() => {
+      if (targetId) {
+        focusTreeItem(targetId);
+      } else if (fallbackAction) {
+        focusFileNavigationItem(fallbackAction);
+      }
+    });
+  }, [
+    data,
+    fileActionItems,
+    flattenTree,
+    focusFileNavigationItem,
+    focusTreeItem,
+    loading,
+  ]);
+
   // Sync openFolders to ProjectState whenever it changes, so folder expansion
   // state persists across session switches within the same project.
   useEffect(() => {
@@ -707,6 +933,95 @@ export const FilePanel = memo(function FilePanel({
       }
     },
     [activeProjectId],
+  );
+
+  const handleTreeKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, node: TreeNode) => {
+      const { key } = event;
+      const isVerticalNavigationKey =
+        key === "ArrowUp" || key === "ArrowDown" || key === "Home" || key === "End";
+
+      if (isVerticalNavigationKey) {
+        const treeItem = { type: "tree", id: node.id } as const;
+        const currentIndex = treeNavigationItems.findIndex((item) => item.id === node.id);
+        if (key === "ArrowUp" && currentIndex === 0) {
+          const actionItem =
+            fileActionItems.find((item) => item.action === lastFocusedActionRef.current) ??
+            fileActionItems[0];
+          if (actionItem) {
+            event.preventDefault();
+            event.stopPropagation();
+            focusFileNavigationItem(actionItem);
+            return;
+          }
+        }
+        handleFileNavigationKeyDown(event, treeNavigationItems, treeItem);
+        return;
+      }
+
+      if (key === "/") {
+        event.preventDefault();
+        event.stopPropagation();
+        const target = event.currentTarget;
+        const rect = target.getBoundingClientRect();
+        target.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            button: 2,
+            buttons: 2,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          }),
+        );
+        return;
+      }
+
+      if (key === "ArrowLeft" || key === "ArrowRight") {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (key === "ArrowRight" && node.isFolder) {
+          if (!openFolders.has(node.id)) {
+            toggle(node);
+          } else {
+            const firstChild = node.children?.[0];
+            if (firstChild) focusTreeItem(firstChild.id);
+          }
+        } else if (key === "ArrowLeft") {
+          if (node.isFolder && openFolders.has(node.id)) {
+            toggle(node);
+          } else {
+            const parentId = node.id.slice(0, node.id.lastIndexOf("/"));
+            if (parentId) focusTreeItem(parentId);
+          }
+        }
+        return;
+      }
+
+      if (key === "Enter" || key === " " || key === "Spacebar") {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedIds(new Set([node.id]));
+        setLastSelectedId(node.id);
+        if (node.isFolder) {
+          toggle(node);
+        } else {
+          onPreviewFile(node.id);
+        }
+      }
+    },
+    [
+      fileActionItems,
+      focusFileNavigationItem,
+      focusTreeItem,
+      handleFileNavigationKeyDown,
+      onPreviewFile,
+      openFolders,
+      toggle,
+      treeNavigationItems,
+    ],
   );
 
   const collapseAll = useCallback(() => {
@@ -866,6 +1181,33 @@ export const FilePanel = memo(function FilePanel({
         ? t("filePanel.moveToRecycleBin")
         : t("filePanel.moveToTrash");
 
+  const prepareFocusAfterDelete = (ids: string[]) => {
+    const isDeletedId = (id: string) =>
+      ids.some((deletedId) => id === deletedId || id.startsWith(`${deletedId}/`));
+    const referenceId =
+      (focusedTreeItemIdRef.current && isDeletedId(focusedTreeItemIdRef.current)
+        ? focusedTreeItemIdRef.current
+        : null) ??
+      (lastSelectedId && isDeletedId(lastSelectedId) ? lastSelectedId : null) ??
+      ids.find(isDeletedId);
+
+    if (!referenceId) return;
+
+    const visibleIds = flattenTree(data);
+    const referenceIndex = visibleIds.indexOf(referenceId);
+    const targetId =
+      (referenceIndex !== -1
+        ? visibleIds.slice(referenceIndex + 1).find((id) => !isDeletedId(id))
+        : undefined) ??
+      (referenceIndex !== -1
+        ? [...visibleIds.slice(0, referenceIndex)].reverse().find((id) => !isDeletedId(id))
+        : undefined) ??
+      visibleIds.find((id) => !isDeletedId(id));
+
+    pendingFocusIdRef.current = targetId ?? null;
+    pendingFocusRestoreRef.current = true;
+  };
+
   const deleteNode = async (ids: string[]) => {
     if (ids.length === 0 || !activeProjectId) return;
 
@@ -898,7 +1240,9 @@ export const FilePanel = memo(function FilePanel({
             } catch (err) {
               console.error("Delete failed:", extractErrorMessage(err));
             }
+            prepareFocusAfterDelete(ids);
             setSelectedIds(new Set());
+            setLastSelectedId(null);
             refresh();
             return "trashed";
           },
@@ -916,7 +1260,9 @@ export const FilePanel = memo(function FilePanel({
             } catch (err) {
               console.error("Delete failed:", extractErrorMessage(err));
             }
+            prepareFocusAfterDelete(ids);
             setSelectedIds(new Set());
+            setLastSelectedId(null);
             refresh();
             return "deleted";
           },
@@ -1407,6 +1753,59 @@ export const FilePanel = memo(function FilePanel({
     return null;
   };
 
+  const handleFileActionKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>,
+    action: FileNavigationAction,
+  ) => {
+    if (
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight" ||
+      event.key === "Home" ||
+      event.key === "End"
+    ) {
+      handleFileNavigationKeyDown(event, fileActionItems, { type: "action", action });
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      event.stopPropagation();
+      const firstTreeItem = treeNavigationItems[0];
+      if (firstTreeItem) focusFileNavigationItem(firstTreeItem);
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    switch (action) {
+      case "reveal":
+        if (cwd) void revealInFinder(cwd);
+        break;
+      case "editor":
+        if (cwd) {
+          const editorName = useAppStore.getState().editor.name;
+          void electron.openInEditor(cwd, editorName).catch((err) => {
+            console.error("openInEditor failed:", extractErrorMessage(err));
+          });
+        }
+        break;
+      case "new-file":
+        createIn(getSelectedFolder(), false);
+        break;
+      case "new-folder":
+        createIn(getSelectedFolder(), true);
+        break;
+      case "refresh":
+        refresh();
+        break;
+      case "collapse":
+        collapseAll();
+        break;
+    }
+  };
+
   if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -1437,10 +1836,13 @@ export const FilePanel = memo(function FilePanel({
     onEditSubmit: submitEdit,
     onEditCancel: () => setEditingId(null),
     actions,
+    onKeyDown: handleTreeKeyDown,
+    registerRef: registerTreeItemRef,
+    onFocus: handleTreeItemFocus,
   };
 
   return (
-    <div ref={containerRef} className="flex h-full min-h-0 flex-col text-xs w-full">
+    <div className="flex h-full min-h-0 flex-col text-xs w-full">
       {/* Header */}
       <div className="flex h-10 items-center gap-0.5 border-b border-border">
         <div className="flex text-muted-foreground items-center gap-1 px-3">
@@ -1451,20 +1853,32 @@ export const FilePanel = memo(function FilePanel({
           {!isWebUI && (
             <>
               <Button
+                ref={(element) => registerNavigationActionRef("reveal", element)}
                 variant="ghost"
                 size="icon"
+                tabIndex={-1}
                 className="size-6 text-muted-foreground hover:text-foreground"
                 disabled={!cwd}
+                onKeyDown={(event) => handleFileActionKeyDown(event, "reveal")}
+                onFocus={() => {
+                  lastFocusedActionRef.current = "reveal";
+                }}
                 onClick={() => revealInFinder(cwd)}
                 title={t("filePanel.revealInFinder")}
               >
                 <FolderOpen className="size-3.5" />
               </Button>
               <Button
+                ref={(element) => registerNavigationActionRef("editor", element)}
                 variant="ghost"
                 size="icon"
+                tabIndex={-1}
                 className="size-6 text-muted-foreground hover:text-foreground"
                 disabled={!cwd}
+                onKeyDown={(event) => handleFileActionKeyDown(event, "editor")}
+                onFocus={() => {
+                  lastFocusedActionRef.current = "editor";
+                }}
                 onClick={() => {
                   if (!cwd) return;
                   const editorName = useAppStore.getState().editor.name;
@@ -1481,40 +1895,64 @@ export const FilePanel = memo(function FilePanel({
             </>
           )}
           <Button
+            ref={(element) => registerNavigationActionRef("new-file", element)}
             variant="ghost"
             size="icon"
+            tabIndex={-1}
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
+            onKeyDown={(event) => handleFileActionKeyDown(event, "new-file")}
+            onFocus={() => {
+              lastFocusedActionRef.current = "new-file";
+            }}
             onClick={() => createIn(getSelectedFolder(), false)}
             title={t("filePanel.newFile")}
           >
             <FilePlus className="size-3.5" />
           </Button>
           <Button
+            ref={(element) => registerNavigationActionRef("new-folder", element)}
             variant="ghost"
             size="icon"
+            tabIndex={-1}
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
+            onKeyDown={(event) => handleFileActionKeyDown(event, "new-folder")}
+            onFocus={() => {
+              lastFocusedActionRef.current = "new-folder";
+            }}
             onClick={() => createIn(getSelectedFolder(), true)}
             title={t("filePanel.newFolder")}
           >
             <FolderPlus className="size-3.5" />
           </Button>
           <Button
+            ref={(element) => registerNavigationActionRef("refresh", element)}
             variant="ghost"
             size="icon"
+            tabIndex={-1}
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
+            onKeyDown={(event) => handleFileActionKeyDown(event, "refresh")}
+            onFocus={() => {
+              lastFocusedActionRef.current = "refresh";
+            }}
             onClick={refresh}
             title={t("filePanel.refresh", "Refresh")}
           >
             <RefreshCw className="size-3.5" />
           </Button>
           <Button
+            ref={(element) => registerNavigationActionRef("collapse", element)}
             variant="ghost"
             size="icon"
+            tabIndex={-1}
             className="size-6 text-muted-foreground hover:text-foreground"
             disabled={loading}
+            onKeyDown={(event) => handleFileActionKeyDown(event, "collapse")}
+            onFocus={() => {
+              lastFocusedActionRef.current = "collapse";
+            }}
             onClick={collapseAll}
             title={t("filePanel.collapseFolders")}
           >
@@ -1538,10 +1976,16 @@ export const FilePanel = memo(function FilePanel({
           <p className="text-xs text-muted-foreground/70">{t("filePanel.emptyDirectory")}</p>
         </div>
       ) : (
-        <ScrollArea className="min-h-0 flex-1 pl-1">
+        <ScrollArea className="min-h-0 flex-1 px-1">
           <ContextMenu>
             <ContextMenuTrigger
-              render={<div />}
+              render={
+                <div
+                  ref={treeRef}
+                  role="tree"
+                  aria-label={t("filePanel.title", "Files")}
+                />
+              }
               className="min-h-full py-1"
               onClick={(e) => {
                 if (e.target === e.currentTarget) clearSelection();
