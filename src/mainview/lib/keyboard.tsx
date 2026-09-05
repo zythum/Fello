@@ -76,7 +76,7 @@ export interface KeyboardShortcut {
 
 interface ParsedShortcut {
   key: string;
-  code: string | null;
+  codes: readonly string[] | null;
   alt: boolean;
   ctrl: boolean;
   meta: boolean;
@@ -94,6 +94,8 @@ const keyCodeMap: Record<string, string> = {
   escape: "Escape",
   enter: "Enter",
   return: "Enter",
+  plus: "Equal",
+  minus: "Minus",
   tab: "Tab",
   space: "Space",
   backspace: "Backspace",
@@ -110,6 +112,11 @@ const keyCodeMap: Record<string, string> = {
   "page-down": "PageDown",
 };
 
+const keyCodeAliases: Record<string, readonly string[]> = {
+  plus: ["Equal", "NumpadAdd"],
+  minus: ["Minus", "NumpadSubtract"],
+};
+
 function parseShortcut(shortcut: string): ParsedShortcut {
   const parts = shortcut
     .split("+")
@@ -123,10 +130,11 @@ function parseShortcut(shortcut: string): ParsedShortcut {
     : /^[fF]\d{1,2}$/.test(keyPart)
       ? keyPart.toUpperCase()
       : (keyCodeMap[keyPart] ?? null);
+  const codes = keyCodeAliases[keyPart] ?? (code ? [code] : null);
 
   return {
     key: normalizedKey,
-    code,
+    codes,
     alt: modifiers.has("Alt"),
     ctrl: modifiers.has("Control") || modifiers.has("Ctrl"),
     meta: modifiers.has("Meta") || modifiers.has("Cmd"),
@@ -137,6 +145,10 @@ function parseShortcut(shortcut: string): ParsedShortcut {
 
 function isMacPlatform() {
   return typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.platform);
+}
+
+function isShortcutCaptureTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && target.closest("[data-shortcut-capture]") !== null;
 }
 
 function isEditableTarget(target: EventTarget | null) {
@@ -155,7 +167,7 @@ function matchesShortcut(event: KeyboardEvent, shortcut: ParsedShortcut) {
   if (event.metaKey !== expectedMeta) return false;
   if (event.shiftKey !== shortcut.shift) return false;
 
-  if (shortcut.code) return event.code === shortcut.code;
+  if (shortcut.codes) return shortcut.codes.includes(event.code);
   return event.key.toLowerCase() === shortcut.key.toLowerCase();
 }
 
@@ -173,6 +185,8 @@ export function useKeyboardShortcuts(
         const eventTarget = event.target;
         if (!(eventTarget instanceof Node) || !scopeRef.current?.contains(eventTarget)) return;
       }
+
+      if (isShortcutCaptureTarget(event.target)) return;
 
       for (const shortcut of shortcutsRef.current) {
         if (shortcut.enabled === false) continue;

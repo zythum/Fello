@@ -29,6 +29,10 @@ const SettingsGeneral = lazyNamed(
   () => import("./components/settings/general/settings-general"),
   "SettingsGeneral",
 );
+const SettingsShortcuts = lazyNamed(
+  () => import("./components/settings/shortcuts/settings-shortcuts"),
+  "SettingsShortcuts",
+);
 const SettingsAgents = lazyNamed(
   () => import("./components/settings/agents/settings-agents"),
   "SettingsAgents",
@@ -108,6 +112,7 @@ export function AppRouter() {
           <Route path="/session-view/:sessionId" element={<SessionWrapper />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route path="general" element={<SettingsGeneral />} />
+            <Route path="shortcuts" element={<SettingsShortcuts />} />
             <Route path="agents" element={<SettingsAgents />} />
             <Route path="mcp" element={<SettingsMcp />} />
             <Route path="webui" element={<SettingsWebUI />} />

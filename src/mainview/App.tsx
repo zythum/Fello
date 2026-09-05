@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
@@ -12,7 +12,9 @@ import { ThemeProvider } from "./components/providers/theme";
 import { GlobalTextContextMenu } from "./components/global/global-text-context-menu";
 import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
-import { FocusTargetProvider, useFocusTargetRegistry, useKeyboardShortcuts } from "./lib/keyboard";
+import { FocusTargetProvider, useFocusTargetRegistry } from "./lib/keyboard";
+import { createAppCommands } from "./lib/commands/command-catalog";
+import { useCommandShortcuts } from "./lib/commands/use-command-shortcuts";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
 import { electron, UpdaterEvent } from "./electron";
 import * as tiks from "@rexa-developer/tiks";
@@ -33,12 +35,14 @@ function AppContent() {
     setImageGeneration,
     setSpeechToText,
     setVoiceInput,
+    setShortcuts,
     setProxy,
     isMacApp,
     setIsFullScreen,
     setIlinkStatus,
     setActiveIlinkSessionId,
   } = useAppStore();
+  const shortcuts = useAppStore((state) => state.shortcuts);
   const { resolvedTheme } = useTheme();
   const { i18n, t } = useTranslation();
   const { toast } = useMessage();
@@ -48,33 +52,8 @@ function AppContent() {
   const activeSessionIdRef = useRef(activeSessionId);
   const { focus } = useFocusTargetRegistry();
 
-  useKeyboardShortcuts([
-    {
-      shortcut: "Mod+Shift+I",
-      handler: () => focus("chat-input"),
-      ignoreInputs: false,
-    },
-    {
-      shortcut: "Mod+Shift+M",
-      handler: () => focus("chat-area"),
-      ignoreInputs: false,
-    },
-    {
-      shortcut: "Mod+Shift+D",
-      handler: () => focus("file-tree"),
-      ignoreInputs: false,
-    },
-    {
-      shortcut: "Mod+Shift+T",
-      handler: () => focus("terminal-list"),
-      ignoreInputs: false,
-    },
-    {
-      shortcut: "Mod+Shift+E",
-      handler: () => focus("sidebar-sessions"),
-      ignoreInputs: false,
-    },
-  ]);
+  const commands = useMemo(() => createAppCommands(focus), [focus]);
+  useCommandShortcuts(commands, shortcuts);
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
@@ -120,6 +99,7 @@ function AppContent() {
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
       if (settings.speechToText) setSpeechToText(settings.speechToText);
       if (settings.voiceInput) setVoiceInput(settings.voiceInput);
+      if (settings.shortcuts) setShortcuts(settings.shortcuts);
       // 恢复所有 session 中 pending 的 askUser 请求
       for (const session of sessions ?? []) {
         try {
@@ -157,6 +137,7 @@ function AppContent() {
     setImageGeneration,
     setSpeechToText,
     setVoiceInput,
+    setShortcuts,
     setProxy,
     setIlinkStatus,
     setActiveIlinkSessionId,

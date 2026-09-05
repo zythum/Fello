@@ -110,6 +110,28 @@
     "paste": "粘贴",
     "selectAll": "全选"
   },
+  "commands": {
+    "focusChatInput": {
+      "title": "聚焦聊天输入框",
+      "description": "将焦点移动到聊天输入框。"
+    },
+    "focusChatArea": {
+      "title": "聚焦聊天区域",
+      "description": "将焦点移动到聊天内容区域。"
+    },
+    "focusFileTree": {
+      "title": "聚焦文件树",
+      "description": "将焦点移动到项目文件树。"
+    },
+    "focusTerminalList": {
+      "title": "聚焦终端列表",
+      "description": "将焦点移动到终端列表。"
+    },
+    "focusSidebarSessions": {
+      "title": "聚焦会话列表",
+      "description": "将焦点移动到会话列表。"
+    }
+  },
   "settings": {
     "themeDesc": "自定义应用的外观",
     "languageDesc": "选择应用显示的语言",
@@ -159,6 +181,24 @@
       "editorDesc": "选择用于打开文件的编辑器",
       "selectEditor": "选择编辑器",
       "saveEditorFailed": "保存编辑器设置失败。"
+    },
+    "shortcuts": {
+      "title": "快捷键",
+      "desc": "自定义常用操作的键盘快捷键。",
+      "navigation": "导航",
+      "recording": "请按下快捷键",
+      "changeShortcut": "修改快捷键",
+      "unassigned": "未设置",
+      "delete": "删除",
+      "set": "设置",
+      "restore": "还原",
+      "setTitle": "设置快捷键",
+      "setDesc": "请按下要使用的快捷键。",
+      "cancel": "取消",
+      "confirm": "确认",
+      "reset": "恢复默认",
+      "conflict": "已被 {{command}} 使用。",
+      "saveFailed": "保存快捷键失败。"
     },
     "agents": {
       "desc": "管理智能体的配置和启动命令。",

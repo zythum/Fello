@@ -127,6 +127,7 @@ export interface AppState {
   snippets: SettingsInfo["snippets"];
   imageGeneration: SettingsInfo["imageGeneration"];
   speechToText: SettingsInfo["speechToText"];
+  shortcuts: SettingsInfo["shortcuts"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
     connected: boolean;
@@ -194,6 +195,7 @@ export interface AppState {
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setImageGeneration: (imageGeneration: SettingsInfo["imageGeneration"]) => void;
   setSpeechToText: (speechToText: SettingsInfo["speechToText"]) => void;
+  setShortcuts: (shortcuts: SettingsInfo["shortcuts"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -241,6 +243,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   snippets: [],
   imageGeneration: [],
   speechToText: [],
+  shortcuts: {},
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
@@ -396,6 +399,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSnippets: (snippets) => set({ snippets }),
   setImageGeneration: (imageGeneration) => set({ imageGeneration }),
   setSpeechToText: (speechToText) => set({ speechToText }),
+  setShortcuts: (shortcuts) => set({ shortcuts }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),

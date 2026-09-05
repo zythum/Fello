@@ -461,6 +461,8 @@ export interface SpeechToTextProviderInfo {
   active: boolean;
 }
 
+export type ShortcutSettings = Record<string, string[]>;
+
 /**
  * 应用的全局设置信息
  */
@@ -483,6 +485,8 @@ export interface SettingsInfo {
   sound: SettingSoundInfo;
   /** 语音输入设置 */
   voiceInput: SettingVoiceInputInfo;
+  /** 应用快捷键覆盖配置 */
+  shortcuts: ShortcutSettings;
   /** 网络代理设置 */
   proxy: SettingProxyInfo;
   /** Snippets 列表 */

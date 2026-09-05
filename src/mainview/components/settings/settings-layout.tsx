@@ -10,6 +10,7 @@ import {
   Brain,
   ImageIcon,
   Mic,
+  Command,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "../../store";
@@ -32,6 +33,12 @@ export function SettingsLayout() {
       href: "/settings/general",
       icon: <SlidersHorizontal className="size-4" />,
       label: t("settings.general.title", "General"),
+    },
+    {
+      id: "shortcuts",
+      href: "/settings/shortcuts",
+      icon: <Command className="size-4" />,
+      label: t("settings.shortcuts.title", "Shortcuts"),
     },
     {
       id: "agents",

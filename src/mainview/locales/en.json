@@ -111,6 +111,28 @@
     "paste": "Paste",
     "selectAll": "Select All"
   },
+  "commands": {
+    "focusChatInput": {
+      "title": "Focus chat input",
+      "description": "Move focus to the chat input."
+    },
+    "focusChatArea": {
+      "title": "Focus chat area",
+      "description": "Move focus to the chat conversation."
+    },
+    "focusFileTree": {
+      "title": "Focus file tree",
+      "description": "Move focus to the project file tree."
+    },
+    "focusTerminalList": {
+      "title": "Focus terminal list",
+      "description": "Move focus to the terminal list."
+    },
+    "focusSidebarSessions": {
+      "title": "Focus session list",
+      "description": "Move focus to the session list."
+    }
+  },
   "settings": {
     "themeDesc": "Customize the appearance of the application",
     "languageDesc": "Select the display language",
@@ -160,6 +182,24 @@
       "editorDesc": "Choose the editor to open files",
       "selectEditor": "Select editor",
       "saveEditorFailed": "Failed to save editor setting."
+    },
+    "shortcuts": {
+      "title": "Shortcuts",
+      "desc": "Customize keyboard shortcuts for common actions.",
+      "navigation": "Navigation",
+      "recording": "Press a shortcut",
+      "changeShortcut": "Change shortcut",
+      "unassigned": "Unassigned",
+      "delete": "Delete",
+      "set": "Set",
+      "restore": "Restore",
+      "setTitle": "Set shortcut",
+      "setDesc": "Press the shortcut you want to use.",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "reset": "Reset to default",
+      "conflict": "Already used by {{command}}.",
+      "saveFailed": "Failed to save shortcuts."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",

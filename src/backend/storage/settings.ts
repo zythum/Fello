@@ -3,7 +3,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs";
 
 import { FELLO_DIR } from "./constant";
 
-import type { SettingProxyInfo, SnippetInfo, SettingsInfo } from "../../shared/schema";
+import type { SettingProxyInfo, ShortcutSettings, SnippetInfo, SettingsInfo } from "../../shared/schema";
 
 interface BaseAgentMeta {
   disabled: boolean;
@@ -115,6 +115,7 @@ interface SettingsMeta {
   voiceInput: {
     altDoublePress: boolean;
   };
+  shortcuts: ShortcutSettings;
   proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
@@ -145,6 +146,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   voiceInput: {
     altDoublePress: true,
   },
+  shortcuts: {},
   proxy: {
     mode: "off",
   },
@@ -163,6 +165,20 @@ function readSettings(): SettingsMeta {
       typeof value === "object" && value !== null && !Array.isArray(value);
 
     const rawObj = isObject(raw) ? raw : null;
+    const shortcuts: ShortcutSettings = (() => {
+      const rawShortcuts = rawObj && isObject(rawObj.shortcuts) ? rawObj.shortcuts : null;
+      if (!rawShortcuts) return {};
+      const next: ShortcutSettings = {};
+      for (const [commandId, value] of Object.entries(rawShortcuts)) {
+        if (Array.isArray(value)) {
+          next[commandId] = value
+            .filter((shortcut): shortcut is string => typeof shortcut === "string")
+            .map((shortcut) => shortcut.trim())
+            .filter(Boolean);
+        }
+      }
+      return next;
+    })();
     const rawAgents = rawObj && isObject(rawObj.agents) ? rawObj.agents : null;
 
     const agents: SettingsMeta["agents"] = (() => {
@@ -455,6 +471,7 @@ function readSettings(): SettingsMeta {
       editor,
       sound,
       voiceInput,
+      shortcuts,
       proxy,
       snippets,
       imageGeneration,
@@ -557,6 +574,9 @@ export function getSettings(): SettingsInfo {
     voiceInput: {
       altDoublePress: meta.voiceInput.altDoublePress,
     },
+    shortcuts: Object.fromEntries(
+      Object.entries(meta.shortcuts).map(([commandId, shortcuts]) => [commandId, shortcuts.slice()]),
+    ),
     proxy: meta.proxy ?? DEFAULT_SETTINGS.proxy!,
     snippets: meta.snippets ?? [],
     imageGeneration: (meta.imageGeneration ?? []).map((p) => ({
@@ -743,6 +763,14 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
             : prevMeta.voiceInput.altDoublePress,
       };
     })(),
+    shortcuts: settings.shortcuts
+      ? Object.fromEntries(
+          Object.entries(settings.shortcuts).map(([commandId, shortcuts]) => [
+            commandId,
+            shortcuts.map((shortcut) => shortcut.trim()).filter(Boolean),
+          ]),
+        )
+      : prevMeta.shortcuts,
     proxy: (() => {
       if (!settings.proxy) {
         return prevMeta.proxy;
