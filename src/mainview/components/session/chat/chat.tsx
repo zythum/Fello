@@ -6,10 +6,11 @@ import type { SessionInfo } from "../../../../shared/schema";
 
 export function Chat({ session }: { session: SessionInfo }) {
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-background">
+    <div className="relative flex h-full min-h-0 flex-col bg-background group/chat">
       <ChatHeader session={session} />
       <ChatArea session={session} />
       <ChatInput session={session} />
+      <div className="pointer-events-none absolute inset-0 border border-ring/90 rounded-xl transition-opacity hidden group-has-[.chat-area:focus-visible]/chat:block"></div>
       {/*
         裁切层：仅用于裁掉 ask-user 弹层"下降"后溢出 Chat 底部的部分。
         pointer-events-none 让点击穿透，弹层自身 pointer-events-auto 不受影响。

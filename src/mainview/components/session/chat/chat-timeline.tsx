@@ -103,15 +103,15 @@ export function ChatTimeline({ items, activeDisplayId, onSelect }: Props) {
               <TooltipTrigger
                 type="button"
                 onClick={() => handleSelect(item.displayId)}
-                className="p-1 group pointer-events-auto"
+                className="p-1 group/timeline pointer-events-auto outline-0"
                 aria-label={ariaLabel}
               >
                 <div
                   className={cn(
-                    "size-2 rounded-full transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    "size-2 rounded-full transition-colors outline-none group-focus-visible/timeline:ring-1 group-focus-visible/timeline:ring-ring",
                     isActive
                       ? "bg-foreground/40"
-                      : "bg-muted-foreground/15 group-hover:bg-muted-foreground/40",
+                      : "bg-muted-foreground/15 group-hover/timeline:bg-muted-foreground/40",
                   )}
                 ></div>
               </TooltipTrigger>

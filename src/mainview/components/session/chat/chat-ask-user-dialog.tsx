@@ -521,7 +521,7 @@ function AskUserOptions({
               key={option.value}
               role="button"
               tabIndex={0}
-              className={`relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px ${
+              className={`relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px ${
                 highlightedIndex === index
                   ? "ring-1 ring-sky-500 bg-sky-500/10 border-sky-500/30"
                   : option.danger

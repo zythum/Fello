@@ -1004,14 +1004,14 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           </MentionsInput>
           {/* Bottom bar: model selector + send button */}
           <div
-            className="flex cursor-text items-center justify-between gap-2 px-2 pb-2 overflow-hidden"
+            className="flex cursor-text items-center justify-between gap-2 -mt-3 overflow-hidden"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest("button, select, [role='combobox']")) return;
               getTextarea()?.focus();
             }}
           >
-            <div className="flex items-center gap-2 overflow-hidden">
+            <div className="flex items-center gap-2 p-2 overflow-hidden -mr-4">
               {availableModes.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -1146,7 +1146,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
                 </DropdownMenu>
               </div>
             </div>
-            <div className="flex items-center gap-2 overflow-hidden">
+            <div className="flex items-center gap-2 p-2 overflow-hidden">
               {availableModels.length > 0 ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
