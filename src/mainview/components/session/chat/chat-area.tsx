@@ -434,7 +434,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
       <ScrollArea
         ref={scrollAreaRef}
-        className="flex-1 w-full"
+        className="flex-1 w-full transform-gpu"
         viewportClassName="animate-in fade-in chat-area"
       >
         {hasMore && (
