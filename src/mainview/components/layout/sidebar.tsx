@@ -894,10 +894,10 @@ export function Sidebar() {
                               hoveredTriggerIdRef.current = null;
                             }}
                             className={cn(
-                              "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/45 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground/80 outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
+                              "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95 outline-none focus-visible:ring-1 focus-visible:ring-ring",
                               connectedSessions.length > 0 ? "text-sidebar-foreground/60" : "",
                               hoverId === currentHoverId || contextMenuId === currentHoverId
-                                ? "bg-sidebar-accent/25 text-sidebar-foreground/80"
+                                ? "bg-sidebar-accent"
                                 : "",
                             )}
                           />
@@ -1090,7 +1090,7 @@ export function Sidebar() {
                                   onPointerLeave={() => {
                                     hoveredTriggerIdRef.current = null;
                                   }}
-                                  className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring/50 ${
+                                  className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                                     activeSessionId === session.id
                                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
@@ -1565,7 +1565,7 @@ export function Sidebar() {
             </Button>
             <Button
               size="sm"
-              className="h-8 text-xs focus:border-ring focus:ring-3 focus:ring-ring/50"
+              className="h-8 text-xs focus:border-ring focus:ring-1 focus:ring-ring/50"
               variant="default"
               disabled={creating}
               autoFocus
