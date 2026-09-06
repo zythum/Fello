@@ -48,6 +48,7 @@ import {
 } from "../../../lib/mention-utils";
 import type { AskUserRequest } from "../../../../shared/schema";
 import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
+import { useFocusTarget } from "../../../lib/keyboard";
 
 interface Props {
   sessionId: string;
@@ -137,13 +138,16 @@ export function AskUserDialog({ sessionId }: Props) {
         */}
         <div
           ref={cardRef}
+          role="dialog"
+          aria-labelledby="ask-user-dialog-title"
+          aria-describedby={currentRequest.description ? "ask-user-dialog-description" : undefined}
           onClick={() => setCollapsed(false)}
           className="grid grid-rows-[auto_1fr_auto] rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5 max-h-[90vh]"
         >
           {/* 标题 — 固定不折叠 */}
           <div className="flex items-center gap-2 mb-3 min-h-0">
             <HelpCircle className="size-4.5 shrink-0 text-sky-500" />
-            <h3 className="text-sm font-medium leading-snug truncate">
+            <h3 id="ask-user-dialog-title" className="text-sm font-medium leading-snug truncate">
               {currentRequest.title || t("askUser.title", "Request")}
             </h3>
             <div className="flex items-center ml-auto gap-1">
@@ -161,6 +165,7 @@ export function AskUserDialog({ sessionId }: Props) {
                 aria-label={
                   collapsed ? t("askUser.expand", "Expand") : t("askUser.collapse", "Collapse")
                 }
+                aria-expanded={!collapsed}
                 title={
                   collapsed ? t("askUser.expand", "Expand") : t("askUser.collapse", "Collapse")
                 }
@@ -172,7 +177,7 @@ export function AskUserDialog({ sessionId }: Props) {
 
           {/* description — 可滚动 */}
           {currentRequest.description && (
-            <div className="min-h-0 overflow-hidden">
+            <div id="ask-user-dialog-description" className="min-h-0 overflow-hidden">
               <ScrollArea className="h-full rounded-md bg-muted/40">
                 <div className="py-3 px-2">
                   <pre className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -261,6 +266,8 @@ function AskUserOptions({
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const otherButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
   const navigate = useNavigate();
@@ -268,6 +275,15 @@ function AskUserOptions({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getTextarea = useCallback(() => textareaRef.current, []);
+
+  const focusAskUser = useCallback(() => {
+    const target = mode === "input" ? textareaRef.current : optionRefs.current[0];
+    if (!target || target.disabled) return false;
+
+    target.focus({ preventScroll: true });
+    return document.activeElement === target;
+  }, [mode]);
+  useFocusTarget("ask-user-dialog", focusAskUser);
 
   /**
    * 在光标处插入 # 或 @ 并触发展开建议弹层（与 chat-input 行为一致）。
@@ -506,10 +522,38 @@ function AskUserOptions({
 
   // 切换到输入模式时聚焦（@types/react-mentions 未声明 autoFocus，手动聚焦）
   useEffect(() => {
-    if (mode === "input") {
-      textareaRef.current?.focus();
-    }
+    if (mode !== "input") return;
+    textareaRef.current?.focus();
   }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "options" || !hasOptions) return;
+    const frame = window.requestAnimationFrame(() => optionRefs.current[0]?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasOptions, mode]);
+
+  const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const { key } = event;
+    if (key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End") {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (key === "Home") {
+        optionRefs.current[0]?.focus();
+      } else if (key === "End") {
+        if (showOther) otherButtonRef.current?.focus();
+        else optionRefs.current[request.options.length - 1]?.focus();
+      } else if (key === "ArrowDown") {
+        if (index < request.options.length - 1) {
+          optionRefs.current[index + 1]?.focus();
+        } else if (showOther) {
+          otherButtonRef.current?.focus();
+        }
+      } else if (index > 0) {
+        optionRefs.current[index - 1]?.focus();
+      }
+    }
+  };
 
   return (
     <>
@@ -517,10 +561,12 @@ function AskUserOptions({
       {mode === "options" && (
         <div className="flex flex-col gap-2">
           {request.options.map((option, index) => (
-            <div
+            <button
               key={option.value}
-              role="button"
-              tabIndex={0}
+              ref={(element) => {
+                optionRefs.current[index] = element;
+              }}
+              type="button"
               className={`relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px ${
                 highlightedIndex === index
                   ? "ring-1 ring-sky-500 bg-sky-500/10 border-sky-500/30"
@@ -529,12 +575,7 @@ function AskUserOptions({
                     : "bg-secondary/50 hover:bg-secondary hover:text-foreground"
               }`}
               onClick={() => handleSelectOption(option.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleSelectOption(option.value);
-                }
-              }}
+              onKeyDown={(event) => handleOptionKeyDown(event, index)}
             >
               <span className="inline-flex items-start gap-1.5 w-full">
                 <span className="inline-flex size-5 items-center justify-center rounded bg-muted-foreground/10 text-[10px] font-mono shrink-0 self-start mt-0.5">
@@ -544,17 +585,29 @@ function AskUserOptions({
                   {option.label}
                 </span>
               </span>
-              <div className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">
+              <span className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">
                 {option.priority}
-              </div>
-            </div>
+              </span>
+            </button>
           ))}
           {showOther && (
             <Button
+              ref={otherButtonRef}
               variant="ghost"
               size="sm"
               className="justify-start h-8 px-2 text-xs text-muted-foreground"
               onClick={() => setMode("input")}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  optionRefs.current[request.options.length - 1]?.focus();
+                } else if (event.key === "Home") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  optionRefs.current[0]?.focus();
+                }
+              }}
             >
               <span>{t("askUser.other", "Custom reply")}</span>
               <ArrowRight className="size-3" />

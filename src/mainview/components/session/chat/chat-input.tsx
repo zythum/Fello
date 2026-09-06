@@ -232,7 +232,11 @@ export function ChatInput({ session }: { session: SessionInfo }) {
   const getTextarea = useCallback(() => textareaRef.current, []);
 
   const focusInput = useCallback(() => {
-    getTextarea()?.focus({ preventScroll: true });
+    const textarea = getTextarea();
+    if (!textarea || textarea.disabled) return false;
+
+    textarea.focus({ preventScroll: true });
+    return document.activeElement === textarea;
   }, [getTextarea]);
   useFocusTarget("chat-input", focusInput);
 

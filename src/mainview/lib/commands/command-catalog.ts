@@ -7,7 +7,7 @@ export interface CommandDefinition {
   descriptionKey: string;
   defaultShortcuts: readonly string[];
   ignoreInputs?: boolean;
-  focusTarget?: string;
+  focusTargets?: readonly string[];
 }
 
 export const COMMAND_DEFINITIONS = [
@@ -18,7 +18,7 @@ export const COMMAND_DEFINITIONS = [
     descriptionKey: "commands.focusChatInput.description",
     defaultShortcuts: ["Mod+Shift+I"],
     ignoreInputs: false,
-    focusTarget: "chat-input",
+    focusTargets: ["chat-input", "ask-user-dialog"],
   },
   {
     id: "focus.chatArea",
@@ -27,7 +27,7 @@ export const COMMAND_DEFINITIONS = [
     descriptionKey: "commands.focusChatArea.description",
     defaultShortcuts: ["Mod+Shift+M"],
     ignoreInputs: false,
-    focusTarget: "chat-area",
+    focusTargets: ["chat-area"],
   },
   {
     id: "focus.fileTree",
@@ -36,7 +36,7 @@ export const COMMAND_DEFINITIONS = [
     descriptionKey: "commands.focusFileTree.description",
     defaultShortcuts: ["Mod+Shift+D"],
     ignoreInputs: false,
-    focusTarget: "file-tree",
+    focusTargets: ["file-tree"],
   },
   {
     id: "focus.terminalList",
@@ -45,7 +45,7 @@ export const COMMAND_DEFINITIONS = [
     descriptionKey: "commands.focusTerminalList.description",
     defaultShortcuts: ["Mod+Shift+T"],
     ignoreInputs: false,
-    focusTarget: "terminal-list",
+    focusTargets: ["terminal-list"],
   },
   {
     id: "focus.sidebarSessions",
@@ -54,7 +54,7 @@ export const COMMAND_DEFINITIONS = [
     descriptionKey: "commands.focusSidebarSessions.description",
     defaultShortcuts: ["Mod+Shift+E"],
     ignoreInputs: false,
-    focusTarget: "sidebar-sessions",
+    focusTargets: ["sidebar-sessions"],
   },
 ] as const satisfies readonly CommandDefinition[];
 
@@ -64,11 +64,13 @@ export interface Command extends CommandDefinition {
   execute: () => void;
 }
 
-export function createAppCommands(focus: (target: string) => void): Command[] {
+export function createAppCommands(focus: (target: string) => boolean): Command[] {
   return COMMAND_DEFINITIONS.map((definition) => ({
     ...definition,
     execute: () => {
-      if (definition.focusTarget) focus(definition.focusTarget);
+      for (const target of definition.focusTargets ?? []) {
+        if (focus(target)) break;
+      }
     },
   }));
 }

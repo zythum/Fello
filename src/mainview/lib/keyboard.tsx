@@ -2,11 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef } fr
 import type { ReactNode, RefObject } from "react";
 
 export type FocusTargetId = string;
-export type FocusTargetHandler = () => void;
+export type FocusTargetHandler = () => boolean | void;
 
 interface FocusTargetContextValue {
   register: (id: FocusTargetId, handler: FocusTargetHandler) => () => void;
-  focus: (id: FocusTargetId) => void;
+  focus: (id: FocusTargetId) => boolean;
 }
 
 const FocusTargetContext = createContext<FocusTargetContextValue | null>(null);
@@ -25,7 +25,10 @@ export function FocusTargetProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const focus = useCallback((id: FocusTargetId) => {
-    targetsRef.current.get(id)?.();
+    const handler = targetsRef.current.get(id);
+    if (!handler) return false;
+
+    return handler() !== false;
   }, []);
 
   const value = useMemo(() => ({ register, focus }), [focus, register]);
@@ -50,9 +53,8 @@ export function useFocusTarget(id: FocusTargetId, handler: FocusTargetHandler, e
 
   useEffect(() => {
     const registeredHandler = () => {
-      if (enabledRef.current) {
-        handlerRef.current();
-      }
+      if (!enabledRef.current) return false;
+      return handlerRef.current();
     };
 
     return register(id, registeredHandler);
