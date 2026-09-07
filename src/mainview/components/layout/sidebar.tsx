@@ -836,7 +836,7 @@ export function Sidebar() {
           variant="ghost"
           size="icon"
           tabIndex={-1}
-          className="size-6 -mr-2 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
+          className="size-6 -mr-1 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
           onClick={handleAddProject}
           onKeyDown={handleAddProjectKeyDown}
           aria-label={t("sidebar.addProject", "Add project")}
