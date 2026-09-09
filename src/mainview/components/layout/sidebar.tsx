@@ -881,7 +881,7 @@ export function Sidebar() {
                     }
                   }}
                 >
-                  <HoverCardTrigger render={<div />} delay={hoverId ? 0 : 1000}>
+                  <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
                     <ContextMenu
                       onOpenChange={(open) => {
                         // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
@@ -1076,7 +1076,7 @@ export function Sidebar() {
                           }
                         }}
                       >
-                        <HoverCardTrigger render={<div />} delay={hoverId ? 0 : 1000}>
+                        <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
                           <ContextMenu
                             onOpenChange={(open) => {
                               // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；

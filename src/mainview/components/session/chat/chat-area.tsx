@@ -423,7 +423,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
   }, []);
 
   return (
-    <div className="w-full relative min-h-0 flex flex-1 overflow-hidden">
+    <div className="w-full relative min-h-0 flex flex-1 group/chat-area">
       <div className="shrink-0 w-6 -mr-6 relative z-1 pointer-events-none">
         <ChatTimeline
           items={timelineItems}
@@ -640,6 +640,8 @@ export function ChatArea({ session }: { session: SessionInfo }) {
           <ArrowDown className="size-4" />
         </Button>
       )}
+
+      <div className="pointer-events-none absolute -top-px left-0 right-0 h-px bg-linear-to-r from-ring/30 from-10% via-ring/80 via-30% to-ring/30 animate-out fill-mode-both fade-out ease-out duration-1500 hidden group-has-[.chat-area:focus-visible]/chat-area:block"></div>
     </div>
   );
 }
