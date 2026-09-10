@@ -243,7 +243,7 @@ function TreeItem({
               ? "bg-primary/8 hover:bg-primary/10"
               : "hover:bg-primary/5 hover:text-foreground",
             isSelected ? "text-foreground bg-primary/6" : "",
-            isDragOver && "relative ring-1 ring-primary bg-primary/5",
+            isDragOver && "relative inset-ring-1 inset-ring-primary bg-primary/5",
           )}
           style={{ paddingLeft: `${depth * 16 + 6}px` }}
           onClick={(e) => {
