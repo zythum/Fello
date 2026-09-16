@@ -253,7 +253,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 placeholder={t("automation.promptPlaceholder", "What should the agent do?")}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="text-xs! min-h-46 flex-1 text-foreground/70 focus-visible:ring-0.5"
+                className="text-xs! min-h-64 flex-1 text-foreground/70 focus-visible:ring-0.5"
               />
             </Field>
           </FieldGroup>

@@ -141,7 +141,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
             if (v) handlePresetChange(v as Preset);
           }}
         >
-          <SelectTrigger className="h-8 text-xs! w-32 shrink-0">
+          <SelectTrigger className="h-8 text-xs! flex-1 min-w-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -169,7 +169,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
                 if (v) updateParts({ interval: parseInt(v) });
               }}
             >
-              <SelectTrigger className="h-7 text-xs! w-15">
+              <SelectTrigger className="h-8 text-xs! w-15">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -190,7 +190,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
                 if (v) updateParts({ minute: parseInt(v) });
               }}
             >
-              <SelectTrigger className="h-7 text-xs! w-15">
+              <SelectTrigger className="h-8 text-xs! w-15">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -212,7 +212,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
                   if (v) updateParts({ dow: v });
                 }}
               >
-                <SelectTrigger className="h-7 text-xs! w-18">
+                <SelectTrigger className="h-8 text-xs! w-18">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,7 +232,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
                 if (v) updateParts({ hour: parseInt(v) });
               }}
             >
-              <SelectTrigger className="h-7 text-xs! w-15">
+              <SelectTrigger className="h-8 text-xs! w-15">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -251,7 +251,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
                 if (v) updateParts({ minute: parseInt(v) });
               }}
             >
-              <SelectTrigger className="h-7 text-xs! w-15">
+              <SelectTrigger className="h-8 text-xs! w-15">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
