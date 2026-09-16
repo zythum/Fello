@@ -609,7 +609,9 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === "Enter" && !e.shiftKey) {
+    // 仅裸 Enter 发送；Shift+Enter / Ctrl+Enter / Cmd+Enter 均不拦截，
+    // 交由 textarea 默认行为插入换行
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       handleSubmit();
     }
