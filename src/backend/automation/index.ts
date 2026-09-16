@@ -1,7 +1,7 @@
 import { join } from "path";
 import { CronJob } from "cron";
 import type { McpServer } from "@agentclientprotocol/sdk";
-import { store } from "./store";
+import { store, normalizeRemainingRuns } from "./store";
 import type { BackendContext } from "../types";
 import type { InferenceModule } from "../inference";
 import type { Schedule, Task, SessionNotificationFelloExt } from "../../shared/schema";
@@ -16,12 +16,13 @@ export interface AutomationModule {
     modelId?: string;
     prompt: string;
     cron: Schedule["cron"];
+    remainingRuns?: Schedule["remainingRuns"];
     features?: Schedule["features"];
     mcpServers?: Schedule["mcpServers"];
   }) => Schedule;
   updateSchedule: (scheduleId: string, updates: Partial<Schedule>) => Schedule;
   deleteSchedule: (scheduleId: string) => void;
-  executeTask: (scheduleId: string) => Promise<Task>;
+  executeTask: (scheduleId: string, source?: "cron" | "manual") => Promise<Task>;
   listTasks: (scheduleId: string) => Task[];
   listTaskFiles: (scheduleId: string, taskId: string) => string[];
   readTaskFile: (
@@ -59,15 +60,38 @@ export function createAutomationModule(
     }
   }
 
+  /** 剩余执行次数已耗尽（remainingRuns 为 null 表示不限次数） */
+  function isRunLimitReached(schedule: Schedule): boolean {
+    return schedule.remainingRuns !== null && schedule.remainingRuns <= 0;
+  }
+
+  /** 消耗一次执行配额；归零后注销 cron，避免继续触发 */
+  function consumeRun(schedule: Schedule) {
+    if (schedule.remainingRuns === null) return;
+    schedule.remainingRuns = Math.max(0, schedule.remainingRuns - 1);
+    schedule.updatedAt = Date.now();
+    store.saveSchedule(schedule);
+    if (isRunLimitReached(schedule)) {
+      unscheduleCron(schedule.id);
+      console.log(`[Automation] "${schedule.name}" reached its run limit, unscheduled`);
+    }
+    sendEvent("schedules-changed", undefined);
+  }
+
   function scheduleCron(schedule: Schedule) {
     unscheduleCron(schedule.id);
+    if (isRunLimitReached(schedule)) return;
     if (schedule.cron.type !== "cron" || !schedule.cron.expr) return;
     try {
       const cronJob = new CronJob(
         schedule.cron.expr,
         async () => {
           if (runningTasks.has(schedule.id)) return;
-          await executeTask(schedule.id);
+          try {
+            await executeTask(schedule.id, "cron");
+          } catch (err) {
+            console.error(`[Automation] Failed to start task for "${schedule.name}":`, err);
+          }
         },
         null,
         false,
@@ -138,11 +162,17 @@ export function createAutomationModule(
     return servers;
   }
 
-  async function executeTask(scheduleId: string): Promise<Task> {
+  async function executeTask(
+    scheduleId: string,
+    source: "cron" | "manual" = "manual",
+  ): Promise<Task> {
     if (runningTasks.has(scheduleId)) throw new Error("Schedule task is already running");
 
     const schedule = store.getSchedule(scheduleId);
     if (!schedule) throw new Error("Schedule not found");
+    // 执行次数只约束定时触发；手动触发不受剩余次数限制
+    if (source === "cron" && isRunLimitReached(schedule))
+      throw new Error("Schedule run limit reached");
 
     runningTasks.add(scheduleId);
     const taskId = String(Date.now());
@@ -155,6 +185,9 @@ export function createAutomationModule(
     const taskDir = store.taskDir(scheduleId, taskId);
 
     try {
+      // 仅定时触发消耗一次执行配额；手动触发不扣次数
+      if (source === "cron") consumeRun(schedule);
+
       const mcpServers = buildAutomationMcpServers(schedule.mcpServers ?? []);
 
       const result = await inference.runInference({
@@ -240,6 +273,7 @@ export function createAutomationModule(
     modelId?: string;
     prompt: string;
     cron: Schedule["cron"];
+    remainingRuns?: Schedule["remainingRuns"];
     features?: Schedule["features"];
     mcpServers?: Schedule["mcpServers"];
   }): Schedule {
@@ -252,6 +286,9 @@ export function createAutomationModule(
     const schedule = store.getSchedule(scheduleId);
     if (!schedule) throw new Error("Schedule not found");
     Object.assign(schedule, updates);
+    if ("remainingRuns" in updates) {
+      schedule.remainingRuns = normalizeRemainingRuns(updates.remainingRuns);
+    }
     schedule.updatedAt = Date.now();
     store.saveSchedule(schedule);
     if (schedule.cron.type === "cron" && schedule.cron.expr) scheduleCron(schedule);

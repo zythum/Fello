@@ -14,6 +14,23 @@ import type { Schedule, Task } from "../../shared/schema";
 export const AUTOMATIONS_DIR = join(homedir(), ".fello", "automations");
 mkdirSync(AUTOMATIONS_DIR, { recursive: true });
 
+/**
+ * 归一化剩余执行次数：
+ * - `null` / `undefined` / 非法值 / 负数 → `null`（不限次数）
+ * - 其余取非负整数
+ */
+export function normalizeRemainingRuns(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+/** 补齐历史数据中缺失的字段（旧版本 schedule.json 没有 remainingRuns） */
+function normalizeSchedule(raw: Schedule): Schedule {
+  return { ...raw, remainingRuns: normalizeRemainingRuns(raw.remainingRuns) };
+}
+
 export const store = {
   scheduleDir(scheduleId: string) {
     return join(AUTOMATIONS_DIR, scheduleId);
@@ -42,7 +59,7 @@ export const store = {
     for (const dir of dirs) {
       try {
         const raw: Schedule = JSON.parse(readFileSync(this.scheduleConfigPath(dir), "utf-8"));
-        list.push(raw);
+        list.push(normalizeSchedule(raw));
       } catch {
         // skip invalid
       }
@@ -53,7 +70,10 @@ export const store = {
 
   getSchedule(scheduleId: string): Schedule | null {
     try {
-      return JSON.parse(readFileSync(this.scheduleConfigPath(scheduleId), "utf-8"));
+      const raw: Schedule = JSON.parse(
+        readFileSync(this.scheduleConfigPath(scheduleId), "utf-8"),
+      );
+      return normalizeSchedule(raw);
     } catch {
       return null;
     }
@@ -72,6 +92,7 @@ export const store = {
     modelId?: Schedule["modelId"];
     prompt: Schedule["prompt"];
     cron: Schedule["cron"];
+    remainingRuns?: Schedule["remainingRuns"];
     features?: Schedule["features"];
     mcpServers?: Schedule["mcpServers"];
   }): Schedule {
@@ -86,6 +107,7 @@ export const store = {
       createdAt: now,
       updatedAt: now,
       lastRunAt: null,
+      remainingRuns: normalizeRemainingRuns(params.remainingRuns),
       features: (params.features ?? []).filter((f) => f !== "ask_user" && f !== "share_to_user"),
       mcpServers: params.mcpServers ?? [],
     };

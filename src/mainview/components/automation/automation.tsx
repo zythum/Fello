@@ -244,6 +244,21 @@ export function Automation() {
                             >
                               {schedule.agentId}
                             </Badge>
+                            {schedule.remainingRuns !== null && (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "px-1 text-[10px] leading-none shrink-0",
+                                  schedule.remainingRuns === 0
+                                    ? "border-destructive/40 text-destructive"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {t("automation.remainingRunsCount", "{{count}} runs left", {
+                                  count: schedule.remainingRuns,
+                                })}
+                              </Badge>
+                            )}
                           </ItemTitle>
                           <ItemDescription className="line-clamp-1 text-xs">
                             {getScheduleLabel(schedule)}

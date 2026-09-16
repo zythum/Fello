@@ -24,8 +24,20 @@ interface Schedule {
   createdAt: number;
   updatedAt: number;
   lastRunAt: number | null;
+  remainingRuns: number | null; // 剩余执行次数，null 表示不限次数
 }
 ```
+
+### 执行次数（remainingRuns）
+
+- `null`（设置里留空）：不限次数，按 cron 一直执行
+- 数字：**仅定时触发**（cron）每执行一次自减 1
+- 减到 `0` 时：注销 cron、`restoreActiveSchedules` 也不再恢复；手动 `triggerSchedule` 仍可执行且不扣次数（作为「现在就跑一次」的入口）
+- 手动触发不消耗配额，因此 `cron.type === "manual"` 的计划次数不会变化
+- 旧版本 `schedule.json` 没有该字段，读取时由 `store` 归一化为 `null`
+- 语义说明：该字段是「剩余次数」而非「总次数 / 已执行次数」，因此编辑计划时填入的数字会直接覆盖剩余值（相当于重置配额）
+- 设置弹窗中该项位于「计划（Schedule）」区块内，与类型分段选择 `[定时 | 手动]` 同一行、右对齐；下方为 cron 编辑器
+- 「计划」为手动（`cron.type === "manual"`）时隐藏该输入框，保存时也不写入次数（置为 `null`）
 
 ### Task（任务）
 
@@ -75,7 +87,7 @@ src/backend/automation/
 ### scheduler — 计划管理（index.ts）
 
 - 基于 `cron` 库（^4.4.0）实现 CronJob 管理
-- `scheduleCron(schedule)` — 注册 cron 任务
+- `scheduleCron(schedule)` — 注册 cron 任务（剩余执行次数为 0 时不注册）
 - `unscheduleCron(scheduleId)` — 注销单个计划
 - `restoreActiveSchedules()` — 模块初始化时自动恢复所有活跃计划
 - `stopAllCrons()` — 应用退出时优雅清理
@@ -88,14 +100,15 @@ src/backend/automation/
 
 执行流程：
 
-1. 检查并发锁（同一 Schedule 不重复执行）
+1. 检查并发锁（同一 Schedule 不重复执行）；定时触发还会检查剩余执行次数（为 0 时抛出 `Schedule run limit reached`）
 2. 创建 Task 记录，状态标记为 `running`
-3. 构建 MCP 服务器配置（`buildAutomationMcpServers`）
-4. 调用 `inference.runInference({ agentId, prompt, model, cwd, mcpServers, features })`
-5. InferenceModule 内部完成 Agent 解析、Bridge spawn、MCP/Skills 集成、权限自动批准
-6. 将对话记录写入 `.fello-conversation.json`（含 meta、notifications、terminalLogs）
-7. 更新 Schedule 的 `lastRunAt`
-8. 标记 Task 为 `success` 或 `error`
+3. 定时触发时消耗一次执行配额（`consumeRun`）：`remainingRuns` 自减 1，归零则注销 cron（手动触发不消耗）
+4. 构建 MCP 服务器配置（`buildAutomationMcpServers`）
+5. 调用 `inference.runInference({ agentId, prompt, model, cwd, mcpServers, features })`
+6. InferenceModule 内部完成 Agent 解析、Bridge spawn、MCP/Skills 集成、权限自动批准
+7. 将对话记录写入 `.fello-conversation.json`（含 meta、notifications、terminalLogs）
+8. 更新 Schedule 的 `lastRunAt`
+9. 标记 Task 为 `success` 或 `error`（定时触发时，执行失败同样已消耗一次配额）
 
 权限处理：InferenceModule 内部自动选择 `allow_always` > `allow_once` > 第一个选项，无需人工干预。
 
@@ -104,7 +117,7 @@ src/backend/automation/
 | 方法 | 参数 | 返回值 |
 |------|------|--------|
 | `listSchedules` | — | `Schedule[]` |
-| `createSchedule` | `{ name, agentId, modelId?, prompt, cron, features?, mcpServers? }` | `Schedule` |
+| `createSchedule` | `{ name, agentId, modelId?, prompt, cron, remainingRuns?, features?, mcpServers? }` | `Schedule` |
 | `updateSchedule` | `{ scheduleId, updates }` | `Schedule` |
 | `deleteSchedule` | `{ scheduleId }` | `void` |
 | `triggerSchedule` | `{ scheduleId }` | `Task` |

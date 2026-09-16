@@ -892,6 +892,11 @@
     "noTasksDesc": "No runs yet. Click \"Trigger now\" to start the first run.",
     "prompt": "Prompt",
     "promptPlaceholder": "What should the agent do?",
+    "remainingRuns": "Run Limit",
+    "remainingRunsCount": "{{count}} runs left",
+    "remainingRunsCount_one": "{{count}} run left",
+    "remainingRunsDesc": "Empty = unlimited",
+    "remainingRunsPlaceholder": "∞",
     "save": "Save",
     "schedule": "Schedule",
     "scheduleName": "Schedule Name",
@@ -901,12 +906,13 @@
     "selectFileToPreview": "Select a file to preview",
     "selectTaskToPreview": "Select a task to preview files",
     "selectTask": "Select a task",
-    "timedExecution": "Timed (cron)",
+    "timed": "Timed",
     "triggerNow": "Trigger now",
     "validation": {
       "nameRequired": "Name is required",
       "agentRequired": "Agent is required",
-      "promptRequired": "Prompt is required"
+      "promptRequired": "Prompt is required",
+      "runLimitInvalid": "Run limit must be a non-negative integer."
     },
     "cron": {
       "at": "at",

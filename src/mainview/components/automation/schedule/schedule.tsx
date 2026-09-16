@@ -31,7 +31,7 @@ export function Schedule() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { confirm } = useMessage();
+  const { confirm, toast } = useMessage();
 
   const hasTaskRoute = location.pathname.includes("/task/");
 
@@ -93,8 +93,8 @@ export function Schedule() {
     if (!scheduleId) return;
     try {
       await request.triggerSchedule({ scheduleId });
-    } catch {
-      /* ignore */
+    } catch (err) {
+      toast.error(String(err));
     }
   };
 
@@ -214,6 +214,20 @@ export function Schedule() {
           <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">
             {schedule.agentId}
           </Badge>
+          {schedule.remainingRuns !== null && (
+            <Badge
+              variant="outline"
+              className={`px-1 text-[10px] leading-none shrink-0 ${
+                schedule.remainingRuns === 0
+                  ? "border-destructive/40 text-destructive"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {t("automation.remainingRunsCount", "{{count}} runs left", {
+                count: schedule.remainingRuns,
+              })}
+            </Badge>
+          )}
         </div>
         <div className="text-xs text-muted-foreground hidden sm:block shrink-0 mr-2">
           {schedule.cron.type === "cron" ? schedule.cron.expr : t("automation.manual", "Manual")}

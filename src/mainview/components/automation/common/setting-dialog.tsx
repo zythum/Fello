@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoaderCircle } from "lucide-react";
 import { useMessage } from "../../providers/message";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -63,6 +64,9 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   const [name, setName] = useState(isEdit ? schedule!.name : "");
   const [agentId, setAgentId] = useState(isEdit ? schedule!.agentId : (enabledAgents[0]?.id ?? ""));
   const [modelId, setModelId] = useState(isEdit ? (schedule!.modelId ?? "") : "");
+  const [remainingRuns, setRemainingRuns] = useState(
+    isEdit && schedule!.remainingRuns !== null ? String(schedule!.remainingRuns) : "",
+  );
   const [prompt, setPrompt] = useState(isEdit ? schedule!.prompt : "");
   const [cronType, setCronType] = useState<"cron" | "manual">(
     isEdit ? schedule!.cron.type : "cron",
@@ -84,6 +88,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setName(schedule.name);
       setAgentId(schedule.agentId);
       setModelId(schedule.modelId ?? "");
+      setRemainingRuns(schedule.remainingRuns !== null ? String(schedule.remainingRuns) : "");
       setPrompt(schedule.prompt);
       setCronType(schedule.cron.type);
       setCronExpr(schedule.cron.expr ?? "0 9 * * 1-5");
@@ -93,6 +98,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setName("");
       setAgentId(enabledAgents[0]?.id ?? "");
       setModelId("");
+      setRemainingRuns("");
       setPrompt("");
       setCronType("cron");
       setCronExpr("0 9 * * 1-5");
@@ -108,6 +114,17 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       return void toast.error(t("automation.validation.agentRequired", "Agent is required"));
     if (!prompt.trim())
       return void toast.error(t("automation.validation.promptRequired", "Prompt is required"));
+    // 执行次数仅对定时（cron）计划有意义：手动计划不校验、不保存该配置
+    let parsedRemainingRuns: number | null = null;
+    if (cronType === "cron") {
+      const runsText = remainingRuns.trim();
+      if (runsText !== "" && !/^\d+$/.test(runsText))
+        return void toast.error(
+          t("automation.validation.runLimitInvalid", "Run limit must be a non-negative integer"),
+        );
+      // 留空表示不限次数
+      parsedRemainingRuns = runsText === "" ? null : Number(runsText);
+    }
 
     setSaving(true);
     try {
@@ -120,9 +137,10 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
             modelId: modelId.trim() || undefined,
             prompt: prompt.trim(),
             cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
+            remainingRuns: parsedRemainingRuns,
             features,
             mcpServers: mcpServerIds,
-          } as any,
+          },
         });
       } else {
         await request.createSchedule({
@@ -131,6 +149,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
           modelId: modelId.trim() || undefined,
           prompt: prompt.trim(),
           cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
+          remainingRuns: parsedRemainingRuns,
           features,
           mcpServers: mcpServerIds,
         });
@@ -239,7 +258,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
             </Field>
           </FieldGroup>
 
-          {/* Right: Features, MCP, Schedule */}
+          {/* Right: Features, MCP, Schedule (incl. run limit) */}
           <FieldGroup>
             <div className="flex flex-col gap-2">
               <div className="text-xs text-muted-foreground">
@@ -353,14 +372,47 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
               <FieldLabel className="text-xs text-muted-foreground">
                 {t("automation.schedule", "Schedule")}
               </FieldLabel>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xs text-foreground/70">
-                  <Switch
-                    checked={cronType === "cron"}
-                    onCheckedChange={(c) => setCronType(c ? "cron" : "manual")}
-                  />
-                  {t("automation.timedExecution", "Timed (cron)")}
+              <div className="flex flex-col gap-2.5 rounded-lg border border-border/70 bg-secondary/30 p-2.5">
+                <div className="flex items-center gap-2">
+                  <Tabs
+                    value={cronType}
+                    onValueChange={(v) => setCronType(v as "cron" | "manual")}
+                    className="gap-0"
+                  >
+                    <TabsList className="h-7! gap-0.5 rounded-md border border-border bg-secondary/60 p-0.5">
+                      <TabsTrigger value="cron" className="h-full min-w-11 rounded-sm px-2 text-xs">
+                        {t("automation.timed", "Timed")}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="manual"
+                        className="h-full min-w-11 rounded-sm px-2 text-xs"
+                      >
+                        {t("automation.manual", "Manual")}
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+
+                  {cronType === "cron" && (
+                    <div className="ml-auto flex items-center gap-2">
+                      <FieldLabel
+                        htmlFor="auto-remaining-runs"
+                        className="shrink-0 text-[11px] text-muted-foreground"
+                      >
+                        {t("automation.remainingRuns", "Run Limit")}
+                      </FieldLabel>
+                      <Input
+                        id="auto-remaining-runs"
+                        inputMode="numeric"
+                        title={t("automation.remainingRunsDesc", "Empty = unlimited")}
+                        placeholder={t("automation.remainingRunsPlaceholder", "∞")}
+                        value={remainingRuns}
+                        onChange={(e) => setRemainingRuns(e.target.value)}
+                        className="h-6 w-12 shrink-0 px-1 text-center text-xs! text-foreground/70 focus-visible:ring-0.5"
+                      />
+                    </div>
+                  )}
                 </div>
+
                 {cronType === "cron" ? (
                   <CronEditor value={cronExpr} onChange={setCronExpr} timezone={timezone} />
                 ) : (

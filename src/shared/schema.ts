@@ -656,6 +656,12 @@ export interface Schedule {
   updatedAt: number;
   /** 上次执行时间（毫秒时间戳） */
   lastRunAt: number | null;
+  /**
+   * 剩余可执行次数：
+   * - `null`：不限次数，按 cron 一直执行
+   * - 数字：仅 cron 定时触发时自减 1，减到 0 后停止自动调度（手动触发不消耗次数，仍可执行）
+   */
+  remainingRuns: number | null;
   /** 下次执行时间（运行时计算，不持久化） */
   nextRunAt?: number | null;
   /** 启用的 feature 列表（ask_user 在 automation 中始终为 false） */
@@ -1047,6 +1053,8 @@ export type FelloIPCRequests = {
       modelId?: string;
       prompt: string;
       cron: { type: "cron" | "manual"; expr?: string };
+      /** 剩余执行次数，null / 不传表示不限次数 */
+      remainingRuns?: number | null;
       features?: Feature[];
       mcpServers?: string[];
     };
