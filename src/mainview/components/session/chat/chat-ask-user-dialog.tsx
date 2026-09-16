@@ -145,7 +145,7 @@ export function AskUserDialog({ sessionId }: Props) {
           className="grid grid-rows-[auto_1fr_auto] rounded-xl border border-border bg-card p-4 shadow-lg shadow-primary/5 max-h-[90vh]"
         >
           {/* 标题 — 固定不折叠 */}
-          <div className="flex items-center gap-2 mb-3 min-h-0">
+          <div className="flex items-center gap-2 mb-3 min-h-0 overflow-hidden">
             <HelpCircle className="size-4.5 shrink-0 text-sky-500" />
             <h3 id="ask-user-dialog-title" className="text-sm font-medium leading-snug truncate">
               {currentRequest.title || t("askUser.title", "Request")}
