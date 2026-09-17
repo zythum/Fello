@@ -53,7 +53,7 @@ const npmPkg = {
   },
   files: ["out", "resources"],
   engines: {
-    node: ">=20",
+    node: ">=22",
   },
   dependencies: deps,
   license: rootPkg.license,
