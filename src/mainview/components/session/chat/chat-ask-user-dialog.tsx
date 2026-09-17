@@ -49,6 +49,7 @@ import {
 import type { AskUserRequest } from "../../../../shared/schema";
 import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
 import { useFocusTarget } from "../../../lib/keyboard";
+import { insertNewlineAtCaret } from "../../../lib/textarea";
 
 interface Props {
   sessionId: string;
@@ -514,11 +515,18 @@ function AskUserOptions({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    // 仅裸 Enter 发送；Shift+Enter / Ctrl+Enter / Cmd+Enter 均不拦截，
-    // 交由 textarea 默认行为插入换行（与 chat-input 保持一致）
-    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    if (e.key !== "Enter") return;
+    // 仅裸 Enter 发送
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       void handleSubmitInput();
+      return;
+    }
+    // Shift+Enter 交给浏览器原生插入换行；Ctrl/Cmd+Enter 浏览器不会插入任何字符
+    // （Blink 只为无修饰键与 Shift 的 Enter 生成插入命令），因此手动插入（与 chat-input 一致）
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      insertNewlineAtCaret(getTextarea());
     }
   };
 
