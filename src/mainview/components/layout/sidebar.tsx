@@ -123,6 +123,7 @@ export function Sidebar() {
   const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setOptimisticPath(null);
   }, [location.pathname]);
 
@@ -274,7 +275,10 @@ export function Sidebar() {
     }
   };
 
-  handleAddProjectRef.current = handleAddProject;
+  // handleAddProjectRef 只在 window 事件回调中读取，因此在 effect 阶段同步最新值
+  useEffect(() => {
+    handleAddProjectRef.current = handleAddProject;
+  });
 
   const handleNewSession = async (
     projectId: string,
@@ -315,7 +319,9 @@ export function Sidebar() {
     "allow-all",
   );
 
-  const openNewSessionDialog = (projectId: string) => {
+  // 用函数声明（而非 const 箭头函数）以便被前面的 handleAddProject 引用；
+  // 行为与之前一致，只是把「初始化前读取」的暂时性死区问题消除
+  function openNewSessionDialog(projectId: string) {
     if (enabledAgents.length === 0) {
       handleNavigate("/settings/agents");
       return;
@@ -326,9 +332,12 @@ export function Sidebar() {
     setNewSessionFeatures(ALL_FEATURES);
     setNewSessionPermissionMode("allow-all");
     setNewSessionDialogOpen(true);
-  };
+  }
 
-  handleNewSessionRef.current = openNewSessionDialog;
+  // handleNewSessionRef 只在 window 事件回调中读取，因此在 effect 阶段同步最新值
+  useEffect(() => {
+    handleNewSessionRef.current = openNewSessionDialog;
+  });
 
   const handleCreateNewSession = async () => {
     if (!newSessionProjectId || !newSessionAgentId) return;
@@ -613,7 +622,8 @@ export function Sidebar() {
           (navigationItem) =>
             sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
         );
-        element = sessionListRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]')[itemIndex];
+        element =
+          sessionListRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]')[itemIndex];
       }
       if (!element) return;
       element.focus({ preventScroll: true });

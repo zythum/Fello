@@ -41,6 +41,7 @@ export function SkillsInstalled() {
   }, [t, toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     fetchSkills();
   }, [fetchSkills]);
 

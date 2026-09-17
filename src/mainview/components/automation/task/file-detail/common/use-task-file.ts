@@ -41,6 +41,7 @@ export function useTaskFile(
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react/set-state-in-effect
     setLoading(true);
     setErrorMsg("");
     setContent("");

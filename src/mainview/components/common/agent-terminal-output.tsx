@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAppStore } from "../../store";
 import { request } from "../../backend";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,11 +16,12 @@ export function AgentTerminalOutput({
   const log = sessionState?.terminalLogs?.[terminalId];
   const setTerminalLog = useAppStore((state) => state.setTerminalLog);
   const containerRef = useRef<HTMLPreElement>(null);
-  const [hasFetched, setHasFetched] = useState(false);
+  // 只用于「每次挂载只拉取一次」的一次性标记，与渲染无关，因此用 ref 而非 state
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (hasFetched) return;
-    setHasFetched(true);
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     request
       .getAgentTerminalOutput({ sessionId, terminalId })
       .then((fullLog) => {
@@ -29,7 +30,7 @@ export function AgentTerminalOutput({
         }
       })
       .catch(console.error);
-  }, [sessionId, terminalId, hasFetched, setTerminalLog]);
+  }, [sessionId, terminalId, setTerminalLog]);
 
   useEffect(() => {
     if (containerRef.current) {

@@ -107,6 +107,7 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
   const audioLevelFrameRef = useRef<number | null>(null);
   const stopRef = useRef<() => Promise<void>>(async () => {});
   const callbacksRef = useRef({ onTranscript, onError, onRecordingChange });
+  // eslint-disable-next-line react/refs
   callbacksRef.current = { onTranscript, onError, onRecordingChange };
 
   const setRecordingState = useCallback((value: boolean) => {
@@ -293,6 +294,7 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
     setRecordingState(false);
   }, [cleanupAudio, setRecordingState]);
 
+  // eslint-disable-next-line react/refs
   stopRef.current = stop;
   useEffect(() => {
     return () => {

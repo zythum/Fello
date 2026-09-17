@@ -44,9 +44,10 @@ export function TerminalPanel({
   const navigationItems = useMemo<TerminalNavigationItem[]>(() => {
     const items: TerminalNavigationItem[] = [{ type: "add" }];
     items.push(
-      ...terminals.map(
-        (terminal): TerminalNavigationItem => ({ type: "terminal", id: terminal.id }),
-      ),
+      ...terminals.map((terminal): TerminalNavigationItem => ({
+        type: "terminal",
+        id: terminal.id,
+      })),
     );
     return items;
   }, [terminals]);
@@ -185,10 +186,7 @@ export function TerminalPanel({
               ? terminalItems.length - 1
               : Math.max(
                   0,
-                  Math.min(
-                    terminalItems.length - 1,
-                    currentIndex + (key === "ArrowDown" ? 1 : -1),
-                  ),
+                  Math.min(terminalItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
                 );
         const nextTerminal = terminalItems[nextIndex];
         if (nextTerminal) focusNavigationItem(nextTerminal);

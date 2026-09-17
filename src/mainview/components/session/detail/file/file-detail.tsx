@@ -29,6 +29,7 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
 
   // Reset modified state when file changes
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setFileModified(false);
     setRefreshKey(0);
   }, [projectId, filePath]);

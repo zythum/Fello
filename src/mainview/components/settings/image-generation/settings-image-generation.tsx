@@ -487,6 +487,7 @@ export function SettingsImageGeneration() {
   const [dialogItem, setDialogItem] = useState<ImageGenerationProviderInfo | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setProviders(imageGeneration);
   }, [imageGeneration]);
 

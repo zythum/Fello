@@ -41,6 +41,7 @@ export function useFileSearch(
 
   // Close search when file or view mode changes (DOM content changes invalidate old ranges)
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setSearchOpen(false);
     resetSearch();
   }, [projectId, file, viewMode, codeViewContainer, resetSearch]);

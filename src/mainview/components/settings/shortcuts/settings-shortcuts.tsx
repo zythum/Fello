@@ -12,10 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  COMMAND_DEFINITIONS,
-  type CommandId,
-} from "../../../lib/commands/command-catalog";
+import { COMMAND_DEFINITIONS, type CommandId } from "../../../lib/commands/command-catalog";
 import {
   findShortcutConflicts,
   getCommandShortcuts,
@@ -38,6 +35,7 @@ function ShortcutCapture({ shortcut, isMac, onCancel, onChange }: ShortcutCaptur
   const [previewShortcut, setPreviewShortcut] = useState(shortcut);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setPreviewShortcut(shortcut);
     window.requestAnimationFrame(() => captureRef.current?.focus());
   }, [shortcut]);
@@ -105,8 +103,7 @@ export function SettingsShortcuts() {
   );
 
   const categoryCommands = useMemo(
-    () =>
-      COMMAND_DEFINITIONS.filter((command) => command.category === "navigation"),
+    () => COMMAND_DEFINITIONS.filter((command) => command.category === "navigation"),
     [],
   );
 
@@ -218,9 +215,7 @@ export function SettingsShortcuts() {
                 return (
                   <div key={command.id} className="flex items-center justify-between gap-6 py-3">
                     <div className="min-w-0 flex-4">
-                      <div className="text-sm font-medium">
-                        {t(command.titleKey, command.id)}
-                      </div>
+                      <div className="text-sm font-medium">{t(command.titleKey, command.id)}</div>
                       <div className="mt-1 text-xs text-muted-foreground/90">
                         {t(command.descriptionKey, "Focus this area")}
                       </div>
@@ -286,8 +281,8 @@ export function SettingsShortcuts() {
 
           <p className="-mb-2 text-xs text-muted-foreground">
             {dialogCommand
-                ? t(dialogCommand.titleKey, dialogCommand.id)
-                : t("settings.shortcuts.setDesc", "Press the shortcut you want to use.")}
+              ? t(dialogCommand.titleKey, dialogCommand.id)
+              : t("settings.shortcuts.setDesc", "Press the shortcut you want to use.")}
           </p>
           <ShortcutCapture
             shortcut={dialogShortcut}

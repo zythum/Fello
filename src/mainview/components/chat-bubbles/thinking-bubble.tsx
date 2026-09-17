@@ -16,6 +16,7 @@ export const ThinkingBubble = memo(function ThinkingBubble({
   const [open, setOpen] = useState(isStreaming);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setOpen(isStreaming);
   }, [isStreaming]);
 

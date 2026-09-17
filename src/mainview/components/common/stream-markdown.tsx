@@ -377,14 +377,17 @@ export function StreamMarkdown({
   const initialHashTargetRef = useRef<string | null>(null);
 
   const onLinkClickRef = useRef(onLinkClick);
+  // eslint-disable-next-line react/refs
   onLinkClickRef.current = onLinkClick;
 
+  // eslint-disable-next-line react/refs
   const resolvedComponents = useMemo(() => createComponents(idPrefix, onLinkClickRef), [idPrefix]);
 
   const remarkPlugins = useMemo(() => {
     return forceBreaks ? [remarkBreaks] : undefined;
   }, [forceBreaks]);
 
+  // eslint-disable-next-line react/preserve-manual-memoization
   const { frontmatter, content } = useMemo(() => {
     const matched = children?.match(FRONTMATTER_REGEX);
     if (matched) {

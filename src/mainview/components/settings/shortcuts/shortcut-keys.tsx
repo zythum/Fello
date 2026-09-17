@@ -1,4 +1,12 @@
-import { ArrowBigUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Command, Option } from "lucide-react";
+import {
+  ArrowBigUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Command,
+  Option,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ShortcutKeysProps {

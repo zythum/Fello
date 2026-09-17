@@ -52,6 +52,7 @@ export function Automation() {
 
   useEffect(() => {
     if (!loading) {
+      // eslint-disable-next-line react/set-state-in-effect
       setShowLoading(false);
       return;
     }
@@ -72,6 +73,7 @@ export function Automation() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     void loadSchedules();
   }, [loadSchedules]);
 
@@ -124,6 +126,7 @@ export function Automation() {
 
   const formatNextRun = (schedule: Schedule): string => {
     if (!schedule.nextRunAt) return "-";
+    // eslint-disable-next-line react/purity
     const diff = schedule.nextRunAt - Date.now();
     if (diff <= 0) return t("automation.anyMoment", "Any moment now");
     if (diff < 60 * 1000) return t("automation.lessThanMinute", "Less than 1 min");

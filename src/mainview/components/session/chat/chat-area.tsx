@@ -47,6 +47,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
   useEffect(() => {
     let timeoutId: any = null;
+    // eslint-disable-next-line react/set-state-in-effect
     setShowThinking(false);
     if (isStreaming) {
       timeoutId = setTimeout(() => {
@@ -305,6 +306,7 @@ export function ChatArea({ session }: { session: SessionInfo }) {
 
   // Reset visibleCount when session changes
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setVisibleCount(PAGE_SIZE);
   }, [sessionId]);
 
@@ -344,9 +346,13 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     const last = timelineDisplayIds[timelineDisplayIds.length - 1] ?? "";
     return `${timelineDisplayIds.length}:${last}`;
   }, [timelineDisplayIds]);
-  userMessageIdsRef.current = timelineDisplayIds;
+  // userMessageIdsRef 只在滚动计算回调中读取，因此在 effect 阶段同步最新值
+  useEffect(() => {
+    userMessageIdsRef.current = timelineDisplayIds;
+  }, [timelineDisplayIds]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setActiveUserMessageId((prev) => prev ?? firstTimelineDisplayId);
     const viewport = getViewport();
     if (!viewport) return;

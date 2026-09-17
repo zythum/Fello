@@ -70,9 +70,7 @@ export const store = {
 
   getSchedule(scheduleId: string): Schedule | null {
     try {
-      const raw: Schedule = JSON.parse(
-        readFileSync(this.scheduleConfigPath(scheduleId), "utf-8"),
-      );
+      const raw: Schedule = JSON.parse(readFileSync(this.scheduleConfigPath(scheduleId), "utf-8"));
       return normalizeSchedule(raw);
     } catch {
       return null;

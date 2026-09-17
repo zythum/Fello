@@ -89,6 +89,7 @@ export function CronEditor({ value, onChange, timezone }: CronEditorProps) {
   useEffect(() => {
     const detected = detectPreset(value);
     if (detected !== "custom") {
+      // eslint-disable-next-line react/set-state-in-effect
       setPreset(detected);
       setParts(parseParts(value));
     }

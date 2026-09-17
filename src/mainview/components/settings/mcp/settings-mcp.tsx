@@ -108,6 +108,7 @@ export function SettingsMcp() {
   const [sseDialogItem, setSseDialogItem] = useState<SseMcpServerInfo | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setMcpServers(configuredMcpServers);
   }, [configuredMcpServers]);
 

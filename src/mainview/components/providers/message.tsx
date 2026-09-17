@@ -195,6 +195,7 @@ export const MessageProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (dialogQueue.length > 0 && !activeDialog) {
       const nextDialog = dialogQueue[0];
+      // eslint-disable-next-line react/set-state-in-effect
       setActiveDialog(nextDialog);
       setDialogQueue((prev) => prev.slice(1));
 

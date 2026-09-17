@@ -73,6 +73,7 @@ function SpeechToTextDialog({
   });
   const providerSubmitRef = useRef<ProviderSubmitRef["current"]>(null);
 
+  // eslint-disable-next-line react/incompatible-library
   const selectedProvider = commonForm.watch("provider");
 
   useEffect(() => {
@@ -245,6 +246,7 @@ export function SettingsSpeechToText() {
   const [dialogItem, setDialogItem] = useState<SpeechToTextProviderInfo | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setProviders(speechToText);
   }, [speechToText]);
 

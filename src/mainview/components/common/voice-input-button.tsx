@@ -145,7 +145,10 @@ export function VoiceInputButton({
   const handleStop = useCallback(async () => {
     await stopAsr();
   }, [stopAsr]);
-  stopAsrRef.current = handleStop;
+  // stopAsrRef 只通过 useImperativeHandle 暴露的方法被父组件调用，在 effect 阶段同步最新值
+  useEffect(() => {
+    stopAsrRef.current = handleStop;
+  });
 
   useImperativeHandle(
     ref,

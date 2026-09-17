@@ -48,8 +48,12 @@ export function useFocusTarget(id: FocusTargetId, handler: FocusTargetHandler, e
   const { register } = useFocusTargetContext();
   const handlerRef = useRef(handler);
   const enabledRef = useRef(enabled);
-  handlerRef.current = handler;
-  enabledRef.current = enabled;
+  // 最新值同步放到 effect 阶段（渲染期写 ref 会被 react(refs) 判为不安全）；
+  // 这两个 ref 只在事件回调/effect 中读取，因此时序等价。
+  useEffect(() => {
+    handlerRef.current = handler;
+    enabledRef.current = enabled;
+  });
 
   useEffect(() => {
     const registeredHandler = () => {
@@ -178,7 +182,11 @@ export function useKeyboardShortcuts(
   { scopeRef, capture = true }: KeyboardShortcutOptions = {},
 ) {
   const shortcutsRef = useRef(shortcuts);
-  shortcutsRef.current = shortcuts;
+  // 最新值同步放到 effect 阶段（渲染期写 ref 会被 react(refs) 判为不安全）；
+  // shortcutsRef 只在 document 级 keydown 回调中读取，因此时序等价。
+  useEffect(() => {
+    shortcutsRef.current = shortcuts;
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

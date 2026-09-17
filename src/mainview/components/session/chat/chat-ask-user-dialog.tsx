@@ -68,12 +68,14 @@ export function AskUserDialog({ sessionId }: Props) {
 
   // 请求切换时：复位收起状态
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setCollapsed(false);
   }, [currentRequest?.askUserId]);
 
   // 当 askUserRequests 变化时，管理排队和动画
   useEffect(() => {
     if (!askUserRequests || askUserRequests.length === 0) {
+      // eslint-disable-next-line react/set-state-in-effect
       setAnimState("hidden");
       setActiveIndex(0);
       return;
@@ -101,6 +103,7 @@ export function AskUserDialog({ sessionId }: Props) {
   // hidden → enter 的触发：当有请求且当前隐藏时
   useEffect(() => {
     if (askUserRequests && askUserRequests.length > 0 && animState === "hidden") {
+      // eslint-disable-next-line react/set-state-in-effect
       setAnimState("enter");
     }
   }, [askUserRequests, askUserRequests?.length, animState]);

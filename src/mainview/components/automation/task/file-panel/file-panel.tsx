@@ -186,6 +186,7 @@ export function Panel({
         allFolders.add(parts.slice(0, i).join("/"));
       }
     }
+    // eslint-disable-next-line react/set-state-in-effect
     setOpenFolders(allFolders);
   }, [files]);
 

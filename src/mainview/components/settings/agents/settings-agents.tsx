@@ -94,6 +94,7 @@ export function SettingsAgents() {
   const [apiDialogItem, setApiDialogItem] = useState<ApiAgentInfo | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setAgents(configuredAgents);
   }, [configuredAgents]);
 

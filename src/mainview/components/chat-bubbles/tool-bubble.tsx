@@ -302,6 +302,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
       const timer = setTimeout(() => setOpen(true), 2000);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react/set-state-in-effect
       setOpen(false);
     }
   }, [message.kind, message.status]);

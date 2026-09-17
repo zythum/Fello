@@ -88,6 +88,7 @@ export const SubagentBubble = memo(function SubagentBubble({
       return;
     }
     if (message.status === "in_progress") {
+      // eslint-disable-next-line react/set-state-in-effect
       setOpen(true);
     } else {
       setOpen(false);

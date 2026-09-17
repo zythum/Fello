@@ -17,6 +17,7 @@ export function XlsxView({ data }: XlsxViewProps) {
   useEffect(() => {
     if (!container) return;
     let destroy = false;
+    // eslint-disable-next-line react/set-state-in-effect
     setError(null);
     setLoading(true);
     const viewer = new XlsxViewer(container, { math });

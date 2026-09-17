@@ -23,10 +23,6 @@ export function useSearchHighlight(
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatch, setCurrentMatch] = useState(0);
   const rangesRef = useRef<Range[]>([]);
-  const currentMatchRef = useRef(0);
-
-  // Keep currentMatchRef in sync
-  currentMatchRef.current = currentMatch;
 
   const clearHighlights = useCallback(() => {
     CSS.highlights.delete(HIGHLIGHT_ALL);
@@ -39,6 +35,7 @@ export function useSearchHighlight(
     rangesRef.current = [];
 
     if (!searchTerm || !containerEl) {
+      // eslint-disable-next-line react/set-state-in-effect
       setMatchCount(0);
       setCurrentMatch(0);
       return;

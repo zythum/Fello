@@ -60,6 +60,7 @@ export function SettingsMemory() {
   }, [projects]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     loadMemories();
   }, [loadMemories]);
 

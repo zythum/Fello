@@ -276,6 +276,10 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     [getTextarea, session.projectId, session.cwd],
   );
 
+  // ---- 本地输入状态（轻量，不经过 store，保证打字流畅） ----
+  // 放在 appendMentionsToInput 之前声明：引用了尚未初始化的 useState 会被 react(immutability) 判为不合法
+  const [localInput, setLocalInput] = useState(draftInput);
+
   /** 将 mention 文本追加到输入末尾（与 fello-add-to-chat 行为一致），并聚焦输入框 */
   const appendMentionsToInput = useCallback(
     (mentions: string) => {
@@ -285,9 +289,8 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     [getTextarea],
   );
 
-  // ---- 本地输入状态（轻量，不经过 store，保证打字流畅） ----
-  const [localInput, setLocalInput] = useState(draftInput);
   const localInputRef = useRef(localInput);
+  // eslint-disable-next-line react/refs
   localInputRef.current = localInput;
 
   const prevSessionIdRef = useRef(session.id);
@@ -304,6 +307,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       prevSessionIdRef.current = session.id;
     }
     // 加载新 session 的暂存
+    // eslint-disable-next-line react/set-state-in-effect
     setLocalInput(draftInput);
     // 组件卸载时也保存当前输入（使用 ref 避免闭包捕获旧值）
     return () => {

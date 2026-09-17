@@ -264,7 +264,13 @@ function TreeItem({
               )}
             />
           ) : (
-            <FileIcon name={node.name} className={cn("size-3.5 shrink-0 text-muted-foreground/90", node.ignored && "opacity-50")} />
+            <FileIcon
+              name={node.name}
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground/90",
+                node.ignored && "opacity-50",
+              )}
+            />
           )}
           {isEditing ? (
             <input
@@ -451,6 +457,7 @@ export const FilePanel = memo(function FilePanel({
 
   useEffect(() => {
     if (!loading) {
+      // eslint-disable-next-line react/set-state-in-effect
       setShowLoading(false);
       return;
     }
@@ -483,6 +490,7 @@ export const FilePanel = memo(function FilePanel({
 
   useEffect(() => {
     refreshSeqRef.current += 1;
+    // eslint-disable-next-line react/set-state-in-effect
     setSelectedIds(new Set());
     setLastSelectedId(null);
     setEditingId(null);
@@ -496,6 +504,7 @@ export const FilePanel = memo(function FilePanel({
   useEffect(() => {
     const ps = useAppStore.getState().projectStates.get(projectId);
     const restored = new Set(ps?.openFolders ?? []);
+    // eslint-disable-next-line react/set-state-in-effect
     setOpenFolders(restored);
     openFoldersRef.current = restored;
   }, [projectId]);
@@ -599,6 +608,7 @@ export const FilePanel = memo(function FilePanel({
   }, [cwd, activeProjectId, loadTree, fetchGitStatus]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     refresh();
   }, [refresh]);
 
@@ -697,6 +707,7 @@ export const FilePanel = memo(function FilePanel({
       for (const node of nodes) {
         result.push(node.id);
         if (node.isFolder && openFolders.has(node.id) && node.children) {
+          // eslint-disable-next-line react/immutability
           result.push(...flattenTree(node.children));
         }
       }
@@ -735,9 +746,8 @@ export const FilePanel = memo(function FilePanel({
         const visibleIds = flattenTree(data);
         const itemIndex = visibleIds.indexOf(id);
         if (itemIndex !== -1) {
-          element = treeRef.current?.querySelectorAll<HTMLDivElement>('[role="treeitem"]')[
-            itemIndex
-          ];
+          element =
+            treeRef.current?.querySelectorAll<HTMLDivElement>('[role="treeitem"]')[itemIndex];
         }
       }
       if (!element) return;
@@ -768,8 +778,7 @@ export const FilePanel = memo(function FilePanel({
   const fileActionItems = useMemo(
     () =>
       fileNavigationItems.filter(
-        (item): item is Extract<FileNavigationItem, { type: "action" }> =>
-          item.type === "action",
+        (item): item is Extract<FileNavigationItem, { type: "action" }> => item.type === "action",
       ),
     [fileNavigationItems],
   );
@@ -866,14 +875,7 @@ export const FilePanel = memo(function FilePanel({
         focusFileNavigationItem(fallbackAction);
       }
     });
-  }, [
-    data,
-    fileActionItems,
-    flattenTree,
-    focusFileNavigationItem,
-    focusTreeItem,
-    loading,
-  ]);
+  }, [data, fileActionItems, flattenTree, focusFileNavigationItem, focusTreeItem, loading]);
 
   // Sync openFolders to ProjectState whenever it changes, so folder expansion
   // state persists across session switches within the same project.
@@ -1405,6 +1407,7 @@ export const FilePanel = memo(function FilePanel({
           reader.readEntries(resolve, reject),
         );
         for (const child of entries) {
+          // eslint-disable-next-line react/immutability
           await processEntry(child, subDir);
         }
       }
@@ -1979,13 +1982,7 @@ export const FilePanel = memo(function FilePanel({
         <ScrollArea className="min-h-0 flex-1 px-1">
           <ContextMenu>
             <ContextMenuTrigger
-              render={
-                <div
-                  ref={treeRef}
-                  role="tree"
-                  aria-label={t("filePanel.title", "Files")}
-                />
-              }
+              render={<div ref={treeRef} role="tree" aria-label={t("filePanel.title", "Files")} />}
               className="min-h-full py-1"
               onClick={(e) => {
                 if (e.target === e.currentTarget) clearSelection();

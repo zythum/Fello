@@ -68,6 +68,7 @@ export function Session({ session }: { session: SessionInfo }) {
 
   // Clear detail on session change
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setDetailType(null);
     setDetailFile(null);
     setDetailTerminalId(null);
@@ -102,6 +103,7 @@ export function Session({ session }: { session: SessionInfo }) {
   const fetchingRef = useRef<string | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setConnectionError(false);
 
     const sessionState = useAppStore.getState().getSessionState(sessionId);

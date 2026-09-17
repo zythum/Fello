@@ -1,6 +1,6 @@
 import { enableArrayMethods, enableMapSet, enablePatches } from "immer";
 import { create } from "zustand";
-import { useRef } from "react";
+import { useState } from "react";
 import type {
   SessionInfo,
   ProjectInfo,
@@ -408,21 +408,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Selector: derive current session's state for use in components
 export function useSessionState(sessionId: string | null) {
-  const fallbackRef = useRef<SessionState | null>(null);
-  if (!fallbackRef.current) {
-    fallbackRef.current = emptySessionState();
-  }
-  return useAppStore(
-    (s) => (sessionId ? s.sessionStates.get(sessionId) : undefined) ?? fallbackRef.current!,
-  );
+  // 惰性初始化出稳定的空状态兜底对象（每个组件实例只创建一次，selector 需要稳定引用）
+  const [fallback] = useState(emptySessionState);
+  return useAppStore((s) => (sessionId ? s.sessionStates.get(sessionId) : undefined) ?? fallback);
 }
 
 export function useProjectState(projectId: string | null) {
-  const fallbackRef = useRef<ProjectState | null>(null);
-  if (!fallbackRef.current) {
-    fallbackRef.current = emptyProjectState();
-  }
-  return useAppStore(
-    (s) => (projectId ? s.projectStates.get(projectId) : undefined) ?? fallbackRef.current!,
-  );
+  // 惰性初始化出稳定的空状态兜底对象（每个组件实例只创建一次，selector 需要稳定引用）
+  const [fallback] = useState(emptyProjectState);
+  return useAppStore((s) => (projectId ? s.projectStates.get(projectId) : undefined) ?? fallback);
 }

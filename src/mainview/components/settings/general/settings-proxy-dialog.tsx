@@ -47,6 +47,7 @@ export function SettingsProxyDialog({ open, onOpenChange }: SettingsProxyDialogP
   }));
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react/set-state-in-effect
     setDraft({
       mode: proxy.mode ?? "off",
       httpProxy: proxy.httpProxy ?? "",

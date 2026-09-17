@@ -85,6 +85,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   useEffect(() => {
     if (!open) return;
     if (schedule) {
+      // eslint-disable-next-line react/set-state-in-effect
       setName(schedule.name);
       setAgentId(schedule.agentId);
       setModelId(schedule.modelId ?? "");

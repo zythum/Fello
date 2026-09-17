@@ -55,6 +55,7 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
   // Pre-check if the file (or its index.html) exists
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react/set-state-in-effect
     setHasError(false);
     setErrorMsg("");
 

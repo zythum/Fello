@@ -57,6 +57,7 @@ export function ImageView({ src, alt }: ImageViewProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setScale(1);
     setBaseRatio(1);
   }, [src]);

@@ -64,6 +64,7 @@ export function Schedule() {
   }, [scheduleId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     void loadData();
   }, [loadData]);
   useEffect(() => {

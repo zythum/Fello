@@ -3,7 +3,12 @@ import { writeFileSync, readFileSync, existsSync } from "fs";
 
 import { FELLO_DIR } from "./constant";
 
-import type { SettingProxyInfo, ShortcutSettings, SnippetInfo, SettingsInfo } from "../../shared/schema";
+import type {
+  SettingProxyInfo,
+  ShortcutSettings,
+  SnippetInfo,
+  SettingsInfo,
+} from "../../shared/schema";
 
 interface BaseAgentMeta {
   disabled: boolean;
@@ -575,7 +580,10 @@ export function getSettings(): SettingsInfo {
       altDoublePress: meta.voiceInput.altDoublePress,
     },
     shortcuts: Object.fromEntries(
-      Object.entries(meta.shortcuts).map(([commandId, shortcuts]) => [commandId, shortcuts.slice()]),
+      Object.entries(meta.shortcuts).map(([commandId, shortcuts]) => [
+        commandId,
+        shortcuts.slice(),
+      ]),
     ),
     proxy: meta.proxy ?? DEFAULT_SETTINGS.proxy!,
     snippets: meta.snippets ?? [],
