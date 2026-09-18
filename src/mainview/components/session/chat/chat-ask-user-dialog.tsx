@@ -8,15 +8,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   HelpCircle,
   ArrowLeft,
-  ArrowRight,
   ArrowUp,
   ChevronDown,
   ChevronUp,
   Clock,
+  Keyboard,
 } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
 import { resolveMentions } from "../../../lib/mention-utils";
-import type { AskUserRequest } from "../../../../shared/schema";
+import type { AskUserRequest, AskUserRequestOption } from "../../../../shared/schema";
 import type { VoiceInputButtonRef } from "../../common/voice-input-button";
 import { useFocusTarget } from "../../../lib/keyboard";
 import { ChatTextarea, IMAGE_MIME_TYPES } from "./chat-textarea";
@@ -225,6 +225,30 @@ function AskUserCountdown({ timeoutAt }: { timeoutAt: number }) {
   );
 }
 
+/** 选项与「自定义回复」共用的按钮外壳，保证两者视觉一致 */
+const ASK_USER_OPTION_CLASS =
+  "relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px";
+const ASK_USER_OPTION_IDLE_CLASS = "bg-secondary/50 hover:bg-secondary hover:text-foreground";
+const ASK_USER_OPTION_HIGHLIGHT_CLASS = "ring-1 ring-sky-500 bg-sky-500/10 border-sky-500/30";
+/**
+ * 「自定义回复」沿用同一套外壳（尺寸 / 内边距 / 圆角 / 焦点环都一致，保证视觉对齐），
+ * 但层级更弱：透明底 + 更浅的边框 + 次要文字色，避免抢走主选项的注意力。
+ */
+const ASK_USER_OTHER_CLASS =
+  "bg-transparent text-muted-foreground border-border/60 hover:bg-secondary/40 hover:text-foreground";
+
+/** 序号方块的通用外壳（尺寸 / 圆角 / 字号 / 对齐） */
+const ASK_USER_BADGE_CLASS =
+  "inline-flex size-5 items-center justify-center rounded text-[10px] font-mono shrink-0 self-start mt-0.5";
+/** 序号方块按优先级递减醒目度：high > medium > low >（自定义回复见下） */
+const ASK_USER_BADGE_PRIORITY_CLASS = {
+  high: "bg-sky-500/20 text-sky-700 dark:text-sky-300",
+  medium: "bg-foreground/15 text-foreground/85",
+  low: "bg-muted-foreground/10 text-muted-foreground",
+} satisfies Record<AskUserRequestOption["priority"], string>;
+/** 自定义回复排在优先级序列之后，用最弱的一档 */
+const ASK_USER_BADGE_OTHER_CLASS = "bg-muted-foreground/5 text-muted-foreground/60";
+
 function AskUserOptions({
   request,
   onResolved,
@@ -238,10 +262,13 @@ function AskUserOptions({
   const [mode, setMode] = useState<"options" | "input">(hasOptions ? "options" : "input");
   const [inputValue, setInputValue] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+  const [highlightedOther, setHighlightedOther] = useState(false);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const otherButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
+  // 数字键高亮反馈的延时句柄：再次按键以最后一次为准，卸载/依赖变化时清除
+  const digitTimerRef = useRef<number | null>(null);
 
   const focusAskUser = useCallback(() => {
     const target = mode === "input" ? textareaRef.current : optionRefs.current[0];
@@ -266,26 +293,43 @@ function AskUserOptions({
     [request, onResolved],
   );
 
-  // 数字键快捷键选择选项（仅在选项模式且无输入框聚焦时触发）
+  // 数字键快捷键：1..n 选择选项，0 进入自定义回复（仅在选项模式且无输入框聚焦时触发）
   useEffect(() => {
     if (mode !== "options" || !hasOptions) return;
     const handler = (e: KeyboardEvent) => {
+      // 带修饰键的组合键（Cmd/Ctrl/Alt+数字）不属于本快捷键；长按重复只响应首次
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      // 严格只接受单个数字，避免 parseInt 把 "1abc" 之类解析成数字
+      if (!/^[0-9]$/.test(e.key)) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable)
         return;
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= request.options.length) {
-        e.preventDefault();
-        setHighlightedIndex(num - 1);
-        setTimeout(() => {
-          setHighlightedIndex(null);
-          handleSelectOption(request.options[num - 1].value);
-        }, 200);
-      }
+      const num = Number(e.key);
+      const isOption = num >= 1 && num <= request.options.length;
+      const isOther = num === 0 && showOther;
+      if (!isOption && !isOther) return;
+      e.preventDefault();
+      setHighlightedIndex(isOption ? num - 1 : null);
+      setHighlightedOther(isOther);
+      // 200ms 高亮反馈后再执行；期间再次按键则取消上一次，避免并发响应
+      if (digitTimerRef.current !== null) window.clearTimeout(digitTimerRef.current);
+      digitTimerRef.current = window.setTimeout(() => {
+        digitTimerRef.current = null;
+        setHighlightedIndex(null);
+        setHighlightedOther(false);
+        if (isOther) setMode("input");
+        else handleSelectOption(request.options[num - 1].value);
+      }, 200);
     };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [mode, hasOptions, request.options, handleSelectOption]);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      if (digitTimerRef.current !== null) {
+        window.clearTimeout(digitTimerRef.current);
+        digitTimerRef.current = null;
+      }
+    };
+  }, [mode, hasOptions, showOther, request.options, handleSelectOption]);
 
   // 否则作为自定义回复
   const handleSubmitInput = async () => {
@@ -316,6 +360,11 @@ function AskUserOptions({
 
   const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     const { key } = event;
+    // 空格会触发 button 的原生 click（等于确认选择），容易误触；确认只保留 Enter 与数字键
+    if (key === " ") {
+      event.preventDefault();
+      return;
+    }
     if (key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End") {
       event.preventDefault();
       event.stopPropagation();
@@ -337,6 +386,24 @@ function AskUserOptions({
     }
   };
 
+  const handleOtherKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const { key } = event;
+    // 同选项：空格不作为确认触发，避免误触
+    if (key === " ") {
+      event.preventDefault();
+      return;
+    }
+    if (key === "ArrowUp") {
+      event.preventDefault();
+      event.stopPropagation();
+      optionRefs.current[request.options.length - 1]?.focus();
+    } else if (key === "Home") {
+      event.preventDefault();
+      event.stopPropagation();
+      optionRefs.current[0]?.focus();
+    }
+  };
+
   return (
     <>
       {/* 选项模式 */}
@@ -349,18 +416,24 @@ function AskUserOptions({
                 optionRefs.current[index] = element;
               }}
               type="button"
-              className={`relative flex w-full min-h-8 py-2 px-2 text-xs text-left rounded-lg border transition-all select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px ${
+              className={cn(
+                ASK_USER_OPTION_CLASS,
                 highlightedIndex === index
-                  ? "ring-1 ring-sky-500 bg-sky-500/10 border-sky-500/30"
+                  ? ASK_USER_OPTION_HIGHLIGHT_CLASS
                   : option.danger
                     ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
-                    : "bg-secondary/50 hover:bg-secondary hover:text-foreground"
-              }`}
+                    : ASK_USER_OPTION_IDLE_CLASS,
+              )}
               onClick={() => handleSelectOption(option.value)}
               onKeyDown={(event) => handleOptionKeyDown(event, index)}
             >
               <span className="inline-flex items-start gap-1.5 w-full">
-                <span className="inline-flex size-5 items-center justify-center rounded bg-muted-foreground/10 text-[10px] font-mono shrink-0 self-start mt-0.5">
+                <span
+                  className={cn(
+                    ASK_USER_BADGE_CLASS,
+                    ASK_USER_BADGE_PRIORITY_CLASS[option.priority],
+                  )}
+                >
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 whitespace-normal self-start py-1">
@@ -373,27 +446,24 @@ function AskUserOptions({
             </button>
           ))}
           {showOther && (
-            <Button
+            <button
               ref={otherButtonRef}
-              variant="ghost"
-              size="sm"
-              className="justify-start h-8 px-2 text-xs text-muted-foreground"
+              type="button"
+              className={cn(
+                ASK_USER_OPTION_CLASS,
+                highlightedOther ? ASK_USER_OPTION_HIGHLIGHT_CLASS : ASK_USER_OTHER_CLASS,
+              )}
               onClick={() => setMode("input")}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  optionRefs.current[request.options.length - 1]?.focus();
-                } else if (event.key === "Home") {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  optionRefs.current[0]?.focus();
-                }
-              }}
+              onKeyDown={handleOtherKeyDown}
             >
-              <span>{t("askUser.other", "Custom reply")}</span>
-              <ArrowRight className="size-3" />
-            </Button>
+              <span className="inline-flex items-start gap-1.5 w-full">
+                <span className={cn(ASK_USER_BADGE_CLASS, ASK_USER_BADGE_OTHER_CLASS)}>0</span>
+                <span className="min-w-0 flex-1 whitespace-normal self-start py-1 pr-5">
+                  {t("askUser.other", "Custom reply")}
+                </span>
+              </span>
+              <Keyboard className="absolute right-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40 shrink-0" />
+            </button>
           )}
         </div>
       )}
