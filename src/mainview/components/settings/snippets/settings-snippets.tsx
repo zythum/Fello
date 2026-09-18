@@ -49,15 +49,15 @@ function SnippetSortableItem({ id, children }: { id: string; children: React.Rea
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div className="flex items-center gap-1 w-full">
+      <div className="flex items-center w-full">
         <button
           type="button"
           {...attributes}
           {...listeners}
-          className="-ml-4.5 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
+          className="-ml-4.5 size-4.5 shrink-0 cursor-grab active:cursor-grabbing rounded hover:bg-accent/50 text-muted-foreground flex items-center justify-center -translate-x-px"
           title={t("settings.snippets.dragToReorder", "Drag to reorder")}
         >
-          <GripVertical className="size-3.5 -ml-1" />
+          <GripVertical className="size-3.5" />
         </button>
         <div className="flex-1 min-w-0">{children}</div>
       </div>

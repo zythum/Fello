@@ -97,7 +97,7 @@ export function SettingsWebUI() {
               {t("settings.webui.desc", "Configure remote access to the Fello interface.")}
             </p>
           </div>
-          <div className="space-y-4 mb-2 pt-2 p-1">
+          <div className="space-y-4 mb-2 pt-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm text-foreground/70">
                 {t("settings.webui.enable", "Enable WebUI")}
