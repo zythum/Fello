@@ -28,17 +28,11 @@ function ScrollArea({
 
     const isMetaEdgeShortcut =
       event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
-    const isPlainEdgeShortcut =
-      !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
     let top: number | null = null;
 
     if (isMetaEdgeShortcut && event.key === "ArrowUp") {
       top = 0;
     } else if (isMetaEdgeShortcut && event.key === "ArrowDown") {
-      top = viewport.scrollHeight;
-    } else if (isPlainEdgeShortcut && event.key === "Home") {
-      top = 0;
-    } else if (isPlainEdgeShortcut && event.key === "End") {
       top = viewport.scrollHeight;
     }
 
