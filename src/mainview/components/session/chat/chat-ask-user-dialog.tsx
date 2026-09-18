@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionAskUserRequests } from "../../../lib/session-selectors";
 import * as backend from "../../../backend";
@@ -249,6 +249,12 @@ const ASK_USER_BADGE_PRIORITY_CLASS = {
 /** 自定义回复排在优先级序列之后，用最弱的一档 */
 const ASK_USER_BADGE_OTHER_CLASS = "bg-muted-foreground/5 text-muted-foreground/60";
 
+/**
+ * 选项区的行：选项 + 可选的「自定义回复」。两者同属一条可聚焦列表，
+ * 行索引同时决定焦点顺序、数字键映射与序号展示（自定义回复固定为末行）。
+ */
+type OptionRow = { kind: "option"; option: AskUserRequestOption } | { kind: "other" };
+
 function AskUserOptions({
   request,
   onResolved,
@@ -259,19 +265,23 @@ function AskUserOptions({
   const { t } = useTranslation();
   const hasOptions = request.options.length > 0;
   const showOther = request.allowCustomInput !== false;
+  // 选项与「自定义回复」拼成同一条行列表，后续渲染 / 焦点 / 数字键都只依赖行索引
+  const optionRows = useMemo<OptionRow[]>(() => {
+    const rows: OptionRow[] = request.options.map((option) => ({ kind: "option", option }));
+    if (showOther) rows.push({ kind: "other" });
+    return rows;
+  }, [request.options, showOther]);
   const [mode, setMode] = useState<"options" | "input">(hasOptions ? "options" : "input");
   const [inputValue, setInputValue] = useState("");
-  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
-  const [highlightedOther, setHighlightedOther] = useState(false);
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const otherButtonRef = useRef<HTMLButtonElement>(null);
+  const [highlightedRowIndex, setHighlightedRowIndex] = useState<number | null>(null);
+  const optionRowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
   // 数字键高亮反馈的延时句柄：再次按键以最后一次为准，卸载/依赖变化时清除
   const digitTimerRef = useRef<number | null>(null);
 
   const focusAskUser = useCallback(() => {
-    const target = mode === "input" ? textareaRef.current : optionRefs.current[0];
+    const target = mode === "input" ? textareaRef.current : optionRowRefs.current[0];
     if (!target || target.disabled) return false;
 
     target.focus({ preventScroll: true });
@@ -309,14 +319,13 @@ function AskUserOptions({
       const isOther = num === 0 && showOther;
       if (!isOption && !isOther) return;
       e.preventDefault();
-      setHighlightedIndex(isOption ? num - 1 : null);
-      setHighlightedOther(isOther);
+      // 行索引与 optionRows 对齐：1..n 命中选项，0 命中末行的自定义回复
+      setHighlightedRowIndex(isOption ? num - 1 : optionRows.length - 1);
       // 200ms 高亮反馈后再执行；期间再次按键则取消上一次，避免并发响应
       if (digitTimerRef.current !== null) window.clearTimeout(digitTimerRef.current);
       digitTimerRef.current = window.setTimeout(() => {
         digitTimerRef.current = null;
-        setHighlightedIndex(null);
-        setHighlightedOther(false);
+        setHighlightedRowIndex(null);
         if (isOther) setMode("input");
         else handleSelectOption(request.options[num - 1].value);
       }, 200);
@@ -329,7 +338,7 @@ function AskUserOptions({
         digitTimerRef.current = null;
       }
     };
-  }, [mode, hasOptions, showOther, request.options, handleSelectOption]);
+  }, [mode, hasOptions, showOther, request.options, optionRows, handleSelectOption]);
 
   // 否则作为自定义回复
   const handleSubmitInput = async () => {
@@ -354,117 +363,90 @@ function AskUserOptions({
 
   useEffect(() => {
     if (mode !== "options" || !hasOptions) return;
-    const frame = window.requestAnimationFrame(() => optionRefs.current[0]?.focus());
+    const frame = window.requestAnimationFrame(() => optionRowRefs.current[0]?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [hasOptions, mode]);
 
-  const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const handleOptionRowKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    rowIndex: number,
+  ) => {
     const { key } = event;
-    // 空格会触发 button 的原生 click（等于确认选择），容易误触；确认只保留 Enter 与数字键
+    // 空格会触发 button 的原生 click（等于确认当前项），容易误触；确认只保留 Enter 与数字键
     if (key === " ") {
       event.preventDefault();
       return;
     }
-    if (key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End") {
-      event.preventDefault();
-      event.stopPropagation();
+    if (key !== "ArrowDown" && key !== "ArrowUp") return;
 
-      if (key === "Home") {
-        optionRefs.current[0]?.focus();
-      } else if (key === "End") {
-        if (showOther) otherButtonRef.current?.focus();
-        else optionRefs.current[request.options.length - 1]?.focus();
-      } else if (key === "ArrowDown") {
-        if (index < request.options.length - 1) {
-          optionRefs.current[index + 1]?.focus();
-        } else if (showOther) {
-          otherButtonRef.current?.focus();
-        }
-      } else if (index > 0) {
-        optionRefs.current[index - 1]?.focus();
-      }
-    }
-  };
+    event.preventDefault();
+    event.stopPropagation();
 
-  const handleOtherKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    const { key } = event;
-    // 同选项：空格不作为确认触发，避免误触
-    if (key === " ") {
-      event.preventDefault();
-      return;
-    }
-    if (key === "ArrowUp") {
-      event.preventDefault();
-      event.stopPropagation();
-      optionRefs.current[request.options.length - 1]?.focus();
-    } else if (key === "Home") {
-      event.preventDefault();
-      event.stopPropagation();
-      optionRefs.current[0]?.focus();
-    }
+    const nextRowIndex = rowIndex + (key === "ArrowDown" ? 1 : -1);
+    if (nextRowIndex < 0 || nextRowIndex >= optionRows.length) return;
+    optionRowRefs.current[nextRowIndex]?.focus();
   };
 
   return (
     <>
-      {/* 选项模式 */}
+      {/* 选项模式：选项与「自定义回复」同属一条 row 列表，渲染与键盘行为共用行索引 */}
       {mode === "options" && (
         <div className="flex flex-col gap-2">
-          {request.options.map((option, index) => (
-            <button
-              key={option.value}
-              ref={(element) => {
-                optionRefs.current[index] = element;
-              }}
-              type="button"
-              className={cn(
-                ASK_USER_OPTION_CLASS,
-                highlightedIndex === index
-                  ? ASK_USER_OPTION_HIGHLIGHT_CLASS
-                  : option.danger
-                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
-                    : ASK_USER_OPTION_IDLE_CLASS,
-              )}
-              onClick={() => handleSelectOption(option.value)}
-              onKeyDown={(event) => handleOptionKeyDown(event, index)}
-            >
-              <span className="inline-flex items-start gap-1.5 w-full">
-                <span
-                  className={cn(
-                    ASK_USER_BADGE_CLASS,
-                    ASK_USER_BADGE_PRIORITY_CLASS[option.priority],
-                  )}
-                >
-                  {index + 1}
+          {optionRows.map((row, rowIndex) => {
+            const isOther = row.kind === "other";
+            return (
+              <button
+                key={isOther ? "__other__" : row.option.value}
+                ref={(element) => {
+                  optionRowRefs.current[rowIndex] = element;
+                }}
+                type="button"
+                className={cn(
+                  ASK_USER_OPTION_CLASS,
+                  highlightedRowIndex === rowIndex
+                    ? ASK_USER_OPTION_HIGHLIGHT_CLASS
+                    : isOther
+                      ? ASK_USER_OTHER_CLASS
+                      : row.option.danger
+                        ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
+                        : ASK_USER_OPTION_IDLE_CLASS,
+                )}
+                onClick={() => {
+                  if (isOther) setMode("input");
+                  else handleSelectOption(row.option.value);
+                }}
+                onKeyDown={(event) => handleOptionRowKeyDown(event, rowIndex)}
+              >
+                <span className="inline-flex items-start gap-1.5 w-full">
+                  <span
+                    className={cn(
+                      ASK_USER_BADGE_CLASS,
+                      isOther
+                        ? ASK_USER_BADGE_OTHER_CLASS
+                        : ASK_USER_BADGE_PRIORITY_CLASS[row.option.priority],
+                    )}
+                  >
+                    {isOther ? "0" : rowIndex + 1}
+                  </span>
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 whitespace-normal self-start py-1",
+                      isOther && "pr-5",
+                    )}
+                  >
+                    {isOther ? t("askUser.other", "Custom reply") : row.option.label}
+                  </span>
                 </span>
-                <span className="min-w-0 flex-1 whitespace-normal self-start py-1">
-                  {option.label}
-                </span>
-              </span>
-              <span className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">
-                {option.priority}
-              </span>
-            </button>
-          ))}
-          {showOther && (
-            <button
-              ref={otherButtonRef}
-              type="button"
-              className={cn(
-                ASK_USER_OPTION_CLASS,
-                highlightedOther ? ASK_USER_OPTION_HIGHLIGHT_CLASS : ASK_USER_OTHER_CLASS,
-              )}
-              onClick={() => setMode("input")}
-              onKeyDown={handleOtherKeyDown}
-            >
-              <span className="inline-flex items-start gap-1.5 w-full">
-                <span className={cn(ASK_USER_BADGE_CLASS, ASK_USER_BADGE_OTHER_CLASS)}>0</span>
-                <span className="min-w-0 flex-1 whitespace-normal self-start py-1 pr-5">
-                  {t("askUser.other", "Custom reply")}
-                </span>
-              </span>
-              <Keyboard className="absolute right-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40 shrink-0" />
-            </button>
-          )}
+                {isOther ? (
+                  <Keyboard className="absolute right-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40 shrink-0" />
+                ) : (
+                  <span className="absolute top-0.5 right-1 text-[9px] leading-none text-muted-foreground/30 shrink-0 self-start font-mono">
+                    {row.option.priority}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
