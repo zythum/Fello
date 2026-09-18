@@ -19,6 +19,62 @@ export type CreateACPClientToolsParams = {
   permissionMemory?: ToolPermissionMemory;
 };
 
+/**
+ * Shell 输出预算（字节）：既是 ACP 终端缓冲区 outputByteLimit 的默认值，也是返回给模型的
+ * 文本上限。两侧都按同一条规则裁剪——超出预算只保留尾部、丢弃头部，因此模型侧只有一套
+ * 截断逻辑，不再有「保留首尾」这种第二套实现。
+ */
+const SHELL_OUTPUT_BYTE_LIMIT = 30 * 1024;
+
+const SHELL_OUTPUT_TRUNCATED_NOTICE =
+  "[Shell output: earlier output exceeded the output limit and was dropped, only the tail is shown. Narrow the command (e.g. pipe through head/tail/grep) to see the part you need.]\n";
+
+/**
+ * 按字节预算保留尾部（与终端缓冲区裁剪方式一致，仅作用于返回给模型的文本）。
+ * 切点若落在多字节字符中间，则跳到下一个字符边界，避免结果以替换字符开头。
+ */
+function keepTailWithinByteLimit(
+  text: string,
+  byteLimit: number,
+): { text: string; trimmed: boolean } {
+  const encoded = new TextEncoder().encode(text);
+  if (encoded.length <= byteLimit) return { text, trimmed: false };
+
+  let start = encoded.length - byteLimit;
+  // 0b10xxxxxx 是 UTF-8 续字节，说明切点在字符中间，继续后移直到字符边界
+  while (start < encoded.length && (encoded[start] & 0xc0) === 0x80) start += 1;
+
+  return {
+    text: new TextDecoder().decode(encoded.subarray(start)),
+    trimmed: true,
+  };
+}
+
+/**
+ * Shell 工具返回给模型的最小形态：只有输出文本，非零退出/被信号杀死/超时等
+ * 状态以一行短标记追加在末尾。
+ *
+ * 不返回结构化对象（terminalId / exitStatus / truncated 等）：这些字段对模型
+ * 没有价值，但会随每次工具调用写进 responseMessages 历史，并在后续每一轮请求里
+ * 反复计入输入 token。终端面板所需的 terminalId 由 tool_call_update 的
+ * terminal content block 单独传递，不依赖这里的返回值。
+ */
+function formatShellResultForModel(params: {
+  output: string;
+  exitStatus: { exitCode?: number | null; signal?: string | null } | null;
+  timedOut: boolean;
+}): string {
+  const notes: string[] = [];
+  if (params.timedOut) notes.push("timed out and was killed");
+  const exitCode = params.exitStatus?.exitCode ?? null;
+  if (exitCode != null && exitCode !== 0) notes.push(`exited with code ${exitCode}`);
+  const signal = params.exitStatus?.signal ?? null;
+  if (signal) notes.push(`killed by signal ${signal}`);
+
+  if (notes.length === 0) return params.output;
+  return `${params.output}\n[command ${notes.join("; ")}]`;
+}
+
 export function createACPClientTools(params: CreateACPClientToolsParams): ACPSessionTools {
   const terminals: ACPAgentTerminalMap = new Map();
   const tools: ToolSet = {
@@ -372,7 +428,8 @@ Prefer dedicated tools first:
 - Grep: search content (equivalent: rg "pattern" src or grep -R "pattern" src)
 - Glob/find-style discovery: find files (equivalent: find . -name "*.ts")
 Use Shell as fallback when those tools cannot complete the task.
-Avoid destructive commands and prefer deterministic, non-interactive commands.`,
+Avoid destructive commands and prefer deterministic, non-interactive commands.
+Output returned to you is capped at 30720 bytes: beyond that only the tail is kept and a notice is prepended (the terminal buffer uses the same rule). The user still sees the full output in the terminal panel. When output may be large, narrow it in the command itself (pipe through head/tail/grep, or add flags like --no-pager).`,
       inputSchema: z.object({
         command: z.string().describe("Executable command."),
         args: z.array(z.string()).optional().describe("Command arguments."),
@@ -383,7 +440,9 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
           .int()
           .positive()
           .optional()
-          .describe("Output retention byte limit."),
+          .describe(
+            "Terminal buffer retention limit in bytes. Defaults to 30720, which is also the cap on the output returned to you.",
+          ),
         timeoutSeconds: z
           .number()
           .positive()
@@ -436,7 +495,8 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
             args,
             cwd: cwd ?? null,
             env: toEnvVariables(env),
-            outputByteLimit: outputByteLimit ?? null,
+            // 未指定时用统一预算，避免 ACP 侧落回 agent-bridge 的 1MB 默认值
+            outputByteLimit: outputByteLimit ?? SHELL_OUTPUT_BYTE_LIMIT,
           });
           terminals.set(terminal.id, terminal);
 
@@ -480,11 +540,13 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
           }
 
           const finalOutput = output ?? { output: "", truncated: false, exitStatus: null };
+          const exitStatus = finalOutput.exitStatus ?? null;
+          // rawOutput 保持终端原始输出（协议/UI/调试用），截断与状态提示只作用于返回给模型的文本。
           const sessionOutput = {
             terminalId: terminal.id,
             output: finalOutput.output,
             truncated: finalOutput.truncated,
-            exitStatus: finalOutput.exitStatus ?? null,
+            exitStatus,
             timedOut,
           };
           await connection.sessionUpdate({
@@ -497,7 +559,14 @@ Avoid destructive commands and prefer deterministic, non-interactive commands.`,
               content: toolCallStartUpdate.content,
             },
           });
-          return sessionOutput;
+          // ACP 侧已按 outputByteLimit 丢弃开头；调用方给了更大预算时，用同一条规则兜底。
+          const keptOutput = keepTailWithinByteLimit(finalOutput.output, SHELL_OUTPUT_BYTE_LIMIT);
+          const headDropped = finalOutput.truncated || keptOutput.trimmed;
+          return formatShellResultForModel({
+            output: headDropped ? SHELL_OUTPUT_TRUNCATED_NOTICE + keptOutput.text : keptOutput.text,
+            exitStatus,
+            timedOut,
+          });
         } catch (error) {
           const errorText = error instanceof Error ? error.message : String(error);
           await connection.sessionUpdate({

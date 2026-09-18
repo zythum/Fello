@@ -96,13 +96,7 @@ interface TreeDropNode {
  * ACP 的 `promptCapabilities.image` 只声明布尔能力，具体类型由客户端决定；
  * 需要收窄 / 放宽时由调用方传自己的数组。
  */
-export const IMAGE_MIME_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/bmp",
-];
+export const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"];
 
 /** 读取 File 为 base64（不含 data: URL 前缀） */
 function readFileAsBase64(file: File): Promise<string> {
@@ -144,9 +138,7 @@ async function insertInputFiles(
 
   for (const file of files) {
     const asAttachment =
-      canStageAttachments &&
-      Boolean(file.type) &&
-      Boolean(attachmentAccepts?.includes(file.type));
+      canStageAttachments && Boolean(file.type) && Boolean(attachmentAccepts?.includes(file.type));
     if (asAttachment) {
       try {
         added.push({
@@ -207,27 +199,22 @@ function useChatDropTarget({
     [],
   );
 
-  const onDragOver = useCallback(
-    (event: DragEvent) => {
-      const types = event.dataTransfer.types;
-      const acceptable =
-        types.includes("Files") ||
-        types.includes("text/uri-list") ||
-        types.includes(TREE_NODES_TYPE);
-      if (!acceptable) return;
+  const onDragOver = useCallback((event: DragEvent) => {
+    const types = event.dataTransfer.types;
+    const acceptable =
+      types.includes("Files") || types.includes("text/uri-list") || types.includes(TREE_NODES_TYPE);
+    if (!acceptable) return;
 
-      event.preventDefault();
-      event.stopPropagation();
-      event.dataTransfer.dropEffect = "copy";
-      // child→child 切换会先 leave 再 enter，防抖避免高亮闪烁
-      if (dragLeaveTimer.current) {
-        clearTimeout(dragLeaveTimer.current);
-        dragLeaveTimer.current = null;
-      }
-      setIsDragOver(true);
-    },
-    [],
-  );
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    // child→child 切换会先 leave 再 enter，防抖避免高亮闪烁
+    if (dragLeaveTimer.current) {
+      clearTimeout(dragLeaveTimer.current);
+      dragLeaveTimer.current = null;
+    }
+    setIsDragOver(true);
+  }, []);
 
   const onDragLeave = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -744,7 +731,10 @@ export function ChatTextarea({
         }}
       >
         <div
-          className={cn("flex items-center", compact ? "gap-0.5" : "gap-2 p-2 overflow-hidden -mr-4")}
+          className={cn(
+            "flex items-center",
+            compact ? "gap-0.5" : "gap-2 p-2 overflow-hidden -mr-4",
+          )}
         >
           {leftSlot}
           <div className={cn("flex items-center", compact && "gap-0.5")}>

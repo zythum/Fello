@@ -7,6 +7,8 @@ export interface AgentTerminalProcess {
   process: ChildProcess;
   outputBuffer: Buffer;
   outputByteLimit: number;
+  /** 缓冲区是否曾因超过 outputByteLimit 丢弃过开头的数据 */
+  truncated: boolean;
   exitCode: number | null;
   signal: string | null;
   isFinished: boolean;
@@ -60,6 +62,7 @@ export class AgentTerminalManager {
       process: proc,
       outputBuffer: Buffer.alloc(0),
       outputByteLimit,
+      truncated: false,
       exitCode: null,
       signal: null,
       isFinished: false,
@@ -71,8 +74,14 @@ export class AgentTerminalManager {
     const handleData = (chunk: Buffer) => {
       let newBuffer = Buffer.concat([terminal.outputBuffer, chunk]);
       if (newBuffer.length > terminal.outputByteLimit) {
-        // truncate from the beginning
-        newBuffer = newBuffer.subarray(newBuffer.length - terminal.outputByteLimit);
+        // truncate from the beginning；切点若落在多字节字符中间，则后移到字符边界，
+        // 避免缓冲区（进而 rawOutput / 工具返回值）以替换字符开头
+        let start = newBuffer.length - terminal.outputByteLimit;
+        while (start < newBuffer.length && (newBuffer.readUInt8(start) & 0xc0) === 0x80) {
+          start += 1;
+        }
+        newBuffer = newBuffer.subarray(start);
+        terminal.truncated = true;
       }
       terminal.outputBuffer = newBuffer;
       const text = terminal.outputDecoder.decode(chunk, { stream: true });
@@ -102,11 +111,9 @@ export class AgentTerminalManager {
     if (!terminal) {
       throw new Error(`Terminal ${terminalId} not found`);
     }
-    // We don't track true truncated state perfectly yet, but we can assume if buffer equals limit it might be truncated.
-    // For now, return false or check if we ever truncated. Let's just say false for simplicity unless we add a flag.
     return {
       output: terminal.outputDecoder.decode(terminal.outputBuffer),
-      truncated: false, // Simplification
+      truncated: terminal.truncated,
     };
   }
 
