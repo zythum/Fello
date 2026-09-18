@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 
 export type FocusTargetId = string;
 export type FocusTargetHandler = () => boolean | void;
@@ -67,6 +67,38 @@ export function useFocusTarget(id: FocusTargetId, handler: FocusTargetHandler, e
 
 export function useFocusTargetRegistry() {
   return useFocusTargetContext();
+}
+
+/**
+ * 判断按键是否为唤起上下文菜单的标准键盘操作：
+ * - `ContextMenu`（Apps）键
+ * - `Shift+F10`（Windows 惯例；macOS 上 F10 默认是媒体键，需 `Fn+Shift+F10`）
+ *
+ * 用 `event.code` 而非 `event.key` 判断 F10，避免受键盘布局影响。
+ */
+export function isContextMenuKey(event: KeyboardEvent | ReactKeyboardEvent): boolean {
+  return event.key === "ContextMenu" || (event.shiftKey && event.code === "F10");
+}
+
+/**
+ * 以元素中心为锚点合成 `contextmenu` 事件，让键盘操作也能打开 ContextMenu 菜单。
+ *
+ * base-ui 的 ContextMenu.Trigger 只监听真实的 `contextmenu` 事件，
+ * Chromium 不会因 `Shift+F10` 自动派发（那是 Windows 原生控件的系统行为），因此需要手动合成。
+ */
+export function openContextMenuFromKeyboard(element: HTMLElement): void {
+  const rect = element.getBoundingClientRect();
+  element.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      button: 2,
+      buttons: 2,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    }),
+  );
 }
 
 type ShortcutKey = "Alt" | "Control" | "Ctrl" | "Meta" | "Cmd" | "Mod" | "Shift" | string;

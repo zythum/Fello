@@ -4,7 +4,11 @@ import { Plus, SquareTerminal, X, Circle, Eye, Trash2 } from "lucide-react";
 import { request, clientId } from "../../../../backend";
 import { useAppStore, useProjectState } from "../../../../store";
 import { destroyTerminalInstance } from "../../../../lib/terminal-manager";
-import { useFocusTarget } from "../../../../lib/keyboard";
+import {
+  isContextMenuKey,
+  openContextMenuFromKeyboard,
+  useFocusTarget,
+} from "../../../../lib/keyboard";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -193,22 +197,10 @@ export function TerminalPanel({
         return;
       }
 
-      if (key === "/") {
+      if (isContextMenuKey(event)) {
         event.preventDefault();
         event.stopPropagation();
-        const target = event.currentTarget;
-        const rect = target.getBoundingClientRect();
-        target.dispatchEvent(
-          new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            button: 2,
-            buttons: 2,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-          }),
-        );
+        openContextMenuFromKeyboard(event.currentTarget);
         return;
       }
 

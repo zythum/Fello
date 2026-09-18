@@ -40,7 +40,11 @@ import {
 import { copyText } from "@/lib/clipboard";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { FileIcon } from "../../../common/file-icon";
-import { useFocusTarget } from "../../../../lib/keyboard";
+import {
+  isContextMenuKey,
+  openContextMenuFromKeyboard,
+  useFocusTarget,
+} from "../../../../lib/keyboard";
 
 interface TreeNode {
   id: string;
@@ -961,22 +965,10 @@ export const FilePanel = memo(function FilePanel({
         return;
       }
 
-      if (key === "/") {
+      if (isContextMenuKey(event)) {
         event.preventDefault();
         event.stopPropagation();
-        const target = event.currentTarget;
-        const rect = target.getBoundingClientRect();
-        target.dispatchEvent(
-          new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            button: 2,
-            buttons: 2,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-          }),
-        );
+        openContextMenuFromKeyboard(event.currentTarget);
         return;
       }
 
