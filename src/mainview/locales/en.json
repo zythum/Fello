@@ -374,6 +374,7 @@
       "add": "Add Snippet",
       "edit": "Edit Snippet",
       "delete": "Delete",
+      "dragToReorder": "Drag to reorder",
       "save": "Save",
       "cancel": "Cancel",
       "empty": "No snippets configured",
