@@ -820,18 +820,13 @@ export const FilePanel = memo(function FilePanel({
       const currentIndex = items.findIndex(
         (navigationItem) => fileNavigationItemKey(navigationItem) === fileNavigationItemKey(item),
       );
-      const nextIndex =
-        event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? items.length - 1
-            : Math.max(
-                0,
-                Math.min(
-                  items.length - 1,
-                  currentIndex + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1),
-                ),
-              );
+      const nextIndex = Math.max(
+        0,
+        Math.min(
+          items.length - 1,
+          currentIndex + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1),
+        ),
+      );
       const nextItem = items[nextIndex];
       if (nextItem) focusFileNavigationItem(nextItem);
     },
@@ -944,8 +939,7 @@ export const FilePanel = memo(function FilePanel({
   const handleTreeKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, node: TreeNode) => {
       const { key } = event;
-      const isVerticalNavigationKey =
-        key === "ArrowUp" || key === "ArrowDown" || key === "Home" || key === "End";
+      const isVerticalNavigationKey = key === "ArrowUp" || key === "ArrowDown";
 
       if (isVerticalNavigationKey) {
         const treeItem = { type: "tree", id: node.id } as const;
@@ -1752,12 +1746,7 @@ export const FilePanel = memo(function FilePanel({
     event: React.KeyboardEvent<HTMLElement>,
     action: FileNavigationAction,
   ) => {
-    if (
-      event.key === "ArrowLeft" ||
-      event.key === "ArrowRight" ||
-      event.key === "Home" ||
-      event.key === "End"
-    ) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       handleFileNavigationKeyDown(event, fileActionItems, { type: "action", action });
       return;
     }

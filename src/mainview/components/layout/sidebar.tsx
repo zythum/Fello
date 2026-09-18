@@ -671,8 +671,7 @@ export function Sidebar() {
     item: SidebarNavigationItem,
   ) => {
     const { key } = event;
-    const isVerticalNavigationKey =
-      key === "ArrowUp" || key === "ArrowDown" || key === "Home" || key === "End";
+    const isVerticalNavigationKey = key === "ArrowUp" || key === "ArrowDown";
 
     if (isVerticalNavigationKey) {
       event.preventDefault();
@@ -687,15 +686,10 @@ export function Sidebar() {
         addProjectButtonRef.current?.focus({ preventScroll: true });
         return;
       }
-      const nextIndex =
-        key === "Home"
-          ? 0
-          : key === "End"
-            ? navigationItems.length - 1
-            : Math.max(
-                0,
-                Math.min(navigationItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
-              );
+      const nextIndex = Math.max(
+        0,
+        Math.min(navigationItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
+      );
       const nextItem = navigationItems[nextIndex];
       if (nextItem) focusNavigationItem(nextItem);
       return;
@@ -746,7 +740,7 @@ export function Sidebar() {
 
   const handleAddProjectKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const { key } = event;
-    if (key === "ArrowLeft" || key === "ArrowRight" || key === "Home" || key === "End") {
+    if (key === "ArrowLeft" || key === "ArrowRight") {
       event.preventDefault();
       event.stopPropagation();
       addProjectButtonRef.current?.focus({ preventScroll: true });

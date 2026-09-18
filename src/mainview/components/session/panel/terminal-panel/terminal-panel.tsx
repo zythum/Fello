@@ -148,7 +148,7 @@ export function TerminalPanel({
       const { key } = event;
 
       if (item.type === "add") {
-        if (key === "ArrowLeft" || key === "ArrowRight" || key === "Home" || key === "End") {
+        if (key === "ArrowLeft" || key === "ArrowRight") {
           event.preventDefault();
           event.stopPropagation();
           focusNavigationItem(item);
@@ -171,8 +171,7 @@ export function TerminalPanel({
         return;
       }
 
-      const isVerticalNavigationKey =
-        key === "ArrowUp" || key === "ArrowDown" || key === "Home" || key === "End";
+      const isVerticalNavigationKey = key === "ArrowUp" || key === "ArrowDown";
       if (isVerticalNavigationKey) {
         event.preventDefault();
         event.stopPropagation();
@@ -183,15 +182,10 @@ export function TerminalPanel({
         }
 
         if (terminalItems.length === 0) return;
-        const nextIndex =
-          key === "Home"
-            ? 0
-            : key === "End"
-              ? terminalItems.length - 1
-              : Math.max(
-                  0,
-                  Math.min(terminalItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
-                );
+        const nextIndex = Math.max(
+          0,
+          Math.min(terminalItems.length - 1, currentIndex + (key === "ArrowDown" ? 1 : -1)),
+        );
         const nextTerminal = terminalItems[nextIndex];
         if (nextTerminal) focusNavigationItem(nextTerminal);
         return;
