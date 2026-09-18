@@ -1,4 +1,3 @@
-import * as React from "react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
 import { cn } from "@/lib/utils"
@@ -15,44 +14,18 @@ function ScrollArea({
   hideScrollBar,
   ...props
 }: ScrollAreaProps) {
-  const handleViewportKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const viewport = event.currentTarget;
-    // Respect handlers that already claimed the event or another element that owns focus.
-    if (
-      event.defaultPrevented ||
-      event.target !== viewport ||
-      viewport.ownerDocument.activeElement !== viewport
-    ) {
-      return;
-    }
-
-    const isMetaEdgeShortcut =
-      event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
-    let top: number | null = null;
-
-    if (isMetaEdgeShortcut && event.key === "ArrowUp") {
-      top = 0;
-    } else if (isMetaEdgeShortcut && event.key === "ArrowDown") {
-      top = viewport.scrollHeight;
-    }
-
-    if (top === null) return;
-
-    event.preventDefault();
-    viewport.scrollTo({ top, behavior: "smooth" });
-  };
-
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
       className={cn("relative", className)}
       {...props}
     >
+      {/* Edge scrolling (Cmd/Ctrl + ArrowUp/Down) is intentionally left to the browser:
+          Chromium scrolls the focused viewport on its own, so no key handler is needed. */}
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
         className={cn("size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:outline-1", viewportClassName)}
         style={{ overflowAnchor: "auto" }}
-        onKeyDown={handleViewportKeyDown}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
