@@ -189,6 +189,7 @@ fello/
 │       │   │   │   ├── chat-header.tsx # 会话头部 (Agent Badge, 标题, MCP菜单, 刷新)
 │       │   │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
 │       │   │   │   ├── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
+│       │   │   │   ├── chat-textarea.tsx # 输入框公共外壳 (MentionsInput、#/@ 建议面板、工具栏)
 │       │   │   │   └── chat-timeline.tsx # 聊天时间线导航
 │       │   │   ├── session.tsx       # 主工作区布局 (ResizablePanelGroup 三栏: Chat + Detail + Panel)
 │       │   │   ├── panel/            # 右侧标签面板

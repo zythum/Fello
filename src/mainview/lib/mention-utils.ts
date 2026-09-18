@@ -112,6 +112,31 @@ export function insertMentionsAtCursor(textarea: HTMLTextAreaElement, mentions: 
   document.execCommand("insertText", false, `${prefix}${mentions.join(" ")} `);
 }
 
+/** 路径输入：纯字符串时 isImage 按扩展名推断，显式给出时优先（如来自拖拽 File 的 mime 判断） */
+export type MentionPathInput = string | { path: string; isImage?: boolean };
+
+/**
+ * 将一批绝对路径解析为 mention 标记并插入到 textarea 光标处。
+ * 文件选择 / 拖拽 / 粘贴的统一入口（chat-input 与 chat-ask-user-dialog 共用）。
+ */
+export async function insertPathsAsMentions(
+  textarea: HTMLTextAreaElement,
+  paths: MentionPathInput[],
+  options: { projectId: string; projectCwd?: string },
+): Promise<void> {
+  if (paths.length === 0) return;
+  // execCommand("insertText") 需要 textarea 处于聚焦状态，否则静默失败
+  textarea.focus();
+  const mentions = await Promise.all(
+    paths.map((item) =>
+      typeof item === "string"
+        ? absPathToMention(item, options.projectId, options.projectCwd)
+        : absPathToMention(item.path, options.projectId, options.projectCwd, item.isImage),
+    ),
+  );
+  insertMentionsAtCursor(textarea, mentions);
+}
+
 /** 将文件树节点数组拼成 mention markup 文本 */
 export function nodesToMentionText(
   nodes: { id: string; name: string; isFolder: boolean }[],

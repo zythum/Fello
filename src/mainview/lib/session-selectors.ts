@@ -1,7 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore, type StagedAttachmentInfo } from "../store";
 import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./chat-message";
-import type { AskUserRequest } from "../../shared/schema";
+import type { AskUserRequest, SessionInfo } from "../../shared/schema";
 
 /**
  * 细粒度的 Session State Selector Hooks。
@@ -62,6 +62,13 @@ export function useSessionAskUserRequests(sessionId: string | null): AskUserRequ
       }
       return null;
     }),
+  );
+}
+
+/** 只订阅指定 session 的元信息（返回 sessions 数组中的对象引用，供 projectId / cwd / mcpServers 等使用） */
+export function useSessionById(sessionId: string | null): SessionInfo | null {
+  return useAppStore((s) =>
+    sessionId ? (s.sessions.find((session) => session.id === sessionId) ?? null) : null,
   );
 }
 

@@ -142,6 +142,7 @@
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 askUserRequests 队列、iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `lib/session-selectors.ts`：Zustand 细粒度选择器 Hooks（`useSessionMessages`/`useSessionActiveToolCalls`/`useSessionIsLoading` 等），使用 `useShallow` 避免不必要的重渲染
+- `lib/mention-suggestions.ts`：react-mentions 建议数据源的公共 Hooks（`useFileSuggestions` / `useAtSuggestions`），统一 `#` 文件搜索与 `@` 技能 / MCP 的防抖、缓存与竞态保护
 - `lib/file-url.ts`：`resolveFileUrl(pathname)` 工具函数，根据 Electron/WebUI 环境将路径名解析为完整文件 URL
 - `backend.ts`：IPC 客户端封装，支持在 Electron 环境下使用 `bridge.invoke`，在 WebUI 环境下通过 WebSocket 连接到主进程
 - `electron.ts`：纯客户端专属原生系统交互 API 封装（如 `showOpenDialog`、`revealInFinder` 等），在 WebUI 模式下会自动降级或屏蔽
@@ -150,6 +151,7 @@
   - `session/session.tsx`：主工作区布局，使用 `ResizablePanelGroup` 三栏结构（左：Chat + 可选详情，右：标签面板），并自动监听宽度切换紧凑模式
   - `session/chat/chat.tsx`：聊天区容器（含 ChatHeader + AskUserDialog）
   - `session/chat/chat-ask-user-dialog.tsx`：Ask User 对话框，支持选项选择与自定义输入、排队动画
+  - `session/chat/chat-textarea.tsx`：chat-input 与 Ask User 共用的输入区（`ChatTextarea` = 盒子 + 输入框 + 工具栏）：盒子（边框 / focus ring / 拖拽高亮 / 右键菜单高亮 / 拖放 / 粘贴）、MentionsInput 与 `#`/`@` 建议面板、尺寸与工具栏布局预设（variant）、Enter 提交策略、附件预览、文件选择入口、工具簇与语音按钮；差异通过 variant / className / leftSlot / rightSlot / primaryAction / `attachmentAccepts`（认可为图片附件的 MIME 白名单，同时决定是否渲染回形针附件按钮；`[]` = 有按钮但一律走 mention）/ `attachments` + `onAttachmentChange`（受控附件列表）表达；file-panel 树节点拖拽（追加 mention 文本）已内置
   - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、时间、MCP 服务器切换菜单、刷新、用量按钮）
   - `chat-bubbles/`：各类消息气泡（agent、subagent、user、system、tool、thinking、plan、message、base）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）

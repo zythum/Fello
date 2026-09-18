@@ -1,5 +1,5 @@
 /**
- * textarea 光标处插入的公共实现。
+ * textarea 光标处插入的公共原语（不含按键策略，Enter 等按键策略由输入框组件决定）。
  *
  * 背景（Chromium / Blink）：`EditingBehavior` 的按键映射表只为「无修饰键」和
  * 「Shift」的 Enter 生成插入换行的编辑命令，没有 Ctrl/Cmd + Return 项，
@@ -19,4 +19,23 @@ export function insertNewlineAtCaret(textarea: HTMLTextAreaElement | null | unde
   // execCommand("insertText") 需要目标处于聚焦状态，否则静默失败
   textarea.focus();
   document.execCommand("insertText", false, "\n");
+}
+
+/**
+ * 在光标处插入 `#` / `@` 并触发展开建议弹层（chat-input 与 chat-ask-user-dialog 共用）。
+ *
+ * react-mentions 只在 selectionchange → onSelect 时刷新建议（真实输入会触发），而
+ * execCommand 只触发 input 不触发 selectionchange，因此需要手动补发一次。
+ * 空格规则：光标前已有内容且非空白时补 1 个前导空格（trigger 匹配要求行首或空白）。
+ */
+export function insertMentionTrigger(
+  textarea: HTMLTextAreaElement | null | undefined,
+  char: "#" | "@",
+): void {
+  if (!textarea) return;
+  textarea.focus();
+  const before = textarea.value.slice(0, textarea.selectionStart);
+  const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+  document.execCommand("insertText", false, `${needsLeadingSpace ? " " : ""}${char}`);
+  textarea.ownerDocument.dispatchEvent(new Event("selectionchange"));
 }
