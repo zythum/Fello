@@ -668,7 +668,14 @@
     "stopVoiceInput": "停止语音输入",
     "startingVoiceInput": "正在启动语音输入",
     "voiceInputNotConfigured": "请先在设置中配置语音识别",
-    "noAudioInputDevices": "未找到音频输入设备"
+    "noAudioInputDevices": "未找到音频输入设备",
+    "voicePanelTitle": "语音输入",
+    "voicePanelEmpty": "没有识别到语音",
+    "voicePanelCancel": "取消",
+    "voicePanelSend": "发送",
+    "voicePanelHint": "可以开始说话，想讲多久都行",
+    "voicePanelHoldHint": "松手结束，说过的内容都会保留",
+    "voicePanelToInput": "填入输入框"
   },
   "filePanel": {
     "title": "文件",

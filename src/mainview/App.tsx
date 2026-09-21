@@ -13,6 +13,8 @@ import { GlobalTextContextMenu } from "./components/global/global-text-context-m
 import { ErrorBoundary } from "./components/global/error-boundary";
 import { AppRouter } from "./router";
 import { FocusTargetProvider, useFocusTargetRegistry } from "./lib/keyboard";
+import { PeripheralRuntime } from "./lib/peripherals/peripheral-runtime";
+import { VoicePanelProvider } from "./lib/peripherals/voice-panel-provider";
 import { createAppCommands } from "./lib/commands/command-catalog";
 import { useCommandShortcuts } from "./lib/commands/use-command-shortcuts";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +38,7 @@ function AppContent() {
     setSpeechToText,
     setVoiceInput,
     setShortcuts,
+    setPeripherals,
     setProxy,
     isMacApp,
     setIsFullScreen,
@@ -100,6 +103,7 @@ function AppContent() {
       if (settings.speechToText) setSpeechToText(settings.speechToText);
       if (settings.voiceInput) setVoiceInput(settings.voiceInput);
       if (settings.shortcuts) setShortcuts(settings.shortcuts);
+      if (settings.peripherals) setPeripherals(settings.peripherals);
       // 恢复所有 session 中 pending 的 askUser 请求
       for (const session of sessions ?? []) {
         try {
@@ -138,6 +142,7 @@ function AppContent() {
     setSpeechToText,
     setVoiceInput,
     setShortcuts,
+    setPeripherals,
     setProxy,
     setIlinkStatus,
     setActiveIlinkSessionId,
@@ -528,7 +533,11 @@ function App() {
         <MessageProvider>
           <HashRouter>
             <FocusTargetProvider>
-              <AppContent />
+              {/* 外设语音面板的状态机必须在 FocusTargetProvider 内：面板发送后要移动焦点 */}
+              <VoicePanelProvider>
+                <AppContent />
+                <PeripheralRuntime />
+              </VoicePanelProvider>
             </FocusTargetProvider>
           </HashRouter>
         </MessageProvider>

@@ -669,7 +669,14 @@
     "stopVoiceInput": "Stop voice input",
     "startingVoiceInput": "Starting voice input",
     "voiceInputNotConfigured": "Configure voice input in Settings",
-    "noAudioInputDevices": "No audio input devices found"
+    "noAudioInputDevices": "No audio input devices found",
+    "voicePanelTitle": "Voice input",
+    "voicePanelEmpty": "No speech detected",
+    "voicePanelCancel": "Cancel",
+    "voicePanelSend": "Send",
+    "voicePanelHint": "Speak now — keep going for as long as you need",
+    "voicePanelHoldHint": "Release to finish — everything you said is kept",
+    "voicePanelToInput": "Fill into input box"
   },
   "filePanel": {
     "title": "Files",

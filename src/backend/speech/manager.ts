@@ -13,6 +13,14 @@ interface ActiveAsrSession {
   clientId: string;
   asrSessionId: string;
   client: RealtimeASRClient;
+  /**
+   * `client.connect()` resolve 之前为 false。
+   *
+   * 会话在 `connect()` **之前**就登记进表里，是为了让 connect 期间的 stop 也能命中它；
+   * 但音频帧不能在那段时间里下发 —— 底层客户端此时 `connected === false`，
+   * `sendAudio()` 会抛 "Not connected. Call connect() before sendAudio()."。
+   */
+  ready: boolean;
 }
 
 export interface AsrManager {
@@ -108,6 +116,16 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** `unified-realtime-asr` 的 not-connected 错误（ASRError.code === "not-connected"）。 */
+function isNotConnectedError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "not-connected"
+  );
+}
+
 export function createAsrManager(ctx: BackendContext): AsrManager {
   const sessions = new Map<string, ActiveAsrSession>();
   const keyOf = (clientId: string, asrSessionId: string) => `${clientId}:${asrSessionId}`;
@@ -139,7 +157,7 @@ export function createAsrManager(ctx: BackendContext): AsrManager {
 
       const provider = getActiveProvider(ctx);
       const client = createASRClient(buildConfig(provider));
-      const active: ActiveAsrSession = { clientId, asrSessionId, client };
+      const active: ActiveAsrSession = { clientId, asrSessionId, client, ready: false };
       sessions.set(key, active);
 
       client.on("transcript", (transcript) => {
@@ -150,6 +168,7 @@ export function createAsrManager(ctx: BackendContext): AsrManager {
       });
       client.on("close", (info) => {
         if (sessions.get(key) !== active) return;
+        active.ready = false;
         sessions.delete(key);
         ctx.sendEvent("asr-closed", {
           clientId,
@@ -161,6 +180,7 @@ export function createAsrManager(ctx: BackendContext): AsrManager {
 
       try {
         await client.connect();
+        active.ready = true;
         return { ok: true };
       } catch (error) {
         sessions.delete(key);
@@ -172,9 +192,17 @@ export function createAsrManager(ctx: BackendContext): AsrManager {
     frame(clientId, asrSessionId, audioB64) {
       const active = sessions.get(keyOf(clientId, asrSessionId));
       if (!active) return;
+      // connect 还没完成：直接丢弃这几帧，而不是让底层客户端抛 not-connected。
+      // （音频源可能在 connect 期间就开始出帧，例如外设语音的收尾 flush。）
+      if (!active.ready) return;
       try {
         active.client.sendAudio(Buffer.from(audioB64, "base64"));
       } catch (error) {
+        // 连接已断开但 close 事件还没处理到时，同样只丢弃，不逐帧刷错误。
+        if (isNotConnectedError(error)) {
+          active.ready = false;
+          return;
+        }
         emitError(active, error);
       }
     },

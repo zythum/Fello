@@ -186,6 +186,26 @@ body,
   }
 }
 
+/**
+ * 语音面板录音时的「呼吸光环」。
+ *
+ * 只动 opacity（走合成层，不逐帧重绘面板），并且必须挂在**独立的光环元素**上：
+ * 若动画加在面板根节点的 opacity 上，文字与按钮会跟着一起明暗变化。
+ */
+@utility animate-voice-breathe {
+  animation: voice-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes voice-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

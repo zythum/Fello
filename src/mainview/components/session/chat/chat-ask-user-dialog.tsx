@@ -19,7 +19,7 @@ import { resolveMentions } from "../../../lib/mention-utils";
 import type { AskUserRequest, AskUserRequestOption } from "../../../../shared/schema";
 import type { VoiceInputButtonRef } from "../../common/voice-input-button";
 import { useFocusTarget } from "../../../lib/keyboard";
-import { ChatTextarea, IMAGE_MIME_TYPES } from "./chat-textarea";
+import { ChatTextarea, IMAGE_MIME_TYPES, type ChatTextareaSubmitValue } from "./chat-textarea";
 
 interface Props {
   sessionId: string;
@@ -341,9 +341,10 @@ function AskUserOptions({
   }, [mode, hasOptions, showOther, request.options, optionRows, handleSelectOption]);
 
   // 否则作为自定义回复
-  const handleSubmitInput = async () => {
+  // 值由输入区交回（`source === "voice"` 时是语音面板的转写），不再从 state 里读。
+  const handleSubmitInput = async (value: ChatTextareaSubmitValue) => {
     await voiceInputRef.current?.stop();
-    const trimmed = resolveMentions(inputValue).trim();
+    const trimmed = resolveMentions(value.text).trim();
     backend.request
       .respondAskUser({
         sessionId: request.sessionId,
@@ -354,6 +355,9 @@ function AskUserOptions({
       .catch(() => {})
       .then(() => onResolved());
   };
+
+  // 外设语音面板：ask-user 输入区同样是 ChatTextarea，因此同样可以成为面板宿主。
+  // 只在输入模式下渲染 ChatTextarea，所以注册的 `enabled` 与渲染条件一致。
 
   // 切换到输入模式时聚焦（@types/react-mentions 未声明 autoFocus，手动聚焦）
   useEffect(() => {
@@ -473,8 +477,7 @@ function AskUserOptions({
             attachments={null} // 没有附件概念：不渲染附件区，图片一律走 #image: mention
             inputRef={textareaRef}
             voiceInputRef={voiceInputRef}
-            // 每次渲染重建：handleSubmitInput 依赖当前 inputValue
-            onSubmit={() => void handleSubmitInput()}
+            onSubmit={(value) => void handleSubmitInput(value)}
             placeholder={t("askUser.inputPlaceholder", "Type your response... (Enter to send)")}
             // attachments 为 null → 命中的图片也只是 #image: mention，不会成为附件
             attachmentAccepts={IMAGE_MIME_TYPES}
@@ -482,7 +485,9 @@ function AskUserOptions({
               <Button
                 size="icon"
                 className="size-7 rounded-lg"
-                onClick={handleSubmitInput}
+                onClick={() =>
+                  void handleSubmitInput({ text: inputValue, attachments: [], source: "input" })
+                }
                 aria-label={t("askUser.submit", "Submit")}
               >
                 <ArrowUp className="size-3.5" />

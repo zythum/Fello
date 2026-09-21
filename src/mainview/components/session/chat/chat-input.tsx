@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { SuggestionDataItem } from "react-mentions";
 import { resolveMentions, nodesToMentionText } from "../../../lib/mention-utils";
-import { useFocusTarget } from "../../../lib/keyboard";
+import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
 import {
   useSessionIsLoading,
   useSessionAskUserRequests,
@@ -31,7 +31,12 @@ import { useMessage } from "../../providers/message";
 import type { SessionInfo } from "../../../../shared/schema";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { VoiceInputButtonRef } from "../../common/voice-input-button";
-import { ChatTextarea, IMAGE_MIME_TYPES, type ChatTextareaMention } from "./chat-textarea";
+import {
+  ChatTextarea,
+  IMAGE_MIME_TYPES,
+  type ChatTextareaMention,
+  type ChatTextareaSubmitValue,
+} from "./chat-textarea";
 
 /** `/` 命令建议面板（chat-input 独有，chat-textarea 只认 `#` / `@`） */
 function renderSlashSuggestion(
@@ -173,6 +178,7 @@ export function ChatInput({ session }: { session: SessionInfo }) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
+  const { focus } = useFocusTargetRegistry();
   const getTextarea = useCallback(() => textareaRef.current, []);
 
   const focusInput = useCallback(() => {
@@ -293,113 +299,138 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     [fetchSlashCommands, availableCommands],
   );
 
-  const handleSubmit = useCallback(async () => {
-    await voiceInputRef.current?.stop();
-    tiks.click();
-    const state = useAppStore.getState().getSessionState(session.id);
-    const currentAttachments = state.draftAttachments;
+  const handleSubmit = useCallback(
+    async (value: ChatTextareaSubmitValue) => {
+      await voiceInputRef.current?.stop();
+      tiks.click();
+      // 附件与文本都由输入区交回（语音面板的转写也走这条路径），不再依赖 store 里的草稿。
+      const currentAttachments = value.attachments;
+      const fromVoicePanel = value.source === "voice";
 
-    const displayId = generateUUID();
-    const resolved = resolveMentions(localInput).trim();
-    if ((!resolved && currentAttachments.length === 0) || !session.id || isStreaming) return;
+      const displayId = generateUUID();
+      const resolved = resolveMentions(value.text).trim();
+      if ((!resolved && currentAttachments.length === 0) || !session.id) return;
+      if (isStreaming) {
+        // 语音面板发送允许打断：先取消当前生成，再发送新的 prompt。
+        // 普通输入框在 streaming 时主操作按钮已是「停止」，保持原有早退行为（不从这里打断）。
+        if (!fromVoicePanel) return;
+        await request.cancelPrompt({ sessionId: session.id });
+      }
 
-    // Build ContentBlocks from stored attachments directly
-    const attachmentBlocks = buildAttachmentBlocks(currentAttachments);
+      // Build ContentBlocks from stored attachments directly
+      const attachmentBlocks = buildAttachmentBlocks(currentAttachments);
 
-    const contents: ContentBlock[] = [];
-    if (resolved) {
-      contents.push({
-        type: "text",
-        text: resolved,
-        _meta: {
-          display_id: displayId,
-          optimistic_id: generateUUID(),
-        },
-      });
-    }
-    contents.push(
-      ...attachmentBlocks.map((block) => {
-        return Object.assign(
-          {
-            _meta: {
-              display_id: displayId,
-              optimistic_id: generateUUID(),
-            },
+      const contents: ContentBlock[] = [];
+      if (resolved) {
+        contents.push({
+          type: "text",
+          text: resolved,
+          _meta: {
+            display_id: displayId,
+            optimistic_id: generateUUID(),
           },
-          block,
-        );
-      }),
-    );
-
-    const userMessage = {
-      role: "user_message",
-      contents,
-      displayId: displayId,
-      receivedAt: Date.now(),
-    } satisfies ChatMessage;
-
-    // 1. Optimistic Update: clear input + attachments, add message to screen instantly
-    setLocalInput("");
-    updateSessionState(() => ({
-      draftInput: "",
-      draftAttachments: [],
-    }));
-    addMessage(session.id, userMessage);
-    updateSession({ ...session, isStreaming: true });
-    document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
-
-    try {
-      // 2. Wait for the generation to complete
-      const promptResponse = await request.sendPrompt({
-        sessionId: session.id,
-        contents,
-      });
-
-      // 3. Show warning if not end_turn
-      if (promptResponse.stopReason && promptResponse.stopReason !== "end_turn") {
-        const stopReasonLabels: Record<string, string> = {
-          max_tokens: t("chatInput.stopReasonMaxTokens", "Reached maximum token limit"),
-          max_turn_requests: t("chatInput.stopReasonMaxTurnRequests", "Reached maximum turn limit"),
-          refusal: t("chatInput.stopReasonRefusal", "Model refused to respond"),
-          cancelled: t("chatInput.stopReasonCancelled", "Generation was cancelled"),
-        };
-        const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
-        if (promptResponse.stopReason === "cancelled") {
-          toast.info(label);
-        } else {
-          toast.error(label);
-        }
+        });
       }
-    } catch (err) {
-      // 4. Rollback on Network Failure
-      const currentState = useAppStore.getState().getSessionState(session.id);
-      const isStillOptimistic = currentState.messages.some((m) => m.displayId === displayId);
-
-      if (isStillOptimistic) {
-        console.error("Prompt error (network failure):", err);
-        const newMessages = currentState.messages.filter((m) => m.displayId !== displayId);
-        useAppStore.getState().updateSessionState(session.id, () => ({ messages: newMessages }));
-      } else {
-        console.error("Prompt error (generation failure):", err);
-      }
-
-      toast.error(
-        `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
+      contents.push(
+        ...attachmentBlocks.map((block) => {
+          return Object.assign(
+            {
+              _meta: {
+                display_id: displayId,
+                optimistic_id: generateUUID(),
+              },
+            },
+            block,
+          );
+        }),
       );
 
-      // If an error occurs, the backend might have crashed or network failed before
-      // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
-      useAppStore
-        .getState()
-        .updateSessionState(session.id, () => reduceFlushStreaming(currentState));
+      const userMessage = {
+        role: "user_message",
+        contents,
+        displayId: displayId,
+        receivedAt: Date.now(),
+      } satisfies ChatMessage;
 
-      updateSession({ ...session, isStreaming: false });
-    }
-  }, [session, isStreaming, addMessage, localInput, updateSessionState, t, toast, updateSession]);
+      // 1. Optimistic Update: clear input + attachments, add message to screen instantly
+      setLocalInput("");
+      updateSessionState(() => ({
+        draftInput: "",
+        draftAttachments: [],
+      }));
+      addMessage(session.id, userMessage);
+      updateSession({ ...session, isStreaming: true });
+      document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom"));
+      if (fromVoicePanel) {
+        // 语音面板发送完成 → 焦点交给聊天区（等价于 Cmd+Shift+M 的效果），
+        // 方便用遥控器方向键直接浏览输出。
+        focus("chat-area");
+      }
+
+      try {
+        // 2. Wait for the generation to complete
+        const promptResponse = await request.sendPrompt({
+          sessionId: session.id,
+          contents,
+        });
+
+        // 3. Show warning if not end_turn
+        if (promptResponse.stopReason && promptResponse.stopReason !== "end_turn") {
+          const stopReasonLabels: Record<string, string> = {
+            max_tokens: t("chatInput.stopReasonMaxTokens", "Reached maximum token limit"),
+            max_turn_requests: t(
+              "chatInput.stopReasonMaxTurnRequests",
+              "Reached maximum turn limit",
+            ),
+            refusal: t("chatInput.stopReasonRefusal", "Model refused to respond"),
+            cancelled: t("chatInput.stopReasonCancelled", "Generation was cancelled"),
+          };
+          const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
+          if (promptResponse.stopReason === "cancelled") {
+            toast.info(label);
+          } else {
+            toast.error(label);
+          }
+        }
+      } catch (err) {
+        // 4. Rollback on Network Failure
+        const currentState = useAppStore.getState().getSessionState(session.id);
+        const isStillOptimistic = currentState.messages.some((m) => m.displayId === displayId);
+
+        if (isStillOptimistic) {
+          console.error("Prompt error (network failure):", err);
+          const newMessages = currentState.messages.filter((m) => m.displayId !== displayId);
+          useAppStore.getState().updateSessionState(session.id, () => ({ messages: newMessages }));
+        } else {
+          console.error("Prompt error (generation failure):", err);
+        }
+
+        toast.error(
+          `${t("message.errorTitle", "Error")}: ${extractErrorMessage(err) || t("chatInput.generationFailed", "Generation failed")}`,
+        );
+
+        // If an error occurs, the backend might have crashed or network failed before
+        // broadcasting the isStreaming: false event. So we ensure it is cleaned up locally.
+        useAppStore
+          .getState()
+          .updateSessionState(session.id, () => reduceFlushStreaming(currentState));
+
+        updateSession({ ...session, isStreaming: false });
+      }
+    },
+    [session, isStreaming, addMessage, updateSessionState, t, toast, updateSession, focus],
+  );
 
   const hasActiveAskUser = askUserRequests ? askUserRequests.length > 0 : false;
   const disabled =
     !session.id || session.connectionStatus !== "connected" || isLoading || hasActiveAskUser;
+  /**
+   * 语音面板的可用性**不能**跟着 `disabled` 走：流式生成期间输入框禁用，但按住语音键
+   * 必须照常可用（发送时由 `handleSubmit` 先 cancelPrompt 再发送）。
+   * ask-user 弹窗期间仍排除本输入区，让面板落到弹窗自己的输入区上。
+   */
+  const voicePanelEnabled =
+    Boolean(session.id) && session.connectionStatus === "connected" && !hasActiveAskUser;
 
   // ---- 工具栏的 chat-only 部分：交给 ChatTextarea 的 leftSlot / rightSlot / primaryAction ----
   const modeSelector = availableModes.length > 0 && (
@@ -601,7 +632,13 @@ export function ChatInput({ session }: { session: SessionInfo }) {
       <Button
         size="icon"
         className="size-7 rounded-lg"
-        onClick={handleSubmit}
+        onClick={() =>
+          void handleSubmit({
+            text: localInput,
+            attachments: draftAttachments,
+            source: "input",
+          })
+        }
         disabled={disabled || (!localInput.trim() && draftAttachments.length === 0)}
         aria-label={t("chatInput.send", "Send")}
       >
@@ -623,11 +660,13 @@ export function ChatInput({ session }: { session: SessionInfo }) {
           inputRef={textareaRef}
           voiceInputRef={voiceInputRef}
           onBlur={handleBlur}
-          onSubmit={handleSubmit}
+          // 输入区把「当前值 + 附件 + 来源」交回来，语音面板也走同一条路径
+          onSubmit={(value) => void handleSubmit(value)}
           placeholder={
             disabled ? t("chatInput.placeholderDisabled") : t("chatInput.placeholderActive")
           }
           disabled={disabled}
+          voicePanelEnabled={voicePanelEnabled}
           attachmentAccepts={imageMimeTypes}
           attachments={draftAttachments}
           onAttachmentChange={handleAttachmentChange}

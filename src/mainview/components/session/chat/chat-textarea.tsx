@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactElement,
   type ReactNode,
   type RefObject,
@@ -22,16 +23,20 @@ import {
   type SuggestionDataItem,
 } from "react-mentions";
 import {
+  ArrowUp,
   AtSign,
+  Keyboard,
   Clipboard,
   FileText,
   Folder,
   Hash,
   ImageIcon,
   Library,
+  LoaderCircle,
   Paperclip,
   Wrench,
   X,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +65,7 @@ import {
 import { insertMentionTrigger, insertNewlineAtCaret } from "../../../lib/textarea";
 import type { SkillInfo } from "../../../../shared/schema";
 import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
+import { useVoicePanelTarget } from "../../../lib/peripherals/voice-panel-provider";
 
 /**
  * chat-input 与 chat-ask-user-dialog 输入区的公共实现（`ChatTextarea` 一个组件 = 盒子 + 输入框 + 工具栏）。
@@ -452,16 +458,28 @@ export interface ChatTextareaProps {
   onFocus?: () => void;
   onBlur?: () => void;
   /**
-   * 裸 Enter 提交。Enter 相关策略内置：Shift+Enter 原生换行、Ctrl/Cmd+Enter 手动换行、
+   * 提交回调：把**当前输入值**与**暂存附件**一并交回调用方，调用方不再需要自己从
+   * state 里读（也因此语音面板可以复用同一条提交路径）。
+   *
+   * `source` 用于区分来源：`input` = 输入框（裸 Enter 或右下角按钮），
+   * `voice` = 外设语音面板。调用方可据此决定额外行为（如语音发送时允许打断当前生成）。
+   * Enter 相关策略内置：Shift+Enter 原生换行、Ctrl/Cmd+Enter 手动换行、
    * 输入法组合中不处理（详见 handleEnterKeySubmit）。
    */
-  onSubmit: () => void;
+  onSubmit: (value: ChatTextareaSubmitValue) => void;
   placeholder?: string;
   disabled?: boolean;
   /**
+   * 外设语音面板是否可用（缺省跟随 `disabled`）。
+   *
+   * 必须与输入框的可用性分开表达：流式生成期间输入框是禁用的，但语音面板要照常可用
+   * （按住说话 → 复核 → 发送，发送时由调用方先打断当前生成）。
+   */
+  voicePanelEnabled?: boolean;
+  /**
    * 尺寸 / 布局预设（输入区与工具栏成对）：
    * - `chat`：chat-input（13px / 最小 76px 高 / 左右 16px 内边距，工具栏在输入区下方流式排布）
-   * - `compact`：ask-user（12px / 最小 104px 高 / 底部预留 38px，工具栏绝对定位悬浮在输入区上）
+   * - `compact`：ask-user（12px / 最小 108px 高 / 底部预留 38px，工具栏绝对定位悬浮在输入区上）
    */
   variant?: "chat" | "compact";
   /**
@@ -495,6 +513,36 @@ export interface ChatTextareaProps {
   extraMentions?: ChatTextareaMention[];
 }
 
+/** 提交载荷：输入区的当前值与暂存附件，附上来源标记。 */
+export interface ChatTextareaSubmitValue {
+  /** 待提交文本：来自输入框，或语音面板的转写。 */
+  text: string;
+  /** 暂存附件（不支持附件时为空数组）。 */
+  attachments: StagedAttachmentInfo[];
+  source: "input" | "voice";
+}
+
+/** 语音面板的呈现数据（由 `lib/peripherals/voice-panel-provider.tsx` 产出，本组件只负责画）。 */
+export interface ChatTextareaVoicePanel {
+  /** `recording` 为按住期间（未收到音频时显示加载态），`review` 为松手后的复核态。 */
+  phase: "recording" | "review";
+  /** 已经累积的转写文本（多次按住会累加）。 */
+  transcript: string;
+  /** 识别 / 通道错误，展示在正文之后，不遮挡已累积的文本。 */
+  error: string | null;
+  /** 0–1 的实时电平，供波形使用。 */
+  audioLevel: number;
+  /** 是否真的在收音频：为 false 时波形位置显示加载态。 */
+  audioActive: boolean;
+  /**
+   * 收起面板并结束这一「段」（停 ASR、清空转写、回到 idle）。
+   *
+   * 提交与取消都调它：**是否真的提交由 ChatTextarea 决定**（它才知道输入值与附件，
+   * 也才拿得到调用方的 `onSubmit`），语音模块不参与提交。
+   */
+  close: () => void;
+}
+
 export function ChatTextarea({
   sessionId,
   textValue,
@@ -505,6 +553,7 @@ export function ChatTextarea({
   onSubmit,
   placeholder,
   disabled,
+  voicePanelEnabled,
   variant = "chat",
   attachments,
   onAttachmentChange,
@@ -543,6 +592,71 @@ export function ChatTextarea({
     onAttachmentChange,
     onDropTreeNodes: handleDropTreeNodes,
   });
+
+  /**
+   * 语音面板：注册**本输入区**为宿主。可用性缺省跟随 `disabled`，调用方可用
+   * `voicePanelEnabled` 单独表态（流式生成期间输入框禁用，但语音面板仍须可用）。
+   * 注册与渲染都在这里，所以 chat-input / ask-user 不需要认识外设模块。
+   */
+  const voicePanel = useVoicePanelTarget({ enabled: voicePanelEnabled ?? !disabled });
+  const panelWasActiveRef = useRef(false);
+  const panelSubmittedRef = useRef(false);
+  /** 「转成文字」路径：焦点回到输入框时把光标放到末尾，方便接着改。 */
+  const panelToInputRef = useRef(false);
+
+  /**
+   * 面板收起后把焦点交还输入框（面板期间输入框是 display:none，浏览器会把焦点丢到 body）。
+   * **提交**时不动焦点：交回调用方安排（例如 chat-input 交给聊天区）。
+   */
+  useEffect(() => {
+    if (voicePanel) {
+      panelWasActiveRef.current = true;
+      return;
+    }
+    if (!panelWasActiveRef.current) return;
+    panelWasActiveRef.current = false;
+    const submitted = panelSubmittedRef.current;
+    const toInput = panelToInputRef.current;
+    panelSubmittedRef.current = false;
+    panelToInputRef.current = false;
+    if (submitted) return;
+    const frame = requestAnimationFrame(() => {
+      const textarea = inputRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      if (toInput) {
+        // 文本刚被替换进来，把光标落到末尾（focus 不保证光标位置）
+        const end = textarea.value.length;
+        textarea.setSelectionRange(end, end);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [voicePanel, inputRef]);
+
+  const handleVoicePanelSend = () => {
+    if (!voicePanel) return;
+    const value: ChatTextareaSubmitValue = {
+      text: voicePanel.transcript,
+      attachments: attachments ?? [],
+      source: "voice",
+    };
+    panelSubmittedRef.current = true;
+    voicePanel.close();
+    onSubmit(value);
+  };
+
+  /**
+   * 「转成文字」：把面板里的转写**替换**进输入框，走正常的受控变更路径
+   * （`onTextValueChange`），因此草稿、mention 状态、上层 store 都照常同步 ——
+   * 面板文本本身不进任何持久化状态。
+   */
+  const handleVoicePanelToInput = () => {
+    if (!voicePanel) return;
+    const text = voicePanel.transcript;
+    panelToInputRef.current = true;
+    voicePanel.close();
+    onTextValueChange(text);
+  };
 
   const boxRef = useRef<HTMLDivElement>(null);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
@@ -592,7 +706,11 @@ export function ChatTextarea({
 
   // 不 memo：onSubmit 每次渲染重建（如 ask-user 的提交依赖当前输入值），这里必须拿到最新闭包
   const handleKeyDown = (event: ChatTextareaKeyDownEvent) =>
-    handleEnterKeySubmit(event, onSubmit, inputRef.current);
+    handleEnterKeySubmit(
+      event,
+      () => onSubmit({ text: textValue, attachments: attachments ?? [], source: "input" }),
+      inputRef.current,
+    );
 
   /** 粘贴文件：与文件选择 / 拖拽共用 insertInputFiles；纯文本放行浏览器默认粘贴 */
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
@@ -690,145 +808,403 @@ export function ChatTextarea({
         if (textarea && document.activeElement !== textarea) textarea.focus();
       }}
     >
-      {attachments !== null && attachments.length > 0 && (
-        <AttachmentTray
-          attachments={attachments}
-          onRemove={
-            onAttachmentChange
-              ? (id) => onAttachmentChange(attachments.filter((att) => att.id !== id))
-              : undefined
-          }
-        />
-      )}
-      <MentionsInput
-        value={textValue}
-        inputRef={inputRef}
-        onChange={(_event, newValue) => onTextValueChange(newValue)}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        aria-label={t("chatInput.messageInput", "Message input")}
-        style={variant === "compact" ? compactMentionsInputStyle : chatMentionsInputStyle}
-        className="chat-mentions-input"
-        autoCorrect="off"
-        autoComplete="off"
-        spellCheck={false}
-        a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
-      >
-        {mentions}
-      </MentionsInput>
-      <div
-        className={cn(
-          "flex cursor-text items-center justify-between",
-          compact ? "absolute bottom-1.5 left-1.5 right-1.5" : "gap-2 -mt-3 overflow-hidden",
+      {/*
+        外设语音面板：**占真实 DOM 高度**的兄弟块，而不是浮层。
+        面板出现时下方输入区整体让位（display:none，不占高度也不参与交互），
+        盒子因此随面板长高，ask-user 的 compact 卡片布局不会被撑乱。
+        高度上限按变体给：compact（弹窗内）用固定上限，chat 用视口比例。
+      */}
+      {voicePanel ? (
+        <div className={cn("min-w-0", compact ? "max-h-56" : "max-h-[40vh]")}>
+          <ChatTextareaVoicePanelView
+            variant={variant}
+            panel={voicePanel}
+            onCancel={voicePanel.close}
+            onSubmit={handleVoicePanelSend}
+            onToInput={handleVoicePanelToInput}
+          />
+        </div>
+      ) : null}
+      <div className={cn(voicePanel && "hidden")}>
+        {attachments !== null && attachments.length > 0 && (
+          <AttachmentTray
+            attachments={attachments}
+            onRemove={
+              onAttachmentChange
+                ? (id) => onAttachmentChange(attachments.filter((att) => att.id !== id))
+                : undefined
+            }
+          />
         )}
-        onClick={(event) => {
-          // 点击行空白处聚焦输入框；按钮与下拉交给各自的交互
-          if ((event.target as HTMLElement).closest("button, select, [role='combobox']")) return;
-          inputRef.current?.focus();
-        }}
-      >
+        <MentionsInput
+          value={textValue}
+          inputRef={inputRef}
+          onChange={(_event, newValue) => onTextValueChange(newValue)}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-label={t("chatInput.messageInput", "Message input")}
+          style={variant === "compact" ? compactMentionsInputStyle : chatMentionsInputStyle}
+          className="chat-mentions-input"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          a11ySuggestionsListLabel={t("chatInput.suggestions", "Suggestions")}
+        >
+          {mentions}
+        </MentionsInput>
         <div
           className={cn(
-            "flex items-center",
-            compact ? "gap-0.5" : "gap-2 p-2 overflow-hidden -mr-4",
+            "flex cursor-text items-center justify-between",
+            compact ? "absolute bottom-1.5 left-1.5 right-1.5" : "gap-2 -mt-3 overflow-hidden",
           )}
+          onClick={(event) => {
+            // 点击行空白处聚焦输入框；按钮与下拉交给各自的交互
+            if ((event.target as HTMLElement).closest("button, select, [role='combobox']")) return;
+            inputRef.current?.focus();
+          }}
         >
-          {leftSlot}
-          <div className={cn("flex items-center", compact && "gap-0.5")}>
-            {attachmentAccepts && (
-              <>
-                <input
-                  type="file"
-                  multiple
-                  // 仍可任选文件：命中图片白名单的作为附件，其余一律走 mention 引用
-                  accept="*/*"
-                  ref={fileInputRef}
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 rounded-lg text-muted-foreground"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={disabled}
-                  aria-label={t("chatInput.attach", "Attach file")}
-                >
-                  <Paperclip className="size-3.5" />
-                </Button>
-              </>
+          <div
+            className={cn(
+              "flex items-center",
+              compact ? "gap-0.5" : "gap-2 p-2 overflow-hidden -mr-4",
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-lg text-muted-foreground"
-              disabled={disabled}
-              aria-label={t("chatInput.reference", "Reference")}
-              onClick={() => insertMentionTrigger(inputRef.current, "#")}
-            >
-              <Hash className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-lg text-muted-foreground"
-              disabled={disabled}
-              aria-label={t("chatInput.mention", "Mention")}
-              onClick={() => insertMentionTrigger(inputRef.current, "@")}
-            >
-              <AtSign className="size-3.5" />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
+          >
+            {leftSlot}
+            <div className={cn("flex items-center", compact && "gap-0.5")}>
+              {attachmentAccepts && (
+                <>
+                  <input
+                    type="file"
+                    multiple
+                    // 仍可任选文件：命中图片白名单的作为附件，其余一律走 mention 引用
+                    accept="*/*"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-7 rounded-lg text-muted-foreground"
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={disabled}
-                    aria-label={t("chatInput.snippets", "Snippets")}
+                    aria-label={t("chatInput.attach", "Attach file")}
                   >
-                    <Clipboard className="size-3.5" />
+                    <Paperclip className="size-3.5" />
                   </Button>
-                }
-              />
-              <DropdownMenuContent side="top" align="start" className="w-60">
-                {snippets.length > 0 ? (
-                  snippets.map((s) => (
-                    <DropdownMenuItem
-                      key={s.id}
-                      onClick={() => {
-                        inputRef.current?.focus();
-                        document.execCommand("insertText", false, s.content);
-                      }}
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 rounded-lg text-muted-foreground"
+                disabled={disabled}
+                aria-label={t("chatInput.reference", "Reference")}
+                onClick={() => insertMentionTrigger(inputRef.current, "#")}
+              >
+                <Hash className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 rounded-lg text-muted-foreground"
+                disabled={disabled}
+                aria-label={t("chatInput.mention", "Mention")}
+                onClick={() => insertMentionTrigger(inputRef.current, "@")}
+              >
+                <AtSign className="size-3.5" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-lg text-muted-foreground"
+                      disabled={disabled}
+                      aria-label={t("chatInput.snippets", "Snippets")}
                     >
-                      <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
-                        <span className="text-xs">{s.title}</span>
-                        <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
-                          {s.content}
-                        </span>
-                      </div>
+                      <Clipboard className="size-3.5" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent side="top" align="start" className="w-60">
+                  {snippets.length > 0 ? (
+                    snippets.map((s) => (
+                      <DropdownMenuItem
+                        key={s.id}
+                        onClick={() => {
+                          inputRef.current?.focus();
+                          document.execCommand("insertText", false, s.content);
+                        }}
+                      >
+                        <div className="flex min-w-0 flex-col gap-1 whitespace-normal">
+                          <span className="text-xs">{s.title}</span>
+                          <span className="wrap-break-word text-[10px] text-muted-foreground/60 line-clamp-2">
+                            {s.content}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem onClick={() => navigate("/settings/snippets")}>
+                      <span className="text-xs text-muted-foreground">
+                        {t("chatInput.snippetsEmpty", "No snippets. Click to add in Settings.")}
+                      </span>
                     </DropdownMenuItem>
-                  ))
-                ) : (
-                  <DropdownMenuItem onClick={() => navigate("/settings/snippets")}>
-                    <span className="text-xs text-muted-foreground">
-                      {t("chatInput.snippetsEmpty", "No snippets. Click to add in Settings.")}
-                    </span>
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className={cn("flex items-center gap-2", !compact && "p-2 overflow-hidden")}>
+            {rightSlot}
+            <VoiceInputButton ref={voiceInputRef} inputRef={inputRef} disabled={disabled} />
+            {primaryAction}
           </div>
         </div>
-        <div className={cn("flex items-center gap-2", !compact && "p-2 overflow-hidden")}>
-          {rightSlot}
-          <VoiceInputButton ref={voiceInputRef} inputRef={inputRef} disabled={disabled} />
-          {primaryAction}
-        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 与既有麦克风按钮（voice-input-button）同一套波形参数。 */
+const VOICE_PANEL_WAVEFORM_BARS = [0.35, 0.65, 0.95, 0.55, 0.8, 0.45, 0.9, 0.6, 0.38];
+
+function formatVoicePanelDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * 外设语音面板的呈现层：**结构与样式都在这里**，与输入区保持一致 ——
+ * 正文用与输入框相同的字号与行高（chat 13px/1.5、compact 12px/1.625）、
+ * 相同的 `--foreground` 0.8 透明度与左右内边距；尾部按钮与输入区工具栏同尺寸同间距，
+ * 且与正文之间不加分割线。行高固定 `h-11`，录音/复核切换不跳变。
+ *
+ * 状态机、ASR 会话与输入区注册都在 `lib/peripherals/voice-panel-provider.tsx`，这里只负责画。
+ */
+function ChatTextareaVoicePanelView({
+  variant,
+  panel,
+  onCancel,
+  onSubmit,
+  onToInput,
+}: {
+  variant: "chat" | "compact";
+  panel: ChatTextareaVoicePanel;
+  onCancel: () => void;
+  onSubmit: () => void;
+  /** 「转成文字」：把转写填进输入框（见 ChatTextarea 的同名处理函数）。 */
+  onToInput: () => void;
+}) {
+  const { t } = useTranslation();
+  const compact = variant === "compact";
+  const recording = panel.phase === "recording";
+  const sendRef = useRef<HTMLButtonElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [seconds, setSeconds] = useState(0);
+  const accumulatedSecondsRef = useRef(0);
+
+  /**
+   * 复核态的操作按钮支持 ←/→ **循环**切换焦点。
+   *
+   * 原生 button 不处理方向键，而遥控器的方向键是主要输入方式，所以这里显式接管：
+   * 默认焦点在「发送」，按 ← 依次到「取消」「转成文字」，再按 → 回到「发送」。
+   * 按钮集合按**视觉顺序**登记进 `footerButtonsRef`（左 → 右）。
+   */
+  const footerButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const handleFooterKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const buttons = footerButtonsRef.current.filter(
+      (button): button is HTMLButtonElement => button !== null,
+    );
+    if (buttons.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const current = buttons.findIndex((button) => button === document.activeElement);
+    const step = event.key === "ArrowLeft" ? -1 : 1;
+    const next = current === -1 ? 0 : (current + step + buttons.length) % buttons.length;
+    buttons[next].focus();
+  };
+
+  // 松手后默认焦点落在「发送」：遥控器 OK 即可直接发送。
+  useEffect(() => {
+    if (panel.phase !== "review") return;
+    const frame = requestAnimationFrame(() => sendRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [panel.phase]);
+
+  // 录音计时：从**真正开始收音频**那一刻起算（加载态期间不计时），并跨多次按住累加。
+  useEffect(() => {
+    if (panel.phase !== "recording" || !panel.audioActive) return;
+    const base = accumulatedSecondsRef.current;
+    const startedAt = Date.now();
+    const timer = setInterval(
+      () => setSeconds(base + Math.floor((Date.now() - startedAt) / 1000)),
+      1000,
+    );
+    return () => {
+      clearInterval(timer);
+      accumulatedSecondsRef.current = base + Math.floor((Date.now() - startedAt) / 1000);
+    };
+  }, [panel.phase, panel.audioActive]);
+
+  // 长文本自动跟随：录音期间始终把最新内容滚进视野。
+  useEffect(() => {
+    if (panel.phase !== "recording") return;
+    const element = scrollRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [panel.phase, panel.transcript]);
+
+  return (
+    // 注意：这里不能要 overflow-hidden —— 呼吸光环是 `-inset-px` 的绝对定位子元素
+    // （画在面板边缘之外、与盒子边框重合），被 overflow 裁掉就看不见了；
+    // 面板内也没有需要按圆角裁切的内容（正文是自带滚动的子元素）。
+    <div
+      className="relative flex max-h-full flex-col rounded-lg"
+      role="group"
+      aria-label={t("chatInput.voicePanelTitle", "Voice input")}
+    >
+      {/* 录音时的呼吸光环：独立一层 + opacity 动画，不牵动正文与按钮（motion-reduce 只留静态光环） */}
+      {recording ? (
+        <span
+          className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-ring animate-voice-breathe motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+      ) : null}
+      {/*
+        正文：最少约 2 行（`min-h-16`），内容多了内部滚动。
+        字号 / 行高 / 颜色 / 内边距对齐输入框本身（见 chatMentionsInputStyle 的 input 段）。
+      */}
+      <div
+        ref={scrollRef}
+        className={cn(
+          "min-h-16 flex-1 overflow-y-auto whitespace-pre-wrap text-foreground/80",
+          compact ? "px-3 pt-3 pb-3 text-xs/relaxed" : "px-4 pt-3 pb-2 text-[13px] leading-normal",
+        )}
+      >
+        {panel.transcript ? (
+          // 复核态下**点正文**等同于左下角那个键盘按钮：把转写填进输入框继续编辑
+          // （录音中不接管，避免说话时误触把这次采集截断）。
+          <p
+            onClick={
+              recording
+                ? undefined
+                : () => {
+                    // 正在框选文字（多半是想复制）时不接管，否则松手那一下就把面板收掉了
+                    if (!window.getSelection()?.isCollapsed) return;
+                    onToInput();
+                  }
+            }
+            // 可点但不给 pointer 光标：这里不是链接/按钮，保持与项目其它可点元素一致的 default
+            className={cn(
+              "-mx-2 px-2 -my-1 py-1 rounded-sm",
+              recording ? undefined : "cursor-default hover:text-foreground hover:bg-muted",
+            )}
+          >
+            {panel.transcript}
+          </p>
+        ) : null}
+        {/* 错误单独一行追加在正文之后：不能因为出错就把已经说过的内容遮掉 */}
+        {panel.error ? <p className="text-destructive">{panel.error}</p> : null}
+        {!panel.transcript && !panel.error ? (
+          <p className="text-muted-foreground/70">
+            {recording
+              ? t("chatInput.voicePanelHint", "Speak now — keep going for as long as you need")
+              : t("chatInput.voicePanelEmpty", "No speech detected")}
+          </p>
+        ) : null}
+      </div>
+
+      {/* 尾部状态/操作行：录音与复核共用同一行、同一高度（`h-11`），切换不跳变。 */}
+      <div
+        className={cn("flex h-11 shrink-0 items-center gap-2", compact ? "px-1.5" : "px-2")}
+        onKeyDown={handleFooterKeyDown}
+      >
+        {recording ? (
+          <div className="flex w-full items-center px-2 gap-2 pt-2">
+            {panel.audioActive ? (
+              // 与 voice-input-button 的波形完全同一套画法：
+              // 16px 高的居中盒 + 裁切、柱子 1px 宽（靠 border-l 撑出）+ 75ms 高度过渡。
+              <span
+                className="flex h-4 items-center justify-center gap-0.5 overflow-hidden"
+                aria-hidden="true"
+              >
+                {VOICE_PANEL_WAVEFORM_BARS.map((scale, index) => (
+                  <span
+                    key={index}
+                    className="rounded-full border-l bg-amber-300 transition-[height] duration-75"
+                    style={{
+                      height: `${Math.max(2, Math.round(2 + panel.audioLevel * 16 * scale))}px`,
+                    }}
+                  />
+                ))}
+              </span>
+            ) : (
+              <LoaderCircle
+                className="size-3.5 animate-spin text-muted-foreground"
+                aria-hidden="true"
+              />
+            )}
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {formatVoicePanelDuration(seconds)}
+            </span>
+            <span className="ml-auto truncate text-[11px] text-muted-foreground/60">
+              {t("chatInput.voicePanelHoldHint", "Release to finish — everything you said is kept")}
+            </span>
+          </div>
+        ) : (
+          // 复核态：左侧「转成文字」（把转写填进输入框继续用键盘编辑），右侧取消 / 发送。
+          <>
+            <Button
+              ref={(element) => {
+                footerButtonsRef.current[0] = element;
+              }}
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-lg text-muted-foreground"
+              disabled={panel.transcript.length === 0}
+              onClick={onToInput}
+              aria-label={t("chatInput.voicePanelToInput", "Fill into input box")}
+              title={t("chatInput.voicePanelToInput", "Fill into input box")}
+            >
+              <Keyboard className="size-3.5" />
+            </Button>
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button
+                ref={(element) => {
+                  footerButtonsRef.current[1] = element;
+                }}
+                size="icon"
+                className="size-7 rounded-lg text-muted-foreground bg-muted"
+                onClick={onCancel}
+                aria-label={t("chatInput.voicePanelCancel", "Cancel")}
+                title={t("chatInput.voicePanelCancel", "Cancel")}
+              >
+                <Undo2 className="size-3.5" />
+              </Button>
+              <Button
+                ref={(element) => {
+                  footerButtonsRef.current[2] = element;
+                  sendRef.current = element;
+                }}
+                size="icon"
+                className="size-7 rounded-lg"
+                disabled={panel.transcript.length === 0}
+                onClick={onSubmit}
+                aria-label={t("chatInput.voicePanelSend", "Send")}
+                title={t("chatInput.voicePanelSend", "Send")}
+              >
+                <ArrowUp className="size-3.5" />
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -898,7 +1274,7 @@ const chatMentionsInputStyle: MentionsInputStyle = {
   suggestions: suggestionsStyle,
 };
 
-/** ask-user 预设：输入区 ≈54px，底部预留 38px 给绝对定位的悬浮工具栏 */
+/** ask-user 预设：输入区 ≈58px（minHeight 108 − 上下内边距 12 + 38），底部预留 38px 给绝对定位的悬浮工具栏 */
 const compactMentionsInputStyle: MentionsInputStyle = {
   control: {
     fontSize: 12,
@@ -906,7 +1282,7 @@ const compactMentionsInputStyle: MentionsInputStyle = {
   },
   "&multiLine": {
     control: {
-      minHeight: 104,
+      minHeight: 108,
     },
     highlighter: {
       padding: "12px 12px 38px",
