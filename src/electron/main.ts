@@ -16,6 +16,7 @@ import { setupTitlebarAndAttachToWindow } from "custom-electron-titlebar/main";
 import { homedir } from "os";
 import { join } from "path";
 import { initBackend } from "../backend/backend";
+import { createPeripheralHost } from "./peripherals";
 import type { FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
@@ -122,12 +123,113 @@ for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema
           wc.on("did-start-navigation", onNavigation);
           wc.once("render-process-gone", doCleanup);
         }
-        return await (backendHandlers as any)[channel](params);
+        const result = await (backendHandlers as any)[channel](params);
+        // 外设「生效」状态存在 settings 里，任何来源（含 WebUI）改动后都要让主进程
+        // 重新装载/卸载通道；装载是异步且不阻塞的，这里不等待。
+        if (channel === "updateSettings") syncPeripherals();
+        return result;
       } catch (error) {
         throw new Error(extractErrorMessage(error));
       }
     },
   );
+}
+
+// ── 外设宿主（Electron 专属） ───────────────────────────────────────
+// 外设只在桌面应用里生效：headless server 走 src/server，不会加载本模块；
+// WebUI 不装载任何通道，设置页只做只读展示。任何通道失败都只上报状态。
+const peripheralHost = createPeripheralHost({
+  publish: {
+    status: (status) => void safeSend("peripheral-status", status),
+    key: (event) => void safeSend("peripheral-key", event),
+    audio: (event) => void safeSend("peripheral-audio", event),
+    audioState: (event) => void safeSend("peripheral-audio-state", event),
+  },
+});
+
+/**
+ * 上一次同步出去的「生效」集合签名。
+ *
+ * `updateSettings` 会被各类设置写入触发（主题、代理……），其中绝大多数与外设无关；
+ * 先比对签名再同步，免得每次写设置都做一遍全量 mount/unmount 检查。
+ * 初始 `null` 保证启动时一定跑一次（否则默认空集合会被当成「已经同步过」）。
+ */
+let lastSyncedPeripheralIds: string | null = null;
+
+function syncPeripherals() {
+  const enabled = storageOps
+    .getSettings()
+    .peripherals.filter((peripheral) => peripheral.enabled)
+    .map((peripheral) => peripheral.id)
+    .sort();
+  const signature = enabled.join(",");
+  if (signature === lastSyncedPeripheralIds) return;
+  lastSyncedPeripheralIds = signature;
+  void peripheralHost.syncEnabled(enabled).catch((error: unknown) => {
+    console.error("[peripheral] sync failed:", extractErrorMessage(error));
+  });
+}
+
+ipcMain.handle("getPeripheralStatuses", () => peripheralHost.getStatuses());
+
+ipcMain.handle("peripheralConnect", async (_event: unknown, peripheralId: string) => {
+  try {
+    await peripheralHost.connect(peripheralId);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error));
+  }
+});
+
+ipcMain.handle("peripheralVoiceStart", async (_event: unknown, peripheralId: string) => {
+  try {
+    // 必须把 captureId 透传回渲染层：音频帧按它过滤，漏掉返回值的直接后果是
+    // 「面板能录音、音频也在流，但一帧都不会被喂给 ASR」。
+    return await peripheralHost.startVoice(peripheralId);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error));
+  }
+});
+
+ipcMain.handle("peripheralVoiceStop", async (_event: unknown, peripheralId: string) => {
+  try {
+    await peripheralHost.stopVoice(peripheralId);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error));
+  }
+});
+
+/**
+ * 退出前等待外设收尾的上界。
+ *
+ * 收尾可能要等一次**进行中的连接**（会话内部最长 45s 扫描，外层还套了 70s 上界），
+ * 那会把 `app.quit()` 推迟几十秒 —— 用户看到的是「点了退出却关不掉」。
+ * 超时就不再等：原生句柄随进程一起释放。
+ */
+const PERIPHERAL_SHUTDOWN_TIMEOUT_MS = 2000;
+
+/** 给一个 Promise 加上界；超时抛错（原 Promise 之后的结果会被忽略）。 */
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}超时（${timeoutMs} ms）`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 退出 / 重启前的统一收尾：先放掉外设的原生句柄（BLE / HID），再关后端。 */
+async function shutdown() {
+  await withTimeout(peripheralHost.destroy(), PERIPHERAL_SHUTDOWN_TIMEOUT_MS, "外设收尾").catch(
+    (error: unknown) => {
+      console.error("[peripheral] destroy failed:", extractErrorMessage(error));
+    },
+  );
+  await closeBackend().catch(() => {});
 }
 
 // Register Electron-specific APIs
@@ -157,6 +259,23 @@ ipcMain.handle("revealInFinder", async (_event: unknown, filePath: string) => {
 ipcMain.handle("openInBrowser", async (_event: unknown, url: string) => {
   try {
     await shell.openExternal(url);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error));
+  }
+});
+
+/**
+ * 打开 macOS 的「输入监控」隐私设置面板。
+ *
+ * 外设的 HID 通道需要该权限，而权限状态无法通过 API 查询、也不会主动弹窗，
+ * 因此设置页只能给出这条可操作的入口。（非 macOS 平台不做任何事。）
+ */
+ipcMain.handle("openPeripheralPermissionSettings", async () => {
+  if (process.platform !== "darwin") return;
+  try {
+    await shell.openExternal(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+    );
   } catch (error) {
     throw new Error(extractErrorMessage(error));
   }
@@ -345,7 +464,7 @@ async function installDownloadedUpdate() {
     // In dev mode, just log and restart the app
     console.log("[mock] installDownloadedUpdate: simulating restart");
     isInstallingUpdate = true;
-    await closeBackend().catch(() => {});
+    await shutdown();
     app.relaunch();
     app.exit(0);
     return;
@@ -356,7 +475,7 @@ async function installDownloadedUpdate() {
   }
 
   isInstallingUpdate = true;
-  await closeBackend().catch(() => {});
+  await shutdown();
   autoUpdater.quitAndInstall(false, true);
 }
 
@@ -366,8 +485,8 @@ let isRestarting = false;
 async function restartApp() {
   if (isRestarting) return;
   isRestarting = true;
-  await closeBackend().catch(() => {});
-  // app.exit 不触发 before-quit，closeBackend 已在上方完成优雅关闭。
+  await shutdown();
+  // app.exit 不触发 before-quit，shutdown 已在上方完成优雅关闭。
   app.relaunch();
   app.exit(0);
 }
@@ -662,11 +781,9 @@ app.on("before-quit", (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
-  closeBackend()
-    .catch(() => {})
-    .then(() => {
-      app.quit();
-    });
+  shutdown().then(() => {
+    app.quit();
+  });
 });
 
 app.whenReady().then(async () => {
@@ -713,6 +830,9 @@ app.whenReady().then(async () => {
   await applyChromiumProxy();
   createMainWindow();
   setupAutoUpdater();
+  // 窗口建立后再同步外设：状态事件需要 mainWindow 才能送达渲染层。
+  // 这里不 await：BLE 装配（含 45s 扫描）不得推迟窗口可用时间。
+  syncPeripherals();
 });
 
 app.on("activate", () => {

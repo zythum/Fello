@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { createTitlebarOnDOMContentLoaded, type Titlebar } from "custom-electron-titlebar";
-import type { FelloIPCSchema } from "../../shared/schema";
+import type { FelloIPCSchema, PeripheralStatus } from "../../shared/schema";
 import type { UpdaterEvent } from "../../electron/updater";
 
 type ElectronIPCRequests = {
@@ -14,6 +14,12 @@ type ElectronIPCRequests = {
   downloadUpdate: { params: void; response: void };
   installUpdate: { params: void; response: void };
   restartApp: { params: void; response: void };
+  openPeripheralPermissionSettings: { params: void; response: void };
+  // 外设（Electron 专属：WebUI 下不会调用，设置页只做只读展示）
+  getPeripheralStatuses: { params: void; response: PeripheralStatus[] };
+  peripheralConnect: { params: string; response: void };
+  peripheralVoiceStart: { params: string; response: number };
+  peripheralVoiceStop: { params: string; response: void };
 };
 
 type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;

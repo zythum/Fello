@@ -128,6 +128,8 @@ export interface AppState {
   imageGeneration: SettingsInfo["imageGeneration"];
   speechToText: SettingsInfo["speechToText"];
   shortcuts: SettingsInfo["shortcuts"];
+  /** 外设「生效」开关（列表本身来自 src/shared/peripherals.ts 的内置枚举） */
+  peripherals: SettingsInfo["peripherals"];
   webUIStatus: { enabled: boolean; url: string | null };
   ilinkStatus: {
     connected: boolean;
@@ -196,6 +198,7 @@ export interface AppState {
   setImageGeneration: (imageGeneration: SettingsInfo["imageGeneration"]) => void;
   setSpeechToText: (speechToText: SettingsInfo["speechToText"]) => void;
   setShortcuts: (shortcuts: SettingsInfo["shortcuts"]) => void;
+  setPeripherals: (peripherals: SettingsInfo["peripherals"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -244,6 +247,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   imageGeneration: [],
   speechToText: [],
   shortcuts: {},
+  peripherals: [],
   webUIStatus: { enabled: false, url: null },
   ilinkStatus: { connected: false },
   activeIlinkSessionId: null,
@@ -400,6 +404,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setImageGeneration: (imageGeneration) => set({ imageGeneration }),
   setSpeechToText: (speechToText) => set({ speechToText }),
   setShortcuts: (shortcuts) => set({ shortcuts }),
+  setPeripherals: (peripherals) => set({ peripherals }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),

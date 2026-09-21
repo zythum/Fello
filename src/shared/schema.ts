@@ -6,6 +6,9 @@ import type {
   UsageUpdate,
   AvailableCommand,
 } from "@agentclientprotocol/sdk";
+import type { PeripheralSettingInfo, PeripheralStatus } from "./peripherals";
+
+export type { PeripheralSettingInfo, PeripheralStatus };
 
 export type SubagentStatus = "pending" | "in_progress" | "completed" | "failed";
 export type SubagentUpdate = {
@@ -495,6 +498,12 @@ export interface SettingsInfo {
   imageGeneration: ImageGenerationProviderInfo[];
   /** 实时语音识别 Provider 列表 */
   speechToText: SpeechToTextProviderInfo[];
+  /**
+   * 外设「生效」开关列表。
+   * 列表由 `src/shared/peripherals.ts` 内置枚举，这里只持久化 enabled 状态；
+   * 未出现过的外设按默认（关闭）处理。
+   */
+  peripherals: PeripheralSettingInfo[];
 }
 
 /**
@@ -1202,6 +1211,39 @@ export type FelloIPCEvents = {
     clientId: string;
     asrSessionId: string;
     code?: number;
+    reason?: string;
+  };
+
+  // ── 外设事件（仅 Electron：WebUI 不装载外设运行时，因此不会收到） ──
+
+  /** 外设运行时状态（连接进度、HID 权限、错误等），供设置页与运行时消费 */
+  "peripheral-status": PeripheralStatus;
+  /** 外设按键事件（目前只有 HID 通道需要送到渲染层；键盘通道由系统直接派发） */
+  "peripheral-key": {
+    peripheralId: string;
+    keyId: string;
+    action: "down" | "up";
+    /** 需要注入的系统按键（如 Escape）；缺省表示按键已由系统派发 */
+    systemKey?: string;
+  };
+  /**
+   * 外设音频帧（已完成 ADPCM 解码的 16k/16bit/mono PCM，base64）。
+   *
+   * `captureId` 来自 `peripheralVoiceStart` 的返回值：收尾 flush 期间的帧仍带**上一次**
+   * 采集的 id，渲染层据此丢弃不属于当前语音会话的迟到帧（否则会喂给还在 connecting
+   * 的 ASR 客户端，触发 "Not connected" 错误）。
+   */
+  "peripheral-audio": {
+    peripheralId: string;
+    captureId: number;
+    audioB64: string;
+  };
+  /** 外设音频采集开始 / 结束（含采集标识与结束原因），用于面板收尾与诊断 */
+  "peripheral-audio-state": {
+    peripheralId: string;
+    state: "started" | "stopped";
+    /** 与音频帧同一套编号：`started` 带上它，可据此判断「到底有没有开始采集」。 */
+    captureId: number;
     reason?: string;
   };
 };

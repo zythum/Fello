@@ -1,4 +1,5 @@
 import { isWebUI } from "./backend";
+import type { PeripheralStatus } from "../shared/peripherals";
 import type { UpdaterEvent } from "../electron/updater";
 
 export { type UpdaterEvent };
@@ -82,5 +83,39 @@ export const electron = {
     if (isWebUI || !window.fello) return () => {};
     const handler = (updaterEvent: UpdaterEvent) => callback(updaterEvent);
     return window.fello.onUpdater(handler);
+  },
+
+  /**
+   * 外设（Electron 专属）。
+   *
+   * WebUI 下所有方法都是 no-op / 空数组：外设运行时只在桌面应用里装载，
+   * 设置页据此显示「仅桌面应用可用」。
+   */
+  peripherals: {
+    /**
+     * 打开系统的「输入监控」隐私面板：HID 通道的权限无法查询、也不会主动弹窗，
+     * 只能让用户自己去授权。
+     */
+    openPermissionSettings: async (): Promise<void> => {
+      if (isWebUI || !window.fello) return;
+      return window.fello.invoke("openPeripheralPermissionSettings");
+    },
+    getStatuses: async (): Promise<PeripheralStatus[]> => {
+      if (isWebUI || !window.fello) return [];
+      return window.fello.invoke("getPeripheralStatuses");
+    },
+    connect: async (peripheralId: string): Promise<void> => {
+      if (isWebUI || !window.fello) return;
+      return window.fello.invoke("peripheralConnect", peripheralId);
+    },
+    /** @returns captureId：用于过滤属于上一次采集的迟到音频帧。 */
+    voiceStart: async (peripheralId: string): Promise<number> => {
+      if (isWebUI || !window.fello) return 0;
+      return window.fello.invoke("peripheralVoiceStart", peripheralId);
+    },
+    voiceStop: async (peripheralId: string): Promise<void> => {
+      if (isWebUI || !window.fello) return;
+      return window.fello.invoke("peripheralVoiceStop", peripheralId);
+    },
   },
 };

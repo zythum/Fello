@@ -1,4 +1,4 @@
-import type { FelloIPCSchema } from "../shared/schema";
+import type { FelloIPCSchema, PeripheralStatus } from "../shared/schema";
 import type { UpdaterEvent } from "../electron/updater";
 
 export type ElectronIPCRequests = {
@@ -12,6 +12,12 @@ export type ElectronIPCRequests = {
   downloadUpdate: { params: void; response: void };
   installUpdate: { params: void; response: void };
   restartApp: { params: void; response: void };
+  // 外设（Electron 专属）
+  openPeripheralPermissionSettings: { params: void; response: void };
+  getPeripheralStatuses: { params: void; response: PeripheralStatus[] };
+  peripheralConnect: { params: string; response: void };
+  peripheralVoiceStart: { params: string; response: number };
+  peripheralVoiceStop: { params: string; response: void };
 };
 
 export type AllIPCRequests = FelloIPCSchema["requests"] & ElectronIPCRequests;

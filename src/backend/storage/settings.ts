@@ -4,6 +4,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs";
 import { FELLO_DIR } from "./constant";
 
 import type {
+  PeripheralSettingInfo,
   SettingProxyInfo,
   ShortcutSettings,
   SnippetInfo,
@@ -125,6 +126,8 @@ interface SettingsMeta {
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
   speechToText?: SpeechToTextProviderMeta[];
+  /** 外设「生效」开关；列表本身来自 src/shared/peripherals.ts 的内置枚举 */
+  peripherals?: PeripheralSettingInfo[];
 }
 
 const DEFAULT_SETTINGS: SettingsMeta = {
@@ -155,6 +158,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   proxy: {
     mode: "off",
   },
+  peripherals: [],
 };
 
 function settingsPath() {
@@ -458,6 +462,20 @@ function readSettings(): SettingsMeta {
           }))
       : [];
 
+    // 外设开关：只保留 id + enabled，未知 id 由上层（内置枚举）决定是否展示。
+    const peripherals: PeripheralSettingInfo[] = Array.isArray(rawObj?.peripherals)
+      ? (rawObj.peripherals as unknown[])
+          .filter(
+            (value): value is Record<string, unknown> =>
+              typeof value === "object" && value !== null && !Array.isArray(value),
+          )
+          .filter((value) => typeof value.id === "string")
+          .map((value) => ({
+            id: value.id as string,
+            enabled: typeof value.enabled === "boolean" ? value.enabled : false,
+          }))
+      : [];
+
     const editor: SettingsMeta["editor"] = (() => {
       const raw = rawObj && isObject(rawObj.editor) ? rawObj.editor : null;
       if (raw && typeof raw.name === "string" && raw.name.trim()) {
@@ -481,6 +499,7 @@ function readSettings(): SettingsMeta {
       snippets,
       imageGeneration,
       speechToText,
+      peripherals,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -613,6 +632,10 @@ export function getSettings(): SettingsInfo {
       workspace: p.workspace,
       language: p.language,
       active: p.active,
+    })),
+    peripherals: (meta.peripherals ?? []).map((p) => ({
+      id: p.id,
+      enabled: p.enabled,
     })),
   };
 }
@@ -832,6 +855,12 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           active: p.active,
         }))
       : prevMeta.speechToText,
+    peripherals: settings.peripherals
+      ? settings.peripherals.map((p) => ({
+          id: p.id,
+          enabled: p.enabled,
+        }))
+      : (prevMeta.peripherals ?? []),
   };
   writeSettings(meta);
 }
