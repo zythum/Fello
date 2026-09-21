@@ -512,6 +512,37 @@
         "httpProxyRequired": "HTTP proxy URL is required in manual mode.",
         "invalidProxyUrl": "{{field}} should start with http:// or https://, or use a host:port address (e.g. 127.0.0.1:7890)."
       }
+    },
+    "peripherals": {
+      "title": "Peripherals",
+      "desc": "Connect Bluetooth / HID peripherals and enable the ones whose special behavior should apply.",
+      "desktopOnly": "Peripherals are available in the desktop app only.",
+      "unsupportedPlatform": "Not supported on this platform",
+      "voiceCapable": "Voice input",
+      "productPage": "Product page",
+      "connectFailed": "Failed to connect the peripheral.",
+      "updateFailed": "Failed to update peripheral settings.",
+      "status": {
+        "bluetooth": "Bluetooth connected"
+      },
+      "keys": {
+        "voice": "Voice",
+        "back": "Back"
+      },
+      "phase": {
+        "inactive": "Inactive",
+        "unsupported": "Unsupported",
+        "unavailable": "Unavailable",
+        "preparing": "Preparing",
+        "scanning": "Searching",
+        "connecting": "Connecting",
+        "connected": "Connected",
+        "error": "Error",
+        "disconnected": "Disconnected"
+      },
+      "openPermissionSettings": "Input Monitoring settings",
+      "permissionHint": "macOS needs the Input Monitoring permission to read HID keys. After granting it, quit and reopen Fello.",
+      "reconnect": "Reconnect"
     }
   },
   "chat": {

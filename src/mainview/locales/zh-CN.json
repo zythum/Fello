@@ -511,6 +511,37 @@
         "httpProxyRequired": "手动模式下必须填写 HTTP 代理地址。",
         "invalidProxyUrl": "{{field}} 应以 http:// 或 https:// 开头，或使用 host:port 形式（例如 127.0.0.1:7890）。"
       }
+    },
+    "peripherals": {
+      "title": "外设",
+      "desc": "连接蓝牙 / HID 外设，并开启需要生效的外设（只有生效的外设才会启用它的专用逻辑）。",
+      "desktopOnly": "外设仅在桌面应用中可用。",
+      "unsupportedPlatform": "当前平台不支持",
+      "voiceCapable": "支持语音输入",
+      "productPage": "产品页面",
+      "connectFailed": "连接外设失败。",
+      "updateFailed": "更新外设设置失败。",
+      "status": {
+        "bluetooth": "蓝牙已连接"
+      },
+      "keys": {
+        "voice": "语音",
+        "back": "返回"
+      },
+      "phase": {
+        "inactive": "未生效",
+        "unsupported": "不支持",
+        "unavailable": "不可用",
+        "preparing": "准备中",
+        "scanning": "查找中",
+        "connecting": "连接中",
+        "connected": "已连接",
+        "error": "错误",
+        "disconnected": "已断开"
+      },
+      "openPermissionSettings": "输入监控设置",
+      "permissionHint": "macOS 需要「输入监控」权限才能读取 HID 按键；授权后请退出并重新打开 Fello。",
+      "reconnect": "重新连接"
     }
   },
   "chat": {

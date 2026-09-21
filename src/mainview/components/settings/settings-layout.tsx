@@ -11,6 +11,7 @@ import {
   ImageIcon,
   Mic,
   Command,
+  Gamepad2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "../../store";
@@ -87,6 +88,12 @@ export function SettingsLayout() {
       href: "/settings/ilink",
       icon: <MessageCircle className="size-4" />,
       label: t("settings.ilink.title", "WeChat iLink"),
+    },
+    {
+      id: "peripherals",
+      href: "/settings/peripherals",
+      icon: <Gamepad2 className="size-4" />,
+      label: t("settings.peripherals.title", "Peripherals"),
     },
   ];
 
