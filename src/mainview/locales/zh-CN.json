@@ -10,6 +10,7 @@
     "noAgentsHint": "请先配置 Agent",
     "configureAgent": "配置 Agent",
     "revealInFinder": "在访达中显示",
+    "copyProjectPath": "复制项目路径",
     "rename": "重命名",
     "delete": "删除",
     "renameProject": "重命名项目",

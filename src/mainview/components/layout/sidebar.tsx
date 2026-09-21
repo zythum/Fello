@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import {
@@ -59,6 +60,7 @@ import {
   Check,
   Clock,
   Code,
+  Copy,
   Bot,
   Eye,
   Folder,
@@ -577,6 +579,16 @@ export function Sidebar() {
     }
   };
 
+  /**
+   * 复制项目根目录的绝对路径。
+   *
+   * 与「在访达中显示」/「在编辑器中打开」同源（都用 `project.cwd`），保证复制到的就是界面展示的那条路径；
+   * 项目本身没有相对路径概念，因此不提供「复制相对路径」。WebUI 下同样可用（纯文本复制，不依赖本机文件系统）。
+   */
+  const handleCopyProjectPath = async (project: ProjectInfo) => {
+    await copyText(project.cwd);
+  };
+
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects],
@@ -979,6 +991,10 @@ export function Sidebar() {
                             })}
                           </ContextMenuItem>
                         )}
+                        <ContextMenuItem onClick={() => void handleCopyProjectPath(project)}>
+                          <Copy className="size-3" />
+                          {t("sidebar.copyProjectPath")}
+                        </ContextMenuItem>
                         <ContextMenuItem onClick={() => void handleRenameProject(project)}>
                           <Pencil className="size-3" />
                           {t("sidebar.rename")}
@@ -1200,6 +1216,10 @@ export function Sidebar() {
                                   })}
                                 </ContextMenuItem>
                               )}
+                              <ContextMenuItem onClick={() => void handleCopyProjectPath(project)}>
+                                <Copy className="size-3" />
+                                {t("sidebar.copyProjectPath")}
+                              </ContextMenuItem>
                               <ContextMenuItem onClick={() => handleRenameSession(session)}>
                                 <Pencil className="size-3" />
                                 {t("sidebar.rename")}

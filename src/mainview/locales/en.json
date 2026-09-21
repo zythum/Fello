@@ -10,6 +10,7 @@
     "noAgentsHint": "Configure an agent first",
     "configureAgent": "Configure Agent",
     "revealInFinder": "Reveal in Finder",
+    "copyProjectPath": "Copy Project Path",
     "rename": "Rename",
     "delete": "Delete",
     "renameProject": "Rename Project",
