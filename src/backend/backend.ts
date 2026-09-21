@@ -98,6 +98,8 @@ export function initBackend(
     newSession: session.newSession,
     getModels: session.getModels,
     setModel: session.setModel,
+    updateSession: session.updateSession,
+    loadSession: session.loadSession,
     respondAskUser: askUser.respondAskUser,
     getPendingAskUserRequests: askUser.getPendingAskUserRequests,
   });

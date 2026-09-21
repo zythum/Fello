@@ -389,12 +389,28 @@ export function SettingsILink() {
               <p className="text-xs text-muted-foreground mb-2">
                 {t(
                   "settings.ilink.commandsDesc",
-                  "Messages starting with ! or ！ are commands. They interrupt the current agent execution (cancelling an ongoing reply) and then run the corresponding action.",
+                  "Messages starting with ! are commands. They interrupt the current agent execution (cancelling an ongoing reply) and then run the corresponding action.",
                 )}
               </p>
               <div className="divide-y divide-border">
-                <div className="flex items-start gap-3 py-2">
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
+                    !
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdStatus", "View Status")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdStatusDesc",
+                        "Show active session info (title, project, agent, permission, features, MCP status).",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
                     !s
                   </span>
                   <div className="min-w-0 flex-1">
@@ -409,8 +425,8 @@ export function SettingsILink() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 py-2">
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
                     !n
                   </span>
                   <div className="min-w-0 flex-1">
@@ -425,8 +441,8 @@ export function SettingsILink() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 py-2">
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
                     !m
                   </span>
                   <div className="min-w-0 flex-1">
@@ -441,8 +457,56 @@ export function SettingsILink() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 py-2">
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
+                    !p
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdPermission", "Switch Permission")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdPermissionDesc",
+                        "List the permission modes (Ask / Allow all); reply with a number to switch. Applied immediately, without restarting the session.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
+                    !f
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdFeature", "Toggle Features")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdFeatureDesc",
+                        "List the current session's features; reply with a number to toggle one. The session restarts so the change takes effect.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
+                    !c
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      {t("settings.ilink.cmdToggleMcp", "Toggle MCP Servers")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/90 mt-0.5">
+                      {t(
+                        "settings.ilink.cmdToggleMcpDesc",
+                        "List the session's MCP servers; reply with a number to toggle one. The session restarts so the change takes effect.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                  <span className="shrink-0 rounded bg-muted size-6 flex items-center justify-center ring-1 ring-ring/30 font-mono text-xs text-foreground/80">
                     !q
                   </span>
                   <div className="min-w-0 flex-1">
@@ -453,22 +517,6 @@ export function SettingsILink() {
                       {t(
                         "settings.ilink.cmdSnippetDesc",
                         "List configured snippets; reply with a number to send that content to the agent.",
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 py-2">
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground/80">
-                    !
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium">
-                      {t("settings.ilink.cmdStatus", "View Status")}
-                    </p>
-                    <p className="text-xs text-muted-foreground/90 mt-0.5">
-                      {t(
-                        "settings.ilink.cmdStatusDesc",
-                        "Show active session info (title, project, agent, features, MCP status).",
                       )}
                     </p>
                   </div>

@@ -1,4 +1,5 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type { Feature, SessionInfo, SessionModelState } from "../../shared/schema";
 import type { WeixinMessage } from "./ilink-client";
 import {
   ILinkBridge,
@@ -59,6 +60,8 @@ export interface IlinkHandlerDeps {
   newSession: SessionModule["newSession"];
   getModels: SessionModule["getModels"];
   setModel: SessionModule["setModel"];
+  updateSession: SessionModule["updateSession"];
+  loadSession: SessionModule["loadSession"];
   respondAskUser: AskUserModule["respondAskUser"];
   getPendingAskUserRequests: AskUserModule["getPendingAskUserRequests"];
 }
@@ -73,7 +76,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   let activeSessionId: string | null = null;
   let replyBuffer = "";
   let mediaBuffer: IlinkMediaEntry[] = [];
-  let commandPending: ((input: string) => void) | null = null;
+  let commandPending: ((index: number) => void | Promise<void>) | null = null;
 
   // Late-bound handler deps (set after session/askUser modules are created)
   let handlers: IlinkHandlerDeps | null = null;
@@ -85,6 +88,45 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   function getHandlers(): IlinkHandlerDeps {
     if (!handlers) throw new Error("[ilink] handlers not yet initialized");
     return handlers;
+  }
+
+  // ── Menu helpers ───────────────────────────────────────────────────
+  //
+  // Numbered menus share one reply rule: a reply that starts with a digit is a menu selection,
+  // anything else is a normal message for the agent (see the onMessage dispatch).
+
+  /** Parse the leading number of a menu reply; null when the reply does not start with a digit. */
+  function parseMenuIndex(input: string): number | null {
+    const match = input.match(/^\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  }
+
+  /** Report an out-of-range menu reply. Callers keep their menu armed so the user can retry. */
+  async function replyInvalidIndex(msg: WeixinMessage, max: number) {
+    if (!msg.from_user_id) return;
+    await bridge?.sendTextReply(
+      msg.from_user_id,
+      t("ilink.invalidMenuNumber", { min: "1", max: String(max) }),
+    );
+  }
+
+  async function replyUnknownCommand(msg: WeixinMessage) {
+    if (!msg.from_user_id) return;
+    await bridge?.sendTextReply(msg.from_user_id, t("ilink.unknownCommand"));
+  }
+
+  /** Feature → i18n key, so menus and the status view show localized names instead of raw ids. */
+  const FEATURE_LABEL_KEYS = {
+    skills: "ilink.featureSkills",
+    search: "ilink.featureSearch",
+    image_generation: "ilink.featureImageGeneration",
+    memory: "ilink.featureMemory",
+    ask_user: "ilink.featureAskUser",
+    share_to_user: "ilink.featureShareToUser",
+  } as const satisfies Record<Feature, string>;
+
+  function getFeatureLabel(feature: Feature): string {
+    return t(FEATURE_LABEL_KEYS[feature]);
   }
 
   // ── IlinkSessionState interface (consumed by session/notifications) ──
@@ -125,94 +167,115 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
 
           const trimmed = text.trim();
 
-          if (commandPending) {
-            commandPending(trimmed);
-            commandPending = null;
-            return;
-          }
-
+          // Commands always win: sending a new command drops any menu that is waiting for a reply.
           if (trimmed[0] === "!" || trimmed[0] === "！") {
+            commandPending = null;
             await handleIlinkCommand(trimmed, msg);
             return;
           }
 
-          const sessionId = activeSessionId ?? "";
-          if (!sessionId) {
-            console.warn("[iLink] No active session, ignoring message");
-            if (msg.from_user_id) {
-              const lines = [
-                `📋 **${t("ilink.noActiveSession")}**`,
-                "",
-                t("ilink.switchSessionGuide"),
-                t("ilink.createSessionGuide"),
-              ];
-              await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+          if (commandPending) {
+            const index = parseMenuIndex(trimmed);
+            if (index !== null) {
+              const pending = commandPending;
+              // Clear before awaiting so the handler can re-arm the menu when it wants to.
+              commandPending = null;
+              await pending(index);
+              return;
             }
-            return;
+            // Not a menu reply: close the menu and fall through, so the text is forwarded to the
+            // agent instead of being swallowed by the menu.
+            commandPending = null;
           }
 
-          const contents: ContentBlock[] = [];
-          if (combinedText.trim()) contents.push({ type: "text", text: combinedText });
-
-          if (hasImages && bridge) {
-            const { useOriginalImage } = storage.getSettings().ilink;
-            for (const item of msg.item_list ?? []) {
-              if (item.type !== 2 || !item.image_item) continue;
-              try {
-                const base64 = await bridge.downloadImage(item.image_item, { useOriginalImage });
-                if (base64) contents.push({ type: "image", data: base64, mimeType: "image/jpeg" });
-              } catch (err) {
-                console.error("[iLink] Failed to download image:", err);
-              }
-            }
-          }
-
-          if (contents.length === 0) return;
-
-          // askUser intercept
-          const h = getHandlers();
-          const pending = await h.getPendingAskUserRequests({ sessionId });
-          if (pending.length > 0) {
-            const req = pending[0];
-            const options = req.options;
-            let respondedValue: string | null = null;
-            if (/^\d+$/.test(trimmed)) {
-              const index = parseInt(trimmed, 10) - 1;
-              const option = options[index];
-              if (option) respondedValue = option.value;
-            }
-            if (respondedValue !== null) {
-              await h.respondAskUser({
-                sessionId,
-                askUserId: req.askUserId,
-                value: respondedValue,
-              });
-            } else {
-              await h.respondAskUser({
-                sessionId,
-                askUserId: req.askUserId,
-                value: null,
-                reason: trimmed || t("ilink.noInput"),
-              });
-            }
-            if (bridge?.isConnected && activeSessionId === sessionId) {
-              const userId = bridge.userId;
-              if (userId) bridge.sendTyping(userId, true).catch(() => {});
-            }
-            return;
-          }
-
-          try {
-            await h.sendPrompt({ sessionId, contents });
-          } catch (err) {
-            console.error("[iLink] Failed to route message to session:", err);
-            if (msg.from_user_id)
-              await bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
-          }
+          await handleUserMessage(msg, { trimmed, combinedText, hasImages });
         },
       });
     }
     return bridge;
+  }
+
+  // ── Plain messages ─────────────────────────────────────────────────
+
+  async function handleUserMessage(
+    msg: WeixinMessage,
+    input: { trimmed: string; combinedText: string; hasImages: boolean },
+  ) {
+    const { trimmed, combinedText, hasImages } = input;
+
+    const sessionId = activeSessionId ?? "";
+    if (!sessionId) {
+      console.warn("[iLink] No active session, ignoring message");
+      if (msg.from_user_id) {
+        const lines = [
+          `📋 **${t("ilink.noActiveSession")}**`,
+          "",
+          t("ilink.switchSessionGuide"),
+          t("ilink.createSessionGuide"),
+        ];
+        await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+      }
+      return;
+    }
+
+    const contents: ContentBlock[] = [];
+    if (combinedText.trim()) contents.push({ type: "text", text: combinedText });
+
+    if (hasImages && bridge) {
+      const { useOriginalImage } = storage.getSettings().ilink;
+      for (const item of msg.item_list ?? []) {
+        if (item.type !== 2 || !item.image_item) continue;
+        try {
+          const base64 = await bridge.downloadImage(item.image_item, { useOriginalImage });
+          if (base64) contents.push({ type: "image", data: base64, mimeType: "image/jpeg" });
+        } catch (err) {
+          console.error("[iLink] Failed to download image:", err);
+        }
+      }
+    }
+
+    if (contents.length === 0) return;
+
+    // askUser intercept
+    const h = getHandlers();
+    const pending = await h.getPendingAskUserRequests({ sessionId });
+    if (pending.length > 0) {
+      const req = pending[0];
+      const options = req.options;
+      let respondedValue: string | null = null;
+      if (/^\d+$/.test(trimmed)) {
+        const index = parseInt(trimmed, 10) - 1;
+        const option = options[index];
+        if (option) respondedValue = option.value;
+      }
+      if (respondedValue !== null) {
+        await h.respondAskUser({
+          sessionId,
+          askUserId: req.askUserId,
+          value: respondedValue,
+        });
+      } else {
+        await h.respondAskUser({
+          sessionId,
+          askUserId: req.askUserId,
+          value: null,
+          reason: trimmed || t("ilink.noInput"),
+        });
+      }
+      if (bridge?.isConnected && activeSessionId === sessionId) {
+        const userId = bridge.userId;
+        if (userId) bridge.sendTyping(userId, true).catch(() => {});
+      }
+      return;
+    }
+
+    try {
+      await h.sendPrompt({ sessionId, contents });
+    } catch (err) {
+      console.error("[iLink] Failed to route message to session:", err);
+      if (msg.from_user_id)
+        await bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+    }
   }
 
   // ── Commands ───────────────────────────────────────────────────────
@@ -228,11 +291,18 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     }
 
     const [command] = trimmed.slice(1).split(/\s+/);
-    if (command.toLowerCase() === "s") await handleCommandSwitchSession(msg);
-    else if (command.toLowerCase() === "n") await handleCommandNewSession(msg);
-    else if (command.toLowerCase() === "m") await handleCommandSwitchModel(msg);
-    else if (command.toLowerCase() === "q") await handleCommandSnippet(msg);
-    else await handleCommandInfo(msg);
+    const name = command.toLowerCase();
+    // Branches follow the order the commands are listed in (settings page and guides).
+    // Bare "!" (and only that) shows the status view; unknown commands get an explicit hint.
+    if (name === "") await handleCommandInfo(msg);
+    else if (name === "s") await handleCommandSwitchSession(msg);
+    else if (name === "n") await handleCommandNewSession(msg);
+    else if (name === "m") await handleCommandSwitchModel(msg);
+    else if (name === "p") await handleCommandPermission(msg);
+    else if (name === "f") await handleCommandFeatures(msg);
+    else if (name === "c") await handleCommandMcpServers(msg);
+    else if (name === "q") await handleCommandSnippet(msg);
+    else await replyUnknownCommand(msg);
   }
 
   async function handleCommandSwitchSession(msg: WeixinMessage) {
@@ -264,7 +334,8 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       for (const s of sessions) {
         const marker = s.id === activeSessionId ? " 👈" : "";
         const label = s.title || t("ilink.newSession");
-        lines.push(`  ${index}. ${label}${marker}`);
+        const agentId = s.agentId;
+        lines.push(`  ${index}. [${agentId}] ${label}${marker}`);
         sessionEntries.push({ sessionId: s.id, label });
         index++;
       }
@@ -272,27 +343,24 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push("", "---", t("ilink.switchSessionHint"));
     if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
 
-    commandPending = (input: string) => {
-      const num = parseInt(input, 10);
-      if (isNaN(num) || num < 1 || num > sessionEntries.length) {
-        if (msg.from_user_id)
-          bridge?.sendTextReply(
-            msg.from_user_id,
-            t("ilink.invalidSessionNumber", { min: "1", max: String(sessionEntries.length) }),
-          );
+    const pending = async (index: number) => {
+      const entry = sessionEntries[index - 1];
+      if (!entry) {
+        await replyInvalidIndex(msg, sessionEntries.length);
+        commandPending = pending; // keep the menu open so the user can retry
         return;
       }
-      const entry = sessionEntries[num - 1];
       activeSessionId = entry.sessionId;
       replyBuffer = "";
       writeActiveSessionId(entry.sessionId).catch(() => {});
       sendEvent("ilink-active-session-changed", { sessionId: entry.sessionId });
       if (msg.from_user_id)
-        bridge?.sendTextReply(
+        await bridge?.sendTextReply(
           msg.from_user_id,
           t("ilink.switchedToSession", { label: entry.label }),
         );
     };
+    commandPending = pending;
   }
 
   async function handleCommandNewSession(msg: WeixinMessage) {
@@ -313,17 +381,13 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push("", "---", t("ilink.createSessionHint"));
     if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
 
-    commandPending = (input: string) => {
-      const num = parseInt(input, 10);
-      if (isNaN(num) || num < 1 || num > projectEntries.length) {
-        if (msg.from_user_id)
-          bridge?.sendTextReply(
-            msg.from_user_id,
-            t("ilink.invalidSessionNumber", { min: "1", max: String(projectEntries.length) }),
-          );
+    const pending = (index: number) => {
+      const entry = projectEntries[index - 1];
+      if (!entry) {
+        void replyInvalidIndex(msg, projectEntries.length);
+        commandPending = pending; // keep the menu open so the user can retry
         return;
       }
-      const entry = projectEntries[num - 1];
       const settings = storage.getSettings();
       const agent = settings.agents.find((a) => !a.disabled);
       if (!agent) {
@@ -355,25 +419,34 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
           if (msg.from_user_id) bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
         });
     };
+    commandPending = pending;
   }
 
   async function handleCommandSwitchModel(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
     if (!sessionId) {
-      if (msg.from_user_id) {
-        await bridge?.sendTextReply(
-          msg.from_user_id,
-          [
-            `📋 **${t("ilink.noActiveSession")}**`,
-            "",
-            t("ilink.switchSessionGuide"),
-            t("ilink.createSessionGuide"),
-          ].join("\n"),
-        );
-      }
+      await replyNoActiveSession(msg);
       return;
     }
-    const modelState = await getHandlers().getModels({ sessionId });
+
+    // `getModels` reads live bridge state, so a session that was never loaded (e.g. restored
+    // after an app restart) would look like it has no models. Load it on demand first — without
+    // `force`, so an already loaded session returns its cached state and a loading one shares its
+    // in-flight promise instead of restarting anything.
+    let modelState: SessionModelState | null;
+    try {
+      modelState = await getHandlers().getModels({ sessionId });
+      if (!modelState) {
+        await getHandlers().loadSession({ sessionId });
+        modelState = await getHandlers().getModels({ sessionId });
+      }
+    } catch (err) {
+      console.error("[iLink] Failed to prepare model list:", err);
+      if (msg.from_user_id)
+        await bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+      return;
+    }
+
     if (!modelState || !modelState.availableModels || modelState.availableModels.length === 0) {
       if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, t("ilink.noModels"));
       return;
@@ -391,17 +464,13 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push("", "---", t("ilink.switchModelHint"));
     if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
 
-    commandPending = (input: string) => {
-      const num = parseInt(input, 10);
-      if (isNaN(num) || num < 1 || num > modelEntries.length) {
-        if (msg.from_user_id)
-          bridge?.sendTextReply(
-            msg.from_user_id,
-            t("ilink.invalidSessionNumber", { min: "1", max: String(modelEntries.length) }),
-          );
+    const pending = (index: number) => {
+      const entry = modelEntries[index - 1];
+      if (!entry) {
+        void replyInvalidIndex(msg, modelEntries.length);
+        commandPending = pending; // keep the menu open so the user can retry
         return;
       }
-      const entry = modelEntries[num - 1];
       getHandlers()
         .setModel({ sessionId, modelId: entry.modelId })
         .then(() => {
@@ -416,7 +485,274 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
           if (msg.from_user_id) bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
         });
     };
+    commandPending = pending;
   }
+
+  // ── Shared command helpers ─────────────────────────────────────────
+
+  async function replyNoActiveSession(msg: WeixinMessage) {
+    if (!msg.from_user_id) return;
+    await bridge?.sendTextReply(
+      msg.from_user_id,
+      [
+        `📋 **${t("ilink.noActiveSession")}**`,
+        "",
+        t("ilink.switchSessionGuide"),
+        t("ilink.createSessionGuide"),
+      ].join("\n"),
+    );
+  }
+
+  // ── Permission mode ───────────────────────────────────────────────
+
+  const PERMISSION_MODES: SessionInfo["permissionMode"][] = ["ask", "allow-all"];
+
+  function getPermissionModeLabel(mode: SessionInfo["permissionMode"]): string {
+    return mode === "allow-all" ? t("ilink.permissionAllowAll") : t("ilink.permissionAsk");
+  }
+
+  /**
+   * Switch the session permission mode.
+   *
+   * Single-choice menu, handled like `!m` (model): reply once and the menu is done.
+   *
+   * Unlike features / MCP servers this needs no session reload: the mode is read from storage
+   * on every permission request (`bridge-connect`), so the change is live immediately.
+   */
+  async function handleCommandPermission(msg: WeixinMessage) {
+    const sessionId = activeSessionId ?? "";
+    const session = sessionId ? storage.getSession(sessionId) : null;
+    if (!session) {
+      await replyNoActiveSession(msg);
+      return;
+    }
+
+    const lines: string[] = [];
+    lines.push(`📋 **${t("ilink.permissionMenu")}**`);
+    lines.push(t("ilink.permissionMenuDesc"));
+    const modeEntries: Array<{ mode: SessionInfo["permissionMode"]; label: string }> = [];
+    PERMISSION_MODES.forEach((mode, index) => {
+      const marker = mode === session.permissionMode ? " 👈" : "";
+      const label = getPermissionModeLabel(mode);
+      lines.push(`  ${index + 1}. ${label}${marker}`);
+      modeEntries.push({ mode, label });
+    });
+    lines.push("", "---", t("ilink.switchPermissionHint"));
+    if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+
+    const pending = (index: number) => {
+      const entry = modeEntries[index - 1];
+      if (!entry) {
+        void replyInvalidIndex(msg, modeEntries.length);
+        commandPending = pending; // keep the menu open so the user can retry
+        return;
+      }
+      getHandlers()
+        .updateSession({ sessionId, permissionMode: entry.mode })
+        .then(() => {
+          if (msg.from_user_id)
+            bridge?.sendTextReply(
+              msg.from_user_id,
+              t("ilink.permissionSwitched", { mode: entry.label }),
+            );
+        })
+        .catch((err: unknown) => {
+          console.error("[iLink] Failed to update permission mode:", err);
+          if (msg.from_user_id) bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+        });
+    };
+    commandPending = pending;
+  }
+
+  // ── Feature switches ───────────────────────────────────────────────
+
+  /**
+   * Toggle one feature and apply it immediately.
+   *
+   * Features are Agent session startup parameters: they are only read when the session is
+   * (re)loaded, so the session is restarted for the change to take effect.
+   */
+  async function handleCommandFeatures(msg: WeixinMessage) {
+    const sessionId = activeSessionId ?? "";
+    if (!sessionId || !storage.getSession(sessionId)) {
+      await replyNoActiveSession(msg);
+      return;
+    }
+
+    /** Features in ALL_FEATURES order so the numbering stays stable across replies. */
+    const getEntries = () => {
+      const enabled = new Set(storage.getSession(sessionId)?.features ?? []);
+      return ALL_FEATURES.map((feature) => ({
+        id: feature,
+        label: getFeatureLabel(feature),
+        enabled: enabled.has(feature),
+      }));
+    };
+
+    const buildMenuText = (entries: ReturnType<typeof getEntries>) => {
+      const lines: string[] = [];
+      lines.push(`📋 **${t("ilink.featuresMenu")}**`);
+      lines.push(t("ilink.featuresMenuDesc"));
+      entries.forEach((entry, index) => {
+        lines.push(`  ${index + 1}. ${entry.enabled ? "✓" : "✗"} ${entry.label}`);
+      });
+      lines.push("", "---", t("ilink.toggleHint"));
+      return lines.join("\n");
+    };
+
+    const entries = getEntries();
+    if (entries.length === 0) {
+      if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, t("ilink.noToggleItems"));
+      return;
+    }
+    if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, buildMenuText(entries));
+
+    // Immediate-apply menu: replying a number flips that switch right away, then the menu is
+    // re-sent so the user can keep toggling without sending the command again. `0` exits it.
+    const pending = async (index: number) => {
+      if (index === 0) {
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(msg.from_user_id, t("ilink.toggleCancelled"));
+        return;
+      }
+      const current = getEntries();
+      const target = current[index - 1];
+      if (!target) {
+        await replyInvalidIndex(msg, current.length);
+        commandPending = pending; // keep the menu open so the user can retry
+        return;
+      }
+      const label = `${t(target.enabled ? "ilink.toggledOff" : "ilink.toggledOn")} ${target.label}`;
+      const nextIds: Feature[] = current
+        .filter((entry) => entry.enabled && entry.id !== target.id)
+        .map((entry) => entry.id);
+      if (!target.enabled) nextIds.push(target.id);
+
+      try {
+        await getHandlers().updateSession({ sessionId, features: nextIds });
+      } catch (err) {
+        console.error("[iLink] Failed to update session features:", err);
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+        return;
+      }
+
+      try {
+        await getHandlers().loadSession({ sessionId, force: true });
+        // `label` already carries the ✅ 已开启/已关闭 prefix — no extra suffix needed.
+        if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, label);
+      } catch (err) {
+        console.error("[iLink] Failed to restart session after feature toggle:", err);
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(
+            msg.from_user_id,
+            t("ilink.toggleSavedRestartFailed", { label }),
+          );
+      }
+
+      const fresh = getEntries();
+      if (msg.from_user_id && fresh.length > 0)
+        await bridge?.sendTextReply(msg.from_user_id, buildMenuText(fresh));
+      commandPending = pending;
+    };
+    commandPending = pending;
+  }
+
+  // ── MCP switches ───────────────────────────────────────────────────
+
+  /**
+   * Toggle one MCP server and apply it immediately.
+   *
+   * Same flow as the feature switches: MCP servers are Agent session startup parameters, so the
+   * session is restarted for the change to take effect.
+   */
+  async function handleCommandMcpServers(msg: WeixinMessage) {
+    const sessionId = activeSessionId ?? "";
+    if (!sessionId || !storage.getSession(sessionId)) {
+      await replyNoActiveSession(msg);
+      return;
+    }
+
+    /** Configured servers in settings order, so the numbering stays stable across replies. */
+    const getEntries = () => {
+      const enabled = new Set(storage.getSession(sessionId)?.mcpServers ?? []);
+      return (storage.getSettings().mcpServers ?? []).map((server) => ({
+        id: server.id,
+        label: server.id,
+        enabled: enabled.has(server.id),
+      }));
+    };
+
+    const buildMenuText = (entries: ReturnType<typeof getEntries>) => {
+      const lines: string[] = [];
+      lines.push(`📋 **${t("ilink.mcpMenu")}**`);
+      lines.push(t("ilink.mcpMenuDesc"));
+      entries.forEach((entry, index) => {
+        lines.push(`  ${index + 1}. ${entry.enabled ? "✓" : "✗"} ${entry.label}`);
+      });
+      lines.push("", "---", t("ilink.toggleHint"));
+      return lines.join("\n");
+    };
+
+    const entries = getEntries();
+    if (entries.length === 0) {
+      if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, t("ilink.noToggleItems"));
+      return;
+    }
+    if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, buildMenuText(entries));
+
+    // Immediate-apply menu: replying a number flips that switch right away, then the menu is
+    // re-sent so the user can keep toggling without sending the command again. `0` exits it.
+    const pending = async (index: number) => {
+      if (index === 0) {
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(msg.from_user_id, t("ilink.toggleCancelled"));
+        return;
+      }
+      const current = getEntries();
+      const target = current[index - 1];
+      if (!target) {
+        await replyInvalidIndex(msg, current.length);
+        commandPending = pending; // keep the menu open so the user can retry
+        return;
+      }
+      const label = `${t(target.enabled ? "ilink.toggledOff" : "ilink.toggledOn")} ${target.label}`;
+      const nextIds = current
+        .filter((entry) => entry.enabled && entry.id !== target.id)
+        .map((entry) => entry.id);
+      if (!target.enabled) nextIds.push(target.id);
+
+      try {
+        await getHandlers().updateSession({ sessionId, mcpServers: nextIds });
+      } catch (err) {
+        console.error("[iLink] Failed to update session MCP servers:", err);
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
+        return;
+      }
+
+      try {
+        await getHandlers().loadSession({ sessionId, force: true });
+        // `label` already carries the ✅ 已开启/已关闭 prefix — no extra suffix needed.
+        if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, label);
+      } catch (err) {
+        console.error("[iLink] Failed to restart session after MCP toggle:", err);
+        if (msg.from_user_id)
+          await bridge?.sendTextReply(
+            msg.from_user_id,
+            t("ilink.toggleSavedRestartFailed", { label }),
+          );
+      }
+
+      const fresh = getEntries();
+      if (msg.from_user_id && fresh.length > 0)
+        await bridge?.sendTextReply(msg.from_user_id, buildMenuText(fresh));
+      commandPending = pending;
+    };
+    commandPending = pending;
+  }
+
+  // ── Snippets ───────────────────────────────────────────────────────
 
   async function handleCommandSnippet(msg: WeixinMessage) {
     const settings = storage.getSettings();
@@ -437,17 +773,13 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push("", "---", t("ilink.selectSnippetHint"));
     if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
 
-    commandPending = (input: string) => {
-      const num = parseInt(input, 10);
-      if (isNaN(num) || num < 1 || num > snippetEntries.length) {
-        if (msg.from_user_id)
-          bridge?.sendTextReply(
-            msg.from_user_id,
-            t("ilink.invalidSessionNumber", { min: "1", max: String(snippetEntries.length) }),
-          );
+    const pending = (index: number) => {
+      const entry = snippetEntries[index - 1];
+      if (!entry) {
+        void replyInvalidIndex(msg, snippetEntries.length);
+        commandPending = pending; // keep the menu open so the user can retry
         return;
       }
-      const entry = snippetEntries[num - 1];
       const sessionId = activeSessionId ?? "";
       if (!sessionId) {
         if (msg.from_user_id)
@@ -473,13 +805,15 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
           if (msg.from_user_id) bridge?.sendTextReply(msg.from_user_id, t("ilink.errorProcessing"));
         });
     };
+    commandPending = pending;
   }
+
+  // ── Session status ─────────────────────────────────────────────────
 
   async function handleCommandInfo(msg: WeixinMessage) {
     const currentSession = activeSessionId ? storage.getSession(activeSessionId) : null;
     const message = (() => {
       const lines: string[] = [];
-      lines.push(`📋 **${t("ilink.sessionInfo")}**`);
       if (!currentSession) {
         lines.push(t("ilink.noActiveSession"));
         lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"));
@@ -487,30 +821,38 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       }
       const projects = storage.listProjects();
       const project = projects.find((p) => p.id === currentSession.projectId);
-      lines.push(`**${t("ilink.title")}**: ${currentSession.title || t("ilink.newSession")}`);
-      if (project) lines.push(`**${t("ilink.project")}**: ${project.title}`);
-      lines.push(`**${t("ilink.projectDir")}**: \`${currentSession.cwd}\``);
-      lines.push(`**${t("ilink.agent")}**: \`${currentSession.agentId}\``);
+      lines.push(`📋 **${currentSession.title || t("ilink.newSession")}**\n`);
+      if (project) lines.push(`**${t("ilink.project")}**: ${project.title}\n`);
+      lines.push(`**${t("ilink.projectDir")}**: \`${currentSession.cwd}\`\n`);
+      lines.push(`**${t("ilink.agent")}**: \`${currentSession.agentId}\`\n`);
+      lines.push(
+        `**${t("ilink.permissionMenu")}**: ${getPermissionModeLabel(currentSession.permissionMode)}\n`,
+      );
       const enabledFeatures = new Set(currentSession.features ?? []);
       lines.push(`**${t("ilink.features")}**:`);
-      for (const f of ALL_FEATURES) lines.push(`  - ${enabledFeatures.has(f) ? "✓" : "✗"} ${f}`);
-      const globalSettings = storage.getSettings();
+      for (const f of ALL_FEATURES)
+        lines.push(`  - ${enabledFeatures.has(f) ? "✓" : "✗"} ${getFeatureLabel(f)}`);
       const sessionMcpIds = new Set(currentSession.mcpServers ?? []);
-      const allMcpServers = globalSettings.mcpServers ?? [];
+      const allMcpServers = storage.getSettings().mcpServers ?? [];
+      lines.push(`\n`);
       if (allMcpServers.length > 0) {
         lines.push(`**${t("ilink.mcpServers")}**:`);
+        // Membership only — a globally disabled server still shows the session's own state here.
         for (const srv of allMcpServers)
-          lines.push(`  - ${sessionMcpIds.has(srv.id) && !srv.disabled ? "✓" : "✗"} \`${srv.id}\``);
+          lines.push(`  - ${sessionMcpIds.has(srv.id) ? "✓" : "✗"} ${srv.id}`);
       } else {
         lines.push(`**${t("ilink.mcpServers")}**: —`);
       }
       lines.push(
         "",
         "---",
-        t("ilink.switchSessionGuide"),
-        t("ilink.createSessionGuide"),
-        t("ilink.modelGuide"),
-        t("ilink.snippetGuide"),
+        "- " + t("ilink.switchSessionGuide"),
+        "- " + t("ilink.createSessionGuide"),
+        "- " + t("ilink.modelGuide"),
+        "- " + t("ilink.permissionGuide"),
+        "- " + t("ilink.featureGuide"),
+        "- " + t("ilink.mcpServerGuide"),
+        "- " + t("ilink.snippetGuide"),
       );
       return lines.join("\n");
     })();

@@ -251,7 +251,8 @@ export function createHidTransport({ hid, onStatus, onKey }: HidTransportOptions
               message: `无法打开 HID interface：${
                 error instanceof Error ? error.message : String(error)
               }`,
-              detail: "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
+              detail:
+                "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
             });
           }
         }
@@ -261,7 +262,8 @@ export function createHidTransport({ hid, onStatus, onKey }: HidTransportOptions
           onStatus({
             state: "unavailable",
             message: "HID interface 无法打开（不影响蓝牙语音通道）",
-            detail: "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
+            detail:
+              "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
           });
         }
         return { listening: handles.length };

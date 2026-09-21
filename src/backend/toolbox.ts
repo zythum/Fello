@@ -267,18 +267,25 @@ export function createToolboxModule(ctx: BackendContext): ToolboxModule {
     // ── Audio Transcribe ───────────────────────────────────────────
     // 依赖系统 ffmpeg 与「设置 → 语音识别」中已启用的 Provider；两者缺失时
     // 直接抛出带指引的错误（安装命令 / 去设置里配置），由 Agent 自行处理后重试。
-    server.registry("toolbox/audio-transcribe", async (payload): Promise<AudioTranscribeRespond> => {
-      const { path: audioPath, language, ffmpegPath, timeoutSeconds } =
-        audioTranscribeRequestSchema.parse(payload);
-      const absPath = resolve(projectDir, audioPath);
-      const outcome = await transcribeAudioFile(ctx, {
-        path: absPath,
-        language,
-        ffmpegPath,
-        timeoutSeconds,
-      });
-      return { result: outcome };
-    });
+    server.registry(
+      "toolbox/audio-transcribe",
+      async (payload): Promise<AudioTranscribeRespond> => {
+        const {
+          path: audioPath,
+          language,
+          ffmpegPath,
+          timeoutSeconds,
+        } = audioTranscribeRequestSchema.parse(payload);
+        const absPath = resolve(projectDir, audioPath);
+        const outcome = await transcribeAudioFile(ctx, {
+          path: absPath,
+          language,
+          ffmpegPath,
+          timeoutSeconds,
+        });
+        return { result: outcome };
+      },
+    );
   }
 
   function buildToolboxMcpServer(options: { projectDir: string; socketPath: string }) {

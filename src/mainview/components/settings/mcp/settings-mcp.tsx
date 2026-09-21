@@ -419,7 +419,9 @@ export function SettingsMcp() {
                   <DropdownMenuItem key={mcp.id} onClick={() => openRecommendedMcpDialog(mcp)}>
                     <div className="flex flex-col gap-1 min-w-0 py-0.5">
                       <span className="truncate flex flex-row items-center">
-                        <span>{t(`settings.mcp.recommended.${mcp.id}.name`, mcp.fallbackName)}</span>
+                        <span>
+                          {t(`settings.mcp.recommended.${mcp.id}.name`, mcp.fallbackName)}
+                        </span>
                         <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">
                           · {mcp.vendor}
                         </span>
