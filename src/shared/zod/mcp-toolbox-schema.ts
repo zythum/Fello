@@ -320,3 +320,39 @@ export const qrCodeRespondSchema = z.object({
 
 export type QrCodeRequest = z.infer<typeof qrCodeRequestSchema>;
 export type QrCodeRespond = z.infer<typeof qrCodeRespondSchema>;
+
+// ── Audio Transcribe ─────────────────────────────────────────────────
+
+export const audioTranscribeRequestSchema = z.object({
+  path: z.string().describe("Absolute or project-relative path to the audio file to transcribe."),
+  language: z
+    .string()
+    .optional()
+    .describe(
+      "BCP-47 language hint, e.g. 'zh-CN' or 'en-US'. If omitted, the language configured for the active speech-to-text provider is used.",
+    ),
+  ffmpegPath: z
+    .string()
+    .optional()
+    .describe(
+      "Absolute path to the ffmpeg executable, for when it is not on PATH (e.g. a custom install location). When provided it is used as-is: an unusable path is reported as an error instead of falling back to auto-detection. Omit it to auto-detect (FFMPEG_PATH env var, then PATH, then common install directories).",
+    ),
+  timeoutSeconds: z
+    .number()
+    .int()
+    .min(10)
+    .max(3600)
+    .default(600)
+    .describe("Maximum time to wait for the transcription, in seconds (10-3600). Default: 600."),
+});
+
+export const audioTranscribeRespondSchema = z.object({
+  result: z.object({
+    text: z.string(),
+    durationSeconds: z.number(),
+    segments: z.number(),
+  }),
+});
+
+export type AudioTranscribeRequest = z.infer<typeof audioTranscribeRequestSchema>;
+export type AudioTranscribeRespond = z.infer<typeof audioTranscribeRespondSchema>;

@@ -1,12 +1,6 @@
 import { Buffer } from "node:buffer";
-import {
-  createASRClient,
-  type ASRConfig,
-  type RealtimeASRClient,
-  type RealtimeASROptions,
-  type Transcript,
-} from "unified-realtime-asr";
-import type { SpeechToTextProviderInfo } from "../../shared/schema";
+import { createASRClient, type RealtimeASRClient, type Transcript } from "unified-realtime-asr";
+import { buildConfig, errorMessage, getActiveProvider } from "./config";
 import type { BackendContext } from "../types";
 
 interface ActiveAsrSession {
@@ -28,92 +22,6 @@ export interface AsrManager {
   frame(clientId: string, asrSessionId: string, audioB64: string): void;
   stop(clientId: string, asrSessionId: string): Promise<void>;
   closeAll(): Promise<void>;
-}
-
-const DEFAULT_DASHSCOPE_MODEL = "fun-asr-flash-8k-realtime";
-const DEFAULT_OPENAI_MODEL = "gpt-4o-transcribe";
-
-function optionalString(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
-}
-
-function required(value: string | undefined, name: string): string {
-  const result = optionalString(value);
-  if (!result) throw new Error(`实时语音识别配置缺少 ${name}。`);
-  return result;
-}
-
-function buildOptions(provider: SpeechToTextProviderInfo): RealtimeASROptions {
-  return {
-    language: optionalString(provider.language) ?? "zh-CN",
-    sampleRate: 16000,
-    channels: 1,
-    format: "pcm",
-    interimResults: true,
-    punctuation: true,
-    autoReconnect: false,
-    transcriptionModel:
-      provider.provider === "openai"
-        ? (optionalString(provider.model) ?? DEFAULT_OPENAI_MODEL)
-        : undefined,
-  };
-}
-
-function buildConfig(provider: SpeechToTextProviderInfo): ASRConfig {
-  const options = buildOptions(provider);
-  const url = optionalString(provider.baseUrl);
-
-  switch (provider.provider) {
-    case "volcengine":
-      return {
-        provider: "volcengine",
-        apiKey: required(provider.apiKey, "API Key"),
-        resourceId: optionalString(provider.resourceId),
-        appId: optionalString(provider.appId),
-        url,
-        options,
-      };
-    case "dashscope":
-      return {
-        provider: "dashscope",
-        apiKey: required(provider.apiKey, "API Key"),
-        model: optionalString(provider.model) ?? DEFAULT_DASHSCOPE_MODEL,
-        workspaceId: optionalString(provider.workspaceId),
-        region: provider.region,
-        workspace: optionalString(provider.workspace),
-        url,
-        options,
-      };
-    case "openai":
-      return {
-        provider: "openai",
-        apiKey: required(provider.apiKey, "API Key"),
-        url,
-        options,
-      };
-    case "iflytek":
-      return {
-        provider: "iflytek",
-        appId: required(provider.appId, "App ID"),
-        apiKey: required(provider.apiKey, "API Key"),
-        apiSecret: required(provider.apiSecret, "API Secret"),
-        url,
-        options,
-      };
-  }
-}
-
-function getActiveProvider(ctx: BackendContext): SpeechToTextProviderInfo {
-  const provider = ctx.storage.getSettings().speechToText.find((item) => item.active);
-  if (!provider) {
-    throw new Error("请先在设置 → 语音识别中配置并启用一个 Provider。");
-  }
-  return provider;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** `unified-realtime-asr` 的 not-connected 错误（ASRError.code === "not-connected"）。 */

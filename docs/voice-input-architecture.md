@@ -19,6 +19,8 @@
 | 外设音频源 | `src/electron/peripherals/` | BLE（ATVV）链路：恢复已连接外设或扫描、ATVV 会话、ADPCM 解码为 16k/16bit/mono PCM，经 `peripheral-audio` 事件推给渲染层 |
 | IPC 契约 | `src/shared/schema.ts` | 上行 `startRealtimeAsr` / `sendRealtimeAsrFrame` / `stopRealtimeAsr`；下行 `asr-transcript` / `asr-error` / `asr-closed`；外设另有 `peripheral-audio` / `peripheral-audio-state` |
 | 主进程 ASR | `src/backend/speech/manager.ts` | ASR 会话生命周期、`unified-realtime-asr` 客户端构建、事件广播；音频帧在 `connect()` 完成前（`ready = false`）与 not-connected 时直接丢弃 |
+| 主进程 ASR 配置 | `src/backend/speech/config.ts` | Provider 配置 → `ASRConfig` 映射（实时语音输入与音频文件转写共用），`getActiveProvider()` 取当前启用的 Provider |
+| 音频文件转写 | `src/backend/speech/transcribe.ts` + `ffmpeg.ts` | Toolbox `audio_transcribe` 工具的实现：系统 ffmpeg 解码 → 实时 ASR → 拼接文本（见第 9 节） |
 | 设置存储 | `src/backend/storage/settings.ts` | `speechToText` provider 数组的读取/校验/持久化（与 imageGeneration 同范式） |
 | 设置页 | `src/mainview/components/settings/speech-to-text/` | 服务商配置管理：列表 + 编辑对话框（每家一个独立表单） |
 
@@ -127,3 +129,38 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 | 每家 provider 独立表单 | 字段/校验/默认值差异大，独立 schema 避免互相污染 |
 | 外设音频在主进程解码 | ATVV / ADPCM 依赖 UBM 与原生蓝牙栈，只能在主进程；渲染层只接收已解码的 16k PCM |
 | 帧与转写都用采集 / 会话标识隔离 | 音频帧按 `captureId`、累积文本按「ASR 会话 + 句 id」，两者都用来丢弃跨会话的迟到数据 |
+
+## 9. 音频文件转写（Toolbox `audio_transcribe`）
+
+与麦克风实时输入共用同一套 ASR 能力，区别只是音频来源从「麦克风/外设」变成「磁盘上的音频文件」：
+
+```
+内置 MCP toolbox（子进程）
+  audio_transcribe { path, language?, timeoutSeconds? }
+        │ HTTP POST over Unix Socket
+        ▼
+主进程 backend：transcribeAudioFile()（speech/transcribe.ts）
+        │ 1. 系统 ffmpeg：任意格式 → 16k/mono/s16le PCM（stdout 流式）
+        │ 2. 按 20ms 帧喂入 createASRClient()（unified-realtime-asr）
+        │ 3. 收集 isFinal 片段 → 按句序号拼接
+        ▼
+返回纯文本
+```
+
+- **始终注册，缺配置时给指引**：`audio_transcribe` 工具与其它 toolbox 工具一样始终注册；
+  「设置 → 语音识别」中没有启用中的 Provider 时，执行阶段返回
+  「设置中没有找到语音识别（ASR）配置」并提示去设置里配置启用，由 Agent 转达用户后重试。
+- **不内置解码器**：音频解码直接用用户机器上的 `ffmpeg`，查找顺序为
+  **工具参数 `ffmpegPath` → `FFMPEG_PATH` 环境变量 → `PATH` → 常见安装目录**
+  （`/opt/homebrew/bin`、`/usr/local/bin` 等，因为 GUI 进程不一定继承完整 shell PATH）。
+  显式传入 `ffmpegPath` 时**只认它**，不可用就报错，不会悄悄退回自动探测。
+  完全找不到时**不报技术性错误**，而是返回带各平台安装命令的提示，由 Agent 安装后重试。
+- **流式解码**：ffmpeg 输出直接走 stdout，代码按 20ms 帧切分喂给 ASR 客户端，内存占用
+  与文件时长无关（不会把整个文件读进内存或落盘中转）。
+- **限速喂入（20× 实时）**：`unified-realtime-asr` 的 `sendAudio()` 没有回压接口，
+  不限速会把整个文件瞬间堆进 WebSocket 发送缓冲。限速后等待期间不读 stdout，
+  ffmpeg 被管道反压住；几分钟的语音备忘录秒级返回，一小时录音约 3 分钟。
+- **收尾**：音频发完先静默 1.5s 让服务端 VAD 定稿（OpenAI 的 `closeImpl()` 不会等待最终
+  结果，其余 provider 会），再 `close()`；`isFinal` 片段按 `index` 排序拼接，不足一帧的
+  尾部 PCM 也会补发。
+- **超时**：默认 600s（工具参数 `timeoutSeconds` 可调，10–3600），超时直接 kill ffmpeg 并关会话。

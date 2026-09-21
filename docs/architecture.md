@@ -94,7 +94,8 @@
 - **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装、Socket 路由注册（`registerSkillsRoute`/`buildSkillsMcpServer`）
 - **`src/backend/memory.ts`**：项目级持久记忆模块（语义查询/存储 + memo 事务管理），Socket 路由注册（`memory/query`、`memory/store`、`memo/read`、`memo/touch`、`memo/add`、`memo/delete`、`memo/set-weight`）
 - **`src/backend/image-generation.ts`**：图片生成模块，调用 OpenAI 兼容 API 生成图片，Socket 路由注册（`image-generation/generate`）
-- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成），Socket 路由注册（`toolbox/*`）
+- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成/音频文件转写），Socket 路由注册（`toolbox/*`）
+- **`src/backend/speech/`**：语音识别模块。`manager.ts` 管理实时语音输入会话；`config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 配置（两处共用）；`ffmpeg.ts` 定位系统 ffmpeg 并把音频文件解码成 16k/mono/s16le PCM；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
@@ -174,7 +175,7 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 - **`src/scripts/mcp-memory/server.ts`**：Memory MCP server，提供 `memory_query` 和 `memory_store` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memory/query`、`/memory/store`），用于项目级持久记忆的语义检索与存储
 - **`src/scripts/mcp-memo/server.ts`**：Memo MCP server，提供 `memo_get_current`、`memo_touch`、`memo_add`、`memo_delete`、`memo_set_weight` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memo/read`、`/memo/touch`、`/memo/add`、`/memo/delete`、`/memo/set-weight`），用于项目记忆条目的事务性管理
 - **`src/scripts/mcp-image-generation/server.ts`**：Image Generation MCP server，提供 `image_generation` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/image-generation/generate`），用于文本生成图片
-- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、QR 码生成等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制
+- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、QR 码生成、音频文件转写（`audio_transcribe`）等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制；工具本身也始终注册，未配置语音识别时在执行阶段返回带指引的错误
 
 Skills、ask-user、search、share-to-user、memory 和 image-generation 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "search", "image_generation", "memory", "ask_user", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。此外，toolbox MCP Server 始终加载，不受 feature flag 控制。
 

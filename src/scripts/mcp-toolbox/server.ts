@@ -18,6 +18,7 @@ import {
   imageResizeRequestSchema,
   imageConvertRequestSchema,
   qrCodeRequestSchema,
+  audioTranscribeRequestSchema,
   base64EncodeRespondSchema,
   base64DecodeRespondSchema,
   urlEncodeRespondSchema,
@@ -35,6 +36,7 @@ import {
   imageResizeRespondSchema,
   imageConvertRespondSchema,
   qrCodeRespondSchema,
+  audioTranscribeRespondSchema,
 } from "../../shared/zod/mcp-toolbox-schema";
 import * as http from "http";
 
@@ -63,7 +65,8 @@ if (!projectDir) {
 const server = new McpServer({
   name: "Toolbox",
   version: "1.0.0",
-  description: "Built-in utility tools: base64, URL encode/decode, hash, time, UUID, random, etc.",
+  description:
+    "Built-in utility tools: base64, URL encode/decode, hash, time, UUID, random, image processing, QR code, audio file transcription, etc.",
 });
 
 // ── Base64 Encode ───────────────────────────────────────────────────
@@ -430,6 +433,33 @@ server.registerTool(
         }),
       );
       return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    }
+  },
+);
+
+// ── Audio Transcribe ────────────────────────────────────────────────
+// 工具始终注册：未配置语音识别 / 未安装 ffmpeg 时，由主进程返回带指引的错误。
+
+server.registerTool(
+  "audio_transcribe",
+  {
+    description:
+      "Transcribe an audio file to text. Decodes with the system ffmpeg and recognizes with the speech-to-text provider configured in the app settings; if either is unavailable, the result explains what is missing and how to fix it — resolve it, then call this tool again with the same arguments. If ffmpeg lives outside PATH, pass its absolute path via ffmpegPath.",
+    inputSchema: audioTranscribeRequestSchema,
+  },
+  async (input) => {
+    try {
+      const res = audioTranscribeRespondSchema.parse(
+        await postToSocket("/toolbox/audio-transcribe", {
+          path: input.path,
+          language: input.language,
+          ffmpegPath: input.ffmpegPath,
+          timeoutSeconds: input.timeoutSeconds,
+        }),
+      );
+      return { content: [{ type: "text", text: res.result.text }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
     }

@@ -66,7 +66,12 @@ fello/
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成、路由注册
 │   │   ├── memory.ts                 # 项目级持久记忆（语义查询/存储 + memo 事务管理）
 │   │   ├── image-generation.ts       # 图片生成模块（OpenAI 兼容 API）
-│   │   ├── toolbox.ts                # 通用工具箱（编码/哈希/时间/UUID/随机数/图片处理/QR 码）
+│   │   ├── toolbox.ts                # 通用工具箱（编码/哈希/时间/UUID/随机数/图片处理/QR 码/音频转写）
+│   │   ├── speech/                   # 语音识别（实时语音输入 + 音频文件转写）
+│   │   │   ├── manager.ts            # 实时 ASR 会话生命周期（start/frame/stop/closeAll）
+│   │   │   ├── config.ts             # Provider 配置 → unified-realtime-asr 配置映射
+│   │   │   ├── ffmpeg.ts             # 系统 ffmpeg 定位 + 解码为 16k/mono/s16le PCM
+│   │   │   └── transcribe.ts         # 音频文件转文字（ffmpeg 解码 → 实时 ASR → 文本）
 │   │   ├── socket-server.ts          # 本地 Socket HTTP 服务器 + 跨平台路径生成
 │   │   ├── i18n.ts                   # 后端多语言初始化
 │   │   ├── locales/                  # 后端多语言 JSON 字典
@@ -102,7 +107,7 @@ fello/
 │   │   ├── mcp-image-generation/
 │   │   │   └── server.ts             # Image Generation MCP server
 │   │   ├── mcp-toolbox/
-│   │   │   └── server.ts             # Toolbox MCP server（编码/哈希/时间/UUID/图片处理/QR 码）
+│   │   │   └── server.ts             # Toolbox MCP server（编码/哈希/时间/UUID/图片处理/QR 码/音频转写）
 │   │   ├── worker-ripgrep/
 │   │   │   └── worker.ts             # Ripgrep Worker 子进程
 │   │   └── worker-file-outline/
@@ -352,6 +357,7 @@ fello/
   - `ilink/index.ts` — iLink 微信连接、状态、命令路由与消息转发
   - `project/` — 项目 CRUD + 文件搜索/读写 + Git 状态
   - `search/` — ripgrep 搜索 + file-outline
+  - `speech/` — 实时语音识别会话管理（`manager.ts`）+ 音频文件转写（`transcribe.ts`），共用 `config.ts` 的 Provider 配置映射；音频解码走系统 `ffmpeg`（`ffmpeg.ts`）
   - `inference.ts` — 无头推理原语（供 automation 使用）
   - `automation/` — 定时任务调度与执行
   - `serve-file.ts` — 安全文件服务（路径穿越防护）

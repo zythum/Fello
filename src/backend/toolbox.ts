@@ -20,6 +20,7 @@ import {
   imageResizeRequestSchema,
   imageConvertRequestSchema,
   qrCodeRequestSchema,
+  audioTranscribeRequestSchema,
   type Base64EncodeRespond,
   type Base64DecodeRespond,
   type UrlEncodeRespond,
@@ -37,9 +38,11 @@ import {
   type ImageResizeRespond,
   type ImageConvertRespond,
   type QrCodeRespond,
+  type AudioTranscribeRespond,
 } from "../shared/zod/mcp-toolbox-schema";
 import type { SocketServer } from "./socket-server";
 import type { BackendContext } from "./types";
+import { transcribeAudioFile } from "./speech/transcribe";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -82,7 +85,7 @@ function getSharp(): Promise<typeof import("sharp").default> {
 
 // ── Factory ──────────────────────────────────────────────────────────
 
-export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
+export function createToolboxModule(ctx: BackendContext): ToolboxModule {
   function extractMetadata(metadata: Metadata) {
     return {
       width: metadata.width,
@@ -259,6 +262,22 @@ export function createToolboxModule(_ctx: BackendContext): ToolboxModule {
       });
       await writeFile(outputPath, png);
       return { result: { output: outputPath } };
+    });
+
+    // ── Audio Transcribe ───────────────────────────────────────────
+    // 依赖系统 ffmpeg 与「设置 → 语音识别」中已启用的 Provider；两者缺失时
+    // 直接抛出带指引的错误（安装命令 / 去设置里配置），由 Agent 自行处理后重试。
+    server.registry("toolbox/audio-transcribe", async (payload): Promise<AudioTranscribeRespond> => {
+      const { path: audioPath, language, ffmpegPath, timeoutSeconds } =
+        audioTranscribeRequestSchema.parse(payload);
+      const absPath = resolve(projectDir, audioPath);
+      const outcome = await transcribeAudioFile(ctx, {
+        path: absPath,
+        language,
+        ffmpegPath,
+        timeoutSeconds,
+      });
+      return { result: outcome };
     });
   }
 

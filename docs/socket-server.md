@@ -14,9 +14,11 @@
 | `mcp-share-to-user` | `share_to_user` | `share-to-user/share` |
 | `mcp-memory` | `memory_query`、`memory_store` | `memory/query`、`memory/store` |
 | `mcp-image-generation` | `image_generation` | `image-generation/generate` |
-| `mcp-toolbox` | 编码解码、哈希、时间、UUID、随机值、图片处理、QR 码生成工具 | `toolbox/*`（始终加载） |
+| `mcp-toolbox` | 编码解码、哈希、时间、UUID、随机值、图片处理、QR 码生成、音频文件转写工具 | `toolbox/*`（始终加载） |
 
-`toolbox/*` 汇总 17 条 Session Socket 路由：`toolbox/base64-encode`、`toolbox/base64-decode`、`toolbox/url-encode`、`toolbox/url-decode`、`toolbox/hash`、`toolbox/time`、`toolbox/uuid`、`toolbox/short-id`、`toolbox/random`、`toolbox/rand-int`、`toolbox/choice`、`toolbox/shuffle`、`toolbox/image-metadata`、`toolbox/image-thumbnail`、`toolbox/image-resize`、`toolbox/image-convert`、`toolbox/image-qrcode`。
+`toolbox/*` 汇总 18 条 Session Socket 路由：`toolbox/base64-encode`、`toolbox/base64-decode`、`toolbox/url-encode`、`toolbox/url-decode`、`toolbox/hash`、`toolbox/time`、`toolbox/uuid`、`toolbox/short-id`、`toolbox/random`、`toolbox/rand-int`、`toolbox/choice`、`toolbox/shuffle`、`toolbox/image-metadata`、`toolbox/image-thumbnail`、`toolbox/image-resize`、`toolbox/image-convert`、`toolbox/image-qrcode`、`toolbox/audio-transcribe`。
+
+> `audio_transcribe` 工具始终注册；若「设置 → 语音识别」中没有启用的 Provider，主进程会返回「设置中没有找到语音识别（ASR）配置」的提示，由 Agent 引导用户去配置后重试。
 
 ### 临时 Memo Socket
 
@@ -124,7 +126,7 @@ stopSessionSocketServer(sessionId)                              → 停止并清
 | `memory/query` | 项目记忆语义检索 | `memory` |
 | `memory/store` | 项目记忆存储 | `memory` |
 | `image-generation/generate` | 文本生成图片 | `image_generation` |
-| `toolbox/*` | 17 条编码/哈希/时间/UUID/随机值/图片处理/QR 码工具路由 | 始终加载 |
+| `toolbox/*` | 18 条编码/哈希/时间/UUID/随机值/图片处理/QR 码/音频转写工具路由 | 始终加载 |
 
 **生命周期绑定：**
 
