@@ -6,6 +6,10 @@
   <key>com.apple.security.device.audio-input</key>
   <true/>
 
+  <!-- 蓝牙外设（遥控器 BLE / ATVV 语音链路） -->
+  <key>com.apple.security.device.bluetooth</key>
+  <true/>
+
   <!-- Electron 在 hardenedRuntime 下运行 V8/JIT 所必需 -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>

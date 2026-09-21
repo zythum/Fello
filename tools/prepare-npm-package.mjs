@@ -35,7 +35,17 @@ cpSync(join(resourcesDir, "tree-sitter-wasm"), join(npmDir, "resources", "tree-s
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 // Dependencies the server actually uses at runtime (exclude Electron-only)
-const excludeDeps = new Set(["electron-updater", "fix-path"]);
+// 外设栈（BLE / HID）只在 Electron 主进程装配，headless server 不加载：
+// unified-ble-manager 约 25MB，node-hid / recovery 是原生模块，都不该拖进发布包。
+// （node-mac-permissions 同理，但它在 optionalDependencies 里，本脚本只遍历 dependencies，
+//   天然不会进包；若将来挪到 dependencies，记得加进下面的集合。）
+const excludeDeps = new Set([
+  "electron-updater",
+  "fix-path",
+  "unified-ble-manager",
+  "node-hid",
+  "darwin-corebluetooth-connected-peripherals-recovery",
+]);
 const deps = {};
 for (const [key, val] of Object.entries(rootPkg.dependencies)) {
   if (!excludeDeps.has(key)) {

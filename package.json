@@ -25,12 +25,12 @@
     "build:server": "esbuild src/server/main.ts --bundle --platform=node --target=node20 --format=esm --outfile=out/server/main.js --packages=external --banner:js='#!/usr/bin/env node'",
     "prepare:icon:mac": "bash tools/prepare-mac-icon.sh",
     "pack:npm": "npm run build && node tools/prepare-npm-package.mjs",
-    "pack:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac",
+    "pack:mac": "npm run prepare:icon:mac && node tools/verify-peripheral-deps.mjs && electron-vite build && electron-builder --mac",
     "pack:win": "electron-vite build && electron-builder --win",
     "pack:linux": "electron-vite build && electron-builder --linux",
-    "release:mac": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --publish always",
-    "release:mac:x64": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --x64 --publish always",
-    "release:mac:arm64": "npm run prepare:icon:mac && electron-vite build && electron-builder --mac --arm64 --publish always",
+    "release:mac": "npm run prepare:icon:mac && node tools/verify-peripheral-deps.mjs && electron-vite build && electron-builder --mac --publish always",
+    "release:mac:x64": "npm run prepare:icon:mac && node tools/verify-peripheral-deps.mjs && electron-vite build && electron-builder --mac --x64 --publish always",
+    "release:mac:arm64": "npm run prepare:icon:mac && node tools/verify-peripheral-deps.mjs && electron-vite build && electron-builder --mac --arm64 --publish always",
     "release:win": "electron-vite build && electron-builder --win --publish always",
     "release:linux": "electron-vite build && electron-builder --linux --publish always",
     "prepreview": "install-electron",
@@ -67,7 +67,10 @@
       "entitlements": "configs/entitlements.mac.plist",
       "entitlementsInherit": "configs/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Fello uses the microphone for realtime voice input."
+        "NSMicrophoneUsageDescription": "Fello uses the microphone for realtime voice input.",
+        "NSBluetoothAlwaysUsageDescription": "Fello connects to Bluetooth peripherals (such as voice remotes) to receive audio and key input.",
+        "NSBluetoothPeripheralUsageDescription": "Fello connects to Bluetooth peripherals (such as voice remotes) to receive audio and key input.",
+        "NSInputMonitoringUsageDescription": "Fello reads key reports from enabled peripherals (such as a Bluetooth voice remote) so their buttons can drive the app. Without this permission, peripheral buttons do nothing."
       }
     },
     "win": {
@@ -110,6 +113,7 @@
     "cron": "^4.4.0",
     "cronstrue": "^3.27.0",
     "custom-electron-titlebar": "^4.4.1",
+    "darwin-corebluetooth-connected-peripherals-recovery": "0.1.0",
     "electron-updater": "^6.8.9",
     "es-toolkit": "^1.52.0",
     "fix-path": "^5.0.0",
@@ -119,12 +123,14 @@
     "i18next": "^26.4.2",
     "launch-editor": "^2.14.1",
     "mime-types": "^3.0.2",
+    "node-hid": "3.4.0",
     "node-pty": "^1.1.0",
     "proxy-agent": "^8.0.2",
     "qr-image": "^3.2.0",
     "ripgrep": "^0.3.1",
     "sharp": "^0.35.4",
     "undici": "^7.29.1",
+    "unified-ble-manager": "4.0.27",
     "unified-realtime-asr": "0.2.1",
     "web-tree-sitter": "^0.27.0",
     "ws": "^8.21.3",
@@ -195,5 +201,8 @@
     "vite": "^7.1.9",
     "vite-plugin-compression": "^0.5.1",
     "zustand": "^5.0.15"
+  },
+  "optionalDependencies": {
+    "node-mac-permissions": "2.5.0"
   }
 }
