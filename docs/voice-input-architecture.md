@@ -14,9 +14,11 @@
 | 层 | 文件 | 职责 |
 | --- | --- | --- |
 | 渲染层 UI | `src/mainview/components/common/voice-input-button.tsx` | 麦克风按钮、设备选择、录音波形、partial/final 转写插入、录音状态管理 |
-| 渲染层采集 | `src/mainview/components/common/use-realtime-asr.ts` | `getUserMedia` + AudioWorklet 降采样转 PCM、IPC 上行、ASR 事件订阅与过滤 |
-| IPC 契约 | `src/shared/schema.ts` | 上行 `startRealtimeAsr` / `sendRealtimeAsrFrame` / `stopRealtimeAsr`；下行 `asr-transcript` / `asr-error` / `asr-closed` |
-| 主进程 ASR | `src/backend/speech/manager.ts` | ASR 会话生命周期、`unified-realtime-asr` 客户端构建、事件广播 |
+| 渲染层采集 | `src/mainview/components/common/use-realtime-asr.ts` | 两种音频源（麦克风 / 外设）：麦克风走 `getUserMedia` + AudioWorklet 降采样转 PCM，外设直接消费主进程 PCM；共用 IPC 上行、ASR 事件订阅与过滤 |
+| 渲染层语音面板 | `src/mainview/lib/peripherals/voice-panel-provider.tsx` | 外设 PTT 面板状态机（按住录音 / 复核发送）、转写按会话累积，结构与样式在 `chat-textarea.tsx` |
+| 外设音频源 | `src/electron/peripherals/` | BLE（ATVV）链路：恢复已连接外设或扫描、ATVV 会话、ADPCM 解码为 16k/16bit/mono PCM，经 `peripheral-audio` 事件推给渲染层 |
+| IPC 契约 | `src/shared/schema.ts` | 上行 `startRealtimeAsr` / `sendRealtimeAsrFrame` / `stopRealtimeAsr`；下行 `asr-transcript` / `asr-error` / `asr-closed`；外设另有 `peripheral-audio` / `peripheral-audio-state` |
+| 主进程 ASR | `src/backend/speech/manager.ts` | ASR 会话生命周期、`unified-realtime-asr` 客户端构建、事件广播；音频帧在 `connect()` 完成前（`ready = false`）与 not-connected 时直接丢弃 |
 | 设置存储 | `src/backend/storage/settings.ts` | `speechToText` provider 数组的读取/校验/持久化（与 imageGeneration 同范式） |
 | 设置页 | `src/mainview/components/settings/speech-to-text/` | 服务商配置管理：列表 + 编辑对话框（每家一个独立表单） |
 
@@ -51,6 +53,19 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
   3. 按 320 samples（20ms @16k）切帧，`postMessage` 回主线程。
 - 主线程把帧 `Int16Array` 转 base64（分块 `String.fromCharCode`，避免栈溢出），经 `request.sendRealtimeAsrFrame` 上行；同时计算 RMS 音量供按钮波形展示（rAF 节流，不阻塞渲染）。
 - 音频帧上行只在 `stoppedRef` 为 false 且会话 id 匹配时进行，保证 stop 后不再发送。
+
+### 外设音频源（`source: "peripheral"`）
+
+- 音频不来自本机麦克风：主进程的 BLE 通道把 ATVV ADPCM 解码成 **16k / 16-bit / mono PCM**，
+  以 `peripheral-audio` 事件推给渲染层；渲染层不重采样，直接 base64 上行。
+- **`captureId` 是跨进程的采集标识**：由 `peripheralVoiceStart` 返回，只有与当前值相等的帧才上行 ——
+  这样「上一次采集收尾 flush 期间迟到的帧」（带的是旧 id）不会喂给还在 connecting 的 ASR 客户端。
+- 电平显示单独处理：RMS → 开方压缩 → 底噪门限，并在真正开始收音频后设约 300ms 起始静默期，
+  避免开麦噪声把波形顶起来。这两项**只影响电平显示**，不影响上行音频。
+- 停止语义拆成两步：`stopStreaming()` 只停音频、保留会话（等迟到的 delta / final），
+  `stop()` 才关会话；面板侧「松手」只调前者，会话延迟 5s 关闭（用户停在复核态也不会无限占用）。
+- 面板可用性与输入框禁用解耦：流式生成期间输入框禁用，但按住语音键照常可用，
+  发送时由 `chat-input` 先 `cancelPrompt` 再发送。
 
 ## 4. 会话与生命周期
 
@@ -95,6 +110,8 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 
 - **Electron 权限**：`src/electron/main.ts` 注册 `setPermissionCheckHandler` / `setPermissionRequestHandler`，仅放行 `media`（麦克风）。
 - **macOS**：`configs/entitlements.mac.plist` 声明 `com.apple.security.device.audio-input`（麦克风）等权限；`NSMicrophoneUsageDescription` 由 electron-builder `extendInfo` 注入到 Info.plist，否则首次使用会被系统拦截。
+- **蓝牙（外设语音）**：`configs/entitlements.mac.plist` 另声明 `com.apple.security.device.bluetooth`，`NSBluetoothAlwaysUsageDescription` / `NSBluetoothPeripheralUsageDescription` 同样由 `extendInfo` 注入 Info.plist。
+- **macOS「输入监控」（HID 按键）**：**与蓝牙不同** —— 系统不会因为 `IOHIDDeviceOpen` 就弹窗，也不会把应用登记进「输入监控」列表，权限缺失时只是静默收不到报文（系统日志里是 `TCC deny IOHIDDeviceOpen`）。因此必须显式调用 `IOHIDCheckAccess` / `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)`：由 `src/electron/peripherals/hid-transport.ts` 在装载通道时经 `node-mac-permissions`（`optionalDependencies` + `os: ["darwin"]`，非 macOS 不安装）执行，并依赖 Info.plist 的 `NSInputMonitoringUsageDescription`。用户拒绝过一次后系统不再弹窗，且**授权后必须退出并重新打开应用**才生效（该权限对已运行进程无效）—— 状态文案里已明确写出这两点。
 - 凭据（API Key / App ID / API Secret）只保存在本机设置文件，渲染层仅通过 IPC 读取，不落 localStorage。
 
 ## 8. 关键设计决策
@@ -108,3 +125,5 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 | 48k→16k 用 AudioWorklet 线性插值 | 免额外依赖，满足识别精度要求 |
 | `execCommand("insertText")` 写入 | 兼容受控 MentionsInput 的光标与 input 事件 |
 | 每家 provider 独立表单 | 字段/校验/默认值差异大，独立 schema 避免互相污染 |
+| 外设音频在主进程解码 | ATVV / ADPCM 依赖 UBM 与原生蓝牙栈，只能在主进程；渲染层只接收已解码的 16k PCM |
+| 帧与转写都用采集 / 会话标识隔离 | 音频帧按 `captureId`、累积文本按「ASR 会话 + 句 id」，两者都用来丢弃跨会话的迟到数据 |
