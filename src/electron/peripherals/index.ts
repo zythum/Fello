@@ -128,9 +128,13 @@ export function createPeripheralHost({
       detail,
       updatedAt: Date.now(),
     };
+    const previous = statuses.get(descriptor.id);
     statuses.set(descriptor.id, status);
-    // 对外只有粗粒度 phase（比如「准备中」），卡住时分不出卡在哪一步；终端里打出原始进度。
-    console.log(`[peripheral] ${descriptor.id} → ${phase}${message ? ` · ${message}` : ""}`);
+    // 终端只跟「阶段」变化：同阶段的进度 / 详情刷新（HID 枚举、ATVV 能力、开关麦克风…）不再逐条打印，
+    // 否则光按一次语音键就要刷好几行。错误例外 —— 换了新的错误文案仍要打出来。
+    if (previous?.phase !== phase || (phase === "error" && previous?.message !== message)) {
+      console.log(`[peripheral] ${descriptor.id} → ${phase}${message ? ` · ${message}` : ""}`);
+    }
     publish.status(status);
   }
 
@@ -157,8 +161,6 @@ export function createPeripheralHost({
   async function assembleBleHost(): Promise<PlatformBleHost> {
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    // 装配阶段只打日志：这一步卡住时，终端是唯一能看到进度的地方（状态里只有「准备中」）。
-    console.log(`[peripheral] 正在装配 BLE host（上限 ${BLE_HOST_TIMEOUT_MS / 1000}s）…`);
     const attempt = createPlatformBleHost({
       now: () => performance.now(),
       managerIdentity: {
@@ -182,6 +184,7 @@ export function createPeripheralHost({
     try {
       const host = await Promise.race([attempt, timeout]);
       if (timer) clearTimeout(timer);
+      // 装配成功后只留这一行（装配耗时由调用方的状态上报覆盖，这里记下 backend / adapter 供排障）。
       console.log(`[peripheral] BLE host 就绪：${host.label} / adapter=${host.adapterId}`);
       return host;
     } catch (error) {
