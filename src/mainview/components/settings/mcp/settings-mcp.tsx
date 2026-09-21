@@ -9,6 +9,7 @@ import type {
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
 import { openGuide } from "@/lib/open-guide";
+import { electron } from "@/electron";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -25,7 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Pencil, Trash2, BookmarkPlus, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, BookmarkPlus, BookOpen, ExternalLink } from "lucide-react";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 import {
@@ -91,6 +92,60 @@ function isHttpMcp(mcp: McpServerInfo): mcp is HttpMcpServerInfo {
 function isSseMcp(mcp: McpServerInfo): mcp is SseMcpServerInfo {
   return mcp.type === "sse";
 }
+
+interface RecommendedMcpBase {
+  id: string;
+  vendor: string;
+  repo: string;
+  fallbackName: string;
+  fallbackDesc: string;
+}
+
+type RecommendedMcp =
+  | (RecommendedMcpBase & { type: "http"; url: string })
+  | (RecommendedMcpBase & { type: "stdio"; command: string; args: string[] });
+
+const RECOMMENDED_MCPS = [
+  {
+    id: "exa",
+    vendor: "exa.ai",
+    repo: "https://github.com/exa-labs/exa-mcp-server",
+    type: "http",
+    url: "https://mcp.exa.ai/mcp",
+    fallbackName: "Exa",
+    fallbackDesc: "Exa MCP Server — AI Web Search",
+  },
+  {
+    id: "chrome-devtools",
+    vendor: "github.com/ChromeDevTools",
+    repo: "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+    type: "stdio",
+    command: "npx",
+    args: ["-y", "chrome-devtools-mcp@latest"],
+    fallbackName: "Chrome DevTools",
+    fallbackDesc: "Chrome DevTools MCP Server — Browser Automation & Debugging",
+  },
+  {
+    id: "blender",
+    vendor: "blender.org",
+    repo: "https://www.blender.org/lab/mcp-server/",
+    type: "stdio",
+    command: "uvx",
+    args: ["blender-mcp"],
+    fallbackName: "Blender",
+    fallbackDesc: "Blender MCP Server — Natural Language Blender Control",
+  },
+  {
+    id: "mijia-api",
+    vendor: "github.com/zythum",
+    repo: "https://github.com/zythum/mijia-api",
+    type: "stdio",
+    command: "npx",
+    args: ["-y", "@zythum02/mijia-api", "mcp"],
+    fallbackName: "Mijia",
+    fallbackDesc: "Mijia MCP Server — Xiaomi Smart Home Control",
+  },
+] satisfies RecommendedMcp[];
 
 export function SettingsMcp() {
   const { t, i18n } = useTranslation();
@@ -197,18 +252,31 @@ export function SettingsMcp() {
     setSseDialogOpen(true);
   };
 
-  const openRecommendedHttpDialog = (id: string, url: string) => {
+  const openRecommendedMcpDialog = (mcp: RecommendedMcp) => {
     setDialogOriginalId(null);
     setStdioDialogItem(null);
+    setHttpDialogItem(null);
     setSseDialogItem(null);
-    setHttpDialogItem({
-      id,
-      type: "http",
-      url,
-      headers: {},
+    if (mcp.type === "http") {
+      setHttpDialogItem({
+        id: mcp.id,
+        type: "http",
+        url: mcp.url,
+        headers: {},
+        disabled: false,
+      });
+      setHttpDialogOpen(true);
+      return;
+    }
+    setStdioDialogItem({
+      id: mcp.id,
+      type: "stdio",
+      command: mcp.command,
+      args: [...mcp.args],
+      env: {},
       disabled: false,
     });
-    setHttpDialogOpen(true);
+    setStdioDialogOpen(true);
   };
 
   const openEditDialog = (mcp: McpServerInfo) => {
@@ -346,22 +414,34 @@ export function SettingsMcp() {
               <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background hover:bg-muted hover:text-foreground h-7 w-7 text-xs text-foreground/70">
                 <BookmarkPlus className="size-3" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-50">
-                <DropdownMenuItem
-                  onClick={() => openRecommendedHttpDialog("exa", "https://mcp.exa.ai/mcp")}
-                >
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="truncate flex flex-row items-center">
-                      <span>{t("settings.mcp.recommended.exa.name", "Exa")}</span>
-                      <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">
-                        · exa.ai
+              <DropdownMenuContent align="end" className="min-w-80">
+                {RECOMMENDED_MCPS.map((mcp) => (
+                  <DropdownMenuItem key={mcp.id} onClick={() => openRecommendedMcpDialog(mcp)}>
+                    <div className="flex flex-col gap-1 min-w-0 py-0.5">
+                      <span className="truncate flex flex-row items-center">
+                        <span>{t(`settings.mcp.recommended.${mcp.id}.name`, mcp.fallbackName)}</span>
+                        <span className="text-[10px] text-muted-foreground/40! font-normal ml-1.5">
+                          · {mcp.vendor}
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/60 font-normal truncate">
-                      {t("settings.mcp.recommended.exa.desc", "Exa MCP Server — AI Web Search")}
-                    </span>
-                  </div>
-                </DropdownMenuItem>
+                      <span className="text-[10px] text-muted-foreground/60 -mt-0.5 font-normal truncate">
+                        {t(`settings.mcp.recommended.${mcp.id}.desc`, mcp.fallbackDesc)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void electron.openInBrowser(mcp.repo);
+                        }}
+                        title={mcp.repo}
+                        className="flex flex-row items-center gap-1 min-w-0 max-w-full -mt-0.5 text-[10px] font-normal text-muted-foreground/50 hover:text-foreground cursor-pointer"
+                      >
+                        <ExternalLink className="size-2.5 shrink-0" />
+                        <span className="truncate">{mcp.repo.replace(/^https?:\/\//, "")}</span>
+                      </button>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -273,6 +273,18 @@
         "exa": {
           "name": "Exa",
           "desc": "Exa MCP Server — AI Web Search"
+        },
+        "chrome-devtools": {
+          "name": "Chrome DevTools",
+          "desc": "Chrome DevTools MCP Server — Browser Automation & Debugging"
+        },
+        "mijia-api": {
+          "name": "Mijia",
+          "desc": "Mijia MCP Server — Xiaomi Smart Home Control"
+        },
+        "blender": {
+          "name": "Blender",
+          "desc": "Blender MCP Server — Natural Language Blender Control"
         }
       },
       "editMcp": "Edit MCP Server",

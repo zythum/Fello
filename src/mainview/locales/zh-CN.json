@@ -272,6 +272,18 @@
         "exa": {
           "name": "Exa",
           "desc": "Exa MCP 服务器 — AI 网络搜索"
+        },
+        "chrome-devtools": {
+          "name": "Chrome DevTools",
+          "desc": "Chrome DevTools MCP 服务器 — 浏览器自动化与调试"
+        },
+        "mijia-api": {
+          "name": "Mijia",
+          "desc": "米家 MCP 服务器 — 小米智能家居控制"
+        },
+        "blender": {
+          "name": "Blender",
+          "desc": "Blender MCP 服务器 — 自然语言控制 Blender"
         }
       },
       "editMcp": "编辑 MCP 服务器",
