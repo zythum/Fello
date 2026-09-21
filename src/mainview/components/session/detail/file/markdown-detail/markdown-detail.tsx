@@ -189,6 +189,7 @@ export function MarkdownDetail({ projectId, file }: MarkdownDetailProps) {
                 <StreamMarkdown
                   initalHash={hash}
                   imageSource={imageSource}
+                  imageSourceKey={`project:${projectId}:${filePath}`}
                   onLinkClick={(href) => {
                     document.dispatchEvent(
                       new CustomEvent("fello-preview-file", {

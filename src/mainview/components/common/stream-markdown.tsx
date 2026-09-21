@@ -27,7 +27,10 @@ import {
  * bare filename such as `AGENTS.md` as an invalid URL. Markdown commonly emits the
  * latter form, so normalize it before the sanitize/harden plugins run.
  */
-function buildRehypePlugins(transformImageSrc?: (src: string) => string): PluggableList {
+function buildRehypePlugins(
+  transformImageSrc?: (src: string) => string,
+  imageSourceKey?: string,
+): PluggableList {
   const { raw, sanitize, harden } = defaultRehypePlugins as Record<string, Pluggable>;
   const [sanitizePlugin, sanitizeSchema] = sanitize as [any, Record<string, any>];
   const protocols = sanitizeSchema.protocols as Record<string, string[]>;
@@ -56,10 +59,16 @@ function buildRehypePlugins(transformImageSrc?: (src: string) => string): Plugga
     };
     walk(tree);
   };
+  // streamdown 会按「插件名 + options」缓存 unified processor，同名插件只会
+  // 命中第一个闭包。把 imageSourceKey 放进 options，让不同文件/来源各自命中
+  // 独立缓存，否则只有第一个渲染的 markdown 文件的解析器生效。
+  const normalizeRelativeLinks: Pluggable = imageSourceKey
+    ? [rehypeNormalizeRelativeLinks, { key: imageSourceKey }]
+    : rehypeNormalizeRelativeLinks;
   const rehypeSanitize = transformImageSrc
     ? ([sanitizePlugin, extendedSchema] satisfies Pluggable)
     : sanitize;
-  return [raw, rehypeNormalizeRelativeLinks, rehypeSanitize, harden];
+  return [raw, normalizeRelativeLinks, rehypeSanitize, harden];
 }
 
 function CodeBlock({
@@ -117,6 +126,12 @@ export interface StreamMarkdownProps {
   initalHash?: string;
   /** Transform image src before rendering. Use to resolve relative paths. */
   imageSource?: (src: string) => string;
+  /**
+   * Unique key identifying the `imageSource` resolver (e.g. `${projectId}:${filePath}`).
+   * streamdown caches processors by plugin name + options, so without a per-source key
+   * the first resolver created in the app would be reused by every other preview.
+   */
+  imageSourceKey?: string;
   /** Intercept clicks on relative-path links. Return false to prevent default navigation. */
   onLinkClick?: (href: string, e: React.MouseEvent) => boolean | void;
 }
@@ -369,9 +384,13 @@ export function StreamMarkdown({
   forceBreaks,
   initalHash,
   imageSource,
+  imageSourceKey,
   onLinkClick,
 }: StreamMarkdownProps) {
-  const rehypePlugins = useMemo(() => buildRehypePlugins(imageSource), [imageSource]);
+  const rehypePlugins = useMemo(
+    () => buildRehypePlugins(imageSource, imageSourceKey),
+    [imageSource, imageSourceKey],
+  );
 
   const idPrefix = useId();
   const initialHashTargetRef = useRef<string | null>(null);

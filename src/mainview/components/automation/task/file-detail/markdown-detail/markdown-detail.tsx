@@ -120,6 +120,7 @@ export function MarkdownDetail({
                 <StreamMarkdown
                   initalHash={hash}
                   imageSource={imageSource}
+                  imageSourceKey={`automation:${scheduleId}:${taskId}:${filePath}`}
                   onLinkClick={
                     onNavigateFile
                       ? (href) => {
