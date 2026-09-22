@@ -227,6 +227,9 @@ export class OpenaiCompatibleAgent implements Agent {
       name: "openai-compatible",
       baseURL: this.baseUrl,
       apiKey: this.apiKey,
+      // 流式请求需带 stream_options.include_usage，否则 vLLM 等服务端
+      // 不会在流中返回 usage，导致整轮 token 用量为 0。
+      includeUsage: true,
       headers: {
         "User-Agent": AgentDescription,
         ...this.headers,
