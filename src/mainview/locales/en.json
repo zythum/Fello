@@ -557,7 +557,7 @@
         "disconnected": "Disconnected"
       },
       "openPermissionSettings": "Input Monitoring settings",
-      "permissionHint": "macOS needs the Input Monitoring permission to read HID keys. After granting it, quit and reopen Fello.",
+      "permissionHint": "macOS needs the Input Monitoring permission to read HID keys, enable Fello here (press + if it is not listed). ",
       "reconnect": "Reconnect"
     }
   },

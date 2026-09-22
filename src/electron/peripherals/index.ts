@@ -263,7 +263,7 @@ export function createPeripheralHost({
           if (status.state === "permission-required") {
             // 「缺权限」不是状态机的 phase，按「通道不可用」呈现：文案由通道给出，
             // 且后续的枚举 / 监听进度只会改详情行，不会顶掉这条可操作的提示。
-            // 用户授权并重启后，通道会重新装载并在这次检查里直接通过。
+            // 用户授权并重启后，通道会重新装载并直接打开设备成功。
             setStatus(descriptor, "unavailable", status.message, status.detail);
             return;
           }

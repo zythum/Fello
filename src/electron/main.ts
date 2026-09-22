@@ -267,8 +267,9 @@ ipcMain.handle("openInBrowser", async (_event: unknown, url: string) => {
 /**
  * 打开 macOS 的「输入监控」隐私设置面板。
  *
- * 外设的 HID 通道需要该权限，而权限状态无法通过 API 查询、也不会主动弹窗，
- * 因此设置页只能给出这条可操作的入口。（非 macOS 平台不做任何事。）
+ * HID 通道首次打开设备时系统会自己弹窗并把 Fello 登记进「输入监控」列表；但用户拒绝过之后
+ * 系统不再弹窗，而权限状态又无法通过 API 查询，因此设置页提供这个直达入口。
+ * （非 macOS 平台不做任何事。）
  */
 ipcMain.handle("openPeripheralPermissionSettings", async () => {
   if (process.platform !== "darwin") return;

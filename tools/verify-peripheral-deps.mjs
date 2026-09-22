@@ -2,10 +2,8 @@
 /**
  * 打包前的原生依赖自检（macOS）。
  *
- * 为什么需要它：外设栈里 `node-mac-permissions` 必须放在 `optionalDependencies` ——
- * 它声明了 `os: ["darwin"]`，放 `dependencies` 会让 ubuntu / Windows 上的 `npm ci`
- * 直接以 EBADPLATFORM 失败。而 optional 依赖有个代价：**缺装会被静默跳过、install 脚本
- * 失败也只 warn**。这类缺件在运行时同样表现为静默降级（「按键没反应」），所以在出包前
+ * 为什么需要它：这些原生模块缺装 / 没编译时，npm 只会 warn（optional 依赖甚至静默跳过），
+ * 而这类缺件在运行时同样表现为静默降级（「按键没反应」「蓝牙连不上」），所以在出包前
  * 硬校验一次，把问题挡在产物之外。
  *
  * 校验两件事：包能 resolve；**存在适配当前宿主平台与架构的 .node**。
@@ -26,7 +24,6 @@ const REQUIRED_PACKAGES = [
   { name: "node-hid", needsNativeBinary: true },
   { name: "unified-ble-manager", needsNativeBinary: true },
   { name: "darwin-corebluetooth-connected-peripherals-recovery", needsNativeBinary: true },
-  { name: "node-mac-permissions", needsNativeBinary: true },
 ];
 
 if (process.platform !== "darwin") {

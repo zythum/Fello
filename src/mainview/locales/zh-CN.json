@@ -556,7 +556,7 @@
         "disconnected": "已断开"
       },
       "openPermissionSettings": "输入监控设置",
-      "permissionHint": "macOS 需要「输入监控」权限才能读取 HID 按键；授权后请退出并重新打开 Fello。",
+      "permissionHint": "macOS 需要「输入监控」权限才能读取 HID 按键；请手动勾选（列表中没有 Fello 时点「+」添加）。",
       "reconnect": "重新连接"
     }
   },

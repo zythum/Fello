@@ -9,10 +9,13 @@
  * - 打开失败（含 macOS 未授予「输入监控」权限）**绝不能**阻塞宿主或影响 BLE 通道，
  *   只上报状态。
  *
- * 权限说明：macOS 10.15+ 打开键盘类 HID 需要「输入监控」权限。这里**显式请求**该权限
- * （见下方 `requestInputMonitoringAccess`），因为只调 `IOHIDDeviceOpen` 既不会弹窗、
- * 也不会把应用登记进「输入监控」列表，表现是「打开成功但永远收不到报文」。
- * 请求之外，「枚举到设备」与「收到过报文」两个事实仍用来区分「没插/没连」与「没权限」，
+ * 权限说明：macOS 10.15+ 打开键盘类 HID 需要「输入监控」权限。**这条链路不需要任何权限库**：
+ * 系统会在我们调用 `IOHIDDeviceOpen`（即 node-hid 打开设备）时替本进程发起请求 —— 没有 TCC
+ * 记录时弹出系统对话框，并把 Fello 登记进「输入监控」列表，用户之后可在设置里手动勾选
+ * （Apple 头文件写明 `IOHIDManagerOpen` / `IOHIDDeviceOpen` 会代发该请求，macOS 27 实测也会
+ * 弹窗）。用户拒绝过一次后系统**不再弹窗**，所以这里只上报状态、不主动拉起设置面板，
+ * 跳转交给设置页的「输入监控设置」按钮由用户主动点。
+ * 「枚举到设备」与「收到过报文」两个事实仍用来区分「没插/没连」与「没权限」，
  * 状态文案也按此措辞。
  */
 
@@ -29,7 +32,7 @@ export interface HidTransportStatus {
     | "error"
     | "stopped"
     | "report-received"
-    /** macOS 缺「输入监控」权限：收不到任何报文，必须由用户去设置里授权后重启应用。 */
+    /** macOS 缺「输入监控」权限（`IOHIDDeviceOpen` 返回 kIOReturnNotPermitted）：须由用户去设置里授权后重启应用。 */
     | "permission-required";
   message: string;
   detail?: string;
@@ -56,43 +59,29 @@ export interface HidTransport {
 type HidModule = any;
 
 /**
- * macOS「输入监控」（TCC `kTCCServiceListenEvent`）权限。
+ * macOS「输入监控」（TCC `kTCCServiceListenEvent`）权限的判定与指引。
  *
- * 与蓝牙完全不是一回事：系统**不会**因为 `IOHIDDeviceOpen` 就弹窗，也不会把应用登记进
- * 「输入监控」列表 —— 权限缺失时 macOS 只是静默拒掉读取（系统日志里是
- * `TCC deny IOHIDDeviceOpen`），表现恰好是「打开成功但永远收不到报文」。
- * 唯一可靠的查询 / 触发方式是 Apple 的 `IOHIDCheckAccess` / `IOHIDRequestAccess`
- * （`kIOHIDRequestTypeListenEvent`）；node-hid 不会替我们调用，所以这里显式请求一次。
+ * 与蓝牙不是一回事：蓝牙权限缺失时系统会自己弹窗，而「输入监控」只在**首次尝试打开键盘类 HID
+ * 设备**时才弹窗并登记（弹过/拒过之后不再弹），所以这里既不需要权限库、也不需要显式请求：
+ * `IOHIDDeviceOpen` 就是请求入口，失败时返回 `kIOReturnNotPermitted`(0xE00002E2)，hidapi 把
+ * 它写成 `(iokit/common) not permitted`，node-hid 再把 `hid_error` 拼进抛出的错误消息 —— 按这个
+ * 特征就能把「没权限」从「设备打不开」里区分出来，给出准确文案（而不是让用户面对「按键没反应」）。
  *
- * 该调用还依赖 Info.plist 里的 `NSInputMonitoringUsageDescription`（见 package.json 的
- * `build.mac.extendInfo`），否则即使已在设置里勾选也可能一直返回 denied。
- *
- * 这里用 node-mac-permissions 作为 IOKit 的 JS 封装。它声明了 `os: ["darwin"]`，而 npm 对
- * **普通依赖**的平台不匹配是硬失败（EBADPLATFORM）、只有在 `optionalDependencies` 里才会
- * 静默跳过 —— 本仓库的 CI / release 会在 ubuntu、Windows 上跑 `npm ci`，所以它必须放
- * optional。代价是「缺装」不会报错，因此 macOS 上加载不到时这里显式上报 error（见下），
- * 不能让缺装退化成「按键没反应且毫无线索」。
- *
- * 下面这个联合类型是 `getAuthStatus` 的返回集合（注意是 `not determined`，不是 `unknown`）。
+ * 注：`NSInputMonitoringUsageDescription` 仍保留在 `build.mac.extendInfo` 里（Apple 要求的声明位）；
+ * macOS 27 实测缺这个 key 也会弹窗，但不该赌系统各版本行为一致。
  */
-type MacPermissionStatus = "authorized" | "denied" | "restricted" | "not determined";
-
-interface MacPermissionsModule {
-  getAuthStatus: (type: string) => MacPermissionStatus;
-  askForInputMonitoringAccess: (accessType?: "listen" | "post") => Promise<MacPermissionStatus>;
+function isInputMonitoringDenied(error: unknown): boolean {
+  // 只有 macOS 有这项 TCC 服务；其它平台的报错不该被误判成「缺输入监控权限」。
+  if (process.platform !== "darwin") return false;
+  const message = error instanceof Error ? error.message : String(error);
+  // 0xE00002E2 是 kIOReturnNotPermitted 的裸值，mach_error_string 给的是 "(iokit/common) not permitted"。
+  return /not permitted|0xe00002e2/i.test(message);
 }
 
-const INPUT_MONITORING = "input-monitoring";
-
-function loadMacPermissions(): MacPermissionsModule | null {
-  // 平台判断必须早于 require：该模块只在 macOS 上存在。
-  if (process.platform !== "darwin") return null;
-  try {
-    return require("node-mac-permissions") as MacPermissionsModule;
-  } catch {
-    return null;
-  }
-}
+/** 「输入监控」缺失时的统一指引：设置页有直达按钮，且授权后必须重启才生效。 */
+const INPUT_MONITORING_GUIDE =
+  "请在「系统设置 → 隐私与安全性 → 输入监控」中勾选 Fello（设置页的「输入监控设置」可直接打开），" +
+  "然后退出并重新打开 Fello（该权限对已运行的进程不生效）";
 
 function matchKeyMapping(
   hid: PeripheralHidDefinition,
@@ -115,72 +104,14 @@ export function createHidTransport({ hid, onStatus, onKey }: HidTransportOptions
   const pressed = new Set<string>();
   let sawReport = false;
 
-  /**
-   * 请求「输入监控」权限；返回 `false` 表示当前进程收不到 HID 报文。
-   *
-   * 必须在打开设备**之前**调用：`IOHIDRequestAccess` 既是首次系统弹窗的来源，也是把本应用
-   * 登记进「输入监控」列表的唯一可靠途径（只调 `IOHIDDeviceOpen` 在近年的 macOS 上不被登记）。
-   * 用户拒绝过一次后系统不再弹窗，只能由用户去设置里勾选；而且**授权后需要退出并重新打开
-   * 应用**才生效 —— 该权限对已运行的进程不生效，所以提示里必须说清这一点。
-   */
-  async function requestInputMonitoringAccess(): Promise<boolean | null> {
-    // 非 macOS 没有这个 TCC 服务，直接跳过。
-    if (process.platform !== "darwin") return null;
-    const permissions = loadMacPermissions();
-    if (!permissions) {
-      // macOS 上「加载不到」只可能是依赖没装/没打进包 —— 必须显式报错。
-      // 这条分支如果静默跳过，表现就是「按键完全没反应、且没有任何线索」，
-      // 比权限不足更难排查。
-      onStatus({
-        state: "error",
-        message: "缺少 node-mac-permissions，无法请求 macOS「输入监控」权限",
-        detail: "依赖未安装或打包不完整：先 npm install，再重新打包",
-      });
-      return null;
-    }
-    try {
-      const status = permissions.getAuthStatus(INPUT_MONITORING);
-      if (status === "authorized") return true;
-      if (status === "not determined") {
-        // 首次：这一调用内部是 IOHIDRequestAccess，会弹系统对话框并把应用登记进
-        // 「输入监控」列表 —— 这正是我们要的副作用。
-        // 注意它的返回值不可信：node-mac-permissions 在这一支里**总是 resolve 成
-        // `denied`**（系统对话框不提供「立即生效」的结果），所以只把它当注册触发器。
-        await permissions.askForInputMonitoringAccess("listen").catch(() => undefined);
-      }
-      // denied / restricted：**不再调用 askFor** —— 它在已拒绝分支会直接打开系统设置面板，
-      // 那样每次启动（每次装载通道）都会把系统设置弹出来。改为只上报状态，
-      // 跳转交给设置页那个按钮由用户主动点。
-      onStatus({
-        state: "permission-required",
-        message:
-          "未获得 macOS「输入监控」权限：请在「系统设置 → 隐私与安全性 → 输入监控」中勾选 Fello，" +
-          "然后退出并重新打开 Fello（该权限对已运行的进程不生效）",
-        detail: "没有该权限时遥控器按键不会生效；蓝牙语音通道不受影响",
-      });
-      return false;
-    } catch (error) {
-      // 权限接口本身失败不能影响通道的其它部分（设备枚举 / 打开照常进行）。
-      onStatus({
-        state: "permission-required",
-        message: `无法确认「输入监控」权限：${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        detail: "若按键无反应，请在「系统设置 → 隐私与安全性 → 输入监控」中授权后重启 Fello",
-      });
-      return null;
-    }
-  }
-
   async function start(): Promise<{ listening: number }> {
     if (handles.length > 0) return { listening: handles.length };
     if (startPromise) return startPromise;
 
     startPromise = (async () => {
-      // 先请求 macOS「输入监控」权限（首次会弹系统对话框），再打开设备。
-      // 权限不足时照旧继续枚举 / 打开：打开本身不会报错、只是收不到报文，
-      // 而状态已经上报，用户据此去授权 + 重启即可。
-      await requestInputMonitoringAccess();
+      // 不做权限预检：打开设备本身就是系统弹窗 / 把 Fello 登记进「输入监控」列表的触发点
+      // （首次会弹窗），权限缺失时下面的 open 会失败，按错误特征上报可操作文案。
+      let permissionDenied = false;
       try {
         // 惰性加载：node-hid 缺失 / 架构不匹配时不能让宿主启动失败。
         const HID: HidModule = require("node-hid");
@@ -239,31 +170,37 @@ export function createHidTransport({ hid, onStatus, onKey }: HidTransportOptions
             onStatus({
               state: "listening",
               message: `HID 开始监听：${candidate.path}`,
-              // 权限无法直接查询：只有「打开成功 + 收到过报文」才能确认可用，
-              // 因此这里给出可操作的排查指引。
-              detail: sawReport
-                ? undefined
-                : "若按键无反应，请在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
+              // 打开成功不代表权限一定没问题，但这一步能确认可用：收到过报文才算真的通了。
+              detail: sawReport ? undefined : `若按键无反应，${INPUT_MONITORING_GUIDE}`,
             });
           } catch (error) {
+            if (isInputMonitoringDenied(error)) {
+              // 权限缺失是「可操作」而不是「故障」：不逐条上报，等所有 interface 试完统一给文案。
+              permissionDenied = true;
+              continue;
+            }
             onStatus({
               state: "error",
               message: `无法打开 HID interface：${
                 error instanceof Error ? error.message : String(error)
               }`,
-              detail:
-                "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
+              detail: `若按键无反应，${INPUT_MONITORING_GUIDE}`,
             });
           }
         }
 
         handles = opened;
-        if (handles.length === 0) {
+        if (permissionDenied && handles.length === 0) {
+          onStatus({
+            state: "permission-required",
+            message: `未获得 macOS「输入监控」权限：${INPUT_MONITORING_GUIDE}`,
+            detail: "没有该权限时遥控器按键不会生效；蓝牙语音通道不受影响",
+          });
+        } else if (handles.length === 0) {
           onStatus({
             state: "unavailable",
             message: "HID interface 无法打开（不影响蓝牙语音通道）",
-            detail:
-              "macOS 需要在「系统设置 → 隐私与安全性 → 输入监控」中授权 Fello（授权后需退出并重新打开）",
+            detail: `若按键无反应，${INPUT_MONITORING_GUIDE}`,
           });
         }
         return { listening: handles.length };

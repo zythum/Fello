@@ -113,7 +113,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 - **Electron 权限**：`src/electron/main.ts` 注册 `setPermissionCheckHandler` / `setPermissionRequestHandler`，仅放行 `media`（麦克风）。
 - **macOS**：`configs/entitlements.mac.plist` 声明 `com.apple.security.device.audio-input`（麦克风）等权限；`NSMicrophoneUsageDescription` 由 electron-builder `extendInfo` 注入到 Info.plist，否则首次使用会被系统拦截。
 - **蓝牙（外设语音）**：`configs/entitlements.mac.plist` 另声明 `com.apple.security.device.bluetooth`，`NSBluetoothAlwaysUsageDescription` / `NSBluetoothPeripheralUsageDescription` 同样由 `extendInfo` 注入 Info.plist。
-- **macOS「输入监控」（HID 按键）**：**与蓝牙不同** —— 系统不会因为 `IOHIDDeviceOpen` 就弹窗，也不会把应用登记进「输入监控」列表，权限缺失时只是静默收不到报文（系统日志里是 `TCC deny IOHIDDeviceOpen`）。因此必须显式调用 `IOHIDCheckAccess` / `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)`：由 `src/electron/peripherals/hid-transport.ts` 在装载通道时经 `node-mac-permissions`（`optionalDependencies` + `os: ["darwin"]`，非 macOS 不安装）执行，并依赖 Info.plist 的 `NSInputMonitoringUsageDescription`。用户拒绝过一次后系统不再弹窗，且**授权后必须退出并重新打开应用**才生效（该权限对已运行进程无效）—— 状态文案里已明确写出这两点。
+- **macOS「输入监控」（HID 按键）**：**与蓝牙不同，这条链路不需要权限库** —— 系统会在 `IOHIDDeviceOpen`（node-hid 打开设备）时替本进程发起请求，**没有 TCC 记录时弹系统对话框并把 Fello 登记进「输入监控」列表**（Apple 头文件即如此描述 `IOHIDManagerOpen` / `IOHIDDeviceOpen`，macOS 27 实测也会弹窗）。用户拒绝过一次后系统不再弹窗；权限缺失时 `IOHIDDeviceOpen` 返回 `kIOReturnNotPermitted`(0xE00002E2)，node-hid 报错里是 `not permitted`，`src/electron/peripherals/hid-transport.ts` 据此上报「缺少输入监控权限」并给出文案，跳转交给设置页的「输入监控设置」按钮（`openPeripheralPermissionSettings`）由用户主动点。**授权后必须退出并重新打开应用**才生效（该权限对已运行进程无效）。`NSInputMonitoringUsageDescription` 仍由 `extendInfo` 注入 Info.plist 作为声明位。
 - 凭据（API Key / App ID / API Secret）只保存在本机设置文件，渲染层仅通过 IPC 读取，不落 localStorage。
 
 ## 8. 关键设计决策

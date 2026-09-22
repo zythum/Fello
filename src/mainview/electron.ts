@@ -93,8 +93,8 @@ export const electron = {
    */
   peripherals: {
     /**
-     * 打开系统的「输入监控」隐私面板：HID 通道的权限无法查询、也不会主动弹窗，
-     * 只能让用户自己去授权。
+     * 打开系统的「输入监控」隐私面板：权限状态无法查询，且用户拒绝过之后系统不会再弹窗
+     * （首次打开 HID 设备时系统本来就会弹），所以给一个由用户主动点的直达入口。
      */
     openPermissionSettings: async (): Promise<void> => {
       if (isWebUI || !window.fello) return;
