@@ -140,7 +140,7 @@ export function AppRouter() {
       <div
         className={cn(
           "flex h-12 w-12 absolute z-10 top-0 items-center justify-center transition-all duration-200",
-          sidebarOpen ? "left-49 -ml-px" : showMacTrafficLightSpace ? "left-16" : "left-0",
+          sidebarOpen ? "left-49 -ml-px" : showMacTrafficLightSpace ? "left-17" : "left-0",
         )}
         style={{ WebkitAppRegion: "no-drag" }}
       >
