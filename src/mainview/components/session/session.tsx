@@ -179,7 +179,7 @@ export function Session({ session }: { session: SessionInfo }) {
                 {/* Detail (conditional — only affects inner group) */}
                 {detailOpen && (
                   <>
-                    {!compact && <ResizableHandle className="bg-border/70" />}
+                    {!compact && <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />}
                     <ResizablePanel id="detail" defaultSize={400} minSize={300}>
                       <Detail
                         detailType={detailType}
@@ -195,7 +195,7 @@ export function Session({ session }: { session: SessionInfo }) {
               </ResizablePanelGroup>
             </ResizablePanel>
 
-            <ResizableHandle className="bg-border/70" />
+            <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />
 
             {/* Right Panel — fixed pixel width, never recalculates */}
             <ResizablePanel
