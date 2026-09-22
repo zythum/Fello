@@ -211,6 +211,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
           `📋 **${t("ilink.noActiveSession")}**`,
           "",
           t("ilink.switchSessionGuide"),
+          "",
           t("ilink.createSessionGuide"),
         ];
         await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
@@ -315,7 +316,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const projectMap = new Map(projects.map((p) => [p.id, p]));
     const lines: string[] = [];
     lines.push(`📋 **${t("ilink.sessionList")}**`);
-    lines.push(t("ilink.sessionListDesc"));
+    lines.push("", t("ilink.sessionListDesc"));
     let index = 1;
     let isFirstGroup = true;
     const sessionEntries: Array<{ sessionId: string; label: string }> = [];
@@ -330,7 +331,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       const sessions = grouped.get(projectName)!;
       if (!isFirstGroup) lines.push(`\n---`);
       isFirstGroup = false;
-      lines.push(`\n**${projectName}**`);
+      // Blank line after the group heading: ordered lists starting at 1 are the only ones that
+      // may interrupt a paragraph, so a continuation group (items 3. 4. ...) would otherwise be
+      // swallowed into the heading as a lazy paragraph continuation.
+      lines.push(`\n**${projectName}**`, "");
       for (const s of sessions) {
         const marker = s.id === activeSessionId ? " 👈" : "";
         const label = s.title || t("ilink.newSession");
@@ -372,7 +376,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const sortedProjects = [...allProjects].sort((a, b) => a.title.localeCompare(b.title));
     const lines: string[] = [];
     lines.push(`📋 **${t("ilink.newSessionTitle")}**`);
-    lines.push(t("ilink.newSessionDesc"));
+    lines.push("", t("ilink.newSessionDesc"));
     const projectEntries: Array<{ projectId: string; title: string }> = [];
     sortedProjects.forEach((p, i) => {
       lines.push(`  ${i + 1}. ${p.title}`);
@@ -453,7 +457,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     }
     const lines: string[] = [];
     lines.push(`🧠 **${t("ilink.modelList")}**`);
-    lines.push(t("ilink.modelListDesc"));
+    lines.push("", t("ilink.modelListDesc"));
     const modelEntries: Array<{ modelId: string; label: string }> = [];
     modelState.availableModels.forEach((m: { modelId: string; name?: string }, i: number) => {
       const marker = m.modelId === modelState.currentModelId ? " 👈" : "";
@@ -498,6 +502,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
         `📋 **${t("ilink.noActiveSession")}**`,
         "",
         t("ilink.switchSessionGuide"),
+        "",
         t("ilink.createSessionGuide"),
       ].join("\n"),
     );
@@ -529,7 +534,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
 
     const lines: string[] = [];
     lines.push(`📋 **${t("ilink.permissionMenu")}**`);
-    lines.push(t("ilink.permissionMenuDesc"));
+    lines.push("", t("ilink.permissionMenuDesc"));
     const modeEntries: Array<{ mode: SessionInfo["permissionMode"]; label: string }> = [];
     PERMISSION_MODES.forEach((mode, index) => {
       const marker = mode === session.permissionMode ? " 👈" : "";
@@ -592,7 +597,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const buildMenuText = (entries: ReturnType<typeof getEntries>) => {
       const lines: string[] = [];
       lines.push(`📋 **${t("ilink.featuresMenu")}**`);
-      lines.push(t("ilink.featuresMenuDesc"));
+      lines.push("", t("ilink.featuresMenuDesc"));
       entries.forEach((entry, index) => {
         lines.push(`  ${index + 1}. ${entry.enabled ? "✓" : "✗"} ${entry.label}`);
       });
@@ -686,7 +691,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const buildMenuText = (entries: ReturnType<typeof getEntries>) => {
       const lines: string[] = [];
       lines.push(`📋 **${t("ilink.mcpMenu")}**`);
-      lines.push(t("ilink.mcpMenuDesc"));
+      lines.push("", t("ilink.mcpMenuDesc"));
       entries.forEach((entry, index) => {
         lines.push(`  ${index + 1}. ${entry.enabled ? "✓" : "✗"} ${entry.label}`);
       });
@@ -763,7 +768,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     }
     const lines: string[] = [];
     lines.push(`📝 **${t("ilink.snippetList")}**`);
-    lines.push(t("ilink.snippetListDesc"));
+    lines.push("", t("ilink.snippetListDesc"));
     const snippetEntries: Array<{ snippetId: string; title: string; content: string }> = [];
     snippets.forEach((s: { id: string; title: string; content: string }, i: number) => {
       const preview = s.content.length > 50 ? s.content.substring(0, 50) + "..." : s.content;
@@ -789,6 +794,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
               `📋 **${t("ilink.noActiveSession")}**`,
               "",
               t("ilink.switchSessionGuide"),
+              "",
               t("ilink.createSessionGuide"),
             ].join("\n"),
           );
@@ -816,7 +822,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       const lines: string[] = [];
       if (!currentSession) {
         lines.push(t("ilink.noActiveSession"));
-        lines.push("", "---", t("ilink.switchSessionGuide"), t("ilink.createSessionGuide"));
+        lines.push("", "---", t("ilink.switchSessionGuide"), "", t("ilink.createSessionGuide"));
         return lines.join("\n");
       }
       const projects = storage.listProjects();
@@ -834,7 +840,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
         lines.push(`  - ${enabledFeatures.has(f) ? "✓" : "✗"} ${getFeatureLabel(f)}`);
       const sessionMcpIds = new Set(currentSession.mcpServers ?? []);
       const allMcpServers = storage.getSettings().mcpServers ?? [];
-      lines.push(`\n`);
+      lines.push("");
       if (allMcpServers.length > 0) {
         lines.push(`**${t("ilink.mcpServers")}**:`);
         // Membership only — a globally disabled server still shows the session's own state here.
