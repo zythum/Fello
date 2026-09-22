@@ -113,7 +113,7 @@
     "cron": "^4.4.0",
     "cronstrue": "^3.27.0",
     "custom-electron-titlebar": "^4.4.1",
-    "darwin-corebluetooth-connected-peripherals-recovery": "0.1.0",
+    "darwin-corebluetooth-connected-peripherals-recovery": "^0.1.1",
     "electron-updater": "^6.8.9",
     "es-toolkit": "^1.52.0",
     "fix-path": "^5.0.0",
