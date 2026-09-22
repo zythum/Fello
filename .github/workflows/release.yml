@@ -38,6 +38,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      # node-hid has no prebuild for the Electron rebuild path: electron-builder force-rebuilds
+      # native deps with @electron/rebuild (node-gyp), and node-hid's binding.gyp then compiles
+      # hidapi/libusb/hid.c (needs libusb.h + `pkg-config libusb-1.0`) plus the extra Linux
+      # HID_hidraw targets (need libudev.h / -ludev). Both are required to build.
+      - name: Install Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev libudev-dev
+
       - run: npm ci
 
       - name: Build and publish macOS
