@@ -97,8 +97,8 @@ export interface RealtimeAsrTranscript {
    * 产生这条转写的 ASR 会话标识（一次「按住」= 一条会话）。
    *
    * 累积文本的消费方**必须按它隔离**：服务商的 `id` / `index` 只在**会话内**唯一，
-   * 新会话会从 1 重新开始；而上一条会话的尾音定稿会在松手后（收尾 flush 期间）
-   * 继续到达，若不区分会话就会被当成新句子追加，出现「上一段内容重复出现」。
+   * 新会话会从 1 重新开始；而上一条会话的尾句定稿是**异步**到达的（尾音 flush、
+   * `finish-task` 之后），若不区分会话就会被当成新句子追加，出现「上一段内容重复出现」。
    */
   asrSessionId?: string;
 }
@@ -132,15 +132,15 @@ export interface UseRealtimeAsrResult {
   inputDevices: RealtimeAsrInputDevice[];
   refreshInputDevices: () => Promise<RealtimeAsrInputDevice[]>;
   start: (deviceId?: string) => Promise<void>;
-  /** 完全停止：停音频 + 关闭 ASR 会话。 */
-  stop: () => Promise<void>;
   /**
-   * 只停音频上行、**保留 ASR 会话**。
+   * 完全停止：停音频 + 关闭 ASR 会话。
    *
-   * 用于「松手」这种场景：音频不再发送，但服务商可能还有 delta / final 在路上，
-   * 会话留着它们才能继续替换文本；随后由 `stop()`（提交 / 取消 / 下一次按住）收尾。
+   * 关会话（`finish-task`）是**尾句定稿的必要条件**，不是可选的收尾动作：
+   * 服务端的静音断句依赖音频流里真的出现静音，松手后不再送音频就不会自行定稿。
+   * 所以「松手」也走这里（见 `lib/peripherals/voice-panel-provider.tsx`），
+   * 让 final 在复核态里到达。
    */
-  stopStreaming: () => Promise<void>;
+  stop: () => Promise<void>;
   toggle: () => void;
 }
 
@@ -333,7 +333,7 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
       // 上一次录音还在收尾时先等它结束：每一次按住都必须是**独立的一次录音实例**
       // （新的 ASR 会话 + 新的 BLE 采集），而不是被上一次的收尾吞掉。
       if (stopPromiseRef.current) await stopPromiseRef.current.catch(() => undefined);
-      // 复核期间会话是**故意留着的**（好接住迟到的 final），这里要把它收掉再开新的一次，
+      // 兜底：会话还在（上一次的收尾链没走完，或调用方没走 stop）就先把它收掉再开新的，
       // 否则两次按住会共用同一条会话 —— 服务商的句 id 会互相污染。
       if (asrSessionIdRef.current) await stopRef.current().catch(() => undefined);
       if (recordingRef.current || !configured) return;
@@ -433,10 +433,11 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
   );
 
   /**
-   * **只停音频上行，保留 ASR 会话**（松手 / 关闭麦克风）。
+   * **只停音频上行，保留 ASR 会话**（`runStop` 的第一步）。
    *
-   * 这是「松手」的正确语义：不再送新音频，但服务商可能还有 delta / final 在路上，
-   * 会话必须留着，那些定稿才能继续替换文本。会话的关闭交给 `stop()`。
+   * 单独看它不是「停止」：音频不再送，但会话还开着，服务商仍可能推 delta / final。
+   * 外设路径下它同时承担「等完遥控器的尾音 flush」—— flush 期间的迟到帧仍然上行。
+   * **关会话不能省**，理由见 `stop` 的说明（尾句定稿只在 `finish-task` 之后产生）。
    */
   const runStopStreaming = useCallback(async () => {
     if (!asrSessionIdRef.current) return;
@@ -483,7 +484,10 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
   }, [runCloseSession, runStopStreaming, setRecordingState]);
 
   /**
-   * 停止一次录音。
+   * 停止一次录音：停音频（等完尾音 flush）→ 关会话（`finish-task`）。
+   *
+   * `close()` 会等服务端把尾句定稿发回来（DashScope 适配器等到 `task-finished`），
+   * 因此这个 Promise 结束时这次的识别结果已经齐了。
    *
    * 收尾链会登记到 `stopPromiseRef`，**下一次 `start` 必须先等它结束** ——
    * 外设路径的收尾包含约 800ms 的音频 flush 与 ASR 关闭，若这期间用户又按住语音键，
@@ -499,17 +503,6 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
       if (stopPromiseRef.current === run) stopPromiseRef.current = null;
     }
   }, [runStop]);
-
-  /** 松手：停音频、保留会话（见 `runStopStreaming` 的说明），返回的 Promise 供调用方等待音频收尾。 */
-  const stopStreaming = useCallback(async () => {
-    const run = runStopStreaming();
-    stopPromiseRef.current = run;
-    try {
-      await run;
-    } finally {
-      if (stopPromiseRef.current === run) stopPromiseRef.current = null;
-    }
-  }, [runStopStreaming]);
 
   // eslint-disable-next-line react/refs
   stopRef.current = stop;
@@ -532,7 +525,6 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
     refreshInputDevices,
     start,
     stop,
-    stopStreaming,
     toggle,
   };
 }

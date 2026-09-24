@@ -24,8 +24,14 @@ import type { ChatTextareaVoicePanel } from "../../components/session/chat/chat-
  *   （遥控器 OK 即发送），←/→ 可在两者之间切换；
  * - **松手不清空**：复核态再按住语音键就继续往后追加（多次按住累积成一段，
  *   每次按住是一条新的 ASR 会话，累积时按会话隔离句 id），只有「取消」才丢弃；
- * - **松手只停音频、不关会话**：服务商可能还有 delta / final 在路上，那些定稿要继续
- *   替换文本；会话在提交 / 取消 / 判定为空 / 开始新的一段时才关。
+ * - **松手即收尾**：松手时停音频后**立刻关会话**（`stopAsr()` → `close()` 会给服务商发
+ *   `finish-task`，DashScope 适配器还会等到 `task-finished`），尾句定稿因此在复核态里到达并
+ *   原地替换文本。
+ *   早期实现是「只停音频、会话留 5 秒等迟到的 delta / final」，但那只对**会自行定稿**的服务商
+ *   成立：DashScope（默认识别 provider）的 VAD 断句按「音频流里真的出现静音」判定
+ *   （`max_sentence_silence`，默认 1300ms），松手后不再送音频就不会定稿，会话只会一直停在
+ *   partial —— 表现为「松手后内容不再被修正，直到下一次按住时 `start()` 先关掉旧会话，
+ *   服务端才补发尾句 final 把文本改掉」。
  *
  * 转写按**句**累积（见 `useTranscriptSegments`）：服务商每条 transcript 是当前句的文本
  * （DashScope 每句带稳定的 `id` 与 1-based `index`），只取最新一条会把前面的句子冲掉。
@@ -38,18 +44,6 @@ import type { ChatTextareaVoicePanel } from "../../components/session/chat/chat-
 
 /** 与既有麦克风按钮一致的单次录音上限。 */
 const DEFAULT_MAX_DURATION = 5 * 60 * 1000;
-
-/**
- * 松手后**关闭 ASR 会话**的延迟。
- *
- * 两个约束要同时满足：
- * - 不能一松手就关 —— 服务商的最后一个 delta / final 还在路上，关了它就永远停在 partial；
- * - 也不能一直挂着 —— 用户可能长时间停在复核态（甚至走开），会话不该无限期占着。
- *
- * 所以松手**立即停音频**，会话再留 5 秒：定稿有充足时间落地，之后服务商就算还在推
- * 也与本次无关了。
- */
-const SESSION_CLOSE_DELAY_MS = 5000;
 
 type PanelPhase = "idle" | "recording" | "review";
 
@@ -126,9 +120,9 @@ function useTranscriptSegments() {
    * 段落 key = **ASR 会话 + 句标识**。会话这一层是必需的：
    * - 服务商的 `id` / `index` 只在会话内唯一，新会话会从 1 重新开始 → 不加会话前缀会撞上
    *   上一段的 key，把已定稿的句子**覆盖掉**；
-   * - 反过来更要命：上一段松手后仍有尾音定稿到达（收尾 flush 期间），若把它们算到「新的
-   *   那一次」里，就会以新句子的形式**重复追加**到末尾 —— 表现为「第二次按 F5 时冒出第一
-   *   次的一部分内容」。
+   * - 反过来更要命：上一段的收尾（尾音 flush / `finish-task` 之后的尾句定稿）是**异步**
+   *   到达的，若把它们算到「新的那一次」里，就会以新句子的形式**重复追加**到末尾 ——
+   *   表现为「第二次按 F5 时冒出第一次的一部分内容」。
    *
    * 句内 partial 原地替换（不追加新行），final 后重置，于是后一句接着往前长。
    */
@@ -207,29 +201,16 @@ export function VoicePanelProvider({ children }: { children: ReactNode }) {
     onTranscript: (result) => transcript.append(result),
     onError: (message) => setError(message),
   });
-  const { start: startAsr, stop: stopAsr, stopStreaming } = asr;
+  const { start: startAsr, stop: stopAsr } = asr;
   const { clear: clearTranscript, text: transcriptText, textRef } = transcript;
-  /** 延迟关闭会话的计时器（见 `SESSION_CLOSE_DELAY_MS`）。 */
-  const sessionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearSessionCloseTimer = useCallback(() => {
-    if (sessionCloseTimerRef.current !== null) {
-      clearTimeout(sessionCloseTimerRef.current);
-      sessionCloseTimerRef.current = null;
-    }
-  }, []);
-
-  // Provider 卸载时清掉计时器，避免在应用退出阶段还去关会话。
-  useEffect(() => clearSessionCloseTimer, [clearSessionCloseTimer]);
 
   const reset = useCallback(() => {
-    clearSessionCloseTimer();
     clearTranscript();
     setError(null);
     setActiveTargetId(null);
     activeTargetRef.current = null;
     setPhaseBoth("idle");
-  }, [clearSessionCloseTimer, clearTranscript, setError, setPhaseBoth]);
+  }, [clearTranscript, setError, setPhaseBoth]);
 
   /**
    * 收起面板（取消 / 提交 / 判定为空 都走它）。
@@ -244,9 +225,16 @@ export function VoicePanelProvider({ children }: { children: ReactNode }) {
     reset();
   }, [reset, stopAsr]);
 
+  /**
+   * 松手：停音频 → **立刻收尾关会话**（见文件头「松手即收尾」）。
+   *
+   * 关会话这一步不能推迟：尾句定稿本来就只在 `finish-task` 之后才产生，把会话留着等
+   * 「迟到的 delta / final」是等不到的（服务端的静音判定需要音频流继续有静音）。
+   * `stopAsr()` 内部先停音频（等完遥控器的尾音 flush）再关会话，close 期间到达的 final
+   * 走的是同一条会话，会被就地应用 —— 复核态因此一定拿得到定稿。
+   */
   const stop = useCallback(() => {
     if (phaseRef.current === "idle") return;
-    clearSessionCloseTimer();
 
     // 松手时**一个字的文本都没接到**（含之前累积的）→ 直接判定为空收掉，不用再等。
     // 依据：正常识别时 partial 在说话期间就会持续到达，松手仍是空基本等于这段没识别到。
@@ -257,18 +245,8 @@ export function VoicePanelProvider({ children }: { children: ReactNode }) {
     }
 
     setPhaseBoth("review");
-    // ① 立即停音频：不再送新帧（遥控器的尾音 flush 仍在路上，由 voiceStop 等它收完）。
-    void stopStreaming();
-
-    // ② 已经有文本 → 会话留 5 秒，接住最后那几个 delta / final（否则会永远停在 partial），
-    //    之后关掉：会话寿命有界，不会因为用户停在复核态而无限挂着。
-    sessionCloseTimerRef.current = setTimeout(() => {
-      sessionCloseTimerRef.current = null;
-      // 期间又按住了语音键（新的一段已开始）→ 那条会话由 start 自己负责收，别动。
-      if (phaseRef.current !== "review") return;
-      void stopAsr();
-    }, SESSION_CLOSE_DELAY_MS);
-  }, [clearSessionCloseTimer, close, setPhaseBoth, stopAsr, stopStreaming, textRef]);
+    void stopAsr();
+  }, [close, setPhaseBoth, stopAsr, textRef]);
 
   const start = useCallback(
     (peripheralId: string) => {
@@ -288,27 +266,15 @@ export function VoicePanelProvider({ children }: { children: ReactNode }) {
       // 错误则每次都清掉（属于上一段的残留，新一段会重新上报自己的错误）。
       if (!appending) clearTranscript();
       setError(null);
-      // 上一段留下的「延迟关会话」计时器要作废，否则它会在新的一段录音中途
-      // 把**新会话**关掉。
-      clearSessionCloseTimer();
-      // 注意：这里**不能**切换「段」的作用域 —— 上一段的收尾（尾音定稿）还在路上，
-      // 提前换段会把它算成新内容。转写的隔离由 ASR 会话 id 天然保证（见 useTranscriptSegments）。
+      // 注意：这里**不能**切换「段」的作用域 —— 上一段的收尾（尾音 flush + finish-task 等
+      // 尾句定稿）可能还在路上，提前换段会把它算成新内容。转写的隔离由 ASR 会话 id 天然
+      // 保证（见 useTranscriptSegments）；开新会话前也会先 await 掉上一次的收尾链。
       activeTargetRef.current = target[0];
       setActiveTargetId(target[0]);
       setPhaseBoth("recording");
       void startAsr(peripheralId);
     },
-    [
-      asr.configured,
-      clearSessionCloseTimer,
-      clearTranscript,
-      resolveTarget,
-      setError,
-      setPhaseBoth,
-      startAsr,
-      t,
-      toast,
-    ],
+    [asr.configured, clearTranscript, resolveTarget, setError, setPhaseBoth, startAsr, t, toast],
   );
 
   const registerTarget = useCallback(
