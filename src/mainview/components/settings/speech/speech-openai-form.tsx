@@ -156,8 +156,8 @@ export function SpeechOpenaiForm({
             <Controller
               name="voice"
               control={form.control}
-              render={({ field: voiceField, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
+              render={({ field: voiceField }) => (
+                <Field>
                   <OptionalLabel htmlFor="speech-oi-voice">
                     {t("settings.speech.form.voice", "Voice")}
                   </OptionalLabel>
@@ -165,10 +165,8 @@ export function SpeechOpenaiForm({
                     {...voiceField}
                     id="speech-oi-voice"
                     placeholder={OPENAI_TTS_VOICE}
-                    aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {renderError(fieldState.error?.message)}
                 </Field>
               )}
             />

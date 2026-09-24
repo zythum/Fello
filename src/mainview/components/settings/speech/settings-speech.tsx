@@ -323,8 +323,8 @@ export function SettingsSpeech() {
                       {provider.provider}
                     </span>
                     <span className="w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
-                      {/* 与开关无关：展示识别 / 合成各配了什么，是否生效由右侧开关体现。
-                          方向字段未配置时按生效值兜底（默认模型 / 默认音色见 shared/speech.ts） */}
+                      {/* 列表展示「生效中的配置」：未配置的字段按默认值计算（默认模型 / 默认音色，
+                          见 shared/speech.ts），默认值也算配置；右侧开关只表达哪个配置被激活 */}
                       {[
                         effectiveAsrModel(provider) || provider.asrResourceId,
                         [provider.ttsModel, effectiveTtsVoice(provider)]

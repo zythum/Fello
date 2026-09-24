@@ -187,8 +187,8 @@ export function SpeechDashscopeForm({
             <Controller
               name="voice"
               control={form.control}
-              render={({ field: voiceField, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
+              render={({ field: voiceField }) => (
+                <Field>
                   <OptionalLabel htmlFor="speech-ds-voice">
                     {t("settings.speech.form.voice", "Voice")}
                   </OptionalLabel>
@@ -196,10 +196,8 @@ export function SpeechDashscopeForm({
                     {...voiceField}
                     id="speech-ds-voice"
                     placeholder={DASHSCOPE_TTS_VOICE}
-                    aria-invalid={fieldState.invalid}
                     className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
                   />
-                  {renderError(fieldState.error?.message)}
                 </Field>
               )}
             />
