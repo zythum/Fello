@@ -17,6 +17,7 @@ import { DocxDetail } from "./docx-detail/docx-detail";
 import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
+import { MediaDetail } from "./media-detail/media-detail";
 import { FallbackDetail } from "./fallback-detail/fallback-detail";
 
 export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
@@ -167,6 +168,8 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
             <XlsxDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "html" ? (
             <HtmlDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "audio" || fileKind === "video" ? (
+            <MediaDetail key={refreshKey} projectId={projectId} file={file} kind={fileKind} />
           ) : (
             <FallbackDetail projectId={projectId} file={file} />
           )}

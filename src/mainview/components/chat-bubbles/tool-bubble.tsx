@@ -38,6 +38,8 @@ import {
   SquareChartGantt,
   Square,
   ListCheck,
+  Music,
+  Video,
 } from "lucide-react";
 import {
   Item,
@@ -63,6 +65,7 @@ import {
   isImageMimeType,
   type ShareToUserRespond,
 } from "../../../shared/zod/mcp-share-to-user-schema";
+import { getMediaKind } from "../../../shared/constants";
 import {
   imageGenerationRespondSchema,
   type ImageGenerationRespond,
@@ -470,6 +473,8 @@ function ShareToUserBubble({
   const { t } = useTranslation();
   const [error, setError] = useState(false);
   const isImage = isImageMimeType(mimeType);
+  // 音频 / 视频直接内嵌播放器；mimeType 缺失（认不出的扩展名）时按扩展名兜底
+  const mediaKind = isImage ? null : getMediaKind(mimeType, name);
   const isProject = !!projectPath;
 
   const url = projectPath
@@ -559,6 +564,56 @@ function ShareToUserBubble({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+
+  if (mediaKind) {
+    return (
+      <div className="border border-border bg-secondary/40 rounded-md overflow-hidden pointer-events-auto my-4">
+        <Item variant="muted" size="xs" className="border-0 rounded-none">
+          <ItemMedia className="size-4 shrink-0 overflow-hidden rounded-sm flex items-center justify-center bg-muted/30">
+            {mediaKind === "audio" ? (
+              <Music className="size-5 text-emerald-500" />
+            ) : (
+              <Video className="size-5 text-fuchsia-500" />
+            )}
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle className="text-xs">{name}</ItemTitle>
+          </ItemContent>
+          <ItemActions className="gap-0">
+            <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground mr-2">
+              {t("constant.feature.shareToUser")}
+            </span>
+            {previewButton}
+            {menuActions}
+          </ItemActions>
+        </Item>
+        <div className="flex items-center justify-center bg-muted/10">
+          {error ? (
+            <p className="text-xs text-muted-foreground p-2">
+              {t("shareToUser.playbackFailed", "Failed to play this file")}
+            </p>
+          ) : mediaKind === "audio" ? (
+            <audio
+              src={url}
+              controls
+              preload="metadata"
+              className="w-full p-1.5"
+              onError={() => setError(true)}
+            />
+          ) : (
+            <video
+              src={url}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full"
+              onError={() => setError(true)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (isImage) {
     return (

@@ -850,6 +850,7 @@
     "fileNotFound": "File not found",
     "fileTooLarge": "File is too large to preview",
     "fileFormatNotSupported": "File format not supported for preview",
+    "mediaPlaybackFailed": "Failed to play this file",
     "errorLoading": "Error loading file",
     "loading": "Loading...",
     "noChanges": "No changes detected",
@@ -917,6 +918,7 @@
     "copyToProject": "Copy to project",
     "reveal": "Reveal in Finder",
     "loadFailed": "Failed to load image",
+    "playbackFailed": "Failed to play this file",
     "download": "Download"
   },
   "imageGeneration": {

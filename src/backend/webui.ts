@@ -186,9 +186,19 @@ export function createWebUIModule(): WebUIModule {
       {
         const route = parseFileRoute(url);
         if (route) {
-          const result = await serveRoute(route);
-          res.writeHead(result.status, { "Content-Type": result.mimeType });
-          res.end(result.body);
+          const result = await serveRoute(route, { range: req.headers.range });
+          res.writeHead(result.status, {
+            "Content-Type": result.mimeType,
+            ...result.headers,
+          });
+          if (result.stream) {
+            // 分片流式回传：音视频拖动进度条时只读请求的那一段，不整份进内存。
+            // 流中途出错（客户端提前断开等）直接销毁响应，避免挂着一个半截连接。
+            result.stream.on("error", () => res.destroy());
+            result.stream.pipe(res);
+          } else {
+            res.end(result.body ?? "");
+          }
           return;
         }
       }

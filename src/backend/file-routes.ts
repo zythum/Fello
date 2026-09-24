@@ -61,7 +61,15 @@ export function parseFileRoute(url: URL): FileRoute | null {
 
 // ── Route 执行 ───────────────────────────────────────────────────────
 
-export async function serveRoute(route: FileRoute): Promise<ServeFileResult> {
+export interface ServeRouteOptions {
+  /** 请求的 `Range` 头原文，透传给 serveFile（音视频拖动进度条依赖它） */
+  range?: string | null;
+}
+
+export async function serveRoute(
+  route: FileRoute,
+  options: ServeRouteOptions = {},
+): Promise<ServeFileResult> {
   switch (route.type) {
     case "project": {
       const project = storageOps.getProject(route.projectId);
@@ -73,7 +81,7 @@ export async function serveRoute(route: FileRoute): Promise<ServeFileResult> {
           error: "Project Not Found",
         };
       }
-      return serveFile(route.relativePath, project.cwd);
+      return serveFile(route.relativePath, project.cwd, options);
     }
 
     case "share": {
@@ -86,7 +94,7 @@ export async function serveRoute(route: FileRoute): Promise<ServeFileResult> {
           error: "Session Not Found",
         };
       }
-      return serveFile(route.sharePath, shareDir);
+      return serveFile(route.sharePath, shareDir, options);
     }
 
     case "automation": {
@@ -100,7 +108,7 @@ export async function serveRoute(route: FileRoute): Promise<ServeFileResult> {
         };
       }
       const taskDir = autoStore.taskDir(route.scheduleId, route.taskId);
-      return serveFile(route.relativePath, taskDir);
+      return serveFile(route.relativePath, taskDir, options);
     }
   }
 }

@@ -849,6 +849,7 @@
     "fileNotFound": "文件不存在",
     "fileTooLarge": "该文件过大不支持预览",
     "fileFormatNotSupported": "该文件格式不支持预览",
+    "mediaPlaybackFailed": "该文件无法播放",
     "errorLoading": "加载文件失败",
     "loading": "加载中...",
     "noChanges": "无变更",
@@ -915,7 +916,9 @@
   "shareToUser": {
     "copyToProject": "复制到项目",
     "reveal": "在访达中显示",
-    "loadFailed": "图片加载失败"
+    "loadFailed": "图片加载失败",
+    "playbackFailed": "该文件无法播放",
+    "download": "下载"
   },
   "imageGeneration": {
     "copyToProject": "复制到项目",

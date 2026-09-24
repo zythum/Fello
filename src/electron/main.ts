@@ -15,6 +15,7 @@ import electronUpdater from "electron-updater";
 import { setupTitlebarAndAttachToWindow } from "custom-electron-titlebar/main";
 import { homedir } from "os";
 import { join } from "path";
+import { Readable } from "stream";
 import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
 import type { FelloIPCSchema } from "../shared/schema";
@@ -788,11 +789,20 @@ app.on("before-quit", (event) => {
 });
 
 app.whenReady().then(async () => {
-  session.defaultSession.setPermissionCheckHandler(
-    (_webContents, permission) => permission === "media",
+  // 权限白名单：只放行麦克风/摄像头（语音输入）与 HTML 全屏。
+  //
+  // `fullscreen` 必须放行 —— Electron 把 HTML 全屏也挂在权限管线上：请求被拒时
+  // Chromium 既不 resolve 也不 reject `requestFullscreen()`（Promise 永久 pending、
+  // 无任何报错），表现就是 <video> 原生控件里的全屏按钮「点了没反应」。
+  // 只放行 `media` 时，视频卡片的全屏按钮、详情面板播放器的全屏都会是死键。
+  const isAllowedPermission = (permission: string) =>
+    permission === "media" || permission === "fullscreen";
+
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+    isAllowedPermission(permission),
   );
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === "media");
+    callback(isAllowedPermission(permission));
   });
 
   // Register custom fello:// protocol handler for serving files.
@@ -812,18 +822,27 @@ app.whenReady().then(async () => {
       return new Response("Not Found", { status: 404 });
     }
 
-    const result = await serveRoute(route);
+    const result = await serveRoute(route, { range: request.headers.get("range") });
+
+    const headers: Record<string, string> = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      ...result.headers,
+    };
+
+    // Range 命中：分片流式返回（大视频不必整份读进内存，拖动进度条只读那一段）。
+    if (result.stream) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return new Response(Readable.toWeb(result.stream) as any, {
+        status: result.status,
+        headers,
+      });
+    }
 
     // Use Blob to bridge the Node.js Buffer / string → BodyInit gap
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const blob = new Blob([result.body as any], { type: result.mimeType });
-    return new Response(blob, {
-      status: result.status,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-      },
-    });
+    return new Response(blob, { status: result.status, headers });
   });
 
   setupMenu();
