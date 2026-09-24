@@ -71,8 +71,13 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
   这样「上一次采集收尾 flush 期间迟到的帧」（带的是旧 id）不会喂给还在 connecting 的 ASR 客户端。
 - 电平显示单独处理：RMS → 开方压缩 → 底噪门限，并在真正开始收音频后设约 300ms 起始静默期，
   避免开麦噪声把波形顶起来。这两项**只影响电平显示**，不影响上行音频。
-- 停止语义拆成两步：`stopStreaming()` 只停音频、保留会话（等迟到的 delta / final），
-  `stop()` 才关会话；面板侧「松手」只调前者，会话延迟 5s 关闭（用户停在复核态也不会无限占用）。
+- 停止语义只有一步 `stop()`：停音频（外设路径会等完遥控器的尾音 flush）→ 关会话（`finish-task`）。
+  **关会话不能推迟**：服务端的静音断句要求音频流里真的出现静音（DashScope 的
+  `max_sentence_silence` 默认 1300ms），松手后不再送帧服务端就不会自行定稿，尾句 final 要等到
+  下一次按住（`start` 先关旧会话）才补发。早期那句「松手只停音频、会话留 5s 等迟到的 delta / final」
+  只对**会自行定稿**的服务商成立，已随 `stopStreaming()` 一起删除。
+- 面板侧「松手」即调用 `stop()`，尾句定稿于是在复核态里原地替换文本；因此提交 / 取消面板时可能
+  撞上正在进行的收尾链，`stop()` 按 in-flight promise 去重（同一条会话上的收尾幂等）。
 - 面板可用性与输入框禁用解耦：流式生成期间输入框禁用，但按住语音键照常可用，
   发送时由 `chat-input` 先 `cancelPrompt` 再发送。
 
