@@ -1,11 +1,13 @@
-# 语音输入架构（Voice Input）
+# 语音架构（识别 ASR + 合成 TTS）
 
-> 实时语音输入（realtime ASR）在 Fello 中的完整架构：渲染层采集音频 → IPC 上行 →
-> 主进程 ASR 会话 → 事件回传 → 输入框转写插入，以及服务商配置管理。
+> Fello 语音能力的完整架构：**识别**（渲染层采集音频 → IPC 上行 → 主进程 ASR 会话 →
+> 事件回传 → 输入框转写插入）与**合成**（渲染层朗读会话分句 → 主进程无状态转发 →
+> 音频回传 → Web Audio 播放），以及两侧共用的服务商配置管理。
 >
 > 后端基于 [`unified-realtime-asr`](https://github.com/zythum/unified-realtime-asr)
->（纯 Node / `ws` 实现，只能运行在主进程），一套 `createASRClient(config)` 接口覆盖
-> DashScope（通义百炼）、Volcengine（火山引擎）、OpenAI Realtime、IFlytek（讯飞）四家后端。
+>（纯 Node / `ws` 实现，只能运行在主进程），`createASRClient(config)` / `createTTSClient(config)`
+> 覆盖 DashScope（通义百炼）、Volcengine（火山引擎）、OpenAI、IFlytek（讯飞）四家后端 ——
+> 识别与合成**共用同一条 Provider 记录**（凭据同源），允许的方向与取值见第 6 节。
 
 ---
 
@@ -17,17 +19,22 @@
 | 渲染层采集 | `src/mainview/components/common/use-realtime-asr.ts` | 两种音频源（麦克风 / 外设）：麦克风走 `getUserMedia` + AudioWorklet 降采样转 PCM，外设直接消费主进程 PCM；共用 IPC 上行、ASR 事件订阅与过滤 |
 | 渲染层语音面板 | `src/mainview/lib/peripherals/voice-panel-provider.tsx` | 外设 PTT 面板状态机（按住录音 / 复核发送）、转写按会话累积，结构与样式在 `chat-textarea.tsx` |
 | 外设音频源 | `src/electron/peripherals/` | BLE（ATVV）链路：恢复已连接外设或扫描、ATVV 会话、ADPCM 解码为 16k/16bit/mono PCM，经 `peripheral-audio` 事件推给渲染层 |
-| IPC 契约 | `src/shared/schema.ts` | 上行 `startRealtimeAsr` / `sendRealtimeAsrFrame` / `stopRealtimeAsr`；下行 `asr-transcript` / `asr-error` / `asr-closed`；外设另有 `peripheral-audio` / `peripheral-audio-state` |
-| 主进程 ASR | `src/backend/speech/manager.ts` | ASR 会话生命周期、`unified-realtime-asr` 客户端构建、事件广播；音频帧在 `connect()` 完成前（`ready = false`）与 not-connected 时直接丢弃 |
-| 主进程 ASR 配置 | `src/backend/speech/config.ts` | Provider 配置 → `ASRConfig` 映射（实时语音输入与音频文件转写共用），`getActiveProvider()` 取当前启用的 Provider |
+| IPC 契约 | `src/shared/schema.ts` | 上行 `startRealtimeAsr` / `sendRealtimeAsrFrame` / `stopRealtimeAsr`、`startTts` / `speakTts` / `endTts`；下行 `asr-transcript` / `asr-error` / `asr-closed`、`tts-audio` / `tts-error` / `tts-closed`；外设另有 `peripheral-audio` / `peripheral-audio-state` |
+| 主进程 ASR | `src/backend/speech/asr-manager.ts` | ASR 会话生命周期、`unified-realtime-asr` 客户端构建、事件广播；音频帧在 `connect()` 完成前（`ready = false`）与 not-connected 时直接丢弃 |
+| 主进程 ASR 配置 | `src/backend/speech/asr-config.ts` | Provider 配置 → `ASRConfig` 映射（实时语音输入与音频文件转写共用），`getActiveAsrProvider()` 取当前启用识别的 Provider |
+| 主进程 TTS | `src/backend/speech/tts-manager.ts` | **无状态转发**：收到一句话就 `sendText` + `flush`，音频经 `tts-audio` 推回渲染层；不碰文本、不攒队列（见第 10 节） |
+| 主进程 TTS 配置 | `src/backend/speech/tts-config.ts` | Provider 配置 → `TTSConfig` 映射，`getActiveTtsProvider()` 取当前启用合成的 Provider |
+| 两侧共用工具 | `src/backend/speech/util.ts` | 凭证读取（`optionalString` / `requireField`）与 `errorMessage`，避免识别 / 合成两份实现漂移 |
+| 语音默认值 | `src/shared/speech.ts` | 识别默认模型与合成默认音色（`effectiveAsrModel` / `effectiveTtsVoice`）：主进程解析、设置页占位符与列表摘要共用同一份值 |
+| 渲染层朗读 | `src/mainview/lib/tts/` | `tts-reader.ts` 朗读会话（分句调度、抢占与抑制）、`tts-text.ts` 分句器、`tts-player.ts` 播放、`tts-prefs.ts` 偏好、`use-tts-auto-read.ts` 自动朗读订阅（见第 10 节） |
 | 音频文件转写 | `src/backend/speech/transcribe.ts` + `ffmpeg.ts` | Toolbox `audio_transcribe` 工具的实现：系统 ffmpeg 解码 → 实时 ASR → 拼接文本（见第 9 节） |
-| 设置存储 | `src/backend/storage/settings.ts` | `speechToText` provider 数组的读取/校验/持久化（与 imageGeneration 同范式） |
-| 设置页 | `src/mainview/components/settings/speech-to-text/` | 服务商配置管理：列表 + 编辑对话框（每家一个独立表单） |
+| 设置存储 | `src/backend/storage/settings.ts` | `speechProviders` provider 数组的读取/校验/持久化（与 imageGeneration 同范式；读取时兼容旧 `speechToText` 列表） |
+| 设置页 | `src/mainview/components/settings/speech/` | 服务商配置管理：列表 + 编辑对话框（每家一个独立表单）。列表行上的 ASR / TTS 开关表达「哪个配置被激活」，弹窗只负责配置字段 |
 
 ## 2. 数据流
 
 ```
-Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/manager.ts）
+Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr-manager.ts）
 ┌──────────────────────────────────────┐            ┌──────────────────────────────────┐
 │ getUserMedia → AudioContext           │            │ startRealtimeAsr                  │
 │  → AudioWorklet（48k→16k，f32→i16）    │  start     │  → createASRClient(config)        │
@@ -71,9 +78,9 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 
 ## 4. 会话与生命周期
 
-**后端（manager.ts）**：
+**后端（asr-manager.ts）**：
 - 一次录音 = 一个后端 ASR client；会话表 `Map<"${clientId}:${asrSessionId}", ActiveAsrSession>`。
-- `start`：取当前 `active` provider → `createASRClient(buildConfig(provider))` → `connect()`；重复 start 幂等返回。
+- `start`：取当前启用识别的 provider（`getActiveAsrProvider()`）→ `createASRClient(buildAsrConfig(provider))` → `connect()`；重复 start 幂等返回。
 - `frame`：`Buffer.from(audioB64, "base64")` → `client.sendAudio(pcm)`；会话不存在或发送异常时通过 `asr-error` 上报。
 - `stop`：`await client.close()`（等最后的 final 到达）→ 移除监听与会话。
 - `closeAll`：应用 `closeBackend` 时兜底清理全部活跃连接，避免退出卡住。
@@ -95,18 +102,28 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 
 ## 6. 服务商配置模型
 
-**持久化结构**（`shared/schema.ts` 的 `SpeechToTextProviderInfo`，扁平可选字段，凭据只被主进程使用）：
+**持久化结构**（`shared/schema.ts` 的 `SpeechProviderInfo`，扁平可选字段，凭据只被主进程使用）。
+识别与合成**共用一条记录**（凭据同源：同一把 API Key / 应用三元组），方向相关的字段分开存放：
+
+| 方向 | 字段 | 说明 |
+| --- | --- | --- |
+| 开关 | `asrEnabled` / `ttsEnabled` | 各自独立，**每方向全局至多一个启用**（由列表行上的开关维护） |
+| 识别 | `asrModel` / `asrResourceId` | `asrResourceId` 仅 volcengine 识别使用（`volc.seedasr.*` 资源版本） |
+| 合成 | `ttsModel` / `voice` | 留空时回落到 `shared/speech.ts` 里的默认值（见下表） |
+
+各家 provider 的字段与默认值：
 
 | provider | 必填 | 可选（含默认值） |
 | --- | --- | --- |
-| `dashscope` | apiKey | model（默认 `fun-asr-flash-8k-realtime`）、workspaceId + region（拼专属域名）、workspace（`X-DashScope-WorkSpace` 请求头）、language |
-| `volcengine` | apiKey | appId、resourceId（默认 `volc.seedasr.sauc.duration`）、baseUrl、language |
-| `openai` | apiKey | model（默认 `gpt-4o-transcribe`）、baseUrl、language |
-| `iflytek` | apiKey、appId、apiSecret | baseUrl、language |
+| `dashscope` | apiKey | asrModel（默认 `fun-asr-flash-8k-realtime`）、workspaceId + region（拼专属域名）、workspace（`X-DashScope-WorkSpace` 请求头）、language；合成：voice（默认 `longanhuan_v3.6`）、ttsModel |
+| `volcengine` | apiKey | appId、asrResourceId（默认 `volc.seedasr.sauc.duration`）、baseUrl、language；合成：voice（默认 `zh_female_vv_uranus_bigtts`，资源版本走库默认 `seed-tts-2.0`） |
+| `openai` | apiKey | asrModel（默认 `gpt-4o-transcribe`）、baseUrl、language；合成：voice（默认 `coral`）、ttsModel |
+| `iflytek` | apiKey、appId、apiSecret | baseUrl、language；合成：voice（默认 `x5_lingxiaoxuan_flow`） |
 
-- 通用字段：`name`（显示名）、`provider`、`language`、`active`（同一时间仅一个启用）。
-- 设置页采用「公共字段 + 每家独立表单」结构：Dialog 持有 `name`/`provider`（公共 form），四个表单组件（`dashscope-form` / `volcengine-form` / `openai-form` / `iflytek-form`）各自 `useForm` + zod schema + 校验 + `toProviderPart` 映射，完全自包含；提交时 Dialog 汇总公共字段与当前 provider 表单结果。
-- 后端 `buildConfig` 按 provider 把扁平配置映射为 `unified-realtime-asr` 的 `ASRConfig`，必填项缺失时抛错并经 `asr-error` 提示。
+- 默认值集中在 `src/shared/speech.ts`（`DEFAULT_ASR_MODELS` / `DEFAULT_TTS_VOICES`），主进程解析、设置页表单占位符与列表摘要共用同一份值。
+- 设置页采用「列表 + 每 provider 一个自包含表单」结构：四个表单组件（`speech-dashscope-form` / `speech-volcengine-form` / `speech-openai-form` / `speech-iflytek-form`）各自 `useForm` + zod schema（含 `name` / `provider`）+ `toDraft` 映射；Dialog 只持有「编辑哪条 / 当前哪个 provider / 名称初值」。
+- **弹窗内没有启用开关**：识别 / 合成是否生效只由列表行开关决定，弹窗保存时把 `asrEnabled` / `ttsEnabled` 原样回写（不会静默关掉方向）。列表摘要展示的是**生效中的配置**（未配置的字段按默认值计算），与开关状态无关。
+- 后端 `buildAsrConfig` / `buildTtsConfig` 按 provider 把扁平配置映射为库的 `ASRConfig` / `TTSConfig`，必填项缺失时抛错并经 `asr-error` / `tts-error` 提示。
 
 ## 7. 权限与打包
 
@@ -129,6 +146,9 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 | 每家 provider 独立表单 | 字段/校验/默认值差异大，独立 schema 避免互相污染 |
 | 外设音频在主进程解码 | ATVV / ADPCM 依赖 UBM 与原生蓝牙栈，只能在主进程；渲染层只接收已解码的 16k PCM |
 | 帧与转写都用采集 / 会话标识隔离 | 音频帧按 `captureId`、累积文本按「ASR 会话 + 句 id」，两者都用来丢弃跨会话的迟到数据 |
+| 识别与合成共用一条 Provider 记录 | 凭证同源（同一把 API Key / 应用三元组），拆成两份会让用户重复填；方向差异用字段前缀与独立开关表达 |
+| 文本整理（净化 / 分句）放在渲染层 | 主进程保持无状态（一句话 in、音频 out），原始 markdown 不出渲染层，过 IPC 的永远是净化好的句子 |
+| 默认值放 `shared/` | 主进程解析与设置页展示必须同一份值，避免「界面显示的」与「实际发出去的」不一致 |
 
 ## 9. 音频文件转写（Toolbox `audio_transcribe`）
 
@@ -148,7 +168,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
 ```
 
 - **始终注册，缺配置时给指引**：`audio_transcribe` 工具与其它 toolbox 工具一样始终注册；
-  「设置 → 语音识别」中没有启用中的 Provider 时，执行阶段返回
+  「设置 → 语音 → 识别」中没有启用中的 Provider 时，执行阶段返回
   「设置中没有找到语音识别（ASR）配置」并提示去设置里配置启用，由 Agent 转达用户后重试。
 - **不内置解码器**：音频解码直接用用户机器上的 `ffmpeg`，查找顺序为
   **工具参数 `ffmpegPath` → `FFMPEG_PATH` 环境变量 → `PATH` → 常见安装目录**
@@ -164,3 +184,43 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/man
   结果，其余 provider 会），再 `close()`；`isFinal` 片段按 `index` 排序拼接，不足一帧的
   尾部 PCM 也会补发。
 - **超时**：默认 600s（工具参数 `timeoutSeconds` 可调，10–3600），超时直接 kill ffmpeg 并关会话。
+
+## 10. 语音合成（TTS 朗读）
+
+合成方向复用同一份 Provider 配置（凭据与识别同源），全链路如下：
+
+```
+渲染层朗读会话（lib/tts/tts-reader.ts）
+  agent 文本分片 ──▶ tts-text 分句（markdown 净化、丢弃代码围栏与纯符号，单句 ≤120 字）
+        │ 逐句 request.speakTts（同一会话的 start/speak/end 挂在同一条串行链上）
+        ▼
+主进程 tts-manager（无状态）── client.sendText + flush ──▶ provider（websocket，PCM 流）
+        │
+        ▼
+tts-audio 事件 ──▶ tts-reader 的单一闸门（liveTtsSessionId 命中才入队）──▶ tts-player
+                                                       （全局唯一 AudioContext + master Gain 出声）
+```
+
+**两个入口、同一套互斥**：
+
+| 入口 | 触发 | 会话 key |
+| --- | --- | --- |
+| 自动朗读 | 会话头喇叭菜单打开后，`use-tts-auto-read` 订阅本会话的 `agent_message_chunk`，边生成边喂句子 | agent sessionId |
+| 手动朗读 | 悬停 agent 回复分组 → 朗读按钮（`speakOnce`，整条消息一次性分句） | `"manual"` |
+
+- **播放互斥的唯一闸门是 `liveTtsSessionId`**：只有它的 id 与分片一致时才允许入播放队列。抢占（新朗读开始）、停止、出错都会立即作废它 —— 已经提交给 provider 的文本，其音频分片仍会在回程路上陆续到达（`ttsPlayer.stop()` 只管得住已入队的），靠这道闸门把迟到分片丢掉，否则新旧朗读会交替出声。
+- **抢占语义**：`startSession` 先作废在册 id、结束前台会话（链上未发出的句子直接丢弃、`dead` 标记）、停播放；`endSession` 的 `flushTail` 决定是否补发尾部残句（自然读完 true；抢占 / 手动停止 false）。
+- **手动朗读会「接麦」**：抢占当前朗读，并把本轮记入 `suppressedAutoKeys` —— 本轮后续流式句子不再朗读（否则新句一到就会打断刚点的历史消息）。下一条 prompt（`resetTtsForNewPrompt`）恢复自动朗读；切换会话（`leaveTtsSession`）只停声、清掉抑制（切回来还能继续读）。
+- **「停止朗读」三件事缺一不可**：抑制本轮（按最近一次自动朗读的 key）、作废在册 id（丢弃在途音频）、停播放并关会话。
+- **错误与冷却**：自动朗读启动失败（未启用 Provider / 鉴权失败）进 30s 冷却，避免逐句刷 toast；手动朗读不受冷却约束（用户点了就再试）。错误统一由 `App.tsx` 注册的 `onTtsError` 弹 toast。
+- **偏好存 localStorage**（`fello.tts.prefs` 的自动朗读开关与音量）：纯播放侧偏好，主进程不需要知道，故不进 settings.json；音量作用于播放器的 master `GainNode`。
+
+**计费边界**（抢占 / 停止时哪些文本不再产生费用）：
+
+| 文本状态 | 是否计费 |
+| --- | --- |
+| 点击前已 `flush` 给 provider 的句子（音频可能仍在回程） | 已计费，不可取消；分片被闸门丢弃（付了钱但听不到） |
+| 链上排队、还没执行的句子（`dead` 后每步开头即返回） | 不计费 |
+| 点击之后新到达的流式文本（`feedTtsStream` 在抑制检查处直接返回，连分句都不做） | 不计费 |
+
+因为渲染层 IPC 链是严格串行的（每步 `await`），任一时刻最多一句在途 —— 抢占白花的成本上界 ≈ 最后那一句；主进程 `speak()` 遇到已关闭会话会直接 return，是第二道保险。

@@ -95,7 +95,7 @@
 - **`src/backend/memory.ts`**：项目级持久记忆模块（语义查询/存储 + memo 事务管理），Socket 路由注册（`memory/query`、`memory/store`、`memo/read`、`memo/touch`、`memo/add`、`memo/delete`、`memo/set-weight`）
 - **`src/backend/image-generation.ts`**：图片生成模块，调用 OpenAI 兼容 API 生成图片，Socket 路由注册（`image-generation/generate`）
 - **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成/音频文件转写），Socket 路由注册（`toolbox/*`）
-- **`src/backend/speech/`**：语音识别模块。`manager.ts` 管理实时语音输入会话；`config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 配置（两处共用）；`ffmpeg.ts` 定位系统 ffmpeg 并把音频文件解码成 16k/mono/s16le PCM；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）
+- **`src/backend/speech/`**：语音模块（识别 + 合成）。`asr-manager.ts` 管理实时语音输入会话；`asr-config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 的 `ASRConfig`（实时输入与文件转写共用）；`tts-manager.ts` 无状态转发合成句子（每句 `sendText` + `flush`）、`tts-config.ts` 映射为 `TTSConfig`；`util.ts` 是两个方向共用的凭证读取与报错工具；`ffmpeg.ts` 定位系统 ffmpeg 并把音频文件解码成 16k/mono/s16le PCM；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）

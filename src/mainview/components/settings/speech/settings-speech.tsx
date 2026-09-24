@@ -269,7 +269,7 @@ export function SettingsSpeech() {
           <h3 className="text-lg font-medium">{t("settings.speech.title", "Speech")}</h3>
           <button
             type="button"
-            onClick={() => openGuide(i18n.language, "speech-to-text.md")}
+            onClick={() => openGuide(i18n.language, "speech.md")}
             className="inline-flex cursor-default items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <BookOpen className="size-3.5" />

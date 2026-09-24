@@ -18,7 +18,7 @@
 
 `toolbox/*` 汇总 18 条 Session Socket 路由：`toolbox/base64-encode`、`toolbox/base64-decode`、`toolbox/url-encode`、`toolbox/url-decode`、`toolbox/hash`、`toolbox/time`、`toolbox/uuid`、`toolbox/short-id`、`toolbox/random`、`toolbox/rand-int`、`toolbox/choice`、`toolbox/shuffle`、`toolbox/image-metadata`、`toolbox/image-thumbnail`、`toolbox/image-resize`、`toolbox/image-convert`、`toolbox/image-qrcode`、`toolbox/audio-transcribe`。
 
-> `audio_transcribe` 工具始终注册；若「设置 → 语音识别」中没有启用的 Provider，主进程会返回「设置中没有找到语音识别（ASR）配置」的提示，由 Agent 引导用户去配置后重试。
+> `audio_transcribe` 工具始终注册；若「设置 → 语音 → 识别」中没有启用的 Provider，主进程会返回「设置中没有找到语音识别（ASR）配置」的提示，由 Agent 引导用户去配置后重试。
 
 ### 临时 Memo Socket
 
