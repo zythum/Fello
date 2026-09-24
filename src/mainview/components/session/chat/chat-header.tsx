@@ -30,12 +30,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { useMessage } from "../../providers/message";
 import { copyText } from "@/lib/clipboard";
+import { SessionConfigFields } from "@/components/common/session-config";
 import type { SessionInfo, Feature } from "../../../../shared/schema";
-import { ALL_FEATURES, FEATURE_I18N_KEYS } from "../../../../shared/constants";
 
 interface ChatHeaderProps {
   session: SessionInfo;
@@ -45,7 +44,6 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const navigate = useNavigate();
-  const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
   const projects = useAppStore((s) => s.projects);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const isMacApp = useAppStore((s) => s.isMacApp);
@@ -60,12 +58,6 @@ export function ChatHeader({ session }: ChatHeaderProps) {
   const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-
-  const handleToggle = useCallback((mcpId: string) => {
-    setLocalMcpServers((prev) =>
-      prev.includes(mcpId) ? prev.filter((id) => id !== mcpId) : [...prev, mcpId],
-    );
-  }, []);
 
   const handlePermissionChange = useCallback(
     async (permissionMode: SessionInfo["permissionMode"]) => {
@@ -214,114 +206,16 @@ export function ChatHeader({ session }: ChatHeaderProps) {
                 {/* Divider */}
                 <div className="border-t border-border/50 my-1" />
 
-                {/* Permission segmented control */}
-                <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
-                  {t("sidebar.newSessionDialog.permission", "Permission")}
-                </div>
-                <Tabs
-                  value={session.permissionMode}
-                  onValueChange={(value) => {
-                    if (value === "ask" || value === "allow-all") {
-                      void handlePermissionChange(value);
-                    }
-                  }}
-                  className="w-full px-2 my-2"
-                >
-                  <TabsList className="w-full">
-                    <TabsTrigger value="ask" className="text-xs">
-                      {t("sidebar.newSessionDialog.permissionAsk", "Ask")}
-                    </TabsTrigger>
-                    <TabsTrigger value="allow-all" className="text-xs">
-                      {t("sidebar.newSessionDialog.permissionAllowAll", "Allow all")}
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-
-                {/* Divider */}
-                <div className="border-t border-border/50 my-1" />
-
-                {/* Features toggles */}
-                <div className="px-2 py-1 text-xs font-semibold text-foreground/80">
-                  {t("constant.feature.title", "Features")}
-                </div>
-                <div className={ALL_FEATURES.length >= 2 ? "grid grid-cols-2 gap-0.5" : ""}>
-                  {ALL_FEATURES.map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors cursor-default"
-                      onClick={() =>
-                        setLocalFeatures((prev) =>
-                          prev.includes(feature)
-                            ? prev.filter((f) => f !== feature)
-                            : [...prev, feature],
-                        )
-                      }
-                    >
-                      <span
-                        className={cn(
-                          "truncate mr-2",
-                          localFeatures.includes(feature)
-                            ? "text-muted-foreground"
-                            : "text-muted-foreground/50",
-                        )}
-                      >
-                        {t(FEATURE_I18N_KEYS[feature], feature)}
-                      </span>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                          size="sm"
-                          checked={localFeatures.includes(feature)}
-                          onCheckedChange={(checked) => {
-                            setLocalFeatures((prev) =>
-                              checked ? [...prev, feature] : prev.filter((f) => f !== feature),
-                            );
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-border/50 my-1" />
-
-                {/* MCP server toggles */}
-                {configuredMcpServers.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 mt-1 text-xs font-semibold text-foreground/80">
-                      {t("settings.mcp.title", "MCP Servers")}
-                    </div>
-                    <div
-                      className={configuredMcpServers.length >= 2 ? "grid grid-cols-2 gap-0.5" : ""}
-                    >
-                      {configuredMcpServers.map((mcp) => (
-                        <div
-                          key={mcp.id}
-                          className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors cursor-default"
-                          onClick={() => handleToggle(mcp.id)}
-                        >
-                          <span
-                            className={cn(
-                              "truncate mr-2",
-                              localMcpServers.includes(mcp.id)
-                                ? "text-muted-foreground"
-                                : "text-muted-foreground/50",
-                            )}
-                          >
-                            {mcp.id}
-                          </span>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Switch
-                              size="sm"
-                              checked={localMcpServers.includes(mcp.id)}
-                              onCheckedChange={() => handleToggle(mcp.id)}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* 权限 / features / MCP servers（与加载失败页共用同一实现） */}
+                <SessionConfigFields
+                  variant="popover"
+                  permissionMode={session.permissionMode}
+                  onPermissionModeChange={(mode) => void handlePermissionChange(mode)}
+                  features={localFeatures}
+                  onFeaturesChange={setLocalFeatures}
+                  mcpServers={localMcpServers}
+                  onMcpServersChange={setLocalMcpServers}
+                />
 
                 <div className="mt-1 flex gap-1">
                   <Button

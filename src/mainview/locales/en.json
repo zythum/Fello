@@ -66,8 +66,6 @@
       "title": "Create session",
       "agent": "Agent",
       "selectAgent": "Select an agent",
-      "mcp": "MCP",
-      "noMcp": "No MCP servers configured",
       "permission": "Permission",
       "permissionAsk": "Ask",
       "permissionAllowAll": "Allow all",
@@ -633,7 +631,6 @@
   },
   "constant": {
     "feature": {
-      "title": "Features",
       "askUser": "Ask Me",
       "skills": "Skills",
       "shareToUser": "Share to User",
@@ -806,7 +803,19 @@
     "usageSummaryCached": "  ↻ {{cached}}",
     "connecting": "Connecting to agent...",
     "connectionFailed": "Failed to connect to agent",
-    "retry": "Retry"
+    "connectionFailedHint": "If a session setting (such as MCP or features) is causing this, adjust it below and reload.",
+    "reload": "Reload",
+    "operationInProgress": "Another session operation is already in progress.",
+    "failedToLoadSession": "Failed to load session.",
+    "failedToUpdateMcpServers": "Failed to update MCP servers"
+  },
+  "sessionConfig": {
+    "permission": "Permission",
+    "permissionAsk": "Ask",
+    "permissionAllowAll": "Allow all",
+    "features": "Features",
+    "mcpServers": "MCP Servers",
+    "noMcpServers": "No MCP servers configured"
   },
   "terminalPanel": {
     "title": "Terminal",

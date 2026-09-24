@@ -191,11 +191,21 @@ export interface RestartSessionOptions {
   session: SessionInfo;
   mcpServers?: SessionInfo["mcpServers"];
   features?: SessionInfo["features"];
+  /**
+   * 权限模式。仅在显式传入时写入 storage——
+   * 会话头部是即时 `updateSession`（不传），加载失败页则随「重新加载」一起提交（传）。
+   */
+  permissionMode?: SessionInfo["permissionMode"];
 }
 
 export async function restartSession(options: RestartSessionOptions): Promise<void> {
   return withSessionLifecycleLock(options.session.id, "restart", async () => {
-    const { session, mcpServers = session.mcpServers, features = session.features } = options;
+    const {
+      session,
+      mcpServers = session.mcpServers,
+      features = session.features,
+      permissionMode,
+    } = options;
     let loadingStarted = false;
 
     try {
@@ -211,6 +221,7 @@ export async function restartSession(options: RestartSessionOptions): Promise<vo
           sessionId: session.id,
           mcpServers,
           features,
+          ...(permissionMode !== undefined ? { permissionMode } : {}),
         });
       } catch (error) {
         throw new RestartSessionError("update", error);
@@ -222,6 +233,7 @@ export async function restartSession(options: RestartSessionOptions): Promise<vo
         ...currentSession,
         mcpServers,
         features,
+        ...(permissionMode !== undefined ? { permissionMode } : {}),
         isStreaming: false,
       });
 

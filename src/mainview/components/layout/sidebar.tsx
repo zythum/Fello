@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
 import type { ProjectInfo, SessionInfo, Feature } from "../../../shared/schema";
-import { ALL_FEATURES, FEATURE_I18N_KEYS, EDITOR_LABELS } from "../../../shared/constants";
+import { ALL_FEATURES, EDITOR_LABELS } from "../../../shared/constants";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
+import { SessionConfigFields } from "@/components/common/session-config";
 import { cn } from "@/lib/utils";
 import { copyText } from "@/lib/clipboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1490,113 +1490,14 @@ export function Sidebar() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="text-xs text-muted-foreground">
-                {t("constant.feature.title", { defaultValue: "Features" })}
-              </div>
-              <div
-                className={
-                  ALL_FEATURES.length >= 2 ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1"
-                }
-              >
-                {ALL_FEATURES.map((feature) => (
-                  <div
-                    key={feature}
-                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
-                    onClick={() =>
-                      setNewSessionFeatures((prev) =>
-                        prev.includes(feature)
-                          ? prev.filter((f) => f !== feature)
-                          : [...prev, feature],
-                      )
-                    }
-                  >
-                    <div
-                      className={cn(
-                        "text-xs truncate",
-                        !newSessionFeatures.includes(feature)
-                          ? "text-muted-foreground/50"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
-                    </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        size="sm"
-                        checked={newSessionFeatures.includes(feature)}
-                        onCheckedChange={(checked) => {
-                          setNewSessionFeatures((prev) =>
-                            checked ? [...prev, feature] : prev.filter((f) => f !== feature),
-                          );
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="text-xs text-muted-foreground">
-                {t("sidebar.newSessionDialog.mcp", { defaultValue: "MCP" })}
-              </div>
-              <div
-                className={
-                  configuredMcpServers.length >= 2
-                    ? "grid grid-cols-2 gap-1"
-                    : "flex flex-col gap-1"
-                }
-              >
-                {configuredMcpServers.map((mcp) => (
-                  <div
-                    key={mcp.id}
-                    className="flex items-center justify-between rounded border bg-secondary/50 px-2 h-7 cursor-default hover:bg-accent transition-colors"
-                    onClick={() => {
-                      setNewSessionMcpIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(mcp.id)) next.delete(mcp.id);
-                        else next.add(mcp.id);
-                        return next;
-                      });
-                    }}
-                  >
-                    <div
-                      className={cn(
-                        "text-xs truncate",
-                        !newSessionMcpIds.has(mcp.id)
-                          ? "text-muted-foreground/50"
-                          : "text-muted-foreground",
-                      )}
-                      title={mcp.id}
-                    >
-                      {mcp.id}
-                    </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        size="sm"
-                        checked={newSessionMcpIds.has(mcp.id)}
-                        onCheckedChange={(checked) => {
-                          setNewSessionMcpIds((prev) => {
-                            const next = new Set(prev);
-                            if (checked) next.add(mcp.id);
-                            else next.delete(mcp.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {configuredMcpServers.length === 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    {t("sidebar.newSessionDialog.noMcp", {
-                      defaultValue: "No MCP servers configured",
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* features / MCP servers（与会话头部、加载失败页共用同一实现） */}
+            <SessionConfigFields
+              variant="card"
+              features={newSessionFeatures}
+              onFeaturesChange={setNewSessionFeatures}
+              mcpServers={Array.from(newSessionMcpIds)}
+              onMcpServersChange={(next) => setNewSessionMcpIds(new Set(next))}
+            />
           </div>
           <DialogFooter>
             <Button

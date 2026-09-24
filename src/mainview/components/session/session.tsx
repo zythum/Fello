@@ -4,10 +4,17 @@ import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
 import { Detail, type DetailType } from "./detail/detail";
 import { Panel, type PanelTab } from "./panel/panel";
-import { Loader2, RotateCw } from "lucide-react";
-import { loadSession, SessionLifecycleBusyError } from "../../lib/session-lifecycle";
+import { Loader2, RotateCw, TriangleAlert } from "lucide-react";
+import {
+  loadSession,
+  restartSession,
+  RestartSessionError,
+  SessionLifecycleBusyError,
+} from "../../lib/session-lifecycle";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { SessionConfigFields } from "../common/session-config";
+import { extractErrorMessage } from "@/lib/utils";
 import type { SessionInfo } from "../../../shared/schema";
 import { useMessage } from "../providers/message";
 
@@ -126,36 +133,19 @@ export function Session({ session }: { session: SessionInfo }) {
   return (
     <main ref={setMainEl} className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
       {isLoading || sessionConnected !== "connected" || isCreatingSession ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 relative">
+        <div className="relative flex flex-1 flex-col overflow-hidden">
           <div className="absolute left-0 top-0 right-0 h-12" style={{ WebkitAppRegion: "drag" }} />
           {connectionError && !isCreatingSession ? (
-            <>
-              <p className="text-sm font-normal text-muted-foreground">
-                {t("session.connectionFailed")}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setConnectionError(false);
-                  void loadSession(sessionId, { force: true, loadHistory: true }).catch((err) => {
-                    if (err instanceof SessionLifecycleBusyError) return;
-                    setConnectionError(true);
-                    toast.error(err instanceof Error ? err.message : String(err));
-                  });
-                }}
-              >
-                <RotateCw className="mr-1.5 size-3.5" />
-                {t("session.retry")}
-              </Button>
-            </>
+            <div className="flex w-full min-h-0 flex-1 overflow-y-auto">
+              <SessionConnectionError key={sessionId} session={session} />
+            </div>
           ) : (
-            <>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4">
               <Loader2 className="size-8 animate-spin text-primary" />
               <p className="text-sm font-normal text-muted-foreground/60">
                 {t("session.connecting")}
               </p>
-            </>
+            </div>
           )}
         </div>
       ) : sessionId ? (
@@ -226,5 +216,84 @@ export function Session({ session }: { session: SessionInfo }) {
         </div>
       ) : null}
     </main>
+  );
+}
+
+/**
+ * 会话加载失败态。
+ *
+ * 直接暴露会话级配置（权限 / features / MCP servers）：加载失败往往是某个 MCP server
+ * 起不来、或 feature 之间互斥导致的，只留一个「重试」会让用户无路可走。这里让用户就地
+ * 修正配置，再用修正后的配置重新加载——`restartSession` 会先写入配置、再强制重启 bridge，
+ * 与 iLink 的 `!f` / `!c` 走同一条链路。
+ *
+ * 由父级以 `key={sessionId}` 挂载，因此切换会话时本地配置会重置为新会话的配置。
+ */
+function SessionConnectionError({ session }: { session: SessionInfo }) {
+  const { t } = useTranslation();
+  const { toast } = useMessage();
+  const [mcpServers, setMcpServers] = useState(session.mcpServers);
+  const [features, setFeatures] = useState(session.features);
+  const [permissionMode, setPermissionMode] = useState(session.permissionMode);
+  const [isReloading, setIsReloading] = useState(false);
+
+  const handleReload = async () => {
+    if (isReloading) return;
+    setIsReloading(true);
+    try {
+      await restartSession({ session, mcpServers, features, permissionMode });
+    } catch (err) {
+      console.error("Failed to reload session:", err);
+      if (err instanceof SessionLifecycleBusyError) {
+        toast.error(
+          t("session.operationInProgress", "Another session operation is already in progress."),
+        );
+        return;
+      }
+      const cause = err instanceof RestartSessionError ? err.cause : err;
+      const fallback =
+        err instanceof RestartSessionError && err.stage === "update"
+          ? t("session.failedToUpdateMcpServers", "Failed to update MCP servers")
+          : t("session.failedToLoadSession", "Failed to load session.");
+      toast.error(extractErrorMessage(cause) || fallback);
+    } finally {
+      setIsReloading(false);
+    }
+  };
+
+  return (
+    <div className="m-auto flex w-full max-w-md flex-col items-center gap-4 px-6 py-8">
+      <div className="flex flex-col items-center gap-1.5">
+        <TriangleAlert className="size-6 text-amber-500" />
+        <p className="text-sm font-normal text-muted-foreground">{t("session.connectionFailed")}</p>
+        <p className="text-center text-xs text-muted-foreground/60">
+          {t(
+            "session.connectionFailedHint",
+            "If a session setting (such as MCP or features) is causing this, adjust it below and reload.",
+          )}
+        </p>
+      </div>
+
+      <div className="w-full rounded-lg border border-border bg-card/50 p-3">
+        <SessionConfigFields
+          variant="card"
+          permissionMode={permissionMode}
+          onPermissionModeChange={setPermissionMode}
+          features={features}
+          onFeaturesChange={setFeatures}
+          mcpServers={mcpServers}
+          onMcpServersChange={setMcpServers}
+        />
+      </div>
+
+      <Button size="sm" onClick={() => void handleReload()} disabled={isReloading}>
+        {isReloading ? (
+          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+        ) : (
+          <RotateCw className="mr-1.5 size-3.5" />
+        )}
+        {t("session.reload", "Reload")}
+      </Button>
+    </div>
   );
 }

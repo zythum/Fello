@@ -65,8 +65,6 @@
       "title": "新建会话",
       "agent": "智能体",
       "selectAgent": "选择智能体",
-      "mcp": "MCP",
-      "noMcp": "未配置 MCP 服务器",
       "permission": "权限",
       "permissionAsk": "每次询问",
       "permissionAllowAll": "全部允许",
@@ -632,7 +630,6 @@
   },
   "constant": {
     "feature": {
-      "title": "功能",
       "askUser": "向我提问",
       "skills": "技能",
       "shareToUser": "分享给用户",
@@ -805,7 +802,19 @@
     "usageSummaryCached": "  ↻ {{cached}}",
     "connecting": "正在连接智能体...",
     "connectionFailed": "连接智能体失败",
-    "retry": "重试"
+    "connectionFailedHint": "会话设置（如 MCP、功能）异常时可调整下方选项，再重新加载。",
+    "reload": "重新加载",
+    "operationInProgress": "已有其他会话操作正在进行中。",
+    "failedToLoadSession": "加载会话失败。",
+    "failedToUpdateMcpServers": "更新 MCP 服务器失败"
+  },
+  "sessionConfig": {
+    "permission": "权限",
+    "permissionAsk": "每次询问",
+    "permissionAllowAll": "全部允许",
+    "features": "功能",
+    "mcpServers": "MCP 服务器",
+    "noMcpServers": "未配置 MCP 服务器"
   },
   "terminalPanel": {
     "title": "终端",
