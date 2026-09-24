@@ -502,8 +502,7 @@
         "selectProvider": "请选择服务商。",
         "enterApiKey": "请输入 API Key。",
         "enterAppId": "请输入 App ID。",
-        "enterApiSecret": "请输入 API Secret。",
-        "enterVoice": "请输入音色名称。"
+        "enterApiSecret": "请输入 API Secret。"
       }
     },
     "proxy": {

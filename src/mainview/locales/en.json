@@ -503,8 +503,7 @@
         "selectProvider": "Please select a provider.",
         "enterApiKey": "Please enter an API key.",
         "enterAppId": "Please enter an App ID.",
-        "enterApiSecret": "Please enter an API secret.",
-        "enterVoice": "Please enter a voice name."
+        "enterApiSecret": "Please enter an API secret."
       }
     },
     "proxy": {

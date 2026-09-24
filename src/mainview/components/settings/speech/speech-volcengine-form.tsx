@@ -4,6 +4,7 @@ import { Controller, FormProvider, useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { VOLC_TTS_VOICE } from "../../../../shared/speech";
 import { SpeechCommonFields } from "./speech-common-fields";
 import { OptionalLabel, SpeechSection } from "./speech-form-section";
 import {
@@ -117,77 +118,58 @@ export function SpeechVolcengineForm({
         </FieldGroup>
 
         {/* 右：识别 / 合成 */}
-        <FieldGroup>
-          <Controller
-            name="asrEnabled"
-            control={form.control}
-            render={({ field }) => (
-              <SpeechSection
-                title={t("settings.speech.form.recognition", "Recognition")}
-                description={t(
-                  "settings.speech.form.recognitionDesc",
-                  "Realtime speech-to-text for chat voice input.",
-                )}
-                checked={field.value}
-                onCheckedChange={field.onChange}
-              >
-                <Controller
-                  name="asrResourceId"
-                  control={form.control}
-                  render={({ field: resourceField }) => (
-                    <Field>
-                      <OptionalLabel htmlFor="speech-vol-resource-id">Resource ID</OptionalLabel>
-                      <Input
-                        {...resourceField}
-                        id="speech-vol-resource-id"
-                        placeholder="volc.seedasr.sauc.duration"
-                        className="h-8 text-[11px]! font-mono"
-                      />
-                    </Field>
-                  )}
-                />
-              </SpeechSection>
+        <FieldGroup className="mt-3">
+          <SpeechSection
+            title={t("settings.speech.form.recognition", "Recognition")}
+            description={t(
+              "settings.speech.form.recognitionDesc",
+              "Realtime speech-to-text for chat voice input.",
             )}
-          />
+          >
+            <Controller
+              name="asrResourceId"
+              control={form.control}
+              render={({ field: resourceField }) => (
+                <Field>
+                  <OptionalLabel htmlFor="speech-vol-resource-id">Resource ID</OptionalLabel>
+                  <Input
+                    {...resourceField}
+                    id="speech-vol-resource-id"
+                    placeholder="volc.seedasr.sauc.duration"
+                    className="h-8 text-[11px]! font-mono"
+                  />
+                </Field>
+              )}
+            />
+          </SpeechSection>
 
-          <Controller
-            name="ttsEnabled"
-            control={form.control}
-            render={({ field }) => (
-              <SpeechSection
-                title={t("settings.speech.form.synthesis", "Synthesis")}
-                description={t(
-                  "settings.speech.form.synthesisDesc",
-                  "Read agent replies out loud with this voice.",
-                )}
-                checked={field.value}
-                onCheckedChange={field.onChange}
-              >
-                <Controller
-                  name="voice"
-                  control={form.control}
-                  render={({ field: voiceField, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel
-                        htmlFor="speech-vol-voice"
-                        className="text-[11px] text-muted-foreground"
-                      >
-                        {t("settings.speech.form.voice", "Voice")}
-                      </FieldLabel>
-                      <Input
-                        {...voiceField}
-                        id="speech-vol-voice"
-                        placeholder="zh_female_wanwanxiaohe_moon_bigtts"
-                        aria-invalid={fieldState.invalid}
-                        className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                      />
-                      {renderError(fieldState.error?.message)}
-                    </Field>
-                  )}
-                />
-              </SpeechSection>
+          <SpeechSection
+            title={t("settings.speech.form.synthesis", "Synthesis")}
+            description={t(
+              "settings.speech.form.synthesisDesc",
+              "Read agent replies out loud with this voice.",
             )}
-          />
+          >
+            <Controller
+              name="voice"
+              control={form.control}
+              render={({ field: voiceField, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <OptionalLabel htmlFor="speech-vol-voice">
+                    {t("settings.speech.form.voice", "Voice")}
+                  </OptionalLabel>
+                  <Input
+                    {...voiceField}
+                    id="speech-vol-voice"
+                    placeholder={VOLC_TTS_VOICE}
+                    aria-invalid={fieldState.invalid}
+                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                  />
+                  {renderError(fieldState.error?.message)}
+                </Field>
+              )}
+            />
+          </SpeechSection>
         </FieldGroup>
       </form>
     </FormProvider>
