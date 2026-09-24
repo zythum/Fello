@@ -61,9 +61,9 @@ const SettingsImageGeneration = lazyNamed(
   () => import("./components/settings/image-generation/settings-image-generation"),
   "SettingsImageGeneration",
 );
-const SettingsSpeechToText = lazyNamed(
-  () => import("./components/settings/speech-to-text/settings-speech-to-text"),
-  "SettingsSpeechToText",
+const SettingsSpeech = lazyNamed(
+  () => import("./components/settings/speech/settings-speech"),
+  "SettingsSpeech",
 );
 const SettingsPeripherals = lazyNamed(
   () => import("./components/settings/peripherals/settings-peripherals"),
@@ -124,7 +124,7 @@ export function AppRouter() {
             <Route path="snippets" element={<SettingsSnippets />} />
             <Route path="memory" element={<SettingsMemory />} />
             <Route path="image-generation" element={<SettingsImageGeneration />} />
-            <Route path="speech-to-text" element={<SettingsSpeechToText />} />
+            <Route path="speech" element={<SettingsSpeech />} />
             <Route path="peripherals" element={<SettingsPeripherals />} />
           </Route>
           <Route path="/skills" element={<SkillsLayout />}>

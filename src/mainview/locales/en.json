@@ -465,38 +465,46 @@
         "jsonObject": "Must be a valid JSON object with string values."
       }
     },
-    "speechToText": {
-      "title": "Speech to Text",
-      "desc": "Configure realtime speech recognition providers for chat voice input.",
+    "speech": {
+      "title": "Speech",
+      "desc": "Configure voice input (speech-to-text) and voice output (speech synthesis).",
       "guide": "User Guide",
       "providers": "Providers",
       "add": "Add Provider",
       "addProvider": "Add Provider",
       "editProvider": "Edit Provider",
-      "dialogDesc": "Configure a realtime speech-to-text provider for voice input.",
+      "dialogDesc": "Configure one provider for speech recognition and/or speech synthesis.",
       "edit": "Edit",
       "delete": "Delete",
-      "empty": "No speech-to-text providers configured",
+      "empty": "No speech providers configured",
       "updateFailed": "Failed to update configuration.",
       "confirmDeleteTitle": "Delete Provider",
-      "confirmDeleteDesc": "Delete this speech provider?",
+      "confirmDeleteDesc": "Are you sure you want to delete this speech provider?",
       "cancel": "Cancel",
       "save": "Save",
+      "shortRecognition": "ASR",
+      "shortSynthesis": "TTS",
+      "form": {
+        "name": "Name",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "appId": "App ID",
+        "apiSecret": "API Secret",
+        "language": "Language",
+        "voice": "Voice",
+        "optional": " (optional)",
+        "recognition": "Recognition",
+        "recognitionDesc": "Realtime speech-to-text for chat voice input.",
+        "synthesis": "Synthesis",
+        "synthesisDesc": "Read agent replies out loud with this voice."
+      },
       "validation": {
         "enterName": "Please enter a name.",
         "selectProvider": "Please select a provider.",
         "enterApiKey": "Please enter an API key.",
         "enterAppId": "Please enter an App ID.",
-        "enterApiSecret": "Please enter an API secret."
-      },
-      "form": {
-        "name": "Name",
-        "provider": "Provider",
-        "appId": "App ID",
-        "apiKey": "API Key",
-        "apiSecret": "API Secret",
-        "optional": " (optional)",
-        "language": "Language (optional)"
+        "enterApiSecret": "Please enter an API secret.",
+        "enterVoice": "Please enter a voice name."
       }
     },
     "proxy": {

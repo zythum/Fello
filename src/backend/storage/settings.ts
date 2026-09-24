@@ -74,21 +74,30 @@ interface ImageGenerationProviderMeta {
   active: boolean;
 }
 
-interface SpeechToTextProviderMeta {
+/**
+ * 语音 Provider 的持久化形态：识别（STT）与合成（TTS）合并为一条记录。
+ *
+ * 两侧凭证同源，方向相关字段分开存放：识别用 `asrModel` / `asrResourceId`，
+ * 合成用 `ttsModel` / `voice`；`sttEnabled` / `ttsEnabled` 各自独立开关。
+ */
+interface SpeechProviderMeta {
   id: string;
   name: string;
   provider: "volcengine" | "dashscope" | "openai" | "iflytek";
   apiKey: string;
   appId?: string;
   apiSecret?: string;
-  resourceId?: string;
-  model?: string;
   baseUrl?: string;
   workspaceId?: string;
   region?: "cn-beijing" | "ap-southeast-1";
   workspace?: string;
   language?: string;
-  active: boolean;
+  asrModel?: string;
+  asrResourceId?: string;
+  ttsModel?: string;
+  voice?: string;
+  sttEnabled: boolean;
+  ttsEnabled: boolean;
 }
 
 interface SettingsMeta {
@@ -125,7 +134,7 @@ interface SettingsMeta {
   proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
   imageGeneration?: ImageGenerationProviderMeta[];
-  speechToText?: SpeechToTextProviderMeta[];
+  speechProviders?: SpeechProviderMeta[];
   /** 外设「生效」开关；列表本身来自 src/shared/peripherals.ts 的内置枚举 */
   peripherals?: PeripheralSettingInfo[];
 }
@@ -426,41 +435,75 @@ function readSettings(): SettingsMeta {
           }))
       : [];
 
-    const speechToText: SpeechToTextProviderMeta[] = Array.isArray(rawObj?.speechToText)
-      ? (rawObj.speechToText as unknown[])
-          .filter((value): value is Record<string, unknown> => isObject(value))
-          .filter((value) => {
-            const provider = value.provider;
-            return (
-              typeof value.id === "string" &&
-              typeof value.name === "string" &&
-              typeof value.apiKey === "string" &&
-              (provider === "volcengine" ||
-                provider === "dashscope" ||
-                provider === "openai" ||
-                provider === "iflytek")
-            );
-          })
-          .map((value) => ({
-            id: value.id as string,
-            name: value.name as string,
-            provider: value.provider as SpeechToTextProviderMeta["provider"],
-            apiKey: value.apiKey as string,
-            appId: typeof value.appId === "string" ? value.appId : undefined,
-            apiSecret: typeof value.apiSecret === "string" ? value.apiSecret : undefined,
-            resourceId: typeof value.resourceId === "string" ? value.resourceId : undefined,
-            model: typeof value.model === "string" ? value.model : undefined,
-            baseUrl: typeof value.baseUrl === "string" ? value.baseUrl : undefined,
-            workspaceId: typeof value.workspaceId === "string" ? value.workspaceId : undefined,
-            region:
-              value.region === "cn-beijing" || value.region === "ap-southeast-1"
-                ? value.region
-                : undefined,
-            workspace: typeof value.workspace === "string" ? value.workspace : undefined,
-            language: typeof value.language === "string" ? value.language : undefined,
-            active: typeof value.active === "boolean" ? value.active : false,
-          }))
-      : [];
+    const speechProviders: SpeechProviderMeta[] = (() => {
+      const isSpeechProvider = (value: Record<string, unknown>): boolean => {
+        const provider = value.provider;
+        return (
+          typeof value.id === "string" &&
+          typeof value.name === "string" &&
+          typeof value.apiKey === "string" &&
+          (provider === "volcengine" ||
+            provider === "dashscope" ||
+            provider === "openai" ||
+            provider === "iflytek")
+        );
+      };
+
+      const parseShared = (
+        value: Record<string, unknown>,
+      ): Omit<
+        SpeechProviderMeta,
+        "asrModel" | "asrResourceId" | "ttsModel" | "voice" | "sttEnabled" | "ttsEnabled"
+      > => ({
+        id: value.id as string,
+        name: value.name as string,
+        provider: value.provider as SpeechProviderMeta["provider"],
+        apiKey: value.apiKey as string,
+        appId: typeof value.appId === "string" ? value.appId : undefined,
+        apiSecret: typeof value.apiSecret === "string" ? value.apiSecret : undefined,
+        baseUrl: typeof value.baseUrl === "string" ? value.baseUrl : undefined,
+        workspaceId: typeof value.workspaceId === "string" ? value.workspaceId : undefined,
+        region:
+          value.region === "cn-beijing" || value.region === "ap-southeast-1"
+            ? value.region
+            : undefined,
+        workspace: typeof value.workspace === "string" ? value.workspace : undefined,
+        language: typeof value.language === "string" ? value.language : undefined,
+      });
+
+      const rows = (input: unknown): Record<string, unknown>[] =>
+        Array.isArray(input)
+          ? input
+              .filter((value): value is Record<string, unknown> => isObject(value))
+              .filter(isSpeechProvider)
+          : [];
+
+      // 合并后的格式：单一 speechProviders 列表（推荐路径）
+      if (Array.isArray(rawObj?.speechProviders)) {
+        return rows(rawObj.speechProviders).map((value) => ({
+          ...parseShared(value),
+          asrModel: typeof value.asrModel === "string" ? value.asrModel : undefined,
+          asrResourceId: typeof value.asrResourceId === "string" ? value.asrResourceId : undefined,
+          ttsModel: typeof value.ttsModel === "string" ? value.ttsModel : undefined,
+          voice: typeof value.voice === "string" ? value.voice : undefined,
+          sttEnabled: typeof value.sttEnabled === "boolean" ? value.sttEnabled : false,
+          ttsEnabled: typeof value.ttsEnabled === "boolean" ? value.ttsEnabled : false,
+        }));
+      }
+
+      // 旧格式迁移：`speechToText`（识别列表）→ 单一列表，识别条目原样保留（识别是主路径）。
+      // 旧记录的 `model` / `resourceId` / `active` 分别落到 asrModel / asrResourceId /
+      // sttEnabled；合成字段留空，由用户在「设置 → 语音」里补全。
+      return rows(rawObj?.speechToText).map((value) => ({
+        ...parseShared(value),
+        asrModel: typeof value.model === "string" ? value.model : undefined,
+        asrResourceId: typeof value.resourceId === "string" ? value.resourceId : undefined,
+        ttsModel: undefined,
+        voice: undefined,
+        sttEnabled: typeof value.active === "boolean" ? value.active : false,
+        ttsEnabled: false,
+      }));
+    })();
 
     // 外设开关：只保留 id + enabled，未知 id 由上层（内置枚举）决定是否展示。
     const peripherals: PeripheralSettingInfo[] = Array.isArray(rawObj?.peripherals)
@@ -498,7 +541,7 @@ function readSettings(): SettingsMeta {
       proxy,
       snippets,
       imageGeneration,
-      speechToText,
+      speechProviders,
       peripherals,
     };
   } catch {
@@ -617,21 +660,24 @@ export function getSettings(): SettingsInfo {
       model: p.model,
       active: p.active,
     })),
-    speechToText: (meta.speechToText ?? []).map((p) => ({
+    speechProviders: (meta.speechProviders ?? []).map((p) => ({
       id: p.id,
       name: p.name,
       provider: p.provider,
       apiKey: p.apiKey,
       appId: p.appId,
       apiSecret: p.apiSecret,
-      resourceId: p.resourceId,
-      model: p.model,
       baseUrl: p.baseUrl,
       workspaceId: p.workspaceId,
       region: p.region,
       workspace: p.workspace,
       language: p.language,
-      active: p.active,
+      asrModel: p.asrModel,
+      asrResourceId: p.asrResourceId,
+      ttsModel: p.ttsModel,
+      voice: p.voice,
+      sttEnabled: p.sttEnabled,
+      ttsEnabled: p.ttsEnabled,
     })),
     peripherals: (meta.peripherals ?? []).map((p) => ({
       id: p.id,
@@ -837,24 +883,27 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           active: p.active,
         }))
       : prevMeta.imageGeneration,
-    speechToText: settings.speechToText
-      ? settings.speechToText.map((p) => ({
+    speechProviders: settings.speechProviders
+      ? settings.speechProviders.map((p) => ({
           id: p.id,
           name: p.name,
           provider: p.provider,
           apiKey: p.apiKey,
           appId: p.appId?.trim() || undefined,
           apiSecret: p.apiSecret?.trim() || undefined,
-          resourceId: p.resourceId?.trim() || undefined,
-          model: p.model?.trim() || undefined,
           baseUrl: p.baseUrl?.trim() || undefined,
           workspaceId: p.workspaceId?.trim() || undefined,
           region: p.region,
           workspace: p.workspace?.trim() || undefined,
           language: p.language?.trim() || undefined,
-          active: p.active,
+          asrModel: p.asrModel?.trim() || undefined,
+          asrResourceId: p.asrResourceId?.trim() || undefined,
+          ttsModel: p.ttsModel?.trim() || undefined,
+          voice: p.voice?.trim() || undefined,
+          sttEnabled: p.sttEnabled,
+          ttsEnabled: p.ttsEnabled,
         }))
-      : prevMeta.speechToText,
+      : (prevMeta.speechProviders ?? []),
     peripherals: settings.peripherals
       ? settings.peripherals.map((p) => ({
           id: p.id,

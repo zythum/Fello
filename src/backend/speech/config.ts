@@ -1,5 +1,5 @@
 import type { ASRConfig, RealtimeASROptions } from "unified-realtime-asr";
-import type { SpeechToTextProviderInfo } from "../../shared/schema";
+import type { SpeechProviderInfo } from "../../shared/schema";
 import type { BackendContext } from "../types";
 
 /**
@@ -33,7 +33,7 @@ export function errorMessage(error: unknown): string {
 }
 
 function buildOptions(
-  provider: SpeechToTextProviderInfo,
+  provider: SpeechProviderInfo,
   overrides: BuildConfigOverrides = {},
 ): RealtimeASROptions {
   return {
@@ -46,13 +46,13 @@ function buildOptions(
     autoReconnect: false,
     transcriptionModel:
       provider.provider === "openai"
-        ? (optionalString(provider.model) ?? DEFAULT_OPENAI_MODEL)
+        ? (optionalString(provider.asrModel) ?? DEFAULT_OPENAI_MODEL)
         : undefined,
   };
 }
 
 export function buildConfig(
-  provider: SpeechToTextProviderInfo,
+  provider: SpeechProviderInfo,
   overrides: BuildConfigOverrides = {},
 ): ASRConfig {
   const options = buildOptions(provider, overrides);
@@ -63,7 +63,7 @@ export function buildConfig(
       return {
         provider: "volcengine",
         apiKey: required(provider.apiKey, "API Key"),
-        resourceId: optionalString(provider.resourceId),
+        resourceId: optionalString(provider.asrResourceId),
         appId: optionalString(provider.appId),
         url,
         options,
@@ -72,7 +72,7 @@ export function buildConfig(
       return {
         provider: "dashscope",
         apiKey: required(provider.apiKey, "API Key"),
-        model: optionalString(provider.model) ?? DEFAULT_DASHSCOPE_MODEL,
+        model: optionalString(provider.asrModel) ?? DEFAULT_DASHSCOPE_MODEL,
         workspaceId: optionalString(provider.workspaceId),
         region: provider.region,
         workspace: optionalString(provider.workspace),
@@ -98,12 +98,12 @@ export function buildConfig(
   }
 }
 
-export function getActiveProvider(ctx: BackendContext): SpeechToTextProviderInfo {
-  const provider = ctx.storage.getSettings().speechToText.find((item) => item.active);
+export function getActiveProvider(ctx: BackendContext): SpeechProviderInfo {
+  const provider = ctx.storage.getSettings().speechProviders.find((item) => item.sttEnabled);
   if (!provider) {
     throw new Error(
       "设置中没有找到语音识别（ASR）配置：当前没有启用中的 Provider。" +
-        "请先在「设置 → 语音识别」中配置并启用一个 Provider，然后重新调用本工具。",
+        "请先在「设置 → 语音 → 识别」中配置并启用一个 Provider，然后重新调用本工具。",
     );
   }
   return provider;

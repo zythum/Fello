@@ -60,10 +60,10 @@ export function SettingsLayout() {
       label: t("settings.imageGeneration.title", "Image Generation"),
     },
     {
-      id: "speech-to-text",
-      href: "/settings/speech-to-text",
+      id: "speech",
+      href: "/settings/speech",
       icon: <Mic className="size-4" />,
-      label: t("settings.speechToText.title", "Speech to Text"),
+      label: t("settings.speech.title", "Speech"),
     },
     {
       id: "snippets",

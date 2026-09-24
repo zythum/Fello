@@ -35,7 +35,7 @@ function AppContent() {
     setEditor,
     setSnippets,
     setImageGeneration,
-    setSpeechToText,
+    setSpeechProviders,
     setVoiceInput,
     setShortcuts,
     setPeripherals,
@@ -100,7 +100,7 @@ function AppContent() {
       if (settings.editor) setEditor(settings.editor);
       if (settings.snippets) setSnippets(settings.snippets);
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
-      if (settings.speechToText) setSpeechToText(settings.speechToText);
+      if (settings.speechProviders) setSpeechProviders(settings.speechProviders);
       if (settings.voiceInput) setVoiceInput(settings.voiceInput);
       if (settings.shortcuts) setShortcuts(settings.shortcuts);
       if (settings.peripherals) setPeripherals(settings.peripherals);
@@ -139,7 +139,7 @@ function AppContent() {
     setEditor,
     setSnippets,
     setImageGeneration,
-    setSpeechToText,
+    setSpeechProviders,
     setVoiceInput,
     setShortcuts,
     setPeripherals,

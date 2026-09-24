@@ -445,23 +445,41 @@ export interface ImageGenerationProviderInfo {
 }
 
 /**
- * 实时语音识别 Provider 配置。凭据只在主进程中使用，渲染层仅通过 IPC 读取设置。
+ * 语音 Provider 统一配置（识别 STT + 合成 TTS）。
+ *
+ * 两侧凭证同源（同一把 API Key / 应用三元组），因此合并为一条记录；
+ * 方向相关的字段分开存放：
+ * - 识别：`asrModel` / `asrResourceId`（仅 volcengine 识别用）
+ * - 合成：`voice`（启用合成时必填）/ `ttsModel`
+ * 扁平字段超集：各 provider 的表单只暴露其 ASR/TTS Config 实际拥有的字段
+ * （如 volcengine 合成没有 workspaceId/region，iflytek 两侧都没有 model）。
+ *
+ * 凭据只在主进程中使用，渲染层仅通过 IPC 读取设置。
  */
-export interface SpeechToTextProviderInfo {
+export interface SpeechProviderInfo {
   id: string;
   name: string;
   provider: "volcengine" | "dashscope" | "openai" | "iflytek";
   apiKey: string;
   appId?: string;
   apiSecret?: string;
-  resourceId?: string;
-  model?: string;
   baseUrl?: string;
   workspaceId?: string;
   region?: "cn-beijing" | "ap-southeast-1";
   workspace?: string;
   language?: string;
-  active: boolean;
+  /** 识别模型（ASR）；留空走各家识别默认模型 */
+  asrModel?: string;
+  /** 火山引擎识别资源 ID（volc.seedasr.*），仅 volcengine 识别使用 */
+  asrResourceId?: string;
+  /** 合成模型（TTS）；留空走各家合成默认模型 */
+  ttsModel?: string;
+  /** 音色 / 发音人。各家音色名不通用，启用合成时必填。 */
+  voice?: string;
+  /** 是否用于识别（全局至多一个启用） */
+  sttEnabled: boolean;
+  /** 是否用于合成（全局至多一个启用） */
+  ttsEnabled: boolean;
 }
 
 export type ShortcutSettings = Record<string, string[]>;
@@ -496,8 +514,8 @@ export interface SettingsInfo {
   snippets: SnippetInfo[];
   /** 图片生成 Provider 列表 */
   imageGeneration: ImageGenerationProviderInfo[];
-  /** 实时语音识别 Provider 列表 */
-  speechToText: SpeechToTextProviderInfo[];
+  /** 语音 Provider 列表（识别 + 合成统一配置） */
+  speechProviders: SpeechProviderInfo[];
   /**
    * 外设「生效」开关列表。
    * 列表由 `src/shared/peripherals.ts` 内置枚举，这里只持久化 enabled 状态；

@@ -126,7 +126,7 @@ export interface AppState {
   voiceInput: SettingsInfo["voiceInput"];
   snippets: SettingsInfo["snippets"];
   imageGeneration: SettingsInfo["imageGeneration"];
-  speechToText: SettingsInfo["speechToText"];
+  speechProviders: SettingsInfo["speechProviders"];
   shortcuts: SettingsInfo["shortcuts"];
   /** 外设「生效」开关（列表本身来自 src/shared/peripherals.ts 的内置枚举） */
   peripherals: SettingsInfo["peripherals"];
@@ -196,7 +196,7 @@ export interface AppState {
   setVoiceInput: (voiceInput: SettingsInfo["voiceInput"]) => void;
   setSnippets: (snippets: SettingsInfo["snippets"]) => void;
   setImageGeneration: (imageGeneration: SettingsInfo["imageGeneration"]) => void;
-  setSpeechToText: (speechToText: SettingsInfo["speechToText"]) => void;
+  setSpeechProviders: (speechProviders: SettingsInfo["speechProviders"]) => void;
   setShortcuts: (shortcuts: SettingsInfo["shortcuts"]) => void;
   setPeripherals: (peripherals: SettingsInfo["peripherals"]) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
@@ -245,7 +245,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   voiceInput: { altDoublePress: true },
   snippets: [],
   imageGeneration: [],
-  speechToText: [],
+  speechProviders: [],
   shortcuts: {},
   peripherals: [],
   webUIStatus: { enabled: false, url: null },
@@ -402,7 +402,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setVoiceInput: (voiceInput) => set({ voiceInput }),
   setSnippets: (snippets) => set({ snippets }),
   setImageGeneration: (imageGeneration) => set({ imageGeneration }),
-  setSpeechToText: (speechToText) => set({ speechToText }),
+  setSpeechProviders: (speechProviders) => set({ speechProviders }),
   setShortcuts: (shortcuts) => set({ shortcuts }),
   setPeripherals: (peripherals) => set({ peripherals }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),

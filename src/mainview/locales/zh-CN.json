@@ -464,38 +464,46 @@
         "jsonObject": "必须是有效的 JSON 对象（值为字符串）。"
       }
     },
-    "speechToText": {
-      "title": "语音识别",
-      "desc": "配置聊天输入框使用的实时语音识别服务商。",
+    "speech": {
+      "title": "语音",
+      "desc": "配置语音输入（识别）与语音输出（合成朗读）。",
       "guide": "使用手册",
       "providers": "服务商",
       "add": "添加服务商",
       "addProvider": "添加服务商",
       "editProvider": "编辑服务商",
-      "dialogDesc": "配置实时语音输入的服务商和认证信息。",
+      "dialogDesc": "为一个服务商配置语音识别和（或）语音合成。",
       "edit": "编辑",
       "delete": "删除",
-      "empty": "尚未配置语音识别服务商",
+      "empty": "尚未配置语音服务商",
       "updateFailed": "更新配置失败。",
       "confirmDeleteTitle": "删除服务商",
-      "confirmDeleteDesc": "确定删除这个语音识别服务商吗？",
+      "confirmDeleteDesc": "确定要删除此语音服务商吗？",
       "cancel": "取消",
       "save": "保存",
+      "shortRecognition": "识别",
+      "shortSynthesis": "合成",
+      "form": {
+        "name": "名称",
+        "provider": "服务商",
+        "apiKey": "API Key",
+        "appId": "App ID",
+        "apiSecret": "API Secret",
+        "language": "语言",
+        "voice": "音色",
+        "optional": "（可选）",
+        "recognition": "识别",
+        "recognitionDesc": "聊天输入框使用的实时语音识别。",
+        "synthesis": "合成",
+        "synthesisDesc": "用该音色朗读 Agent 回复。"
+      },
       "validation": {
         "enterName": "请输入名称。",
         "selectProvider": "请选择服务商。",
         "enterApiKey": "请输入 API Key。",
         "enterAppId": "请输入 App ID。",
-        "enterApiSecret": "请输入 API Secret。"
-      },
-      "form": {
-        "name": "名称",
-        "provider": "服务商",
-        "appId": "App ID",
-        "apiKey": "API Key",
-        "apiSecret": "API Secret",
-        "optional": "（可选）",
-        "language": "语言（可选）"
+        "enterApiSecret": "请输入 API Secret。",
+        "enterVoice": "请输入音色名称。"
       }
     },
     "proxy": {
