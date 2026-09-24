@@ -2,9 +2,13 @@ import { ChatHeader } from "./chat-header";
 import { ChatArea } from "./chat-area";
 import { ChatInput } from "./chat-input";
 import { AskUserDialog } from "./chat-ask-user-dialog";
+import { useTtsAutoRead } from "../../../lib/tts/use-tts-auto-read";
 import type { SessionInfo } from "../../../../shared/schema";
 
 export function Chat({ session }: { session: SessionInfo }) {
+  // 流式自动朗读跟着 session 视图走：切走即结束，且同时只有一个视图挂载 → 天然唯一
+  useTtsAutoRead(session.id);
+
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-background">
       <ChatHeader session={session} />

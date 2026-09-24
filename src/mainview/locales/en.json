@@ -571,7 +571,8 @@
   },
   "chat": {
     "failedToLoadSession": "Failed to load session.",
-    "failedToUpdateMcpServers": "Failed to update MCP servers."
+    "failedToUpdateMcpServers": "Failed to update MCP servers.",
+    "readAloud": "Read aloud"
   },
   "tokenUsage": {
     "title": "Token Usage Breakdown",
@@ -665,7 +666,11 @@
     "cacheRead": "Cache read",
     "cacheWrite": "Cache write",
     "cost": "Cost",
-    "viewBreakdown": "View Breakdown"
+    "viewBreakdown": "View Breakdown",
+    "autoRead": "Auto-read replies",
+    "volume": "Volume",
+    "reading": "Reading…",
+    "stopReading": "Stop reading"
   },
   "chatInput": {
     "placeholderDisabled": "Start a new chat to begin...",

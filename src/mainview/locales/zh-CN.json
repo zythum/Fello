@@ -570,7 +570,8 @@
   },
   "chat": {
     "failedToLoadSession": "加载会话失败。",
-    "failedToUpdateMcpServers": "更新 MCP 服务器失败。"
+    "failedToUpdateMcpServers": "更新 MCP 服务器失败。",
+    "readAloud": "朗读"
   },
   "tokenUsage": {
     "title": "Token 使用明细",
@@ -664,7 +665,11 @@
     "cacheRead": "缓存读取",
     "cacheWrite": "缓存写入",
     "cost": "费用",
-    "viewBreakdown": "查看明细"
+    "viewBreakdown": "查看明细",
+    "autoRead": "自动朗读回复",
+    "volume": "音量",
+    "reading": "正在朗读…",
+    "stopReading": "停止朗读"
   },
   "chatInput": {
     "placeholderDisabled": "请先开启新的会话...",

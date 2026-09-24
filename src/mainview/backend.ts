@@ -141,6 +141,9 @@ bridge.on("task-update", (payload) => emit("task-update", payload));
 bridge.on("asr-transcript", (payload) => emit("asr-transcript", payload));
 bridge.on("asr-error", (payload) => emit("asr-error", payload));
 bridge.on("asr-closed", (payload) => emit("asr-closed", payload));
+bridge.on("tts-audio", (payload) => emit("tts-audio", payload));
+bridge.on("tts-error", (payload) => emit("tts-error", payload));
+bridge.on("tts-closed", (payload) => emit("tts-closed", payload));
 // 外设事件只在 Electron 下产生（WebUI 不装载外设运行时，这些 channel 永远不会到达）。
 bridge.on("peripheral-status", (payload) => emit("peripheral-status", payload));
 bridge.on("peripheral-key", (payload) => emit("peripheral-key", payload));

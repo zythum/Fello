@@ -17,6 +17,7 @@ import { PeripheralRuntime } from "./lib/peripherals/peripheral-runtime";
 import { VoicePanelProvider } from "./lib/peripherals/voice-panel-provider";
 import { createAppCommands } from "./lib/commands/command-catalog";
 import { useCommandShortcuts } from "./lib/commands/use-command-shortcuts";
+import { onTtsError } from "./lib/tts/tts-reader";
 import { HashRouter, useLocation, useNavigate } from "react-router-dom";
 import { electron, UpdaterEvent } from "./electron";
 import * as tiks from "@rexa-developer/tiks";
@@ -60,6 +61,13 @@ function AppContent() {
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
+  // TTS 错误（未配置 provider / 鉴权失败等）统一 toast；自动朗读本身由 session 视图持有
+  useEffect(() => {
+    onTtsError((message) => {
+      toast.error(message);
+    });
+    return () => onTtsError(null);
+  }, [toast]);
   const navigate = useNavigate();
   const [isReady, setIsReady] = useState(false);
   const pendingSessionNotificationRef = useRef(

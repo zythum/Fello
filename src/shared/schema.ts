@@ -841,6 +841,27 @@ export type FelloIPCRequests = {
     response: void;
   };
 
+  /** 开始一次语音合成会话（使用启用中的 TTS Provider） */
+  startTts: {
+    params: { ttsSessionId: string };
+    response: { ok: boolean };
+  };
+  /**
+   * 向语音合成会话提交**一句话**。
+   *
+   * 文本整理（markdown 净化 + 分句）在渲染层完成，主进程保持无状态：
+   * 收到即 `sendText` + `flush`，把音频分片通过 `tts-audio` 推回渲染层播放。
+   */
+  speakTts: {
+    params: { ttsSessionId: string; text: string };
+    response: void;
+  };
+  /** 结束一次语音合成会话（补发尾部未成句文本后关闭） */
+  endTts: {
+    params: { ttsSessionId: string };
+    response: void;
+  };
+
   /** 响应通用 askUser 请求（支持自定义选项） */
   respondAskUser: {
     params: { sessionId: string; askUserId: string; value: string | null; reason?: string };
@@ -1228,6 +1249,24 @@ export type FelloIPCEvents = {
   "asr-closed": {
     clientId: string;
     asrSessionId: string;
+    code?: number;
+    reason?: string;
+  };
+  /** 语音合成音频分片（主进程 → 渲染层播放，默认 PCM） */
+  "tts-audio": {
+    ttsSessionId: string;
+    audioB64: string;
+    format: "pcm" | "wav" | "mp3" | "opus" | "aac" | "flac";
+    sampleRate?: number;
+    channels?: number;
+    isFinal: boolean;
+    index?: number;
+  };
+  /** 语音合成错误 */
+  "tts-error": { ttsSessionId: string; message: string };
+  /** 语音合成会话关闭 */
+  "tts-closed": {
+    ttsSessionId: string;
     code?: number;
     reason?: string;
   };

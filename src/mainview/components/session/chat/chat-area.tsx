@@ -8,7 +8,8 @@ import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { copyText as clipboardCopyText } from "@/lib/clipboard";
-import { ArrowDown, ArrowUpToLine, Check, Copy, Bot } from "lucide-react";
+import { speakOnce } from "../../../lib/tts/tts-reader";
+import { ArrowDown, ArrowUpToLine, Check, Copy, Bot, Volume2 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 import { useFocusTarget } from "../../../lib/keyboard";
 
@@ -590,6 +591,21 @@ export function ChatArea({ session }: { session: SessionInfo }) {
                         title={t("userBubble.locate", "Locate")}
                       >
                         <ArrowUpToLine className="size-3.5" />
+                      </Button>
+                    )}
+                    {groupHasText && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakOnce(groupText);
+                        }}
+                        title={t("chat.readAloud", "Read aloud")}
+                        aria-label={t("chat.readAloud", "Read aloud")}
+                      >
+                        <Volume2 className="size-3.5" />
                       </Button>
                     )}
                     {groupHasText && (

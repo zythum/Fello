@@ -28,6 +28,7 @@ import { createMemoryModule } from "./memory";
 import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
 import { createAsrManager } from "./speech/manager";
+import { createTtsManager } from "./speech/tts-manager";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ export function initBackend(
   const memory = createMemoryModule(ctx, { inference: _inference });
   const imageGeneration = createImageGenerationModule(ctx, { ilink: ilink.state });
   const asr = createAsrManager(ctx);
+  const tts = createTtsManager(ctx);
 
   // ── Layer 4: session, project, terminal ──
   const session = createSessionModule(ctx, {
@@ -523,6 +525,17 @@ export function initBackend(
     async stopRealtimeAsr({ clientId, asrSessionId }) {
       await asr.stop(clientId, asrSessionId);
     },
+
+    // Speech Synthesis (TTS)：无状态转发，文本整理在渲染层
+    async startTts({ ttsSessionId }) {
+      return tts.start(ttsSessionId);
+    },
+    async speakTts({ ttsSessionId, text }) {
+      await tts.speak(ttsSessionId, text);
+    },
+    async endTts({ ttsSessionId }) {
+      await tts.end(ttsSessionId);
+    },
   };
 
   // Inject handlers into webui (after assembly)
@@ -532,6 +545,7 @@ export function initBackend(
   async function closeBackend() {
     automation.stopAllCrons();
     await asr.closeAll();
+    await tts.closeAll();
     webui.stop();
     await ilink.stopIlink({ logout: false });
     session.clearSession();
