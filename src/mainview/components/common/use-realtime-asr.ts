@@ -486,15 +486,20 @@ export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrRe
   /**
    * 停止一次录音：停音频（等完尾音 flush）→ 关会话（`finish-task`）。
    *
-   * `close()` 会等服务端把尾句定稿发回来（DashScope 适配器等到 `task-finished`），
-   * 因此这个 Promise 结束时这次的识别结果已经齐了。
+   * `close()` 会等服务端把尾句定稿发回来（DashScope 等适配器等到 `task-finished`），
+   * 因此这个 Promise 结束时这次的识别结果已经齐了（OpenAI 的 `closeImpl()` 是例外，它不等最终结果）。
    *
    * 收尾链会登记到 `stopPromiseRef`，**下一次 `start` 必须先等它结束** ——
    * 外设路径的收尾包含约 800ms 的音频 flush 与 ASR 关闭，若这期间用户又按住语音键，
    * 旧逻辑会因为 `recordingRef` 仍为 true 而静默 return：既不建新的 ASR 会话、
    * 也不重新开麦，听感上就是「复用了上一次录音」（而那一次其实已经关了）。
+   *
+   * 同一条会话上的收尾是**幂等**的：松手已经发起收尾后，这段窗口里到来的提交 / 取消 /
+   * 下一次按住（面板侧都会再调一次 `stop`）只需要等它结束，不能各发一遍
+   * `voiceStop` / `stopRealtimeAsr` —— 后端对同一条会话并发 `close()` 会多报一次错。
    */
   const stop = useCallback(async () => {
+    if (stopPromiseRef.current) return stopPromiseRef.current;
     const run = runStop();
     stopPromiseRef.current = run;
     try {
