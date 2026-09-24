@@ -356,3 +356,35 @@ export const audioTranscribeRespondSchema = z.object({
 
 export type AudioTranscribeRequest = z.infer<typeof audioTranscribeRequestSchema>;
 export type AudioTranscribeRespond = z.infer<typeof audioTranscribeRespondSchema>;
+
+// ── Text to Speech ───────────────────────────────────────────────────
+
+export const textToSpeechRequestSchema = z.object({
+  text: z.string().min(1).describe("The text to synthesize into speech."),
+  output: z
+    .string()
+    .optional()
+    .describe(
+      "Output audio path; a relative path resolves against the project root. If omitted, saves as 'speech.wav' (or 'speech.mp3' when format is 'mp3') in the project root.",
+    ),
+  format: z
+    .enum(["wav", "mp3"])
+    .default("wav")
+    .describe(
+      "Output audio format. 'wav' needs no extra tools; 'mp3' additionally requires the system ffmpeg. Default: wav.",
+    ),
+});
+
+export const textToSpeechRespondSchema = z.object({
+  result: z.object({
+    output: z.string(),
+    format: z.enum(["wav", "mp3"]),
+    sampleRate: z.number(),
+    channels: z.number(),
+    durationSeconds: z.number(),
+    bytes: z.number(),
+  }),
+});
+
+export type TextToSpeechRequest = z.infer<typeof textToSpeechRequestSchema>;
+export type TextToSpeechRespond = z.infer<typeof textToSpeechRespondSchema>;

@@ -19,6 +19,7 @@ import {
   imageConvertRequestSchema,
   qrCodeRequestSchema,
   audioTranscribeRequestSchema,
+  textToSpeechRequestSchema,
   base64EncodeRespondSchema,
   base64DecodeRespondSchema,
   urlEncodeRespondSchema,
@@ -37,6 +38,7 @@ import {
   imageConvertRespondSchema,
   qrCodeRespondSchema,
   audioTranscribeRespondSchema,
+  textToSpeechRespondSchema,
 } from "../../shared/zod/mcp-toolbox-schema";
 import * as http from "http";
 
@@ -66,7 +68,7 @@ const server = new McpServer({
   name: "Toolbox",
   version: "1.0.0",
   description:
-    "Built-in utility tools: base64, URL encode/decode, hash, time, UUID, random, image processing, QR code, audio file transcription, etc.",
+    "Built-in utility tools: base64, URL encode/decode, hash, time, UUID, random, image processing, QR code, audio file transcription, text to speech, etc.",
 });
 
 // ── Base64 Encode ───────────────────────────────────────────────────
@@ -460,6 +462,32 @@ server.registerTool(
         }),
       );
       return { content: [{ type: "text", text: res.result.text }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    }
+  },
+);
+
+// ── Text to Speech ──────────────────────────────────────────────────
+// 工具始终注册：未配置语音合成 / mp3 需要 ffmpeg 而未安装时，由主进程返回带指引的错误。
+
+server.registerTool(
+  "text_to_speech",
+  {
+    description:
+      "Synthesize text into an audio file, using the text-to-speech provider configured in the app settings, and return the output file path. Defaults to WAV (needs no extra tools); format 'mp3' additionally requires the system ffmpeg. If the provider or ffmpeg is unavailable, the result explains what is missing and how to fix it — resolve it, then call this tool again. Pair with share_to_user to let the user listen to the audio.",
+    inputSchema: textToSpeechRequestSchema,
+  },
+  async (input) => {
+    try {
+      const res = textToSpeechRespondSchema.parse(
+        await postToSocket("/toolbox/text-to-speech", {
+          text: input.text,
+          output: input.output,
+          format: input.format,
+        }),
+      );
+      return { content: [{ type: "text", text: JSON.stringify(res.result, null, 2) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
     }

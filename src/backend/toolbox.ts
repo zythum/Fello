@@ -21,6 +21,7 @@ import {
   imageConvertRequestSchema,
   qrCodeRequestSchema,
   audioTranscribeRequestSchema,
+  textToSpeechRequestSchema,
   type Base64EncodeRespond,
   type Base64DecodeRespond,
   type UrlEncodeRespond,
@@ -39,10 +40,12 @@ import {
   type ImageConvertRespond,
   type QrCodeRespond,
   type AudioTranscribeRespond,
+  type TextToSpeechRespond,
 } from "../shared/zod/mcp-toolbox-schema";
 import type { SocketServer } from "./socket-server";
 import type { BackendContext } from "./types";
 import { transcribeAudioFile } from "./speech/transcribe";
+import { synthesizeSpeechToFile } from "./speech/synthesize";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -283,6 +286,19 @@ export function createToolboxModule(ctx: BackendContext): ToolboxModule {
           ffmpegPath,
           timeoutSeconds,
         });
+        return { result: outcome };
+      },
+    );
+
+    // ── Text to Speech ─────────────────────────────────────────────
+    // 依赖「设置 → 语音 → 合成」中已启用的 Provider（未启用时抛出带指引的错误）；
+    // wav 无外部依赖，mp3 另需系统 ffmpeg。
+    server.registry(
+      "toolbox/text-to-speech",
+      async (payload): Promise<TextToSpeechRespond> => {
+        const { text, output, format } = textToSpeechRequestSchema.parse(payload);
+        const outputPath = resolve(projectDir, output ?? `speech.${format}`);
+        const outcome = await synthesizeSpeechToFile(ctx, { text, output: outputPath, format });
         return { result: outcome };
       },
     );

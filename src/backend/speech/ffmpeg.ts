@@ -9,6 +9,9 @@ import { delimiter, dirname, join } from "node:path";
  * 转成语音识别需要的 **16kHz / mono / 16-bit little-endian PCM**。
  * 未安装时由 {@link ffmpegInstallHint} 给出安装指引，交由调用方（Agent）
  * 自行安装后重试。
+ *
+ * 合成侧只有 mp3 输出需要它（{@link encodePcmToMp3}）；wav 由我们自己拼容器头，
+ * 不引入任何外部依赖。
  */
 
 const FFMPEG_BIN = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
@@ -182,5 +185,78 @@ export async function decodeAudioToPcm16k(options: DecodeAudioOptions): Promise<
   if (code !== 0) {
     const detail = stderr.trim() || `进程被终止（${closeSignal ?? "unknown"}）`;
     throw new Error(`ffmpeg 解码音频失败：${detail}`);
+  }
+}
+
+export interface EncodePcmToMp3Options {
+  ffmpegPath: string;
+  /** 原始 PCM 数据（16-bit little-endian，交织声道）。 */
+  pcm: Buffer;
+  sampleRate: number;
+  channels: number;
+  outputPath: string;
+}
+
+/** PCM16LE 上行的 mp3 编码参数：128kbps 恒定码率，人声场景够用且体积小。 */
+const MP3_ARGS = ["-codec:a", "libmp3lame", "-b:a", "128k", "-f", "mp3"];
+
+/**
+ * 用 ffmpeg 把 PCM16LE 原始数据编码成 mp3 写盘（合成结果落地成可分享的文件）。
+ *
+ * 一次性把 PCM 交给 stdin：语音合成产物是内存里的整段音频，不需要边转边传，
+ * 相比落中间文件再转码少一次磁盘往返。
+ */
+export async function encodePcmToMp3(options: EncodePcmToMp3Options): Promise<void> {
+  const { ffmpegPath, pcm, sampleRate, channels, outputPath } = options;
+
+  const child = spawn(
+    ffmpegPath,
+    [
+      "-y",
+      "-nostdin",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "s16le",
+      "-ar",
+      String(sampleRate),
+      "-ac",
+      String(channels),
+      "-i",
+      "-",
+      ...MP3_ARGS,
+      outputPath,
+    ],
+    { stdio: ["pipe", "ignore", "pipe"], windowsHide: true },
+  );
+
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    if (stderr.length < MAX_STDERR_BYTES) stderr += chunk;
+  });
+
+  const exited = new Promise<number | null>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve(code));
+  });
+
+  try {
+    // `end()` 的回调即 'finish'：数据全部交给管道才算写完，天然形成回压。
+    await new Promise<void>((resolve, reject) => {
+      child.stdin.once("error", reject);
+      child.stdin.end(pcm, () => resolve());
+    });
+  } catch (error) {
+    child.kill("SIGKILL");
+    await exited.catch(() => {});
+    throw new Error(`ffmpeg 编码音频失败：${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const code = await exited;
+  if (code !== 0) {
+    const detail = stderr.trim() || `退出码 ${code}`;
+    throw new Error(`ffmpeg 编码 mp3 失败：${detail}`);
   }
 }
