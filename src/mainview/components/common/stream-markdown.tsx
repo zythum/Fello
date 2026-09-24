@@ -448,7 +448,6 @@ export function StreamMarkdown({
         components={resolvedComponents}
         shikiTheme={["github-light", "github-dark"]}
         isAnimating={isStreaming}
-        animated={{ sep: "char" }}
         linkSafety={{ enabled: false }}
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
