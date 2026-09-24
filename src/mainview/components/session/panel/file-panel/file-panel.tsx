@@ -61,9 +61,9 @@ interface Actions {
   createIn: (parentId: string | null, isFolder: boolean) => void;
   deleteNode: (ids: string[]) => void;
   startDrag: (id: string, e: React.DragEvent) => void;
-  dragOver: (e: React.DragEvent, id: string) => void;
+  dragOver: (e: React.DragEvent, id: string, isFolder: boolean) => void;
   dragLeave: () => void;
-  drop: (e: React.DragEvent, id: string) => void;
+  drop: (e: React.DragEvent, id: string, isFolder: boolean) => void;
   dragEnd: () => void;
   revealInFinder: (id: string) => void;
   openInEditor: (id: string) => void;
@@ -72,6 +72,9 @@ interface Actions {
   addToChat: (id: string) => void;
   refresh: () => void;
 }
+
+/** 树末尾空白区的 dropTargetId 标记（项目根目录） */
+const ROOT_DROP_TARGET = "__root__";
 
 const GIT_FOLDER_STATUS = {
   text: "•",
@@ -143,7 +146,9 @@ function TreeItem({
   const isOpen = openFolders.has(node.id);
   const isSelected = selectedIds.has(node.id);
   const isEditing = editingId === node.id;
-  const isDragOver = dropTargetId === node.id;
+  // 目标文件夹展开后的整个区域（名称行 + 所有可见子行）作为一块整体高亮，
+  // 与 VS Code 的 drop feedback（feedback 覆盖整个可见子树）一致。
+  const isDropTargetBlock = node.isFolder && dropTargetId === node.id;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -208,7 +213,12 @@ function TreeItem({
   }
 
   return (
-    <>
+    <div
+      className={cn(
+        "rounded-md",
+        isDropTargetBlock && "bg-primary/5 inset-ring-1 inset-ring-primary",
+      )}
+    >
       <ContextMenu>
         <ContextMenuTrigger
           render={
@@ -231,9 +241,12 @@ function TreeItem({
             e.stopPropagation();
             actions.startDrag(node.id, e);
           }}
-          onDragOver={(e) => node.isFolder && actions.dragOver(e, node.id)}
+          onDragOver={(e) => actions.dragOver(e, node.id, node.isFolder)}
           onDragLeave={actions.dragLeave}
-          onDrop={(e) => node.isFolder && actions.drop(e, node.id)}
+          onDrop={(e) => {
+            e.stopPropagation();
+            actions.drop(e, node.id, node.isFolder);
+          }}
           onDragEnd={actions.dragEnd}
           onContextMenu={(e) => {
             e.stopPropagation();
@@ -247,7 +260,6 @@ function TreeItem({
               ? "bg-primary/8 hover:bg-primary/10"
               : "hover:bg-primary/5 hover:text-foreground",
             isSelected ? "text-foreground bg-primary/6" : "",
-            isDragOver && "relative inset-ring-1 inset-ring-primary bg-primary/5",
           )}
           style={{ paddingLeft: `${depth * 16 + 6}px` }}
           onClick={(e) => {
@@ -432,7 +444,7 @@ function TreeItem({
             {...childProps}
           />
         ))}
-    </>
+    </div>
   );
 }
 
@@ -484,6 +496,8 @@ export const FilePanel = memo(function FilePanel({
     files: Record<string, string>;
   } | null>(null);
   const refreshSeqRef = useRef(0);
+  // 相邻行之间移动时先不立刻清空高亮，避免 drop 反馈出现一帧闪烁
+  const dropTargetClearTimerRef = useRef<number | null>(null);
   const { projects } = useAppStore();
   const { confirm } = useMessage();
 
@@ -1266,15 +1280,47 @@ export const FilePanel = memo(function FilePanel({
     [dragIds],
   );
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, id: string) => {
+  const cancelDropTargetClear = useCallback(() => {
+    if (dropTargetClearTimerRef.current !== null) {
+      window.clearTimeout(dropTargetClearTimerRef.current);
+      dropTargetClearTimerRef.current = null;
+    }
+  }, []);
+
+  const clearDropTarget = useCallback(() => {
+    cancelDropTargetClear();
+    setDropTargetId(null);
+  }, [cancelDropTargetClear]);
+
+  // 参考 VS Code（listView 的 dragleave 延迟清理）：离开某一行时延迟一小段时间再清空高亮，
+  // 期间落到相邻行会直接取消这次清空，避免在行与行之间滑动时闪烁。
+  const scheduleDropTargetClear = useCallback(() => {
+    cancelDropTargetClear();
+    dropTargetClearTimerRef.current = window.setTimeout(() => {
+      dropTargetClearTimerRef.current = null;
+      setDropTargetId(null);
+    }, 50);
+  }, [cancelDropTargetClear]);
+
+  useEffect(() => () => cancelDropTargetClear(), [cancelDropTargetClear]);
+
+  // 参考 VS Code 的落点解析：文件夹行落到自身，文件行落到其父目录，
+  // 目录展开后的可见子块整体都算该目录的落点。只有真的能移动时才接受放置。
+  const updateDropTarget = useCallback(
+    (e: React.DragEvent, destDir: string) => {
+      cancelDropTargetClear();
+      const external = isExternalDrag(e);
+      if (!external && movableIntoDir(dragIds, destDir).length === 0) {
+        // 不接受放置：不阻止默认行为，浏览器会显示禁止光标
+        setDropTargetId(null);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
-      e.dataTransfer.dropEffect =
-        e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
-      setDropTargetId(id);
+      e.dataTransfer.dropEffect = external ? "copy" : "move";
+      setDropTargetId(destDir || ROOT_DROP_TARGET);
     },
-    [dragIds],
+    [cancelDropTargetClear, dragIds, isExternalDrag],
   );
 
   const handleStartDrag = useCallback(
@@ -1450,37 +1496,36 @@ export const FilePanel = memo(function FilePanel({
     [refresh, processEntry, readFileAsBase64, activeProjectId],
   );
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent, targetId: string) => {
+  // destDir 为空串表示项目根目录
+  const handleDropTo = useCallback(
+    async (e: React.DragEvent, destDir: string) => {
       e.preventDefault();
       e.stopPropagation();
-      setDropTargetId(null);
-      if (!activeProjectId) return;
+      clearDropTarget();
 
       if (isExternalDrag(e)) {
-        return handleExternalDrop(e, targetId);
+        await handleExternalDrop(e, destDir);
+        return;
       }
 
-      if (dragIds.length === 0) return;
-      const validIds = dragIds.filter((id) => id !== targetId && !targetId.startsWith(id + "/"));
+      if (dragIds.length === 0 || !activeProjectId) return;
+      const validIds = movableIntoDir(dragIds, destDir);
       if (validIds.length === 0) {
         setDragIds([]);
         return;
       }
 
-      const targetName = targetId.split("/").pop() || "/";
+      const destName = basename(destDir);
       const result = await confirm({
         title: t("filePanel.moveConfirmTitle"),
         content:
-          validIds.length === 1
-            ? t("filePanel.moveConfirmSingle", {
-                name: validIds[0].split("/").pop(),
-                dest: targetName,
-              })
-            : t("filePanel.moveConfirmMultiple", {
-                count: validIds.length,
-                dest: targetName,
-              }),
+          destDir === ""
+            ? validIds.length === 1
+              ? t("filePanel.moveConfirmSingleToRoot", { name: basename(validIds[0]) })
+              : t("filePanel.moveConfirmMultipleToRoot", { count: validIds.length })
+            : validIds.length === 1
+              ? t("filePanel.moveConfirmSingle", { name: basename(validIds[0]), dest: destName })
+              : t("filePanel.moveConfirmMultiple", { count: validIds.length, dest: destName }),
       });
       if (!result) {
         setDragIds([]);
@@ -1489,16 +1534,13 @@ export const FilePanel = memo(function FilePanel({
 
       try {
         await Promise.all(
-          validIds.map((id) => {
-            const srcName = id.split("/").pop()!;
-            const newPath = targetId ? `${targetId}/${srcName}` : srcName;
-            if (id === newPath) return Promise.resolve();
-            return request.moveFile({
+          validIds.map((id) =>
+            request.moveFile({
               projectId: activeProjectId,
               oldRelativePath: id,
-              newRelativePath: newPath,
-            });
-          }),
+              newRelativePath: joinRelativePath(destDir, basename(id)),
+            }),
+          ),
         );
       } catch (err) {
         console.error("Move failed:", extractErrorMessage(err));
@@ -1506,7 +1548,23 @@ export const FilePanel = memo(function FilePanel({
       setDragIds([]);
       refresh();
     },
-    [dragIds, refresh, isExternalDrag, handleExternalDrop, activeProjectId, confirm, t],
+    [
+      dragIds,
+      refresh,
+      isExternalDrag,
+      handleExternalDrop,
+      activeProjectId,
+      confirm,
+      t,
+      clearDropTarget,
+    ],
+  );
+
+  const clearSelectionOnBlankClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) clearSelection();
+    },
+    [clearSelection],
   );
 
   const revealInFinder = useCallback(async (path: string) => {
@@ -1525,12 +1583,12 @@ export const FilePanel = memo(function FilePanel({
     createIn,
     deleteNode,
     startDrag: handleStartDrag,
-    dragOver: handleDragOver,
-    dragLeave: () => setDropTargetId(null),
-    drop: handleDrop,
+    dragOver: (e, id, isFolder) => updateDropTarget(e, isFolder ? id : dirname(id)),
+    dragLeave: scheduleDropTargetClear,
+    drop: (e, id, isFolder) => handleDropTo(e, isFolder ? id : dirname(id)),
     dragEnd: () => {
       setDragIds([]);
-      setDropTargetId(null);
+      clearDropTarget();
     },
     revealInFinder: async (id: string) => {
       if (!activeProjectId || isWebUI) return;
@@ -1962,81 +2020,38 @@ export const FilePanel = memo(function FilePanel({
       ) : (
         <ScrollArea className="min-h-0 flex-1 px-1">
           <ContextMenu>
+            {/* 全区域高亮单独画一层绝对定位的框：垂直 inset-y-1（4px）、水平 inset-x-1（再叠加
+                ScrollArea 的 px-1，实际离面板左右各 8px），上下留白小于左右，且不影响行布局 */}
             <ContextMenuTrigger
-              render={<div ref={treeRef} role="tree" aria-label={t("filePanel.title", "Files")} />}
-              className="min-h-full py-1"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) clearSelection();
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect =
-                  e.dataTransfer.types.includes("Files") && dragIds.length === 0 ? "copy" : "move";
-                setDropTargetId("__root__");
-              }}
-              onDragLeave={() => setDropTargetId(null)}
-              onDrop={async (e) => {
-                e.preventDefault();
-                setDropTargetId(null);
-                if (!cwd) return;
-
-                if (e.dataTransfer.types.includes("Files") && dragIds.length === 0) {
-                  await handleExternalDrop(e, "");
-                  return;
-                }
-
-                if (dragIds.length === 0 || !activeProjectId) return;
-                const validRootIds = dragIds.filter((id) => id.includes("/"));
-                if (validRootIds.length === 0) {
-                  setDragIds([]);
-                  return;
-                }
-
-                const rootResult = await confirm({
-                  title: t("filePanel.moveConfirmTitle"),
-                  content:
-                    validRootIds.length === 1
-                      ? t("filePanel.moveConfirmSingleToRoot", {
-                          name: validRootIds[0].split("/").pop(),
-                        })
-                      : t("filePanel.moveConfirmMultipleToRoot", {
-                          count: validRootIds.length,
-                        }),
-                });
-                if (!rootResult) {
-                  setDragIds([]);
-                  return;
-                }
-
-                try {
-                  await Promise.all(
-                    validRootIds.map((id) => {
-                      const srcName = id.split("/").pop()!;
-                      const newPath = srcName;
-                      if (id === newPath) return Promise.resolve();
-                      return request.moveFile({
-                        projectId: activeProjectId,
-                        oldRelativePath: id,
-                        newRelativePath: newPath,
-                      });
-                    }),
-                  );
-                } catch (err) {
-                  console.error("Move failed:", extractErrorMessage(err));
-                }
-                setDragIds([]);
-                refresh();
-              }}
+              render={<div className="relative flex min-h-full flex-col py-1" />}
+              onDragLeave={scheduleDropTargetClear}
             >
-              {data.map((node) => (
-                <TreeItem
-                  key={node.id}
-                  previewId={previewFileId}
-                  node={node}
-                  depth={0}
-                  {...sharedProps}
-                />
-              ))}
+              {dropTargetId === ROOT_DROP_TARGET && (
+                <div className="pointer-events-none absolute inset-x-0 inset-y-1 rounded-md bg-primary/5 inset-ring-1 inset-ring-primary" />
+              )}
+              <div
+                ref={treeRef}
+                role="tree"
+                aria-label={t("filePanel.title", "Files")}
+                onClick={clearSelectionOnBlankClick}
+              >
+                {data.map((node) => (
+                  <TreeItem
+                    key={node.id}
+                    previewId={previewFileId}
+                    node={node}
+                    depth={0}
+                    {...sharedProps}
+                  />
+                ))}
+              </div>
+              {/* 树末尾的空白区：落到项目根目录的放置目标 */}
+              <div
+                className="min-h-6 flex-1 rounded-md"
+                onClick={clearSelectionOnBlankClick}
+                onDragOver={(e) => updateDropTarget(e, "")}
+                onDrop={(e) => void handleDropTo(e, "")}
+              />
             </ContextMenuTrigger>
             <ContextMenuContent>
               <ContextMenuItem onClick={() => createIn(null, false)}>
@@ -2101,4 +2116,30 @@ function findNode(node: TreeNode, id: string): TreeNode | null {
     }
   }
   return null;
+}
+
+function basename(relativePath: string): string {
+  const slash = relativePath.lastIndexOf("/");
+  return slash === -1 ? relativePath : relativePath.slice(slash + 1);
+}
+
+function dirname(relativePath: string): string {
+  const slash = relativePath.lastIndexOf("/");
+  return slash === -1 ? "" : relativePath.slice(0, slash);
+}
+
+function joinRelativePath(dir: string, name: string): string {
+  return dir ? `${dir}/${name}` : name;
+}
+
+/**
+ * 拖拽到 destDir 时真正需要移动的项：剔除目标目录自身、目标的子目录，
+ * 以及本来就在目标目录里的项（落在文件行上时很容易命中这种情况）。
+ */
+function movableIntoDir(ids: string[], destDir: string): string[] {
+  return ids.filter((id) => {
+    if (id === destDir) return false;
+    if (destDir.startsWith(`${id}/`)) return false;
+    return joinRelativePath(destDir, basename(id)) !== id;
+  });
 }
