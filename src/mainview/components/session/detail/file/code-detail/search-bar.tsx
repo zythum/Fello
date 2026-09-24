@@ -29,6 +29,9 @@ export function SearchBar({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 输入法组合中（如拼音 / 假名候选未上屏）不处理：此时 Enter 是候选上屏、
+    // Escape 是取消候选，不该顺带跳转匹配或关闭查找框。
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter") {
       e.preventDefault();
       if (e.shiftKey) {

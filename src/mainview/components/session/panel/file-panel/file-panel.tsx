@@ -295,6 +295,9 @@ function TreeItem({
               onChange={(e) => onEditChange(e.target.value)}
               onBlur={onEditSubmit}
               onKeyDown={(e) => {
+                // 输入法组合中（如拼音 / 假名候选未上屏）不处理：此时 Enter 是候选上屏、
+                // Escape 是取消候选，直接用它们结束编辑会丢掉正在输入的内容。
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") onEditSubmit();
                 if (e.key === "Escape") onEditCancel();
               }}

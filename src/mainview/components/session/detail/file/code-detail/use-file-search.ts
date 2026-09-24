@@ -49,6 +49,9 @@ export function useFileSearch(
   // Ctrl+F / Cmd+F to open search, Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 输入法组合中（如拼音 / 假名候选未上屏）不处理，避免 Enter / Escape 被当成
+      // 候选上屏或取消候选时顺带触达查找框的开关逻辑。
+      if (e.isComposing) return;
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
         if (searchOpen) {
