@@ -131,7 +131,7 @@
     "sharp": "^0.35.4",
     "undici": "^7.29.1",
     "unified-ble-manager": "4.0.27",
-    "unified-realtime-asr": "0.2.1",
+    "unified-realtime-asr": "0.3.0",
     "web-tree-sitter": "^0.27.0",
     "ws": "^8.21.3",
     "yaml": "^2.9.1",
