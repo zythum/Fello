@@ -12,8 +12,8 @@ export const speechRegionValues = ["", "cn-beijing", "ap-southeast-1"] as const;
  *
  * 识别与合成合并为一条记录后，表单同时覆盖两个方向的字段：
  * - 共享凭证：apiKey / appId / apiSecret / baseUrl / workspace* / language
- * - 识别：sttEnabled + asrModel | asrResourceId（仅各自适用的 provider 暴露）
- * - 合成：ttsEnabled + voice（启用时必填）+ ttsModel
+ * - 识别：asrEnabled + asrModel | asrResourceId（仅各自适用的 provider 暴露）
+ * - 合成：ttsEnabled + voice（留空用各家默认音色）+ ttsModel
  * 不适用的字段显式置 undefined，避免切换 provider 时残留旧值。
  */
 export type SpeechProviderDraft = Omit<SpeechProviderInfo, "id">;
@@ -36,16 +36,6 @@ export interface SpeechProviderFormProps {
 const nameField = z.string().trim().min(1, "settings.speech.validation.enterName");
 const providerField = z.enum(speechProviderValues, "settings.speech.validation.selectProvider");
 
-/** 启用合成时音色必填：各家音色名不通用，无法回退到默认值。 */
-function voiceIssue(values: { ttsEnabled: boolean; voice: string }) {
-  return !values.ttsEnabled || values.voice.trim().length > 0;
-}
-
-const voiceIssueOptions = {
-  path: ["voice"],
-  message: "settings.speech.validation.enterVoice",
-};
-
 // ── DashScope（通义） ──────────────────────────────────────────────────
 // 识别：asrModel；合成：voice + ttsModel；两侧共用 workspaceId/region/workspace/language。
 
@@ -58,13 +48,12 @@ export const speechDashscopeSchema = z
     region: z.enum(speechRegionValues),
     workspace: z.string(),
     language: z.string(),
-    sttEnabled: z.boolean(),
+    asrEnabled: z.boolean(),
     asrModel: z.string(),
     ttsEnabled: z.boolean(),
     voice: z.string(),
     ttsModel: z.string(),
   })
-  .refine(voiceIssue, voiceIssueOptions);
 export type SpeechDashscopeFormValues = z.input<typeof speechDashscopeSchema>;
 
 export function speechDashscopeDefaultValues(): SpeechDashscopeFormValues {
@@ -76,7 +65,7 @@ export function speechDashscopeDefaultValues(): SpeechDashscopeFormValues {
     region: "",
     workspace: "",
     language: "",
-    sttEnabled: false,
+    asrEnabled: false,
     asrModel: "",
     ttsEnabled: false,
     voice: "",
@@ -95,7 +84,7 @@ export function speechDashscopeFromProvider(
     region: provider?.region ?? "",
     workspace: provider?.workspace ?? "",
     language: provider?.language ?? "",
-    sttEnabled: provider?.sttEnabled ?? false,
+    asrEnabled: provider?.asrEnabled ?? false,
     asrModel: provider?.asrModel ?? "",
     ttsEnabled: provider?.ttsEnabled ?? false,
     voice: provider?.voice ?? "",
@@ -112,7 +101,7 @@ export function speechDashscopeToDraft(values: SpeechDashscopeFormValues): Speec
     region: values.region || undefined,
     workspace: values.workspace.trim() || undefined,
     language: values.language.trim() || undefined,
-    sttEnabled: values.sttEnabled,
+    asrEnabled: values.asrEnabled,
     asrModel: values.asrModel.trim() || undefined,
     ttsEnabled: values.ttsEnabled,
     voice: values.voice.trim() || undefined,
@@ -132,12 +121,11 @@ export const speechVolcengineSchema = z
     appId: z.string(),
     baseUrl: z.string(),
     language: z.string(),
-    sttEnabled: z.boolean(),
+    asrEnabled: z.boolean(),
     asrResourceId: z.string(),
     ttsEnabled: z.boolean(),
     voice: z.string(),
   })
-  .refine(voiceIssue, voiceIssueOptions);
 export type SpeechVolcengineFormValues = z.input<typeof speechVolcengineSchema>;
 
 export function speechVolcengineDefaultValues(): SpeechVolcengineFormValues {
@@ -148,7 +136,7 @@ export function speechVolcengineDefaultValues(): SpeechVolcengineFormValues {
     appId: "",
     baseUrl: "",
     language: "",
-    sttEnabled: false,
+    asrEnabled: false,
     asrResourceId: "",
     ttsEnabled: false,
     voice: "",
@@ -165,7 +153,7 @@ export function speechVolcengineFromProvider(
     appId: provider?.appId ?? "",
     baseUrl: provider?.baseUrl ?? "",
     language: provider?.language ?? "",
-    sttEnabled: provider?.sttEnabled ?? false,
+    asrEnabled: provider?.asrEnabled ?? false,
     asrResourceId: provider?.asrResourceId ?? "",
     ttsEnabled: provider?.ttsEnabled ?? false,
     voice: provider?.voice ?? "",
@@ -182,7 +170,7 @@ export function speechVolcengineToDraft(
     appId: values.appId.trim() || undefined,
     baseUrl: values.baseUrl.trim().replace(/\/+$/, "") || undefined,
     language: values.language.trim() || undefined,
-    sttEnabled: values.sttEnabled,
+    asrEnabled: values.asrEnabled,
     asrResourceId: values.asrResourceId.trim() || undefined,
     ttsEnabled: values.ttsEnabled,
     voice: values.voice.trim() || undefined,
@@ -199,13 +187,12 @@ export const speechOpenaiSchema = z
     apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
     baseUrl: z.string(),
     language: z.string(),
-    sttEnabled: z.boolean(),
+    asrEnabled: z.boolean(),
     asrModel: z.string(),
     ttsEnabled: z.boolean(),
     voice: z.string(),
     ttsModel: z.string(),
   })
-  .refine(voiceIssue, voiceIssueOptions);
 export type SpeechOpenaiFormValues = z.input<typeof speechOpenaiSchema>;
 
 export function speechOpenaiDefaultValues(): SpeechOpenaiFormValues {
@@ -215,7 +202,7 @@ export function speechOpenaiDefaultValues(): SpeechOpenaiFormValues {
     apiKey: "",
     baseUrl: "",
     language: "",
-    sttEnabled: false,
+    asrEnabled: false,
     asrModel: "",
     ttsEnabled: false,
     voice: "",
@@ -232,7 +219,7 @@ export function speechOpenaiFromProvider(
     apiKey: provider?.apiKey ?? "",
     baseUrl: provider?.baseUrl ?? "",
     language: provider?.language ?? "",
-    sttEnabled: provider?.sttEnabled ?? false,
+    asrEnabled: provider?.asrEnabled ?? false,
     asrModel: provider?.asrModel ?? "",
     ttsEnabled: provider?.ttsEnabled ?? false,
     voice: provider?.voice ?? "",
@@ -247,7 +234,7 @@ export function speechOpenaiToDraft(values: SpeechOpenaiFormValues): SpeechProvi
     apiKey: values.apiKey.trim(),
     baseUrl: values.baseUrl.trim().replace(/\/+$/, "") || undefined,
     language: values.language.trim() || undefined,
-    sttEnabled: values.sttEnabled,
+    asrEnabled: values.asrEnabled,
     asrModel: values.asrModel.trim() || undefined,
     ttsEnabled: values.ttsEnabled,
     voice: values.voice.trim() || undefined,
@@ -268,11 +255,10 @@ export const speechIflytekSchema = z
     apiSecret: z.string().trim().min(1, "settings.speech.validation.enterApiSecret"),
     baseUrl: z.string(),
     language: z.string(),
-    sttEnabled: z.boolean(),
+    asrEnabled: z.boolean(),
     ttsEnabled: z.boolean(),
     voice: z.string(),
   })
-  .refine(voiceIssue, voiceIssueOptions);
 export type SpeechIflytekFormValues = z.input<typeof speechIflytekSchema>;
 
 export function speechIflytekDefaultValues(): SpeechIflytekFormValues {
@@ -284,7 +270,7 @@ export function speechIflytekDefaultValues(): SpeechIflytekFormValues {
     apiSecret: "",
     baseUrl: "",
     language: "",
-    sttEnabled: false,
+    asrEnabled: false,
     ttsEnabled: false,
     voice: "",
   };
@@ -301,7 +287,7 @@ export function speechIflytekFromProvider(
     apiSecret: provider?.apiSecret ?? "",
     baseUrl: provider?.baseUrl ?? "",
     language: provider?.language ?? "",
-    sttEnabled: provider?.sttEnabled ?? false,
+    asrEnabled: provider?.asrEnabled ?? false,
     ttsEnabled: provider?.ttsEnabled ?? false,
     voice: provider?.voice ?? "",
   };
@@ -316,7 +302,7 @@ export function speechIflytekToDraft(values: SpeechIflytekFormValues): SpeechPro
     apiSecret: values.apiSecret.trim(),
     baseUrl: values.baseUrl.trim().replace(/\/+$/, "") || undefined,
     language: values.language.trim() || undefined,
-    sttEnabled: values.sttEnabled,
+    asrEnabled: values.asrEnabled,
     ttsEnabled: values.ttsEnabled,
     voice: values.voice.trim() || undefined,
   };

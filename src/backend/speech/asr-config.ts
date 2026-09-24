@@ -1,35 +1,24 @@
 import type { ASRConfig, RealtimeASROptions } from "unified-realtime-asr";
 import type { SpeechProviderInfo } from "../../shared/schema";
+import { effectiveAsrModel } from "../../shared/speech";
 import type { BackendContext } from "../types";
+import { optionalString, requireField } from "./util";
 
 /**
- * 语音识别 Provider 配置 → `unified-realtime-asr` 配置的映射。
+ * 语音识别（ASR）Provider 配置 → `unified-realtime-asr` 配置的映射。
  *
- * 实时语音输入（`speech/manager.ts`）与音频文件转写（`speech/transcribe.ts`）
+ * 实时语音输入（`speech/asr-manager.ts`）与音频文件转写（`speech/transcribe.ts`）
  * 共用这里的一份映射，避免两处各写一套 provider 分支。
  */
-
-export const DEFAULT_DASHSCOPE_MODEL = "fun-asr-flash-8k-realtime";
-export const DEFAULT_OPENAI_MODEL = "gpt-4o-transcribe";
 
 export interface BuildConfigOverrides {
   /** 覆盖 provider 上配置的识别语言（音频文件转写允许按文件指定）。 */
   language?: string;
 }
 
-function optionalString(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
-}
-
+/** 本方向缺字段时的报错口径（实现与合成侧共用）。 */
 function required(value: string | undefined, name: string): string {
-  const result = optionalString(value);
-  if (!result) throw new Error(`实时语音识别配置缺少 ${name}。`);
-  return result;
-}
-
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return requireField(value, name, "实时语音识别");
 }
 
 function buildOptions(
@@ -44,14 +33,11 @@ function buildOptions(
     interimResults: true,
     punctuation: true,
     autoReconnect: false,
-    transcriptionModel:
-      provider.provider === "openai"
-        ? (optionalString(provider.asrModel) ?? DEFAULT_OPENAI_MODEL)
-        : undefined,
+    transcriptionModel: provider.provider === "openai" ? effectiveAsrModel(provider) : undefined,
   };
 }
 
-export function buildConfig(
+export function buildAsrConfig(
   provider: SpeechProviderInfo,
   overrides: BuildConfigOverrides = {},
 ): ASRConfig {
@@ -72,7 +58,7 @@ export function buildConfig(
       return {
         provider: "dashscope",
         apiKey: required(provider.apiKey, "API Key"),
-        model: optionalString(provider.asrModel) ?? DEFAULT_DASHSCOPE_MODEL,
+        model: effectiveAsrModel(provider),
         workspaceId: optionalString(provider.workspaceId),
         region: provider.region,
         workspace: optionalString(provider.workspace),
@@ -98,8 +84,8 @@ export function buildConfig(
   }
 }
 
-export function getActiveProvider(ctx: BackendContext): SpeechProviderInfo {
-  const provider = ctx.storage.getSettings().speechProviders.find((item) => item.sttEnabled);
+export function getActiveAsrProvider(ctx: BackendContext): SpeechProviderInfo {
+  const provider = ctx.storage.getSettings().speechProviders.find((item) => item.asrEnabled);
   if (!provider) {
     throw new Error(
       "设置中没有找到语音识别（ASR）配置：当前没有启用中的 Provider。" +

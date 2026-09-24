@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import { createASRClient, type Transcript } from "unified-realtime-asr";
-import { buildConfig, errorMessage, getActiveProvider } from "./config";
+import { buildAsrConfig, getActiveAsrProvider } from "./asr-config";
+import { errorMessage } from "./util";
 import {
   decodeAudioToPcm16k,
   ffmpegInstallHint,
@@ -83,7 +84,7 @@ export async function transcribeAudioFile(
   ctx: BackendContext,
   options: TranscribeAudioOptions,
 ): Promise<TranscribeAudioOutcome> {
-  const provider = getActiveProvider(ctx);
+  const provider = getActiveAsrProvider(ctx);
 
   await stat(options.path).catch(() => {
     throw new Error(`音频文件不存在：${options.path}`);
@@ -99,7 +100,7 @@ export async function transcribeAudioFile(
 
   const timeoutSeconds = options.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
   const timeoutError = () => new Error(`音频文件转写超时（超过 ${timeoutSeconds} 秒）。`);
-  const client = createASRClient(buildConfig(provider, { language: options.language }));
+  const client = createASRClient(buildAsrConfig(provider, { language: options.language }));
 
   const finals = new Map<number, string>();
   let seq = 0;

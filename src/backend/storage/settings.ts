@@ -75,10 +75,10 @@ interface ImageGenerationProviderMeta {
 }
 
 /**
- * 语音 Provider 的持久化形态：识别（STT）与合成（TTS）合并为一条记录。
+ * 语音 Provider 的持久化形态：识别（ASR）与合成（TTS）合并为一条记录。
  *
  * 两侧凭证同源，方向相关字段分开存放：识别用 `asrModel` / `asrResourceId`，
- * 合成用 `ttsModel` / `voice`；`sttEnabled` / `ttsEnabled` 各自独立开关。
+ * 合成用 `ttsModel` / `voice`；`asrEnabled` / `ttsEnabled` 各自独立开关。
  */
 interface SpeechProviderMeta {
   id: string;
@@ -96,7 +96,7 @@ interface SpeechProviderMeta {
   asrResourceId?: string;
   ttsModel?: string;
   voice?: string;
-  sttEnabled: boolean;
+  asrEnabled: boolean;
   ttsEnabled: boolean;
 }
 
@@ -453,7 +453,7 @@ function readSettings(): SettingsMeta {
         value: Record<string, unknown>,
       ): Omit<
         SpeechProviderMeta,
-        "asrModel" | "asrResourceId" | "ttsModel" | "voice" | "sttEnabled" | "ttsEnabled"
+        "asrModel" | "asrResourceId" | "ttsModel" | "voice" | "asrEnabled" | "ttsEnabled"
       > => ({
         id: value.id as string,
         name: value.name as string,
@@ -486,21 +486,21 @@ function readSettings(): SettingsMeta {
           asrResourceId: typeof value.asrResourceId === "string" ? value.asrResourceId : undefined,
           ttsModel: typeof value.ttsModel === "string" ? value.ttsModel : undefined,
           voice: typeof value.voice === "string" ? value.voice : undefined,
-          sttEnabled: typeof value.sttEnabled === "boolean" ? value.sttEnabled : false,
+          asrEnabled: typeof value.asrEnabled === "boolean" ? value.asrEnabled : false,
           ttsEnabled: typeof value.ttsEnabled === "boolean" ? value.ttsEnabled : false,
         }));
       }
 
       // 旧格式迁移：`speechToText`（识别列表）→ 单一列表，识别条目原样保留（识别是主路径）。
       // 旧记录的 `model` / `resourceId` / `active` 分别落到 asrModel / asrResourceId /
-      // sttEnabled；合成字段留空，由用户在「设置 → 语音」里补全。
+      // asrEnabled；合成字段留空，由用户在「设置 → 语音」里补全。
       return rows(rawObj?.speechToText).map((value) => ({
         ...parseShared(value),
         asrModel: typeof value.model === "string" ? value.model : undefined,
         asrResourceId: typeof value.resourceId === "string" ? value.resourceId : undefined,
         ttsModel: undefined,
         voice: undefined,
-        sttEnabled: typeof value.active === "boolean" ? value.active : false,
+        asrEnabled: typeof value.active === "boolean" ? value.active : false,
         ttsEnabled: false,
       }));
     })();
@@ -676,7 +676,7 @@ export function getSettings(): SettingsInfo {
       asrResourceId: p.asrResourceId,
       ttsModel: p.ttsModel,
       voice: p.voice,
-      sttEnabled: p.sttEnabled,
+      asrEnabled: p.asrEnabled,
       ttsEnabled: p.ttsEnabled,
     })),
     peripherals: (meta.peripherals ?? []).map((p) => ({
@@ -900,7 +900,7 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           asrResourceId: p.asrResourceId?.trim() || undefined,
           ttsModel: p.ttsModel?.trim() || undefined,
           voice: p.voice?.trim() || undefined,
-          sttEnabled: p.sttEnabled,
+          asrEnabled: p.asrEnabled,
           ttsEnabled: p.ttsEnabled,
         }))
       : (prevMeta.speechProviders ?? []),

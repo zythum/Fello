@@ -445,12 +445,12 @@ export interface ImageGenerationProviderInfo {
 }
 
 /**
- * 语音 Provider 统一配置（识别 STT + 合成 TTS）。
+ * 语音 Provider 统一配置（识别 ASR + 合成 TTS）。
  *
  * 两侧凭证同源（同一把 API Key / 应用三元组），因此合并为一条记录；
  * 方向相关的字段分开存放：
  * - 识别：`asrModel` / `asrResourceId`（仅 volcengine 识别用）
- * - 合成：`voice`（启用合成时必填）/ `ttsModel`
+ * - 合成：`voice`（留空用各家默认音色，见 `shared/speech.ts`）/ `ttsModel`
  * 扁平字段超集：各 provider 的表单只暴露其 ASR/TTS Config 实际拥有的字段
  * （如 volcengine 合成没有 workspaceId/region，iflytek 两侧都没有 model）。
  *
@@ -474,10 +474,10 @@ export interface SpeechProviderInfo {
   asrResourceId?: string;
   /** 合成模型（TTS）；留空走各家合成默认模型 */
   ttsModel?: string;
-  /** 音色 / 发音人。各家音色名不通用，启用合成时必填。 */
+  /** 音色 / 发音人。各家音色名不通用，留空时用各家默认音色（见 `shared/speech.ts`）。 */
   voice?: string;
   /** 是否用于识别（全局至多一个启用） */
-  sttEnabled: boolean;
+  asrEnabled: boolean;
   /** 是否用于合成（全局至多一个启用） */
   ttsEnabled: boolean;
 }

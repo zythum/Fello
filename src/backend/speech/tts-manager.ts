@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { createTTSClient, type TTSClient } from "unified-realtime-asr";
 import { buildTtsConfig, getActiveTtsProvider } from "./tts-config";
+import { errorMessage } from "./util";
 import type { BackendContext } from "../types";
 
 /**
@@ -31,10 +32,6 @@ export interface TtsManager {
   speak(ttsSessionId: string, text: string): Promise<void>;
   end(ttsSessionId: string): Promise<void>;
   closeAll(): Promise<void>;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 export function createTtsManager(ctx: BackendContext): TtsManager {

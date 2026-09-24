@@ -27,7 +27,7 @@ import { createAutomationModule } from "./automation";
 import { createMemoryModule } from "./memory";
 import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
-import { createAsrManager } from "./speech/manager";
+import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
 
 // ── Init ─────────────────────────────────────────────────────────────

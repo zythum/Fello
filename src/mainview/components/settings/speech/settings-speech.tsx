@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SpeechProviderInfo } from "../../../../shared/schema";
+import { effectiveAsrModel, effectiveTtsVoice } from "../../../../shared/speech";
 import { useAppStore } from "../../../store";
 import { request } from "../../../backend";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ import { SpeechOpenaiForm } from "./speech-openai-form";
 import { SpeechIflytekForm } from "./speech-iflytek-form";
 
 /** 两个方向的开关字段名；用于列表卡片与 Dialog 的互斥切换。 */
-type DirectionField = "sttEnabled" | "ttsEnabled";
+type DirectionField = "asrEnabled" | "ttsEnabled";
 
 interface SettingsSpeechDialogProps {
   open: boolean;
@@ -143,7 +144,7 @@ function SettingsSpeechDialog({
 }
 
 /**
- * 语音设置页：一份 Provider 列表同时承载识别（STT）与合成（TTS）。
+ * 语音设置页：一份 Provider 列表同时承载识别（ASR）与合成（TTS）。
  *
  * 每个 Provider 一条记录、两个方向开关；每方向全局至多启用一个
  * （打开某个方向时会自动关闭其他 Provider 上同方向的开关）。
@@ -201,8 +202,8 @@ export function SettingsSpeech() {
     const isNew = dialogItem === null;
     // 首次添加且两个方向都没开时，默认作为识别 Provider 启用，省去一次手动开关
     const saved =
-      isNew && !next.sttEnabled && !next.ttsEnabled && !providers.some((p) => p.sttEnabled)
-        ? { ...next, sttEnabled: true }
+      isNew && !next.asrEnabled && !next.ttsEnabled && !providers.some((p) => p.asrEnabled)
+        ? { ...next, asrEnabled: true }
         : next;
     const base = isNew
       ? [...providers, saved]
@@ -213,7 +214,7 @@ export function SettingsSpeech() {
         ? provider
         : {
             ...provider,
-            sttEnabled: saved.sttEnabled ? false : provider.sttEnabled,
+            asrEnabled: saved.asrEnabled ? false : provider.asrEnabled,
             ttsEnabled: saved.ttsEnabled ? false : provider.ttsEnabled,
           },
     );
@@ -244,31 +245,17 @@ export function SettingsSpeech() {
     await handleSave(updated);
   };
 
-  /**
-   * 打开某方向的开关时，自动关闭其他 Provider 上同方向的开关。
-   *
-   * 例外：启用合成必须有音色（后端 `buildTtsConfig` 缺 voice 会直接报错）。列表开关若直接
-   * 写 `ttsEnabled`，会留下「已启用但没填音色」的配置，直到点朗读时才由后端报错暴露；
-   * 所以这里改为打开编辑弹窗，交给表单校验兜住。
-   */
+  /** 打开某方向的开关时，自动关闭其他 Provider 上同方向的开关。 */
   const handleToggleDirection = async (id: string, field: DirectionField, enabled: boolean) => {
-    if (field === "ttsEnabled" && enabled) {
-      const target = providers.find((provider) => provider.id === id);
-      if (target && !target.voice?.trim()) {
-        toast.error(t("settings.speech.validation.enterVoice", "Please enter a voice name."));
-        openEditDialog(target);
-        return;
-      }
-    }
     const updated = providers.map((provider) => {
       if (provider.id === id) {
-        return field === "sttEnabled"
-          ? { ...provider, sttEnabled: enabled }
+        return field === "asrEnabled"
+          ? { ...provider, asrEnabled: enabled }
           : { ...provider, ttsEnabled: enabled };
       }
       if (!enabled) return provider;
-      return field === "sttEnabled"
-        ? { ...provider, sttEnabled: false }
+      return field === "asrEnabled"
+        ? { ...provider, asrEnabled: false }
         : { ...provider, ttsEnabled: false };
     });
     setProviders(updated);
@@ -328,7 +315,7 @@ export function SettingsSpeech() {
                     className={`flex min-h-10 cursor-default select-none items-center gap-2 overflow-hidden rounded-lg border bg-secondary/50 p-1.5 text-sm ${contextMenuId === provider.id ? "ring-1 ring-primary" : ""}`}
                   >
                     <span
-                      className={`ml-1 max-w-32 shrink-0 truncate text-xs font-bold ${!provider.sttEnabled && !provider.ttsEnabled ? "text-muted-foreground/50" : ""}`}
+                      className={`ml-1 max-w-32 shrink-0 truncate text-xs font-bold ${!provider.asrEnabled && !provider.ttsEnabled ? "text-muted-foreground/50" : ""}`}
                     >
                       {provider.name}
                     </span>
@@ -336,11 +323,13 @@ export function SettingsSpeech() {
                       {provider.provider}
                     </span>
                     <span className="w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
+                      {/* 与开关无关：展示识别 / 合成各配了什么，是否生效由右侧开关体现。
+                          方向字段未配置时按生效值兜底（默认模型 / 默认音色见 shared/speech.ts） */}
                       {[
-                        provider.sttEnabled
-                          ? provider.asrModel || provider.asrResourceId
-                          : undefined,
-                        provider.ttsEnabled ? provider.voice || provider.ttsModel : undefined,
+                        effectiveAsrModel(provider) || provider.asrResourceId,
+                        [provider.ttsModel, effectiveTtsVoice(provider)]
+                          .filter(Boolean)
+                          .join("/"),
                       ]
                         .filter(Boolean)
                         .join(" · ") || provider.baseUrl}
@@ -352,9 +341,9 @@ export function SettingsSpeech() {
                         </span>
                         <Switch
                           size="sm"
-                          checked={provider.sttEnabled}
+                          checked={provider.asrEnabled}
                           onCheckedChange={(enabled) =>
-                            handleToggleDirection(provider.id, "sttEnabled", enabled)
+                            handleToggleDirection(provider.id, "asrEnabled", enabled)
                           }
                           aria-label={t("settings.speech.form.recognition", "Recognition")}
                         />

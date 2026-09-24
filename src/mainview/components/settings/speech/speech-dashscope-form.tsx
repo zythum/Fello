@@ -138,7 +138,7 @@ export function SpeechDashscopeForm({
         {/* 右：识别 / 合成 */}
         <FieldGroup>
           <Controller
-            name="sttEnabled"
+            name="asrEnabled"
             control={form.control}
             render={({ field }) => (
               <SpeechSection

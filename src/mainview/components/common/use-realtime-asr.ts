@@ -147,7 +147,7 @@ export interface UseRealtimeAsrResult {
 export function useRealtimeAsr(options: UseRealtimeAsrOptions): UseRealtimeAsrResult {
   const { onTranscript, onError, onRecordingChange, source = "microphone" } = options;
   const configured = useAppStore((state) =>
-    state.speechProviders.some((provider) => provider.sttEnabled),
+    state.speechProviders.some((provider) => provider.asrEnabled),
   );
   const [recording, setRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);

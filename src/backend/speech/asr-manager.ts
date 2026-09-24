@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { createASRClient, type RealtimeASRClient, type Transcript } from "unified-realtime-asr";
-import { buildConfig, errorMessage, getActiveProvider } from "./config";
+import { buildAsrConfig, getActiveAsrProvider } from "./asr-config";
+import { errorMessage } from "./util";
 import type { BackendContext } from "../types";
 
 interface ActiveAsrSession {
@@ -63,8 +64,8 @@ export function createAsrManager(ctx: BackendContext): AsrManager {
       const key = keyOf(clientId, asrSessionId);
       if (sessions.has(key)) return { ok: true };
 
-      const provider = getActiveProvider(ctx);
-      const client = createASRClient(buildConfig(provider));
+      const provider = getActiveAsrProvider(ctx);
+      const client = createASRClient(buildAsrConfig(provider));
       const active: ActiveAsrSession = { clientId, asrSessionId, client, ready: false };
       sessions.set(key, active);
 

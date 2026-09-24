@@ -3,7 +3,7 @@
  *
  * 这一段从 xiaomi-remote-control 的 `index.html` 语音状态机移植而来，但把 renderer 侧的
  * 状态与写入全部搬到主进程，并去掉了 WAV / ASR 职责：本通道**只输出 PCM**，
- * 转写由 Fello 既有的 speech/manager.ts 负责。
+ * 转写由 Fello 既有的 speech/asr-manager.ts 负责。
  *
  * 与来源一致的关键约束：
  * - 可选的 ATVV `INITIALIZE` 命令失败**不能**覆盖已经建立的连接状态；
