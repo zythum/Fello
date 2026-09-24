@@ -63,7 +63,7 @@
 | web-tree-sitter | ^0.26.11 | WASM tree-sitter 绑定，用于文件大纲解析（File Outline Worker） |
 | sharp | ^0.35.3 | 图片处理（metadata/thumbnail/resize/convert），Toolbox 模块使用 |
 | qr-image | ^3.2.0 | QR 码生成（Toolbox `image_qrcode` 工具） |
-| ffmpeg（系统命令，非 npm 依赖） | - | 音频文件解码为 16k/mono/s16le PCM（Toolbox `audio_transcribe` 工具）；不随应用打包，缺失时提示安装 |
+| ffmpeg（系统命令，非 npm 依赖） | - | 音频文件解码为 16k/mono/s16le PCM（Toolbox `audio_transcribe` 工具）、合成结果编码为 mp3（Toolbox `text_to_speech` 工具的 `format: "mp3"`，wav 输出不依赖它）；不随应用打包，缺失时提示安装 |
 | proxy-agent | ^8.0.2 | HTTP/HTTPS 代理支持，为 Agent API 请求提供代理 |
 | undici | ^6.28.0 | 现代 HTTP 客户端，配合 proxy-agent 实现代理 |
 

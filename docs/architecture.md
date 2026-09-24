@@ -83,7 +83,7 @@
 - **`src/backend/search/index.ts`**：搜索模块入口（ripgrep + file-outline），Socket 路由注册（`search/search`、`search/rg`、`search/file_outline`）与 MCP Server 构建
 - **`src/backend/search/ripgrep.ts`**：基于 ripgrep worker 子进程的代码搜索
 - **`src/backend/search/file-outline.ts`**：基于 tree-sitter WASM 的文件大纲提取
-- **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback）
+- **`src/backend/serve-file.ts`**：安全文件服务（路径穿越防护、MIME 检测、index.html fallback、单段 `Range` 解析 → 206 分片流式返回 / 416；音视频拖动进度条与大文件播放依赖它）
 - **`src/backend/proxy.ts`**：HTTP/HTTPS 代理配置模块（基于 undici + proxy-agent），为 Agent API 请求和图片生成提供代理支持
 - **`src/backend/watcher.ts`**：文件外部修改监听（基于 @parcel/watcher），检测工作区文件变更并广播 `fs-changed` 事件
 - **`src/backend/i18n.ts`**：后端国际化模块，提供主进程侧的翻译能力
@@ -94,8 +94,8 @@
 - **`src/backend/skills.ts`**：Skills 目录扫描、解析、skills.sh 市场搜索与安装、Socket 路由注册（`registerSkillsRoute`/`buildSkillsMcpServer`）
 - **`src/backend/memory.ts`**：项目级持久记忆模块（语义查询/存储 + memo 事务管理），Socket 路由注册（`memory/query`、`memory/store`、`memo/read`、`memo/touch`、`memo/add`、`memo/delete`、`memo/set-weight`）
 - **`src/backend/image-generation.ts`**：图片生成模块，调用 OpenAI 兼容 API 生成图片，Socket 路由注册（`image-generation/generate`）
-- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成/音频文件转写），Socket 路由注册（`toolbox/*`）
-- **`src/backend/speech/`**：语音模块（识别 + 合成）。`asr-manager.ts` 管理实时语音输入会话；`asr-config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 的 `ASRConfig`（实时输入与文件转写共用）；`tts-manager.ts` 无状态转发合成句子（每句 `sendText` + `flush`）、`tts-config.ts` 映射为 `TTSConfig`；`util.ts` 是两个方向共用的凭证读取与报错工具；`ffmpeg.ts` 定位系统 ffmpeg 并把音频文件解码成 16k/mono/s16le PCM；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）
+- **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成/音频文件转写/文字转语音），Socket 路由注册（`toolbox/*`）
+- **`src/backend/speech/`**：语音模块（识别 + 合成）。`asr-manager.ts` 管理实时语音输入会话；`asr-config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 的 `ASRConfig`（实时输入与文件转写共用）；`tts-manager.ts` 无状态转发合成句子（每句 `sendText` + `flush`）、`tts-config.ts` 映射为 `TTSConfig`；`util.ts` 是两个方向共用的凭证读取与报错工具；`ffmpeg.ts` 定位系统 ffmpeg（解码音频文件、编码 mp3）；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）；`synthesize.ts` 实现文字转语音落盘（供 toolbox 的 `text_to_speech` 工具调用）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
 - **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
@@ -106,7 +106,7 @@
 - **`src/backend/storage/constant.ts`**：共享常量（`FELLO_DIR`、`SOCKETS_DIR`、`PROJECTS_DIR`、`TEMP_DIR`）
 - **`src/backend/storage/settings.ts`**：全局设置读写（`getSettings`/`updateSettings`），含 Agent、MCP Server、主题、语言、iLink、snippets 等完整配置管理
 - **`src/backend/storage/project-session.ts`**：项目与会话元数据 CRUD（`addProject`/`createSession`/`listProjects`/`listSessions`/`getSession`/`updateSession`/`deleteProject`/`deleteSession`），含内存缓存与磁盘持久化
-- **`src/backend/file-routes.ts`**：统一文件 URL 路由解析与执行（`parseFileRoute`/`serveRoute`），支持项目文件、会话共享文件、自动化任务文件三种路由类型，同时服务于 Electron 自定义协议（`fello://web/`）和 WebUI HTTP 请求
+- **`src/backend/file-routes.ts`**：统一文件 URL 路由解析与执行（`parseFileRoute`/`serveRoute`），支持项目文件、会话共享文件、自动化任务文件三种路由类型，同时服务于 Electron 自定义协议（`fello://web/`）和 WebUI HTTP 请求；请求的 `Range` 头透传给 `serveFile`，媒体分片由两个入口各自流式回传
 - **`src/backend/socket-server.ts`**：Unix Domain Socket HTTP 服务器 + `generateSocketPath()` 路径生成，用于 MCP 子进程与主进程间的 IPC（每个 session 独立实例）。详见 [`docs/socket-server.md`](./socket-server.md)
 - **`src/shared/schema.ts`**：主进程与渲染进程请求/事件的统一契约
 - **`src/shared/zod/mcp-ask-user-schema.ts`**：Shared Zod schema，用于校验 MCP ask-user 请求与响应的数据结构
@@ -159,7 +159,7 @@
   - `session/panel/file-panel/file-panel.tsx`：文件树、重命名、拖拽移动、外部文件夹导入
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
-  - `session/detail/file/file-detail.tsx`：文件详情入口，根据文件类型分发到子目录（code-detail/、image-detail/、markdown-detail/、html-detail/、pdf-detail/、docx-detail/、xlsx-detail/、pptx-detail/、fallback-detail/），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
+  - `session/detail/file/file-detail.tsx`：文件详情入口，根据文件类型分发到子目录（code-detail/、image-detail/、media-detail/（音频/视频内嵌播放器）、markdown-detail/、html-detail/、pdf-detail/、docx-detail/、xlsx-detail/、pptx-detail/、fallback-detail/），通过 subscribe 监听 `fs-changed` 事件检测文件外部修改
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
   - `settings/`：设置页面（general、agents、MCP、WebUI、iLink、snippets、memory、image-generation）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
@@ -175,7 +175,7 @@ Agent 启动时可以挂载多个 MCP Server，作为独立子进程运行（`EL
 - **`src/scripts/mcp-memory/server.ts`**：Memory MCP server，提供 `memory_query` 和 `memory_store` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memory/query`、`/memory/store`），用于项目级持久记忆的语义检索与存储
 - **`src/scripts/mcp-memo/server.ts`**：Memo MCP server，提供 `memo_get_current`、`memo_touch`、`memo_add`、`memo_delete`、`memo_set_weight` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/memo/read`、`/memo/touch`、`/memo/add`、`/memo/delete`、`/memo/set-weight`），用于项目记忆条目的事务性管理
 - **`src/scripts/mcp-image-generation/server.ts`**：Image Generation MCP server，提供 `image_generation` 工具。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `/image-generation/generate`），用于文本生成图片
-- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、QR 码生成、音频文件转写（`audio_transcribe`）等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制；工具本身也始终注册，未配置语音识别时在执行阶段返回带指引的错误
+- **`src/scripts/mcp-toolbox/server.ts`**：Toolbox MCP server，提供编码解码（base64/url）、哈希、时间、UUID/短 ID、随机数、图片处理（metadata/thumbnail/resize/convert）、QR 码生成、音频文件转写（`audio_transcribe`）、文字转语音（`text_to_speech`）等工具集。通过 Unix Domain Socket 回调主进程的 `SocketServer`（路由 `toolbox/*`）。始终加载，不受 feature flag 控制；工具本身也始终注册，未配置语音识别 / 合成时在执行阶段返回带指引的错误
 
 Skills、ask-user、search、share-to-user、memory 和 image-generation 的 MCP Server 是否启动由会话的 `features` 配置控制（`ALL_FEATURES` 默认为 `["skills", "search", "image_generation", "memory", "ask_user", "share_to_user"]`），通过 `session/mcp-config.ts` 中的 `buildMcpServersConfig()` 按需注入。此外，toolbox MCP Server 始终加载，不受 feature flag 控制。
 

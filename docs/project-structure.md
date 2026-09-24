@@ -30,7 +30,7 @@ fello/
 │   │   ├── share-to-user.ts          # shareToUser 文件分享（iLink 媒体队列）
 │   │   ├── terminal.ts               # PTY 终端管理（创建/销毁/resize/输出）
 │   │   ├── inference.ts              # 无头一次性推理原语（供 automation 使用）
-│   │   ├── serve-file.ts             # 安全文件服务（路径穿越防护、MIME 检测）
+│   │   ├── serve-file.ts             # 安全文件服务（路径穿越防护、MIME 检测、Range 分片）
 │   │   ├── proxy.ts                  # HTTP/HTTPS 代理配置（undici + proxy-agent）
 │   │   ├── session/                  # 会话生命周期模块
 │   │   │   ├── index.ts              # 会话管理（new/load/sendPrompt/cancel/delete）
@@ -221,6 +221,8 @@ fello/
 │       │   │       │   │   └── use-file-search.ts # 文件搜索 Hook
 │       │   │       │   ├── image-detail/      # 图片预览
 │       │   │       │   │   └── image-detail.tsx
+│       │   │       │   ├── media-detail/      # 音频 / 视频预览（内嵌播放器）
+│       │   │       │   │   └── media-detail.tsx
 │       │   │       │   ├── markdown-detail/   # Markdown 富文本预览
 │       │   │       │   │   └── markdown-detail.tsx
 │       │   │       │   ├── pdf-detail/        # PDF 文档预览
@@ -363,7 +365,7 @@ fello/
   - `speech/` — 语音（识别 + 合成）：`asr-manager.ts` 实时识别会话、`tts-manager.ts` 无状态合成转发，两个方向分别用 `asr-config.ts` / `tts-config.ts` 做 Provider 配置映射（共用 `util.ts` 的凭证与报错工具）；音频文件转写在 `transcribe.ts`，音频解码走系统 `ffmpeg`（`ffmpeg.ts`）
   - `inference.ts` — 无头推理原语（供 automation 使用）
   - `automation/` — 定时任务调度与执行
-  - `serve-file.ts` — 安全文件服务（路径穿越防护）
+  - `serve-file.ts` — 安全文件服务（路径穿越防护、Range 分片流式返回）
 - 负责 Agent 进程与会话生命周期管理（`agent/agent-bridge.ts`）
 - Agent 进程 spawner：Stdio（child_process）和 API（in-process）
 - Agent 配置解析：`agent/resolve-agent-info.ts`
