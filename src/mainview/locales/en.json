@@ -699,6 +699,7 @@
     "voicePanelEmpty": "No speech detected",
     "voicePanelCancel": "Cancel",
     "voicePanelSend": "Send",
+    "voicePanelAutoSendLabel": "s until auto-send",
     "voicePanelHint": "Speak now — keep going for as long as you need",
     "voicePanelHoldHint": "Release to finish — everything you said is kept",
     "voicePanelToInput": "Fill into input box"

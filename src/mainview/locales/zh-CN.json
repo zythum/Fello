@@ -698,6 +698,7 @@
     "voicePanelEmpty": "没有识别到语音",
     "voicePanelCancel": "取消",
     "voicePanelSend": "发送",
+    "voicePanelAutoSendLabel": "秒后自动发送",
     "voicePanelHint": "可以开始说话，想讲多久都行",
     "voicePanelHoldHint": "松手结束，说过的内容都会保留",
     "voicePanelToInput": "填入输入框"

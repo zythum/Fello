@@ -974,6 +974,17 @@ export function ChatTextarea({
 /** 与既有麦克风按钮（voice-input-button）同一套波形参数。 */
 const VOICE_PANEL_WAVEFORM_BARS = [0.35, 0.65, 0.95, 0.55, 0.8, 0.45, 0.9, 0.6, 0.38];
 
+/**
+ * 松手后复核态的自动发送倒计时（秒）。
+ *
+ * 归零即调 `onSubmit`，与点「发送」是同一条路径（因此 `source` 仍是 `voice`，
+ * 调用方的打断 / 焦点收尾行为完全一致）。窗口期内想反悔就走原有入口：右下角「取消」、
+ * 遥控器「返回」键（映射为 Escape）、「转成文字」—— 它们都收起面板，
+ * 本组件随之卸载、interval 被 cleanup 清掉。窗口期内再次按住语音键则回到录音态，
+ * 下次松手重新从头倒数。
+ */
+const VOICE_PANEL_AUTO_SEND_SECONDS = 5;
+
 function formatVoicePanelDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -1053,6 +1064,41 @@ function ChatTextareaVoicePanelView({
       accumulatedSecondsRef.current = base + Math.floor((Date.now() - startedAt) / 1000);
     };
   }, [panel.phase, panel.audioActive]);
+
+  /**
+   * 松手后的自动发送倒计时（见 `VOICE_PANEL_AUTO_SEND_SECONDS`）。
+   *
+   * 只认「复核态 + 有文本 + 无错误」这一个布尔量：尾句定稿、错误上报、用户再次按住
+   * （回到录音态）都会让本次倒数作废，并按新状态重来。
+   */
+  const canAutoSend = !recording && panel.transcript.trim().length > 0 && !panel.error;
+  const [autoSendLeft, setAutoSendLeft] = useState<number | null>(null);
+  // `onSubmit` 是调用方每次渲染都会重建的函数，直接进依赖会让倒数被无关的重渲染重置，故经 ref 取最新值。
+  const onSubmitRef = useRef(onSubmit);
+  useEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
+
+  useEffect(() => {
+    if (!canAutoSend) {
+      // eslint-disable-next-line react/set-state-in-effect
+      setAutoSendLeft(null);
+      return;
+    }
+    // eslint-disable-next-line react/set-state-in-effect
+    setAutoSendLeft(VOICE_PANEL_AUTO_SEND_SECONDS);
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      const left = VOICE_PANEL_AUTO_SEND_SECONDS - Math.floor((Date.now() - startedAt) / 1000);
+      if (left > 0) {
+        setAutoSendLeft(left);
+        return;
+      }
+      clearInterval(timer);
+      onSubmitRef.current();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [canAutoSend]);
 
   // 长文本自动跟随：录音期间始终把最新内容滚进视野。
   useEffect(() => {
@@ -1176,6 +1222,22 @@ function ChatTextareaVoicePanelView({
               <Keyboard className="size-3.5" />
             </Button>
             <div className="ml-auto flex items-center gap-1.5">
+              {/*
+                自动发送倒数，紧贴「取消 / 发送」两个按钮：遥控器场景下一眼能看出
+                「马上要自动发出去了」，想反悔按 ← 切到「取消」（或遥控器「返回」键）即可，
+                倒数随即作废。这里只是只读提示 —— 不改变进入复核态时落在「发送」上的默认焦点，
+                也不参与 ←/→ 的按钮循环顺序。
+              */}
+              {autoSendLeft !== null ? (
+                // 数字在文案**最前**，文案只随语言不同；整块紧贴「取消」按钮（这一组是 ml-auto 右对齐），
+                // 右端因此被钉死，只要数字位宽不变，整块的位置与宽度就都不变 —— 不需要换成等宽字体。
+                // tabular-nums 只是当前字体的数字变体（不换字体），用来兜住「字体回退到比例数字」的情况。
+                // 数字与文案之间的 JSX 空白会被丢掉，不会多出空格（渲染为「5秒后自动发送」/「5s until auto-send」）。
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {autoSendLeft}
+                  {t("chatInput.voicePanelAutoSendLabel", "s until auto-send")}
+                </span>
+              ) : null}
               <Button
                 ref={(element) => {
                   footerButtonsRef.current[1] = element;
