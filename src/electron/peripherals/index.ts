@@ -55,6 +55,48 @@ async function withTimeout<T>(work: Promise<T>, timeoutMs: number, message: stri
   }
 }
 
+/**
+ * UBM 把「这个 manager 已经不能用了，必须整个重建」表达成这几个错误码。
+ *
+ * core 一旦观察到适配器丢失（蓝牙被关掉 / 授权被撤销）或后端换代（休眠唤醒后
+ * CoreBluetooth 重启 → `backend-restarted`）就会自行 `releaseResources()`，把自己永久钉在
+ * destroying / failed / destroyed 上：UBM 契约里这类错误的恢复动作就是 `recreate-manager`，
+ * **同一个 manager 永远回不到 ready**。
+ */
+const DEAD_MANAGER_ERROR_CODES = new Set([
+  "lifecycle.destroyed",
+  "lifecycle.invalid-state",
+  "backend.reset",
+  "operation.cancelled-by-destroy",
+]);
+
+/** UBM 公开错误的 recovery 目录里表示「只能重建 manager」的动作。 */
+const RECREATE_MANAGER_ACTION = "recreate-manager";
+
+interface UbmErrorShape {
+  code?: unknown;
+  recovery?: { actions?: ReadonlyArray<unknown> } | null;
+}
+
+/** 判断一个错误是否表示「UBM manager 已死，只能整个重建」。 */
+function isDeadBleManagerError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as UbmErrorShape;
+  if (typeof candidate.code === "string" && DEAD_MANAGER_ERROR_CODES.has(candidate.code)) {
+    return true;
+  }
+  // 兜底：不依赖具体错误码 —— recovery 目录里出现 recreate-manager 就是同一语义。
+  const actions = candidate.recovery?.actions;
+  if (!Array.isArray(actions)) return false;
+  return actions.some(
+    (action) =>
+      typeof action === "object" &&
+      action !== null &&
+      "kind" in action &&
+      action.kind === RECREATE_MANAGER_ACTION,
+  );
+}
+
 export interface PeripheralKeyPayload {
   peripheralId: string;
   keyId: string;
@@ -151,6 +193,27 @@ export function createPeripheralHost({
   }
 
   /**
+   * 作废当前缓存的 UBM host。
+   *
+   * 适配器丢失 / 后端换代之后 core 会自毁且**不可复活**（恢复动作只有 recreate-manager），
+   * 而这个 host 本来会被 `bleHostPromise` 一直复用 —— 后果是此后每次操作（按语音键、
+   * 点「重新连接」）都以 `lifecycle.invalid-state` 立刻失败，只有重启进程才能恢复。
+   * 这里把缓存清掉并顺手销毁旧句柄，让下一次操作重新装配。
+   *
+   * `observed` 用于防止误伤：若缓存已被换成另一个（刚装配好的）host，就原样不动。
+   */
+  function invalidateBleHost(observed?: Promise<PlatformBleHost>) {
+    const stale = bleHostPromise;
+    if (!stale || (observed && stale !== observed)) return;
+    bleHostPromise = null;
+    void stale
+      .then((host) => host.manager?.destroy?.())
+      .catch(() => {
+        // 装配失败 / 拆除失败都不影响下一次重建，忽略。
+      });
+  }
+
+  /**
    * 带超时地装配 UBM host。
    *
    * `createPlatformBleHost` 内部的 `provider.listAdapters()` 与 attach 握手是**唯一不自带
@@ -210,17 +273,27 @@ export function createPeripheralHost({
     entry.connectPromise = (async () => {
       if (entry.removed) return;
       setStatus(entry.descriptor, "preparing", "正在装配蓝牙后端（首次需要几秒）…");
-      const host = await getBleHost();
-      if (entry.removed) return;
-      setStatus(entry.descriptor, "preparing", `蓝牙后端已就绪：${host.label}`);
-      // connect 内部有各自的 deadline（等待 adapter 10s / 扫描 45s / 连接与订阅各若干秒），
-      // 但 UBM 更内层若卡死，外面就永远等不到结果 —— 所以再套一层整体上界。
-      await withTimeout(
-        entry.voice!.connect(),
-        CONNECT_TIMEOUT_MS,
-        `连接遥控器超时（${CONNECT_TIMEOUT_MS / 1000} 秒）：请确认遥控器已唤醒、` +
-          `且在系统蓝牙中仍处于已配对状态；之后可点「重新连接」重试`,
-      );
+      let hostPromise: Promise<PlatformBleHost> | null = null;
+      try {
+        hostPromise = getBleHost();
+        const host = await hostPromise;
+        if (entry.removed) return;
+        setStatus(entry.descriptor, "preparing", `蓝牙后端已就绪：${host.label}`);
+        // connect 内部有各自的 deadline（等待 adapter 10s / 扫描 45s / 连接与订阅各若干秒），
+        // 但 UBM 更内层若卡死，外面就永远等不到结果 —— 所以再套一层整体上界。
+        await withTimeout(
+          entry.voice!.connect(),
+          CONNECT_TIMEOUT_MS,
+          `连接遥控器超时（${CONNECT_TIMEOUT_MS / 1000} 秒）：请确认遥控器已唤醒、` +
+            `且在系统蓝牙中仍处于已配对状态；之后可点「重新连接」重试`,
+        );
+      } catch (error) {
+        // host 已死（适配器丢失 / 后端换代留下的死 manager）：立刻作废，否则「自动连接」
+        // 这类后台重试会一直撞在同一个死 manager 上。用户主动触发的入口还会重建后重试一次
+        // （见 `withHostRebuildRetry`）。
+        if (hostPromise && isDeadBleManagerError(error)) invalidateBleHost(hostPromise);
+        throw error;
+      }
     })()
       .catch((error) => {
         if (!entry.removed) {
@@ -369,22 +442,42 @@ export function createPeripheralHost({
     return entry;
   }
 
+  /**
+   * 用户主动触发的操作允许「重建 host 后重试一次」。
+   *
+   * 场景：适配器丢失 / 后端换代之后 core 已自毁，但界面只剩「已断开」，看不出根因；
+   * 用户这时按语音键或点「重新连接」，第一次必然撞上死 manager（`lifecycle.invalid-state`）。
+   * 与其让他重启应用，不如把死 host 作废、重新装配一次，把这次操作真正做完。
+   * 第二次仍失败就如实抛出 —— 那时通常是蓝牙真的不可用，错误信息本身是可操作的。
+   */
+  async function withHostRebuildRetry<T>(work: () => Promise<T>): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      if (!isDeadBleManagerError(error)) throw error;
+      invalidateBleHost();
+      return await work();
+    }
+  }
+
   return {
     syncEnabled,
 
     async connect(peripheralId: string) {
-      await ensureConnected(requireEntry(peripheralId), "手动连接");
+      await withHostRebuildRetry(() => ensureConnected(requireEntry(peripheralId), "手动连接"));
     },
 
     async startVoice(peripheralId: string) {
-      const entry = requireEntry(peripheralId);
-      const voice = entry.voice;
-      if (!voice) throw new Error("该外设没有音频通道");
-      if (!voice.isReady()) {
-        // 语音链路没准备好时不要把错误吞掉：渲染层据此提示用户。
-        await ensureConnected(entry, "开始语音采集");
-      }
-      return voice.startCapture();
+      return withHostRebuildRetry(async () => {
+        const entry = requireEntry(peripheralId);
+        const voice = entry.voice;
+        if (!voice) throw new Error("该外设没有音频通道");
+        if (!voice.isReady()) {
+          // 语音链路没准备好时不要把错误吞掉：渲染层据此提示用户。
+          await ensureConnected(entry, "开始语音采集");
+        }
+        return voice.startCapture();
+      });
     },
 
     async stopVoice(peripheralId: string) {
