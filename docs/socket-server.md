@@ -20,7 +20,7 @@
 
 > `audio_transcribe` 工具始终注册；若「设置 → 语音 → 识别」中没有启用的 Provider，主进程会返回「设置中没有找到语音识别（ASR）配置」的提示，由 Agent 引导用户去配置后重试。
 
-> `text_to_speech` 工具同理始终注册：未启用「设置 → 语音 → 合成」中的 Provider 时返回配置指引；`format` 取 `mp3` 时还需要系统 ffmpeg，缺失时返回安装指引。
+> `text_to_speech` 工具同理始终注册：未启用「设置 → 语音 → 合成」中的 Provider 时返回配置指引；`format` 取 `mp3` 时还需要系统 ffmpeg，缺失时返回安装指引；待合成文本若没有可朗读内容（只有符号 / emoji 之类）直接返回错误，不会白花一次合成调用。
 
 ### 临时 Memo Socket
 

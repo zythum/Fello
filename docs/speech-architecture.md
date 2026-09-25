@@ -153,6 +153,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
 | 帧与转写都用采集 / 会话标识隔离 | 音频帧按 `captureId`、累积文本按「ASR 会话 + 句 id」，两者都用来丢弃跨会话的迟到数据 |
 | 识别与合成共用一条 Provider 记录 | 凭证同源（同一把 API Key / 应用三元组），拆成两份会让用户重复填；方向差异用字段前缀与独立开关表达 |
 | 文本整理（净化 / 分句）放在渲染层 | 主进程保持无状态（一句话 in、音频 out），原始 markdown 不出渲染层，过 IPC 的永远是净化好的句子 |
+| 文本内容不做解读（读法交给 provider） | 数学公式 / 运算符 / emoji / 语种 / 大小写一律原样透传，读法由各家自带的文本归一化决定；我们只保证 markdown 已还原成自然语言，且每句都有可朗读字符（否则 DashScope 会报 `InvalidParameter`） |
 | 默认值放 `shared/` | 主进程解析与设置页展示必须同一份值，避免「界面显示的」与「实际发出去的」不一致 |
 
 ## 9. 音频文件转写（Toolbox `audio_transcribe`）
@@ -196,7 +197,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
 
 ```
 渲染层朗读会话（lib/tts/tts-reader.ts）
-  agent 文本分片 ──▶ tts-text 分句（markdown 净化、丢弃代码围栏与纯符号，单句 ≤120 字）
+  agent 文本分片 ──▶ tts-text 整理（remove-markdown 去标记、丢弃代码围栏、单句 ≤120 字且必含可朗读字符）
         │ 逐句 request.speakTts（同一会话的 start/speak/end 挂在同一条串行链上）
         ▼
 主进程 tts-manager（无状态）── client.sendText + flush ──▶ provider（websocket，PCM 流）
@@ -205,6 +206,14 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
 tts-audio 事件 ──▶ tts-reader 的单一闸门（liveTtsSessionId 命中才入队）──▶ tts-player
                                                        （全局唯一 AudioContext + master Gain 出声）
 ```
+
+文本整理只有两件事：**把 markdown 还原成自然语言文本**（`remove-markdown` 去掉链接 / 图片 / 强调 /
+标题 / 引用 / 脚注 / HTML 标签等标记，代码围栏整块丢弃，再补掉它没覆盖的裸 URL、任务框 `[x]` 与
+残留标记），以及**不发出没有可朗读字符的文本**——DashScope 对「没有任何可朗读字符」的输入会报
+`InvalidParameter: Please ensure input text is valid.`。
+
+数学公式、运算符、emoji、语种、大小写一律原样交给 provider 自带的文本归一化：这里不猜语言、
+不改写读法（中英混排时自己插「加 / 等于」只会读错）。
 
 **两个入口、同一套互斥**：
 
