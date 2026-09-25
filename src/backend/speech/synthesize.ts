@@ -87,6 +87,14 @@ export async function synthesizeSpeechToFile(
       `待合成文本过长（${text.length} 字，上限 ${MAX_TEXT_LENGTH} 字）：请拆成几段分别合成。`,
     );
   }
+  // provider（DashScope）对「没有任何可朗读字符」的输入直接拒收：
+  // `InvalidParameter: Please ensure input text is valid.`（实测 `：` / `.` / `—` /
+  // 单空格 / `--- ---` 均被拒）。这条链路是 Agent 直接给文本、不经过朗读链路的分句器，
+  // 所以在这里按同一口径拦掉——否则只会白花一次调用再收一个 provider 报错。
+  // 判定与 `mainview/lib/tts/tts-text.ts` 的 `SPEAKABLE_RE` 一致（那边是每句一判）。
+  if (!/[\p{L}\p{N}]/u.test(text)) {
+    throw new Error("待合成的文本没有可朗读内容（全是符号 / 空白 / emoji）。");
+  }
 
   // 只有 mp3 需要 ffmpeg：wav 全程不碰外部命令，机器上没有 ffmpeg 也不该影响它。
   const ffmpegPath = options.format === "mp3" ? await requireFfmpegPath() : null;
