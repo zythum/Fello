@@ -14,7 +14,7 @@ import {
   AudioLines,
   Square,
 } from "lucide-react";
-import { cn, formatUpdatedTime, extractErrorMessage } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 import { useTtsPrefsStore } from "../../../lib/tts/tts-prefs";
 import { useTtsPlaybackStore } from "../../../lib/tts/tts-player";
 import { stopActiveTts } from "../../../lib/tts/tts-reader";
@@ -149,9 +149,6 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
         </span>
         <span className="flex-1 text-[10px] text-muted-foreground truncate">
           {currentProjectInfo?.cwd}
-        </span>
-        <span className="shrink-0 text-xs text-sidebar-foreground/70 whitespace-nowrap">
-          {formatUpdatedTime(session.updatedAt)}
         </span>
       </div>
       <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
