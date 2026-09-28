@@ -650,6 +650,9 @@ export class OpenaiCompatibleAgent implements Agent {
         },
       ],
       maxOutputTokens: 5000,
+      // 二次压缩时 historyBeforeCompact 里可能已含上一次压缩写入的 system 摘要，
+      // AI SDK 默认 allowSystemInMessages=false 会直接抛 InvalidPromptError。
+      allowSystemInMessages: true,
     });
 
     const summary = summaryResult.text;
@@ -845,6 +848,9 @@ export class OpenaiCompatibleAgent implements Agent {
         model: this.provider.chatModel(session.modelId),
         system: systemPrompt,
         messages: [...session.history, userMessage],
+        // /compact 会把摘要以 role:"system" 写入 history；AI SDK 默认
+        // allowSystemInMessages=false，会在 messages 含 system 角色时抛 InvalidPromptError。
+        allowSystemInMessages: true,
         tools: allTools,
         stopWhen: isStepCount(256),
         abortSignal: abortController.signal,
