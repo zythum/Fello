@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useRef,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -108,6 +109,12 @@ function projectHoverId(id: string): string {
 function sessionHoverId(id: string): string {
   return `s:${id}`;
 }
+
+/**
+ * fello 文件树（file-panel）拖拽的私有 MIME 类型。
+ * 拖入项目区添加项目时必须忽略它（它同时写 text/uri-list，否则会被误当成外部文件拖拽）。
+ */
+const TREE_NODES_TYPE = "application/x-fello-tree-nodes";
 
 type SidebarNavigationItem =
   | { type: "project"; id: string }
@@ -281,6 +288,108 @@ export function Sidebar() {
   useEffect(() => {
     handleAddProjectRef.current = handleAddProject;
   });
+
+  // ── 拖入文件夹到项目区：添加为项目（与点「添加项目」按钮行为一致） ──
+  const [projectDropActive, setProjectDropActive] = useState(false);
+  const projectDragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (projectDragLeaveTimer.current) clearTimeout(projectDragLeaveTimer.current);
+    },
+    [],
+  );
+
+  /**
+   * 从拖拽载荷提取路径：优先 `electron.getPathForFile`（桌面端 File），
+   * 取不到时回退解析 `text/uri-list` 的 file:// URI（覆盖 VS Code 文件树等外部来源）。
+   */
+  const extractDropPaths = (dataTransfer: DataTransfer): string[] => {
+    const paths: string[] = [];
+    for (const file of Array.from(dataTransfer.files ?? [])) {
+      const absPath = electron.getPathForFile(file);
+      if (absPath) paths.push(absPath);
+    }
+    if (paths.length > 0) return paths;
+    const uriList = dataTransfer.getData("text/uri-list");
+    return (uriList ? uriList.split("\n") : [])
+      .map((uri) => uri.trim())
+      .filter((uri) => uri.startsWith("file://"))
+      .map((uri) => decodeURIComponent(uri.replace(/^file:\/\//, "")))
+      .filter(Boolean);
+  };
+
+  const handleProjectDropDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
+    // WebUI 下拖入的是客户端本地路径，对服务端无意义，不接受
+    if (isWebUI) return;
+    const types = event.dataTransfer.types;
+    // file-panel 文件树的内部拖拽（含文件时会带 text/uri-list）不参与「拖入添加项目」
+    if (types.includes(TREE_NODES_TYPE)) return;
+    if (!types.includes("Files") && !types.includes("text/uri-list")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    // 子元素间切换会先 leave 再 enter，取消挂起的防抖避免高亮闪烁
+    if (projectDragLeaveTimer.current) {
+      clearTimeout(projectDragLeaveTimer.current);
+      projectDragLeaveTimer.current = null;
+    }
+    setProjectDropActive(true);
+  };
+
+  const handleProjectDropDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    // 50ms 防抖（与 ask-user / FilePanel 一致），行与行之间滑动不闪烁；
+    // 先取消旧 timer 再设置，防止旧 timer 在指针已回到落点内（且静止无新 dragover）时误清高亮
+    if (projectDragLeaveTimer.current) clearTimeout(projectDragLeaveTimer.current);
+    projectDragLeaveTimer.current = setTimeout(() => setProjectDropActive(false), 50);
+  };
+
+  const handleProjectDropDrop = async (event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (projectDragLeaveTimer.current) {
+      clearTimeout(projectDragLeaveTimer.current);
+      projectDragLeaveTimer.current = null;
+    }
+    setProjectDropActive(false);
+
+    // file-panel 文件树的内部拖拽：不是系统文件，忽略
+    if (event.dataTransfer.getData(TREE_NODES_TYPE)) return;
+    if (isWebUI) return;
+
+    const paths = [...new Set(extractDropPaths(event.dataTransfer))];
+    if (paths.length === 0) return;
+
+    // 与「添加项目」按钮同一流程：逐个添加（按 cwd 幂等；cwd 必须是目录，由后端 addProject 统一校验）
+    const added: ProjectInfo[] = [];
+    let failedCount = 0;
+    for (const path of paths) {
+      try {
+        added.push(await request.addProject(path));
+      } catch (err) {
+        failedCount += 1;
+        console.error("Failed to add dropped path as project:", err);
+      }
+    }
+    if (failedCount > 0) {
+      // 拖放场景下的预期失败即「拖入的不是文件夹 / 路径不存在」
+      toast.error(t("sidebar.dropFolderOnly", "Only folders can be dropped to add a project."));
+    }
+    if (added.length === 0) return;
+    try {
+      await refreshData();
+      setExpandedProjects((prev) => {
+        const next = { ...prev };
+        for (const project of added) next[project.id] = true;
+        return next;
+      });
+      // 单个时自动弹创建会话框（与按钮行为一致）
+      if (added.length === 1) openNewSessionDialog(added[0].id);
+    } catch (err) {
+      toast.error(getErrorMessage(err, t("sidebar.addProjectFailed", "Failed to add project.")));
+    }
+  };
 
   const handleNewSession = async (
     projectId: string,
@@ -831,24 +940,31 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-      <div className="flex items-center justify-between px-3 pt-2">
-        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
-          {t("sidebar.projects")}
-        </span>
-        <Button
-          ref={addProjectButtonRef}
-          variant="ghost"
-          size="icon"
-          tabIndex={-1}
-          className="size-6 -mr-1 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
-          onClick={handleAddProject}
-          onKeyDown={handleAddProjectKeyDown}
-          aria-label={t("sidebar.addProject", "Add project")}
-        >
-          <FolderPlus className="size-3.5" />
-        </Button>
-      </div>
-      <ScrollArea className="min-h-0 flex-1">
+      {/* 项目区（标题 + 列表）整体作为「拖入文件夹添加项目」的落点，行为与点「添加项目」按钮一致 */}
+      <div
+        className="relative flex min-h-0 flex-1 flex-col"
+        onDragOver={handleProjectDropDragOver}
+        onDragLeave={handleProjectDropDragLeave}
+        onDrop={(event) => void handleProjectDropDrop(event)}
+      >
+        <div className="flex items-center justify-between px-3 pt-2">
+          <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
+            {t("sidebar.projects")}
+          </span>
+          <Button
+            ref={addProjectButtonRef}
+            variant="ghost"
+            size="icon"
+            tabIndex={-1}
+            className="size-6 -mr-1 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
+            onClick={handleAddProject}
+            onKeyDown={handleAddProjectKeyDown}
+            aria-label={t("sidebar.addProject", "Add project")}
+          >
+            <FolderPlus className="size-3.5" />
+          </Button>
+        </div>
+        <ScrollArea className="min-h-0 flex-1">
         <div
           ref={sessionListRef}
           role="tree"
@@ -1365,7 +1481,12 @@ export function Sidebar() {
             );
           })}
         </div>
-      </ScrollArea>
+        </ScrollArea>
+        {projectDropActive && (
+          // 与 FilePanel 项目根落点同款的整块高亮（不参与布局）
+          <div className="pointer-events-none absolute inset-x-1 inset-y-1 rounded-md bg-primary/5 inset-ring-1 inset-ring-primary" />
+        )}
+      </div>
 
       <div className="mt-auto border-t border-border">
         <Button

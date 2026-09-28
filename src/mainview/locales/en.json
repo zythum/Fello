@@ -30,6 +30,7 @@
     "settings": "Settings",
     "agents": "Agents",
     "addProjectFailed": "Failed to add project.",
+    "dropFolderOnly": "Only folders can be dropped to add a project.",
     "newSessionFailed": "Failed to create a new session.",
     "loadSessionFailed": "Failed to load session.",
     "revealInFinderFailed": "Failed to reveal in Finder.",

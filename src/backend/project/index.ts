@@ -1,3 +1,4 @@
+import { stat } from "fs/promises";
 import type { BackendContext } from "../types";
 import type { WatcherModule } from "../watcher";
 import type { SessionModule } from "../session";
@@ -53,7 +54,15 @@ export function createProjectModule(
   }
 
   async function addProject(cwd: string) {
-    const info = storage.addProject(cwd);
+    const trimmed = cwd.trim();
+    // 校验 cwd 存在且为目录：桌面端选目录对话框天然保证，但 WebUI 手输路径 /
+    // 拖入文件夹等入口可能带任意字符串，提前拒绝，避免创建指向文件或不存在路径的项目。
+    // 校验放在这里（而非渲染层各入口各查一次），所有来源共用同一道闸。
+    const s = await stat(trimmed).catch(() => null);
+    if (!s || !s.isDirectory()) {
+      throw new Error(`Not a directory: ${trimmed}`);
+    }
+    const info = storage.addProject(trimmed);
     fs.initProjectFsVersion(info.id);
     await deps.watcher.syncWatchers();
     sendEvent("projects-changed", undefined);

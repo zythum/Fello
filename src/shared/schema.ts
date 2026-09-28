@@ -755,7 +755,7 @@ export type FelloIPCRequests = {
   listSessions: { params: void; response: SessionInfo[] };
   /** 获取所有项目列表 */
   listProjects: { params: void; response: ProjectInfo[] };
-  /** 添加新项目（通常通过选择目录） */
+  /** 添加新项目（通常通过选择目录）。`cwd` 必须存在且为目录，否则抛错（`Not a directory: <cwd>`） */
   addProject: { params: string; response: ProjectInfo };
   /** 重命名项目 */
   renameProject: { params: { projectId: string; title: string }; response: void };
