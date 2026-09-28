@@ -124,6 +124,36 @@ function sidebarNavigationItemKey(item: SidebarNavigationItem): string {
   return item.type === "project" ? `project:${item.id}` : `session:${item.id}`;
 }
 
+/**
+ * 会话行状态图标。
+ *
+ * 单独成组件并按 session 精确订阅（只取一个原始值 kind），避免 Sidebar 订阅整个
+ * sessionStates——流式期间每个 token 都会更新 sessionStates，全量订阅会让整个侧边栏
+ * 每帧重渲染。只有当该会话的状态真正发生变化时，这个图标才会重渲染。
+ */
+function SessionRowStatus({
+  sessionId,
+  isStreaming,
+}: {
+  sessionId: string;
+  isStreaming: boolean;
+}) {
+  const kind = useAppStore((s) => {
+    const state = s.sessionStates.get(sessionId);
+    if ((state?.askUserRequests?.length ?? 0) > 0) return "ask";
+    if (state?.completedStatus === "error") return "error";
+    if (state?.completedStatus === "success") return "success";
+    if (state?.completedAt) return "success";
+    return "none";
+  });
+
+  if (kind === "ask") return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+  if (isStreaming) return <LoaderCircle className="size-3 animate-spin shrink-0" />;
+  if (kind === "success") return <Check className="size-3 shrink-0 text-green-500" />;
+  if (kind === "error") return <TriangleAlert className="size-3 shrink-0 text-yellow-500" />;
+  return <div className="size-3 shrink-0" />;
+}
+
 export function Sidebar() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -166,42 +196,43 @@ export function Sidebar() {
   const matchSession = currentPath.match(/^\/session-view\/(.+)$/);
   const activeSessionId = matchSession ? matchSession[1] : null;
 
-  const {
-    isMacApp,
-    isFullScreen,
-    projects,
-    sessions,
-    setProjects,
-    setSessions,
-    sidebarOpen,
-    setSidebarOpen,
-    configuredAgents,
-    configuredMcpServers,
-    sessionStates,
-    webUIStatus,
-    ilinkStatus,
-    activeIlinkSessionId,
-  } = useAppStore();
+  // 逐项按需订阅，避免用无 selector 的 useAppStore() 全量订阅整个 store：
+  // 流式期间每个 token 都会写入 sessionStates，全量订阅会让整个侧边栏每帧重渲染。
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const projects = useAppStore((s) => s.projects);
+  const sessions = useAppStore((s) => s.sessions);
+  const setProjects = useAppStore((s) => s.setProjects);
+  const setSessions = useAppStore((s) => s.setSessions);
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const configuredAgents = useAppStore((s) => s.configuredAgents);
+  const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
+  const webUIStatus = useAppStore((s) => s.webUIStatus);
+  const ilinkStatus = useAppStore((s) => s.ilinkStatus);
+  const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
+  // 只订阅当前会话的 completedAt（原始值），不订阅整个 sessionStates
+  const activeCompletedAt = useAppStore((s) =>
+    activeSessionId ? (s.sessionStates.get(activeSessionId)?.completedAt ?? null) : null,
+  );
 
   // Auto-clear completedAt after 3 seconds for the active session
   const completedAtTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
     if (!sessions.some((s) => s.id === activeSessionId)) return; // Session deleted
+    if (!activeCompletedAt) return;
 
-    const state = useAppStore.getState().sessionStates.get(activeSessionId);
-    if (state?.completedAt) {
-      if (completedAtTimerRef.current) {
-        clearTimeout(completedAtTimerRef.current);
-      }
-      completedAtTimerRef.current = setTimeout(() => {
-        useAppStore.getState().updateSessionState(activeSessionId, () => ({
-          completedAt: null,
-          completedStatus: null,
-        }));
-        completedAtTimerRef.current = null;
-      }, 3000);
+    if (completedAtTimerRef.current) {
+      clearTimeout(completedAtTimerRef.current);
     }
+    completedAtTimerRef.current = setTimeout(() => {
+      useAppStore.getState().updateSessionState(activeSessionId, () => ({
+        completedAt: null,
+        completedStatus: null,
+      }));
+      completedAtTimerRef.current = null;
+    }, 3000);
 
     return () => {
       if (completedAtTimerRef.current) {
@@ -209,7 +240,7 @@ export function Sidebar() {
         completedAtTimerRef.current = null;
       }
     };
-  }, [activeSessionId, sessionStates, sessions]);
+  }, [activeSessionId, activeCompletedAt, sessions]);
 
   const enabledAgents = useMemo(
     () => configuredAgents.filter((a) => !a.disabled),
@@ -1264,32 +1295,10 @@ export function Sidebar() {
                                   session.connectionStatus === "connected" ? "" : "opacity-60",
                                 )}
                               >
-                                {(() => {
-                                  const state = sessionStates.get(session.id);
-                                  const hasAskUser = (state?.askUserRequests?.length ?? 0) > 0;
-                                  const isStreaming = session.isStreaming;
-                                  const completedStatus = state?.completedStatus;
-                                  if (hasAskUser) {
-                                    return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
-                                  }
-                                  if (isStreaming) {
-                                    return (
-                                      <LoaderCircle className="size-3 animate-spin shrink-0" />
-                                    );
-                                  }
-                                  if (
-                                    completedStatus === "success" ||
-                                    (state?.completedAt && !completedStatus)
-                                  ) {
-                                    return <Check className="size-3 shrink-0 text-green-500" />;
-                                  }
-                                  if (completedStatus === "error") {
-                                    return (
-                                      <TriangleAlert className="size-3 shrink-0 text-yellow-500" />
-                                    );
-                                  }
-                                  return <div className="size-3 shrink-0" />;
-                                })()}
+                                <SessionRowStatus
+                                  sessionId={session.id}
+                                  isStreaming={session.isStreaming}
+                                />
                                 <Badge
                                   variant="outline"
                                   className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"

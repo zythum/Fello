@@ -501,7 +501,7 @@ export const FilePanel = memo(function FilePanel({
   const refreshSeqRef = useRef(0);
   // 相邻行之间移动时先不立刻清空高亮，避免 drop 反馈出现一帧闪烁
   const dropTargetClearTimerRef = useRef<number | null>(null);
-  const { projects } = useAppStore();
+  const projects = useAppStore((s) => s.projects);
   const { confirm } = useMessage();
 
   const activeProjectId = projectId;

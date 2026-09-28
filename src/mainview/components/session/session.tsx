@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../store";
 import { Chat } from "./chat/chat";
@@ -20,7 +20,7 @@ import { useMessage } from "../providers/message";
 
 export { type PanelTab } from "./panel/panel";
 
-export function Session({ session }: { session: SessionInfo }) {
+function SessionImpl({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const sessionId = session.id;
@@ -218,6 +218,8 @@ export function Session({ session }: { session: SessionInfo }) {
     </main>
   );
 }
+
+export const Session = memo(SessionImpl);
 
 /**
  * 会话加载失败态。

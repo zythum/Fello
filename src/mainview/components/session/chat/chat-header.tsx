@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../../../store";
@@ -40,7 +40,7 @@ interface ChatHeaderProps {
   session: SessionInfo;
 }
 
-export function ChatHeader({ session }: ChatHeaderProps) {
+function ChatHeaderImpl({ session }: ChatHeaderProps) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const navigate = useNavigate();
@@ -250,6 +250,8 @@ export function ChatHeader({ session }: ChatHeaderProps) {
     </div>
   );
 }
+
+export const ChatHeader = memo(ChatHeaderImpl);
 
 /**
  * 「正在朗读」指示 + 停止（仅在有会话出声时出现）。

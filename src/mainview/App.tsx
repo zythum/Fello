@@ -25,27 +25,29 @@ import * as tiks from "@rexa-developer/tiks";
 const UPDATE_TOAST_ID = "fello-app-update";
 
 function AppContent() {
-  const {
-    setSessions,
-    setProjects,
-    setConfiguredAgents,
-    setConfiguredMcpServers,
-    setWebUIStatus,
-    setTheme,
-    setI18n,
-    setEditor,
-    setSnippets,
-    setImageGeneration,
-    setSpeechProviders,
-    setVoiceInput,
-    setShortcuts,
-    setPeripherals,
-    setProxy,
-    isMacApp,
-    setIsFullScreen,
-    setIlinkStatus,
-    setActiveIlinkSessionId,
-  } = useAppStore();
+  // 逐项按需订阅，避免用无 selector 的 useAppStore() 全量订阅整个 store：
+  // 流式期间每个 token 都会写入 sessionStates，全量订阅会让 AppContent 每帧重渲染，
+  // 并带着整棵 AppRouter/Sidebar 树一起重渲染，导致点击会话 / 切换路由明显延迟。
+  // 下面这些 setter 都是稳定引用，用 selector 取不会引起额外重渲染。
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const setSessions = useAppStore((s) => s.setSessions);
+  const setProjects = useAppStore((s) => s.setProjects);
+  const setConfiguredAgents = useAppStore((s) => s.setConfiguredAgents);
+  const setConfiguredMcpServers = useAppStore((s) => s.setConfiguredMcpServers);
+  const setWebUIStatus = useAppStore((s) => s.setWebUIStatus);
+  const setTheme = useAppStore((s) => s.setTheme);
+  const setI18n = useAppStore((s) => s.setI18n);
+  const setEditor = useAppStore((s) => s.setEditor);
+  const setSnippets = useAppStore((s) => s.setSnippets);
+  const setImageGeneration = useAppStore((s) => s.setImageGeneration);
+  const setSpeechProviders = useAppStore((s) => s.setSpeechProviders);
+  const setVoiceInput = useAppStore((s) => s.setVoiceInput);
+  const setShortcuts = useAppStore((s) => s.setShortcuts);
+  const setPeripherals = useAppStore((s) => s.setPeripherals);
+  const setProxy = useAppStore((s) => s.setProxy);
+  const setIsFullScreen = useAppStore((s) => s.setIsFullScreen);
+  const setIlinkStatus = useAppStore((s) => s.setIlinkStatus);
+  const setActiveIlinkSessionId = useAppStore((s) => s.setActiveIlinkSessionId);
   const shortcuts = useAppStore((state) => state.shortcuts);
   const { resolvedTheme } = useTheme();
   const { i18n, t } = useTranslation();

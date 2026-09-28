@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionActiveSubagents, useSessionMessages } from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
@@ -25,7 +25,7 @@ function scrollToBottomNow(bottomEl: HTMLElement | null) {
   });
 }
 
-export function ChatArea({ session }: { session: SessionInfo }) {
+function ChatAreaImpl({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
@@ -667,3 +667,5 @@ export function ChatArea({ session }: { session: SessionInfo }) {
     </div>
   );
 }
+
+export const ChatArea = memo(ChatAreaImpl);

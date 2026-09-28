@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { memo, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { SuggestionDataItem } from "react-mentions";
 import { resolveMentions, nodesToMentionText } from "../../../lib/mention-utils";
@@ -76,10 +76,12 @@ function buildAttachmentBlocks(attachments: StagedAttachmentInfo[]): ContentBloc
   });
 }
 
-export function ChatInput({ session }: { session: SessionInfo }) {
+function ChatInputImpl({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
-  const { addMessage, updateSession } = useAppStore();
+  // 按需订阅稳定引用，避免无 selector 的 useAppStore() 全量订阅导致每 token 重渲染
+  const addMessage = useAppStore((s) => s.addMessage);
+  const updateSession = useAppStore((s) => s.updateSession);
   const isStreaming = session.isStreaming;
   const availableModels = useMemo(
     () => session.models?.availableModels ?? [],
@@ -684,3 +686,5 @@ export function ChatInput({ session }: { session: SessionInfo }) {
     </div>
   );
 }
+
+export const ChatInput = memo(ChatInputImpl);
