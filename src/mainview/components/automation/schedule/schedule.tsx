@@ -130,6 +130,18 @@ export function Schedule() {
     }
   };
 
+  // 单次计划：到达计划时间却从未自动触发 → 已错过（不补跑）
+  const isMissed = (s: Schedule): boolean => {
+    // eslint-disable-next-line react/purity
+    const now = Date.now();
+    return (
+      s.cron.type === "once" &&
+      (s.remainingRuns ?? 1) > 0 && // 尚未执行
+      s.cron.at !== undefined &&
+      s.cron.at <= now
+    );
+  };
+
   if (loading) {
     return (
       <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
@@ -215,7 +227,7 @@ export function Schedule() {
           <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">
             {schedule.agentId}
           </Badge>
-          {schedule.remainingRuns !== null && (
+          {schedule.cron.type === "cron" && schedule.remainingRuns !== null && (
             <Badge
               variant="outline"
               className={`px-1 text-[10px] leading-none shrink-0 ${
@@ -231,7 +243,23 @@ export function Schedule() {
           )}
         </div>
         <div className="text-xs text-muted-foreground hidden sm:block shrink-0 mr-2">
-          {schedule.cron.type === "cron" ? schedule.cron.expr : t("automation.manual", "Manual")}
+          {schedule.cron.type === "once"
+            ? t("automation.once", "Once")
+            : schedule.cron.type === "cron"
+              ? schedule.cron.expr
+              : t("automation.manual", "Manual")}
+          {isMissed(schedule) && (
+            <>
+              <span className="text-muted-foreground/40 mx-1">·</span>
+              <span className="text-destructive">{t("automation.missed", "Missed")}</span>
+              {schedule.cron.at && (
+                <>
+                  <span className="text-muted-foreground/40 mx-1">·</span>
+                  {new Date(schedule.cron.at).toLocaleString(i18n.language)}
+                </>
+              )}
+            </>
+          )}
           {schedule.nextRunAt && (
             <>
               <span className="text-muted-foreground/40 mx-1">·</span>

@@ -51,6 +51,13 @@ export function createAutomationModule(
   const runningTasks = new Set<string>();
 
   function getNextRun(schedule: Schedule): number | null {
+    // 单次计划：已执行（remainingRuns 归零）或已过期都视为无下次；否则返回计划时间点本身
+    // （不要走 job.nextDate()：once 的时间点若已过去，cron 库会抛异常）
+    if (schedule.cron.type === "once") {
+      if (isRunLimitReached(schedule)) return null;
+      const at = schedule.cron.at;
+      return at && at > Date.now() ? at : null;
+    }
     const job = scheduledCrons.get(schedule.id);
     if (!job) return null;
     try {
@@ -81,6 +88,38 @@ export function createAutomationModule(
   function scheduleCron(schedule: Schedule) {
     unscheduleCron(schedule.id);
     if (isRunLimitReached(schedule)) return;
+
+    // 单次计划：用 Date 一次性调度（cron 库对 realDate 会置 runOnce，触发后不再重排）
+    if (schedule.cron.type === "once") {
+      const at = schedule.cron.at;
+      // 已过期的时间点不注册；启动时由 restoreActiveSchedules 判定为「已错过」
+      if (!at || at <= Date.now()) return;
+      try {
+        const onceJob = new CronJob(
+          new Date(at),
+          async () => {
+            try {
+              await executeTask(schedule.id, "cron");
+            } catch (err) {
+              console.error(`[Automation] Failed to run once task for "${schedule.name}":`, err);
+            } finally {
+              unscheduleCron(schedule.id);
+            }
+          },
+          null,
+          false,
+        );
+        scheduledCrons.set(schedule.id, onceJob);
+        onceJob.start();
+        console.log(
+          `[Automation] Scheduled once "${schedule.name}" at ${new Date(at).toLocaleString(storage.getSettings().i18n?.language)}`,
+        );
+      } catch (err) {
+        console.error(`[Automation] Failed to schedule once "${schedule.name}":`, err);
+      }
+      return;
+    }
+
     if (schedule.cron.type !== "cron" || !schedule.cron.expr) return;
     try {
       const cronJob = new CronJob(
@@ -123,7 +162,21 @@ export function createAutomationModule(
   function restoreActiveSchedules() {
     const schedules = store.listSchedules();
     for (const s of schedules) {
-      if (s.cron.type === "cron" && s.cron.expr) scheduleCron(s);
+      if (s.cron.type === "cron" && s.cron.expr) {
+        scheduleCron(s);
+      } else if (s.cron.type === "once") {
+        // 已执行过（remainingRuns 归零）：不再恢复
+        if (isRunLimitReached(s)) continue;
+        const at = s.cron.at;
+        if (at && at > Date.now()) {
+          scheduleCron(s);
+        } else {
+          // 应用关闭期间错过：不补跑，仅保留记录（UI 依据 remainingRuns>0 且时间已过显示「已错过」）
+          console.log(
+            `[Automation] "${s.name}" once trigger missed (scheduled at ${at ? new Date(at).toLocaleString(storage.getSettings().i18n?.language) : "?"})`,
+          );
+        }
+      }
     }
     console.log(`[Automation] Restored ${scheduledCrons.size} active schedule(s)`);
   }
@@ -182,10 +235,17 @@ export function createAutomationModule(
     store.saveTask(scheduleId, task);
     sendEvent("task-update", { scheduleId, task });
 
+    // 在「触发瞬间」记录 lastRunAt：自动与手动触发都写，成功、失败都写
+    schedule.lastRunAt = Date.now();
+    schedule.updatedAt = Date.now();
+    store.saveSchedule(schedule);
+    sendEvent("schedules-changed", undefined);
+
     const taskDir = store.taskDir(scheduleId, taskId);
 
     try {
-      // 仅定时触发消耗一次执行配额；手动触发不扣次数
+      // 自动触发消耗一次执行配额：周期计划自减 remainingRuns，单次计划由 1 归 0；
+      // 手动触发不扣次数（「现在就跑一次」）
       if (source === "cron") consumeRun(schedule);
 
       const mcpServers = buildAutomationMcpServers(schedule.mcpServers ?? []);
@@ -237,7 +297,6 @@ export function createAutomationModule(
         ),
       );
 
-      schedule.lastRunAt = Date.now();
       schedule.updatedAt = Date.now();
       store.saveSchedule(schedule);
       sendEvent("schedules-changed", undefined);
@@ -278,7 +337,7 @@ export function createAutomationModule(
     mcpServers?: Schedule["mcpServers"];
   }): Schedule {
     const schedule = store.createSchedule(params);
-    if (schedule.cron.type === "cron" && schedule.cron.expr) scheduleCron(schedule);
+    if (schedule.cron.type !== "manual") scheduleCron(schedule);
     return schedule;
   }
 
@@ -286,12 +345,16 @@ export function createAutomationModule(
     const schedule = store.getSchedule(scheduleId);
     if (!schedule) throw new Error("Schedule not found");
     Object.assign(schedule, updates);
-    if ("remainingRuns" in updates) {
+    if (schedule.cron.type === "once") {
+      // 单次计划用 remainingRuns 作为「是否已执行」标记（1 = 待执行，0 = 已执行）。
+      // 保存为单次时一律重置为 1，确保每次配置都是一次干净的待执行。
+      schedule.remainingRuns = 1;
+    } else if ("remainingRuns" in updates) {
       schedule.remainingRuns = normalizeRemainingRuns(updates.remainingRuns);
     }
     schedule.updatedAt = Date.now();
     store.saveSchedule(schedule);
-    if (schedule.cron.type === "cron" && schedule.cron.expr) scheduleCron(schedule);
+    if (schedule.cron.type !== "manual") scheduleCron(schedule);
     else unscheduleCron(scheduleId);
     return schedule;
   }

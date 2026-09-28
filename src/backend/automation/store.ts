@@ -26,9 +26,30 @@ export function normalizeRemainingRuns(value: unknown): number | null {
   return n;
 }
 
-/** 补齐历史数据中缺失的字段（旧版本 schedule.json 没有 remainingRuns） */
+/**
+ * 归一扫配置：
+ * - 修正非法 `type`（旧数据只有 cron / manual）为 `cron`
+ * - `expr` 仅对 cron 保留，`at` 仅对 once 保留
+ */
+function normalizeCron(raw: Schedule["cron"]): Schedule["cron"] {
+  const type = raw?.type === "once" || raw?.type === "manual" ? raw.type : "cron";
+  return {
+    type,
+    expr: type === "cron" ? (raw?.expr ?? "") : undefined,
+    at: type === "once" && typeof raw?.at === "number" ? raw.at : undefined,
+  };
+}
+
+/** 补齐历史数据中缺失的字段（旧版本 schedule.json 没有 remainingRuns / cron.at） */
 function normalizeSchedule(raw: Schedule): Schedule {
-  return { ...raw, remainingRuns: normalizeRemainingRuns(raw.remainingRuns) };
+  const cron = normalizeCron(raw.cron);
+  const remainingRuns = normalizeRemainingRuns(raw.remainingRuns);
+  return {
+    ...raw,
+    cron,
+    // 单次计划用 remainingRuns 作为「是否已执行」标记；缺失（历史数据）按未执行处理
+    remainingRuns: cron.type === "once" ? (remainingRuns ?? 1) : remainingRuns,
+  };
 }
 
 export const store = {
@@ -101,11 +122,16 @@ export const store = {
       agentId: params.agentId,
       modelId: params.modelId,
       prompt: params.prompt,
-      cron: { type: params.cron.type, expr: params.cron.expr ?? "" },
+      cron: {
+        type: params.cron.type,
+        expr: params.cron.type === "cron" ? (params.cron.expr ?? "") : undefined,
+        at: params.cron.type === "once" ? params.cron.at : undefined,
+      },
       createdAt: now,
       updatedAt: now,
       lastRunAt: null,
-      remainingRuns: normalizeRemainingRuns(params.remainingRuns),
+      // 单次计划用 remainingRuns 作为「是否已执行」标记：创建时固定为 1（待执行）
+      remainingRuns: params.cron.type === "once" ? 1 : normalizeRemainingRuns(params.remainingRuns),
       features: (params.features ?? []).filter((f) => f !== "ask_user" && f !== "share_to_user"),
       mcpServers: params.mcpServers ?? [],
     };

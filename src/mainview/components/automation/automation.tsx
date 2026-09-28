@@ -130,15 +130,38 @@ export function Automation() {
     const diff = schedule.nextRunAt - Date.now();
     if (diff <= 0) return t("automation.anyMoment", "Any moment now");
     if (diff < 60 * 1000) return t("automation.lessThanMinute", "Less than 1 min");
-    if (diff < 60 * 60 * 1000) return `${Math.ceil(diff / 60000)} min`;
-    const hours = Math.floor(diff / 3600000);
-    const mins = Math.ceil((diff % 3600000) / 60000);
-    return `${hours}h ${mins}m`;
+    if (diff < 60 * 60 * 1000)
+      return t("automation.duration.minutes", "{{minutes}} min", {
+        minutes: Math.max(1, Math.floor(diff / 60000)),
+      });
+    if (diff < 24 * 60 * 60 * 1000)
+      return t("automation.duration.hoursMinutes", "{{hours}}h {{minutes}}m", {
+        hours: Math.floor(diff / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+      });
+    return t("automation.duration.daysHours", "{{days}}d {{hours}}h", {
+      days: Math.floor(diff / 86400000),
+      hours: Math.floor((diff % 86400000) / 3600000),
+    });
   };
 
   const getScheduleLabel = (schedule: Schedule): string => {
     if (schedule.cron.type === "manual") return t("automation.manual", "Manual");
+    // 单次的具体时刻由后面的「下次执行 / 已错过」统一展示，这里只显示类型，避免重复
+    if (schedule.cron.type === "once") return t("automation.once", "Once");
     return schedule.cron.expr ?? "-";
+  };
+
+  // 单次计划：到达计划时间却从未自动触发 → 已错过（不补跑）
+  const isMissed = (schedule: Schedule): boolean => {
+    // eslint-disable-next-line react/purity
+    const now = Date.now();
+    return (
+      schedule.cron.type === "once" &&
+      (schedule.remainingRuns ?? 1) > 0 && // 尚未执行
+      schedule.cron.at !== undefined &&
+      schedule.cron.at <= now
+    );
   };
 
   if (loading) {
@@ -247,7 +270,7 @@ export function Automation() {
                             >
                               {schedule.agentId}
                             </Badge>
-                            {schedule.remainingRuns !== null && (
+                            {schedule.cron.type === "cron" && schedule.remainingRuns !== null && (
                               <Badge
                                 variant="outline"
                                 className={cn(
@@ -265,10 +288,24 @@ export function Automation() {
                           </ItemTitle>
                           <ItemDescription className="line-clamp-1 text-xs">
                             {getScheduleLabel(schedule)}
+                            {isMissed(schedule) && (
+                              <>
+                                <span className="text-muted-foreground/40 mx-1.5">·</span>
+                                <span className="text-destructive">
+                                  {t("automation.missed", "Missed")}
+                                </span>
+                                {schedule.cron.at && (
+                                  <>
+                                    <span className="text-muted-foreground/40 mx-1.5">·</span>
+                                    {new Date(schedule.cron.at).toLocaleString(i18n.language)}
+                                  </>
+                                )}
+                              </>
+                            )}
                             {schedule.lastRunAt && (
                               <>
                                 <span className="text-muted-foreground/40 mx-1.5">·</span>
-                                {t("automation.cron.lastRun", "Last run")}:{" "}
+                                {t("automation.lastTriggered", "Last triggered")}:{" "}
                                 {new Date(schedule.lastRunAt).toLocaleString(i18n.language)}
                               </>
                             )}

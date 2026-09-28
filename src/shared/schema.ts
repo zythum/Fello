@@ -672,21 +672,24 @@ export interface Schedule {
   prompt: string;
   /** 调度配置 */
   cron: {
-    /** 调度类型：cron 定时 or once 单次 */
-    type: "cron" | "manual";
+    /** 调度类型：cron 周期 / once 单次 / manual 仅手动 */
+    type: "cron" | "once" | "manual";
     /** 5 段式 cron 表达式（分 时 日 月 周），仅在 type='cron' 时有效 */
     expr?: string;
+    /** 单次触发的绝对时间（epoch 毫秒），仅在 type='once' 时有效 */
+    at?: number;
   };
   /** 创建时间（毫秒时间戳） */
   createdAt: number;
   /** 更新时间（毫秒时间戳） */
   updatedAt: number;
-  /** 上次执行时间（毫秒时间戳） */
+  /** 上次触发时间（毫秒时间戳）：自动与手动触发都写，成功与失败都写 */
   lastRunAt: number | null;
   /**
    * 剩余可执行次数：
-   * - `null`：不限次数，按 cron 一直执行
-   * - 数字：仅 cron 定时触发时自减 1，减到 0 后停止自动调度（手动触发不消耗次数，仍可执行）
+   * - `null`：不限次数，按 cron 一直执行（仅周期计划）
+   * - 周期计划：数字，自动触发时自减 1，减到 0 后停止自动调度（手动触发不消耗次数，仍可执行）
+   * - 单次计划：作为「是否已执行」标记，配置时固定为 1（待执行），执行后归 0（已执行）
    */
   remainingRuns: number | null;
   /** 下次执行时间（运行时计算，不持久化） */
@@ -1100,7 +1103,7 @@ export type FelloIPCRequests = {
       agentId: string;
       modelId?: string;
       prompt: string;
-      cron: { type: "cron" | "manual"; expr?: string };
+      cron: { type: "cron" | "once" | "manual"; expr?: string; at?: number };
       /** 剩余执行次数，null / 不传表示不限次数 */
       remainingRuns?: number | null;
       features?: Feature[];

@@ -959,7 +959,7 @@
     "lastRun": "上次",
     "lessThanMinute": "不到 1 分钟",
     "manual": "手动",
-    "manualDesc": "仅手动触发，无定时计划。",
+    "manualDesc": "仅手动触发，无周期计划。",
     "mcpServers": "MCP 服务器",
     "model": "模型",
     "modelPlaceholder": "默认模型",
@@ -967,7 +967,7 @@
     "nextRun": "下次",
     "noFiles": "暂无生成文件",
     "noSchedules": "暂无计划",
-    "emptyHint": "通过 cron 表达式配置定时 AI 任务，让 Agent 自动执行",
+    "emptyHint": "通过 cron 表达式配置周期 AI 任务，让 Agent 自动执行",
     "noTasksDesc": "暂无运行记录。点击「立即触发」开始第一次运行。",
     "prompt": "提示词",
     "promptPlaceholder": "智能体需要执行什么任务？",
@@ -984,13 +984,24 @@
     "selectFileToPreview": "选择文件预览",
     "selectTaskToPreview": "选择任务查看文件",
     "selectTask": "选择一个任务",
-    "timed": "定时",
+    "recurring": "周期",
+    "once": "单次",
+    "oncePickDate": "选择日期",
+    "onceDesc": "在指定时间触发一次。",
+    "missed": "已错过",
+    "lastTriggered": "上次触发",
+    "duration": {
+      "minutes": "{{minutes}} 分钟",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+      "daysHours": "{{days}} 天 {{hours}} 小时"
+    },
     "triggerNow": "立即触发",
     "validation": {
       "nameRequired": "名称不能为空",
       "agentRequired": "请选择智能体",
       "promptRequired": "提示词不能为空",
-      "runLimitInvalid": "执行次数必须是非负整数。"
+      "runLimitInvalid": "执行次数必须是非负整数。",
+      "onceTimeInvalid": "请选择一个未来的时间。"
     },
     "cron": {
       "at": "在",
@@ -1002,7 +1013,6 @@
       "weekly": "每周",
       "nextRun": "下次执行",
       "nextRunIn": "距离下次执行还有",
-      "lastRun": "上次执行",
       "days": {
         "0": "周日",
         "1": "周一",

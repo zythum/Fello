@@ -28,6 +28,7 @@ import { LoaderCircle } from "lucide-react";
 import { useMessage } from "../../providers/message";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { CronEditor } from "./cron-editor";
+import { DateTimePicker } from "./date-time-picker";
 
 const DISABLED_FEATURES: Feature[] = ["ask_user", "share_to_user", "memory"];
 
@@ -68,12 +69,13 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
     isEdit && schedule!.remainingRuns !== null ? String(schedule!.remainingRuns) : "",
   );
   const [prompt, setPrompt] = useState(isEdit ? schedule!.prompt : "");
-  const [cronType, setCronType] = useState<"cron" | "manual">(
+  const [cronType, setCronType] = useState<"cron" | "once" | "manual">(
     isEdit ? schedule!.cron.type : "cron",
   );
   const [cronExpr, setCronExpr] = useState(
     isEdit ? (schedule!.cron.expr ?? "0 9 * * 1-5") : "0 9 * * 1-5",
   );
+  const [onceAt, setOnceAt] = useState<number | null>(isEdit ? (schedule!.cron.at ?? null) : null);
   const [features, setFeatures] = useState<Feature[]>(
     isEdit ? (schedule!.features ?? ["skills"]) : ["skills"],
   );
@@ -93,6 +95,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setPrompt(schedule.prompt);
       setCronType(schedule.cron.type);
       setCronExpr(schedule.cron.expr ?? "0 9 * * 1-5");
+      setOnceAt(schedule.cron.at ?? null);
       setFeatures(schedule.features ?? ["skills"]);
       setMcpServerIds(schedule.mcpServers ?? []);
     } else {
@@ -103,6 +106,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setPrompt("");
       setCronType("cron");
       setCronExpr("0 9 * * 1-5");
+      setOnceAt(null);
       setFeatures(["skills"]);
       setMcpServerIds(enabledMcpServers.map((s) => s.id));
     }
@@ -115,7 +119,12 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       return void toast.error(t("automation.validation.agentRequired", "Agent is required"));
     if (!prompt.trim())
       return void toast.error(t("automation.validation.promptRequired", "Prompt is required"));
-    // 执行次数仅对定时（cron）计划有意义：手动计划不校验、不保存该配置
+    // 单次计划必须选择一个未来的时间点
+    if (cronType === "once" && (onceAt === null || onceAt <= Date.now()))
+      return void toast.error(
+        t("automation.validation.onceTimeInvalid", "Please pick a future time."),
+      );
+    // 执行次数仅对周期（cron）计划有意义：单次计划由后端固定为 1（是否已执行标记），手动计划不保存
     let parsedRemainingRuns: number | null = null;
     if (cronType === "cron") {
       const runsText = remainingRuns.trim();
@@ -127,6 +136,12 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       parsedRemainingRuns = runsText === "" ? null : Number(runsText);
     }
 
+    const cronPayload: Schedule["cron"] = {
+      type: cronType,
+      expr: cronType === "cron" ? cronExpr.trim() : undefined,
+      at: cronType === "once" ? (onceAt ?? undefined) : undefined,
+    };
+
     setSaving(true);
     try {
       if (isEdit) {
@@ -137,7 +152,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
             agentId,
             modelId: modelId.trim() || undefined,
             prompt: prompt.trim(),
-            cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
+            cron: cronPayload,
             remainingRuns: parsedRemainingRuns,
             features,
             mcpServers: mcpServerIds,
@@ -149,7 +164,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
           agentId,
           modelId: modelId.trim() || undefined,
           prompt: prompt.trim(),
-          cron: { type: cronType, expr: cronType === "cron" ? cronExpr.trim() : undefined },
+          cron: cronPayload,
           remainingRuns: parsedRemainingRuns,
           features,
           mcpServers: mcpServerIds,
@@ -377,12 +392,15 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 <div className="flex items-center gap-2">
                   <Tabs
                     value={cronType}
-                    onValueChange={(v) => setCronType(v as "cron" | "manual")}
+                    onValueChange={(v) => setCronType(v as "cron" | "once" | "manual")}
                     className="gap-0"
                   >
                     <TabsList className="h-7! gap-0.5 rounded-md border border-border bg-secondary/60 p-0.5">
                       <TabsTrigger value="cron" className="h-full min-w-11 rounded-sm px-2 text-xs">
-                        {t("automation.timed", "Timed")}
+                        {t("automation.recurring", "Recurring")}
+                      </TabsTrigger>
+                      <TabsTrigger value="once" className="h-full min-w-11 rounded-sm px-2 text-xs">
+                        {t("automation.once", "Once")}
                       </TabsTrigger>
                       <TabsTrigger
                         value="manual"
@@ -416,8 +434,18 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
 
                 {cronType === "cron" ? (
                   <CronEditor value={cronExpr} onChange={setCronExpr} timezone={timezone} />
+                ) : cronType === "once" ? (
+                  <div className="flex flex-col gap-2.5">
+                    <DateTimePicker value={onceAt} onChange={setOnceAt} timezone={timezone} />
+                    <p className="text-[11px] text-muted-foreground">
+                      {t(
+                        "automation.onceDesc",
+                        "Runs once at the specified time. If the app is not running then, it is marked as missed and not retried.",
+                      )}
+                    </p>
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground">
                     {t("automation.manualDesc", "Manual trigger only. No automatic scheduling.")}
                   </p>
                 )}

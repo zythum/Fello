@@ -986,13 +986,24 @@
     "selectFileToPreview": "Select a file to preview",
     "selectTaskToPreview": "Select a task to preview files",
     "selectTask": "Select a task",
-    "timed": "Timed",
+    "recurring": "Recurring",
+    "once": "Once",
+    "oncePickDate": "Pick a date",
+    "onceDesc": "Runs once at the specified time.",
+    "missed": "Missed",
+    "lastTriggered": "Last triggered",
+    "duration": {
+      "minutes": "{{minutes}} min",
+      "hoursMinutes": "{{hours}}h {{minutes}}m",
+      "daysHours": "{{days}}d {{hours}}h"
+    },
     "triggerNow": "Trigger now",
     "validation": {
       "nameRequired": "Name is required",
       "agentRequired": "Agent is required",
       "promptRequired": "Prompt is required",
-      "runLimitInvalid": "Run limit must be a non-negative integer."
+      "runLimitInvalid": "Run limit must be a non-negative integer.",
+      "onceTimeInvalid": "Please pick a future time."
     },
     "cron": {
       "at": "at",
@@ -1004,7 +1015,6 @@
       "weekly": "Every week",
       "nextRun": "Next run",
       "nextRunIn": "Next run in",
-      "lastRun": "Last run",
       "days": {
         "0": "Sun",
         "1": "Mon",
