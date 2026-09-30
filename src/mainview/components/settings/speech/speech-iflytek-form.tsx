@@ -57,10 +57,7 @@ export function SpeechIflytekForm({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel
-                  htmlFor="speech-xf-appid"
-                  className="text-[11px] text-muted-foreground"
-                >
+                <FieldLabel htmlFor="speech-xf-appid" className="text-[11px] text-muted-foreground">
                   {t("settings.speech.form.appId", "App ID")}
                 </FieldLabel>
                 <Input

@@ -6,7 +6,6 @@ import { request, subscribe, isWebUI } from "../../../../backend";
 import { electron } from "../../../../electron";
 import { useAppStore } from "../../../../store";
 import { EDITOR_LABELS } from "../../../../../shared/constants";
-import type { FileDetailProps } from "./file-types";
 import { getFileKind } from "./file-types";
 import { parseFileReference } from "../../../common/file-reference";
 import { CodeDetail } from "./code-detail/code-detail";
@@ -19,14 +18,27 @@ import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
 import { MediaDetail } from "./media-detail/media-detail";
 import { FallbackDetail } from "./fallback-detail/fallback-detail";
+import { cn } from "@/lib/utils";
 
-export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
+export interface FileDetailProps {
+  compact: boolean;
+  projectId: string | null;
+  file: string | null;
+  onClose?: () => void;
+}
+
+export function FileDetail({ compact, projectId, file, onClose }: FileDetailProps) {
   const { t } = useTranslation();
   const editorName = useAppStore((s) => s.editor.name);
   const filePath = file ? parseFileReference(file).path : "";
   const fileKind = getFileKind(filePath);
   const [fileModified, setFileModified] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = compact && isMacApp && !isFullScreen;
 
   // Reset modified state when file changes
   useEffect(() => {
@@ -83,7 +95,10 @@ export function FileDetail({ projectId, file, onClose }: FileDetailProps) {
     <div className="flex flex-col w-full h-full min-w-0 relative overflow-hidden">
       {/* header */}
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background"
+        className={cn(
+          "h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background transition-[padding]",
+          !compact ? "" : sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
+        )}
         style={{ WebkitAppRegion: "drag" }}
       >
         <div className="flex items-center min-w-0 flex-1">

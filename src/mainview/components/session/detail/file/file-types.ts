@@ -13,12 +13,6 @@ export type FileKind =
   | "audio"
   | "video";
 
-export interface FileDetailProps {
-  projectId: string | null;
-  file: string | null;
-  onClose?: () => void;
-}
-
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
 
 const FILE_EXT_MAP: Record<string, FileKind> = {

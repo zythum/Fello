@@ -251,7 +251,9 @@ export async function encodePcmToMp3(options: EncodePcmToMp3Options): Promise<vo
   } catch (error) {
     child.kill("SIGKILL");
     await exited.catch(() => {});
-    throw new Error(`ffmpeg 编码音频失败：${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `ffmpeg 编码音频失败：${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   const code = await exited;

@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { request, subscribe, type BackendEvents } from "../../../../backend";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAppStore } from "../../../../store";
 import type {
   SessionInfo,
   SessionTokenBreakdown,
@@ -26,16 +27,22 @@ import type {
 } from "../../../../../shared/schema";
 
 interface TokenUsageDetailProps {
+  compact: boolean;
   session: SessionInfo;
   onClose: () => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function TokenUsageDetail({ session, onClose }: TokenUsageDetailProps) {
+export function TokenUsageDetail({ compact, session, onClose }: TokenUsageDetailProps) {
   const { t } = useTranslation();
   const [records, setRecords] = useState<SessionTokenUsage[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = compact && isMacApp && !isFullScreen;
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +92,10 @@ export function TokenUsageDetail({ session, onClose }: TokenUsageDetailProps) {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-3 bg-background/95"
+        className={cn(
+          "h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-3 bg-background/95 transition-[padding]",
+          !compact ? "" : sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
+        )}
         style={{ WebkitAppRegion: "drag" }}
       >
         <div className="flex items-center gap-1.5 min-w-0">

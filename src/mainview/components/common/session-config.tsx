@@ -54,7 +54,9 @@ export function SessionConfigFields({
   const isCard = variant === "card";
 
   const toggleFeature = (feature: Feature, checked: boolean) => {
-    onFeaturesChange(checked ? [...features, feature] : features.filter((item) => item !== feature));
+    onFeaturesChange(
+      checked ? [...features, feature] : features.filter((item) => item !== feature),
+    );
   };
 
   const toggleMcpServer = (mcpServerId: string, checked: boolean) => {

@@ -327,9 +327,7 @@ export function SettingsSpeech() {
                           见 shared/speech.ts），默认值也算配置；右侧开关只表达哪个配置被激活 */}
                       {[
                         effectiveAsrModel(provider) || provider.asrResourceId,
-                        [provider.ttsModel, effectiveTtsVoice(provider)]
-                          .filter(Boolean)
-                          .join("/"),
+                        [provider.ttsModel, effectiveTtsVoice(provider)].filter(Boolean).join("/"),
                       ]
                         .filter(Boolean)
                         .join(" · ") || provider.baseUrl}

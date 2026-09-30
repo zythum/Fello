@@ -308,9 +308,7 @@ function TtsMenuButton() {
               className="flex items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors cursor-default"
               onClick={() => setAutoRead(!autoRead)}
             >
-              <span className="mr-2 truncate">
-                {t("chatHeader.autoRead", "Auto-read replies")}
-              </span>
+              <span className="mr-2 truncate">{t("chatHeader.autoRead", "Auto-read replies")}</span>
               <div onClick={(event) => event.stopPropagation()}>
                 <Switch size="sm" checked={autoRead} onCheckedChange={setAutoRead} />
               </div>

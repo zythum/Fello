@@ -39,21 +39,20 @@ const providerField = z.enum(speechProviderValues, "settings.speech.validation.s
 // ── DashScope（通义） ──────────────────────────────────────────────────
 // 识别：asrModel；合成：voice + ttsModel；两侧共用 workspaceId/region/workspace/language。
 
-export const speechDashscopeSchema = z
-  .object({
-    name: nameField,
-    provider: providerField,
-    apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
-    workspaceId: z.string(),
-    region: z.enum(speechRegionValues),
-    workspace: z.string(),
-    language: z.string(),
-    asrEnabled: z.boolean(),
-    asrModel: z.string(),
-    ttsEnabled: z.boolean(),
-    voice: z.string(),
-    ttsModel: z.string(),
-  })
+export const speechDashscopeSchema = z.object({
+  name: nameField,
+  provider: providerField,
+  apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
+  workspaceId: z.string(),
+  region: z.enum(speechRegionValues),
+  workspace: z.string(),
+  language: z.string(),
+  asrEnabled: z.boolean(),
+  asrModel: z.string(),
+  ttsEnabled: z.boolean(),
+  voice: z.string(),
+  ttsModel: z.string(),
+});
 export type SpeechDashscopeFormValues = z.input<typeof speechDashscopeSchema>;
 
 export function speechDashscopeDefaultValues(): SpeechDashscopeFormValues {
@@ -113,19 +112,18 @@ export function speechDashscopeToDraft(values: SpeechDashscopeFormValues): Speec
 // 识别：asrResourceId（资源版本，如 volc.seedasr.sauc.duration）；
 // 合成：只有 voice —— 资源版本由库默认（seed-tts-2.0），没有 model。
 
-export const speechVolcengineSchema = z
-  .object({
-    name: nameField,
-    provider: providerField,
-    apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
-    appId: z.string(),
-    baseUrl: z.string(),
-    language: z.string(),
-    asrEnabled: z.boolean(),
-    asrResourceId: z.string(),
-    ttsEnabled: z.boolean(),
-    voice: z.string(),
-  })
+export const speechVolcengineSchema = z.object({
+  name: nameField,
+  provider: providerField,
+  apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
+  appId: z.string(),
+  baseUrl: z.string(),
+  language: z.string(),
+  asrEnabled: z.boolean(),
+  asrResourceId: z.string(),
+  ttsEnabled: z.boolean(),
+  voice: z.string(),
+});
 export type SpeechVolcengineFormValues = z.input<typeof speechVolcengineSchema>;
 
 export function speechVolcengineDefaultValues(): SpeechVolcengineFormValues {
@@ -160,9 +158,7 @@ export function speechVolcengineFromProvider(
   };
 }
 
-export function speechVolcengineToDraft(
-  values: SpeechVolcengineFormValues,
-): SpeechProviderDraft {
+export function speechVolcengineToDraft(values: SpeechVolcengineFormValues): SpeechProviderDraft {
   return {
     name: values.name.trim(),
     provider: "volcengine",
@@ -180,19 +176,18 @@ export function speechVolcengineToDraft(
 // ── OpenAI ─────────────────────────────────────────────────────────────
 // 识别模型走 transcriptionModel（gpt-4o-transcribe），合成模型走 model（gpt-4o-mini-tts）。
 
-export const speechOpenaiSchema = z
-  .object({
-    name: nameField,
-    provider: providerField,
-    apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
-    baseUrl: z.string(),
-    language: z.string(),
-    asrEnabled: z.boolean(),
-    asrModel: z.string(),
-    ttsEnabled: z.boolean(),
-    voice: z.string(),
-    ttsModel: z.string(),
-  })
+export const speechOpenaiSchema = z.object({
+  name: nameField,
+  provider: providerField,
+  apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
+  baseUrl: z.string(),
+  language: z.string(),
+  asrEnabled: z.boolean(),
+  asrModel: z.string(),
+  ttsEnabled: z.boolean(),
+  voice: z.string(),
+  ttsModel: z.string(),
+});
 export type SpeechOpenaiFormValues = z.input<typeof speechOpenaiSchema>;
 
 export function speechOpenaiDefaultValues(): SpeechOpenaiFormValues {
@@ -246,19 +241,18 @@ export function speechOpenaiToDraft(values: SpeechOpenaiFormValues): SpeechProvi
 // 两侧都是应用三元组（App ID / API Key / API Secret），且都没有 model；
 // 合成侧的差异只在发音人（voice）授权。
 
-export const speechIflytekSchema = z
-  .object({
-    name: nameField,
-    provider: providerField,
-    appId: z.string().trim().min(1, "settings.speech.validation.enterAppId"),
-    apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
-    apiSecret: z.string().trim().min(1, "settings.speech.validation.enterApiSecret"),
-    baseUrl: z.string(),
-    language: z.string(),
-    asrEnabled: z.boolean(),
-    ttsEnabled: z.boolean(),
-    voice: z.string(),
-  })
+export const speechIflytekSchema = z.object({
+  name: nameField,
+  provider: providerField,
+  appId: z.string().trim().min(1, "settings.speech.validation.enterAppId"),
+  apiKey: z.string().trim().min(1, "settings.speech.validation.enterApiKey"),
+  apiSecret: z.string().trim().min(1, "settings.speech.validation.enterApiSecret"),
+  baseUrl: z.string(),
+  language: z.string(),
+  asrEnabled: z.boolean(),
+  ttsEnabled: z.boolean(),
+  voice: z.string(),
+});
 export type SpeechIflytekFormValues = z.input<typeof speechIflytekSchema>;
 
 export function speechIflytekDefaultValues(): SpeechIflytekFormValues {

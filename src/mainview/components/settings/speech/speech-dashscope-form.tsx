@@ -110,11 +110,7 @@ export function SpeechDashscopeForm({
             render={({ field }) => (
               <Field>
                 <OptionalLabel htmlFor="speech-ds-workspace">Workspace</OptionalLabel>
-                <Input
-                  {...field}
-                  id="speech-ds-workspace"
-                  className="h-8 text-[11px]! font-mono"
-                />
+                <Input {...field} id="speech-ds-workspace" className="h-8 text-[11px]! font-mono" />
               </Field>
             )}
           />

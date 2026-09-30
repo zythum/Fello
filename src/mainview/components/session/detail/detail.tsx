@@ -7,6 +7,7 @@ import type { SessionInfo } from "../../../../shared/schema";
 export type DetailType = "file" | "terminal" | "token-usage";
 
 interface DetailProps {
+  compact: boolean;
   detailType: DetailType | null;
   projectId: string | null;
   file: string | null;
@@ -15,7 +16,15 @@ interface DetailProps {
   onClose: () => void;
 }
 
-export function Detail({ detailType, projectId, file, terminalId, session, onClose }: DetailProps) {
+export function Detail({
+  compact,
+  detailType,
+  projectId,
+  file,
+  terminalId,
+  session,
+  onClose,
+}: DetailProps) {
   const { t } = useTranslation();
 
   if (!detailType) return null;
@@ -23,11 +32,12 @@ export function Detail({ detailType, projectId, file, terminalId, session, onClo
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
       {detailType === "file" && projectId && file && (
-        <FileDetail projectId={projectId} file={file} onClose={onClose} />
+        <FileDetail compact={compact} projectId={projectId} file={file} onClose={onClose} />
       )}
 
       {detailType === "terminal" && projectId && terminalId && (
         <TerminalDetail
+          compact={compact}
           key={terminalId}
           terminalId={terminalId}
           projectId={projectId}
@@ -36,7 +46,7 @@ export function Detail({ detailType, projectId, file, terminalId, session, onClo
       )}
 
       {detailType === "token-usage" && session && (
-        <TokenUsageDetail session={session} onClose={onClose} />
+        <TokenUsageDetail compact={compact} session={session} onClose={onClose} />
       )}
 
       {(!detailType ||

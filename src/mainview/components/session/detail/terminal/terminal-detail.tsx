@@ -6,15 +6,21 @@ import { getOrCreateTerminalInstance } from "../../../../lib/terminal-manager";
 import { cn } from "@/lib/utils";
 
 interface TerminalDetailProps {
+  compact: boolean;
   terminalId: string;
   projectId: string;
   onClose: () => void;
 }
 
-export function TerminalDetail({ terminalId, projectId, onClose }: TerminalDetailProps) {
+export function TerminalDetail({ terminalId, compact, projectId, onClose }: TerminalDetailProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const fitRequestedRef = useRef(false);
+
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const isMacApp = useAppStore((s) => s.isMacApp);
+  const isFullScreen = useAppStore((s) => s.isFullScreen);
+  const showMacTrafficLightSpace = compact && isMacApp && !isFullScreen;
 
   const projectStates = useAppStore((s) => s.projectStates);
   const terminal = Array.from(projectStates.values())
@@ -107,7 +113,10 @@ export function TerminalDetail({ terminalId, projectId, onClose }: TerminalDetai
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div
-        className="h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background"
+        className={cn(
+          "h-12 shrink-0 border-b border-border flex items-center justify-between gap-2 px-2 bg-background transition-[padding]",
+          !compact ? "" : sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
+        )}
         style={{ WebkitAppRegion: "drag" }}
       >
         <div className="flex items-center min-w-0 gap-2">

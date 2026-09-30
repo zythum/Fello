@@ -293,15 +293,12 @@ export function createToolboxModule(ctx: BackendContext): ToolboxModule {
     // ── Text to Speech ─────────────────────────────────────────────
     // 依赖「设置 → 语音 → 合成」中已启用的 Provider（未启用时抛出带指引的错误）；
     // wav 无外部依赖，mp3 另需系统 ffmpeg。
-    server.registry(
-      "toolbox/text-to-speech",
-      async (payload): Promise<TextToSpeechRespond> => {
-        const { text, output, format } = textToSpeechRequestSchema.parse(payload);
-        const outputPath = resolve(projectDir, output ?? `speech.${format}`);
-        const outcome = await synthesizeSpeechToFile(ctx, { text, output: outputPath, format });
-        return { result: outcome };
-      },
-    );
+    server.registry("toolbox/text-to-speech", async (payload): Promise<TextToSpeechRespond> => {
+      const { text, output, format } = textToSpeechRequestSchema.parse(payload);
+      const outputPath = resolve(projectDir, output ?? `speech.${format}`);
+      const outcome = await synthesizeSpeechToFile(ctx, { text, output: outputPath, format });
+      return { result: outcome };
+    });
   }
 
   function buildToolboxMcpServer(options: { projectDir: string; socketPath: string }) {
