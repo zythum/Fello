@@ -196,6 +196,19 @@ const COMPACT_PROMPT = `Compress the conversation into a structured markdown sum
  Detect the user's commonly used language from the conversation history and respond in that language.
  Output only the summary.`;
 
+/** 构造 /compact 写入历史的摘要消息（role:"user" + 显式标签包裹）。 */
+function buildCompactSummaryMessage(summary: string): ModelMessage {
+  return {
+    role: "user",
+    content: `<previous_conversation_summary>
+This session continues from a previous conversation that ran out of context.
+The summary below covers the earlier portion of the conversation.
+
+${summary}
+</previous_conversation_summary>`,
+  };
+}
+
 export class OpenaiCompatibleAgent implements Agent {
   private sessions = new Map<string, SessionState>();
   private provider: ReturnType<typeof createOpenAICompatible>;
@@ -650,18 +663,10 @@ export class OpenaiCompatibleAgent implements Agent {
         },
       ],
       maxOutputTokens: 5000,
-      // 二次压缩时 historyBeforeCompact 里可能已含上一次压缩写入的 system 摘要，
-      // AI SDK 默认 allowSystemInMessages=false 会直接抛 InvalidPromptError。
-      allowSystemInMessages: true,
     });
 
     const summary = summaryResult.text;
-    session.history = [
-      {
-        role: "system",
-        content: `Summary of previous conversation: ${summary}`,
-      },
-    ];
+    session.history = [buildCompactSummaryMessage(summary)];
     await savePersistedSessionHistory({
       agentId: this.agentId,
       sessionId: session.id,
@@ -679,7 +684,7 @@ export class OpenaiCompatibleAgent implements Agent {
     }
 
     // Update context usage
-    // compact 后历史只剩一条 system 摘要消息，下次请求实际发送的就是摘要本身，
+    // compact 后历史只剩一条 user 摘要消息，下次请求实际发送的就是摘要本身，
     // 所以占用按摘要输出 tokens 估算。generateText 无工具时为单 step，
     // usage 与 finalStep.usage 相等；统一用 finalStep 口径与 prompt() 保持一致。
     const summaryUsage = summaryResult.finalStep.usage;
@@ -848,9 +853,6 @@ export class OpenaiCompatibleAgent implements Agent {
         model: this.provider.chatModel(session.modelId),
         system: systemPrompt,
         messages: [...session.history, userMessage],
-        // /compact 会把摘要以 role:"system" 写入 history；AI SDK 默认
-        // allowSystemInMessages=false，会在 messages 含 system 角色时抛 InvalidPromptError。
-        allowSystemInMessages: true,
         tools: allTools,
         stopWhen: isStepCount(256),
         abortSignal: abortController.signal,
