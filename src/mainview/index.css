@@ -227,6 +227,10 @@ input[type="number"] {
   color: #000;
 }
 
-.cet-titlebar {
+body > .cet-titlebar {
   @apply ring-1 ring-border;
+}
+
+body > .cet-container {
+  z-index: auto;
 }
