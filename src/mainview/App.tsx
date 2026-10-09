@@ -42,6 +42,7 @@ function AppContent() {
   const setImageGeneration = useAppStore((s) => s.setImageGeneration);
   const setSpeechProviders = useAppStore((s) => s.setSpeechProviders);
   const setVoiceInput = useAppStore((s) => s.setVoiceInput);
+  const setNotification = useAppStore((s) => s.setNotification);
   const setShortcuts = useAppStore((s) => s.setShortcuts);
   const setPeripherals = useAppStore((s) => s.setPeripherals);
   const setProxy = useAppStore((s) => s.setProxy);
@@ -112,6 +113,7 @@ function AppContent() {
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
       if (settings.speechProviders) setSpeechProviders(settings.speechProviders);
       if (settings.voiceInput) setVoiceInput(settings.voiceInput);
+      if (settings.notification) setNotification(settings.notification);
       if (settings.shortcuts) setShortcuts(settings.shortcuts);
       if (settings.peripherals) setPeripherals(settings.peripherals);
       // 恢复所有 session 中 pending 的 askUser 请求
@@ -151,12 +153,18 @@ function AppContent() {
     setImageGeneration,
     setSpeechProviders,
     setVoiceInput,
+    setNotification,
     setShortcuts,
     setPeripherals,
     setProxy,
     setIlinkStatus,
     setActiveIlinkSessionId,
   ]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    void electron.rendererReady();
+  }, [isReady]);
 
   useEffect(() => {
     const map = pendingSessionNotificationRef.current;
@@ -266,6 +274,13 @@ function AppContent() {
       useAppStore.getState().removeAskUserRequest(sid, detail.askUserId);
     };
 
+    const handleOpenSessionRequested = (
+      detail: BackendEvents["open-session-requested"],
+    ) => {
+      if (!detail.sessionId) return;
+      navigate(`/session-view/${detail.sessionId}`);
+    };
+
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
       const store = useAppStore.getState();
       if (!store.sessionStates.has(detail.sessionId)) {
@@ -363,6 +378,7 @@ function AppContent() {
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("ask-user-request", handleAskUserRequest);
     subscribe.on("ask-user-response", handleAskUserResponse);
+    subscribe.on("open-session-requested", handleOpenSessionRequested);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -506,6 +522,7 @@ function AppContent() {
       subscribe.off("session-update", handleSessionUpdate);
       subscribe.off("ask-user-request", handleAskUserRequest);
       subscribe.off("ask-user-response", handleAskUserResponse);
+      subscribe.off("open-session-requested", handleOpenSessionRequested);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);

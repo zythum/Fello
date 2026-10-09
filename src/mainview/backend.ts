@@ -123,6 +123,7 @@ bridge.on("session-changed", (payload) => emit("session-changed", payload));
 bridge.on("session-update", (payload) => emit("session-update", payload));
 bridge.on("ask-user-request", (payload) => emit("ask-user-request", payload));
 bridge.on("ask-user-response", (payload) => emit("ask-user-response", payload));
+bridge.on("open-session-requested", (payload) => emit("open-session-requested", payload));
 bridge.on("terminal-output", (payload) => emit("terminal-output", payload));
 bridge.on("terminal-exit", (payload) => emit("terminal-exit", payload));
 bridge.on("agent-terminal-output", (payload) => emit("agent-terminal-output", payload));

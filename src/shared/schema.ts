@@ -386,6 +386,14 @@ export interface SettingVoiceInputInfo {
 }
 
 /**
+ * 系统通知配置。
+ */
+export interface SettingNotificationInfo {
+  /** 是否显示 ask_user 的系统通知 */
+  askUser: boolean;
+}
+
+/**
  * 网络代理配置信息
  */
 export interface SettingProxyInfo {
@@ -506,6 +514,8 @@ export interface SettingsInfo {
   sound: SettingSoundInfo;
   /** 语音输入设置 */
   voiceInput: SettingVoiceInputInfo;
+  /** 系统通知设置 */
+  notification: SettingNotificationInfo;
   /** 应用快捷键覆盖配置 */
   shortcuts: ShortcutSettings;
   /** 网络代理设置 */
@@ -1197,6 +1207,8 @@ export type FelloIPCEvents = {
   "ask-user-request": AskUserRequest;
   /** 通用 askUser 响应事件（替换 permission-resolved） */
   "ask-user-response": AskUserResponse;
+  /** Electron 原生通知点击后，请求 renderer 打开对应 session */
+  "open-session-requested": { sessionId: string };
   /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
   /** 终端退出的事件 */

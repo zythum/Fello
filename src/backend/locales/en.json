@@ -1,4 +1,8 @@
 {
+  "askUser": {
+    "notificationTitle": "Fello needs your input",
+    "notificationBody": "A session is waiting for your response."
+  },
   "ilink": {
     "pleaseConfirm": "Please confirm:",
     "permissionAllowOnce": "{{name}}",

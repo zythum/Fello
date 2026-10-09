@@ -1,4 +1,8 @@
 {
+  "askUser": {
+    "notificationTitle": "Fello 等待你的确认",
+    "notificationBody": "有一个会话正在等待你的回复。"
+  },
   "ilink": {
     "pleaseConfirm": "请您确认：",
     "permissionAllowOnce": "允许一次 ({{name}})",

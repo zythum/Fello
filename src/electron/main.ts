@@ -10,6 +10,7 @@ import {
   shell,
   nativeTheme,
   MenuItemConstructorOptions,
+  Notification,
 } from "electron";
 import electronUpdater from "electron-updater";
 import { setupTitlebarAndAttachToWindow } from "custom-electron-titlebar/main";
@@ -18,12 +19,13 @@ import { join } from "path";
 import { Readable } from "stream";
 import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
-import type { FelloIPCSchema } from "../shared/schema";
+import type { AskUserRequest, AskUserResponse, FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const launchEditor = require("launch-editor");
 
 import { extractErrorMessage } from "../backend/utils";
+import { t } from "../backend/i18n";
 import { storageOps } from "../backend/storage";
 import { parseFileRoute, serveRoute } from "../backend/file-routes";
 import { applyProxy, detectSystemProxy, settingProxyInfoToProxyConfig } from "../backend/proxy";
@@ -63,11 +65,162 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | null = null;
+const askUserNotifications = new Map<string, Notification>();
+let pendingSessionNavigation: string | null = null;
+let rendererReadyWindow: BrowserWindow | null = null;
+
+function getActiveSessionIdFromWindow(win: BrowserWindow): string | null {
+  if (win.isDestroyed()) return null;
+
+  try {
+    const hash = new URL(win.webContents.getURL()).hash;
+    const route = hash.startsWith("#") ? hash.slice(1) : hash;
+    const prefix = "/session-view/";
+    if (!route.startsWith(prefix)) return null;
+    const encodedSessionId = route.slice(prefix.length).split(/[?#]/, 1)[0];
+    return encodedSessionId ? decodeURIComponent(encodedSessionId) : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldShowAskUserNotification(sessionId: string): boolean {
+  const win = mainWindow;
+  return (
+    !win ||
+    win.isDestroyed() ||
+    !win.isVisible() ||
+    win.isMinimized() ||
+    !win.isFocused() ||
+    getActiveSessionIdFromWindow(win) !== sessionId
+  );
+}
+
+function closeAskUserNotification(askUserId: string) {
+  const notification = askUserNotifications.get(askUserId);
+  if (notification) {
+    askUserNotifications.delete(askUserId);
+    notification.close();
+  }
+
+  if (process.platform === "darwin") {
+    try {
+      Notification.remove(askUserId);
+    } catch (error) {
+      console.warn(`[askUser] Failed to remove delivered notification ${askUserId}:`, error);
+    }
+  }
+}
+
+function closeDisabledAskUserNotifications() {
+  if (storageOps.getSettings().notification.askUser) return;
+  for (const askUserId of askUserNotifications.keys()) {
+    closeAskUserNotification(askUserId);
+  }
+}
+
+function showAskUserNotification(request: AskUserRequest) {
+  if (!app.isReady() || !storageOps.getSettings().notification.askUser) return;
+
+  const supported = Notification.isSupported();
+  const shouldShow = shouldShowAskUserNotification(request.sessionId);
+  if (!supported || !shouldShow || askUserNotifications.has(request.askUserId)) {
+    if (!supported) {
+      console.warn("[askUser] Native notifications are not supported on this system");
+    }
+    return;
+  }
+
+  let notification: Notification;
+  try {
+    notification = new Notification({
+      id: request.askUserId,
+      groupId: "ask-user",
+      title: t("askUser.notificationTitle"),
+      body: request.title.trim() || t("askUser.notificationBody"),
+    });
+  } catch (error) {
+    console.error("[askUser] Failed to create native notification:", error);
+    return;
+  }
+  askUserNotifications.set(request.askUserId, notification);
+
+  notification.on("show", () => {
+    console.info(`[askUser] Native notification shown for ${request.askUserId}`);
+  });
+  notification.on("failed", (_event, error) => {
+    if (askUserNotifications.get(request.askUserId) === notification) {
+      askUserNotifications.delete(request.askUserId);
+    }
+    console.error(`[askUser] Native notification failed for ${request.askUserId}:`, error);
+    if (process.platform === "darwin" && !app.isPackaged) {
+      console.error(
+        "[askUser] macOS native notifications require a code-signed app; the Electron development binary is not a valid signed app.",
+      );
+    }
+  });
+  notification.on("click", () => {
+    closeAskUserNotification(request.askUserId);
+    openSessionFromNotification(request.sessionId);
+  });
+  notification.on("close", () => {
+    if (askUserNotifications.get(request.askUserId) === notification) {
+      askUserNotifications.delete(request.askUserId);
+    }
+  });
+  try {
+    notification.show();
+  } catch (error) {
+    if (askUserNotifications.get(request.askUserId) === notification) {
+      askUserNotifications.delete(request.askUserId);
+    }
+    console.error(`[askUser] Failed to show native notification for ${request.askUserId}:`, error);
+  }
+}
+
+function flushPendingSessionNavigation(win: BrowserWindow) {
+  if (
+    !pendingSessionNavigation ||
+    mainWindow !== win ||
+    rendererReadyWindow !== win ||
+    win.isDestroyed() ||
+    win.webContents.isLoading() ||
+    !win.webContents.getURL()
+  ) {
+    return;
+  }
+
+  const sessionId = pendingSessionNavigation;
+  pendingSessionNavigation = null;
+  safeSend("open-session-requested", { sessionId });
+}
+
+function openSessionFromNotification(sessionId: string) {
+  pendingSessionNavigation = sessionId;
+
+  let win = mainWindow;
+  if (!win || win.isDestroyed()) {
+    if (!app.isReady()) return;
+    win = createMainWindow();
+  }
+
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.show();
+  win.focus();
+
+  flushPendingSessionNavigation(win);
+}
 
 function safeSend<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
   payload: FelloIPCSchema["events"][K],
 ): boolean {
+  if (channel === "ask-user-request") {
+    showAskUserNotification(payload as AskUserRequest);
+  } else if (channel === "ask-user-response") {
+    closeAskUserNotification((payload as AskUserResponse).askUserId);
+  }
+
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   mainWindow.webContents.send(channel, payload);
   return true;
@@ -125,9 +278,10 @@ for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema
           wc.once("render-process-gone", doCleanup);
         }
         const result = await (backendHandlers as any)[channel](params);
-        // 外设「生效」状态存在 settings 里，任何来源（含 WebUI）改动后都要让主进程
-        // 重新装载/卸载通道；装载是异步且不阻塞的，这里不等待。
-        if (channel === "updateSettings") syncPeripherals();
+        if (channel === "updateSettings") {
+          syncPeripherals();
+          closeDisabledAskUserNotifications();
+        }
         return result;
       } catch (error) {
         throw new Error(extractErrorMessage(error));
@@ -135,6 +289,13 @@ for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema
     },
   );
 }
+
+ipcMain.handle("rendererReady", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win !== mainWindow || win.isDestroyed()) return;
+  rendererReadyWindow = win;
+  flushPendingSessionNavigation(win);
+});
 
 // ── 外设宿主（Electron 专属） ───────────────────────────────────────
 // 外设只在桌面应用里生效：headless server 走 src/server，不会加载本模块；
@@ -651,8 +812,15 @@ function createMainWindow() {
   });
 
   mainWindow = win;
+  rendererReadyWindow = null;
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null;
+    if (rendererReadyWindow === win) rendererReadyWindow = null;
+  });
+  win.webContents.on("did-start-navigation", (_event, _url, isInPlace, isMainFrame) => {
+    if (isMainFrame && !isInPlace && rendererReadyWindow === win) {
+      rendererReadyWindow = null;
+    }
   });
 
   // 1. 处理当前窗口内的跳转（如 <a href="...">）
@@ -723,6 +891,10 @@ function createMainWindow() {
       });
     });
   }
+
+  win.webContents.on("did-finish-load", () => {
+    flushPendingSessionNavigation(win);
+  });
 
   if (isDev) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL!);

@@ -12,6 +12,7 @@ export type ElectronIPCRequests = {
   downloadUpdate: { params: void; response: void };
   installUpdate: { params: void; response: void };
   restartApp: { params: void; response: void };
+  rendererReady: { params: void; response: void };
   // 外设（Electron 专属）
   openPeripheralPermissionSettings: { params: void; response: void };
   getPeripheralStatuses: { params: void; response: PeripheralStatus[] };

@@ -40,6 +40,41 @@ npm run pack:npm     # → npm-package/
 
 ---
 
+## macOS Development Notifications / macOS 开发环境通知
+
+Electron 42 及更高版本在 macOS 上使用 `UNNotification`。macOS 要求 Electron 应用具有有效代码签名，否则主进程的 `Notification.show()` 不会显示系统通知。
+
+Electron npm 包自带的开发应用通常只有 linker ad-hoc signature。启动开发环境前，先退出正在运行的 Fello，然后在项目根目录执行：
+
+```bash
+codesign --force --deep --sign - node_modules/electron/dist/Electron.app
+```
+
+检查签名：
+
+```bash
+codesign -dv --verbose=4 node_modules/electron/dist/Electron.app 2>&1 \
+  | grep -E 'Signature=|TeamIdentifier=|flags='
+```
+
+应看到真实的 ad-hoc 签名（`flags=0x2(adhoc)`），而不是 `0x20002(adhoc,linker-signed)`。之后启动开发环境：
+
+```bash
+npm run dev
+```
+
+开发环境的 Bundle ID 是 `com.github.Electron`，如果 macOS 之前拒绝过通知，可以重置通知权限后重新启动：
+
+```bash
+tccutil reset Notifications com.github.Electron
+```
+
+然后在 **系统设置 → 通知 → Electron** 中允许通知。每次重新安装或更新 `node_modules/electron` 后，都需要重新执行 `codesign` 命令。
+
+Electron 生产包应使用项目发布流程中的有效 macOS 证书签名；上面的 ad-hoc 签名仅用于本地开发测试。
+
+---
+
 ## Project Scripts / 常用脚本
 
 | Script | Description / 说明 |

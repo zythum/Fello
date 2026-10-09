@@ -34,6 +34,8 @@ export function SettingsGeneral() {
     setSound,
     voiceInput,
     setVoiceInput,
+    notification,
+    setNotification,
     proxy,
   } = useAppStore();
   const { toast } = useMessage();
@@ -101,10 +103,22 @@ export function SettingsGeneral() {
     }
   };
 
+  const handleAskUserNotificationChange = async (checked: boolean) => {
+    const newNotification = { ...notification, askUser: checked };
+    setNotification(newNotification);
+    try {
+      await request.updateSettings({ notification: newNotification });
+    } catch {
+      toast.error(
+        t("settings.general.saveNotificationFailed", "Failed to save notification setting."),
+      );
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-hidden">
-        <div className="space-y-6 px-5 py-4 w-full max-w-4xl mx-auto">
+        <div className="space-y-6 px-5 py-4 mb-4 w-full max-w-4xl mx-auto">
           <div>
             <h3 className="text-lg font-medium">{t("settings.general.title", "General")}</h3>
             <p className="text-sm text-muted-foreground">
@@ -464,6 +478,32 @@ export function SettingsGeneral() {
                   >
                     {t("settings.general.soundTestPlay", "Play")}
                   </Button>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-border"></div>
+            {/* ── Notifications ── */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">
+                {t("settings.general.groupNotification", "Notifications")}
+              </h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.askUserNotification", "Ask user")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t(
+                        "settings.general.askUserNotificationDesc",
+                        "Show a system notification when a session is waiting for your response.",
+                      )}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={notification.askUser}
+                    onCheckedChange={handleAskUserNotificationChange}
+                  />
                 </div>
               </div>
             </div>

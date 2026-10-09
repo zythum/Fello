@@ -69,6 +69,10 @@ export const electron = {
     }
     return window.fello!.invoke("restartApp");
   },
+  rendererReady: async (): Promise<void> => {
+    if (isWebUI || !window.fello) return;
+    return window.fello.invoke("rendererReady");
+  },
 
   updateTheme: (theme: "dark" | "light") => {
     if (isWebUI || !window.fello) return;

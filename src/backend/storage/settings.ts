@@ -130,6 +130,9 @@ interface SettingsMeta {
   voiceInput: {
     altDoublePress: boolean;
   };
+  notification: {
+    askUser: boolean;
+  };
   shortcuts: ShortcutSettings;
   proxy?: SettingProxyInfo;
   snippets?: SnippetInfo[];
@@ -162,6 +165,9 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   voiceInput: {
     altDoublePress: true,
+  },
+  notification: {
+    askUser: true,
   },
   shortcuts: {},
   proxy: {
@@ -372,6 +378,16 @@ function readSettings(): SettingsMeta {
       };
     })();
 
+    const notification: SettingsMeta["notification"] = (() => {
+      const raw = rawObj && isObject(rawObj.notification) ? rawObj.notification : null;
+      return {
+        askUser:
+          typeof raw?.askUser === "boolean"
+            ? raw.askUser
+            : DEFAULT_SETTINGS.notification.askUser,
+      };
+    })();
+
     const proxy: SettingProxyInfo = (() => {
       const raw = rawObj && isObject(rawObj.proxy) ? rawObj.proxy : null;
       if (!raw) return DEFAULT_SETTINGS.proxy!;
@@ -537,6 +553,7 @@ function readSettings(): SettingsMeta {
       editor,
       sound,
       voiceInput,
+      notification,
       shortcuts,
       proxy,
       snippets,
@@ -640,6 +657,9 @@ export function getSettings(): SettingsInfo {
     },
     voiceInput: {
       altDoublePress: meta.voiceInput.altDoublePress,
+    },
+    notification: {
+      askUser: meta.notification.askUser,
     },
     shortcuts: Object.fromEntries(
       Object.entries(meta.shortcuts).map(([commandId, shortcuts]) => [
@@ -838,6 +858,17 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           typeof settings.voiceInput.altDoublePress === "boolean"
             ? settings.voiceInput.altDoublePress
             : prevMeta.voiceInput.altDoublePress,
+      };
+    })(),
+    notification: (() => {
+      if (!settings.notification) {
+        return prevMeta.notification;
+      }
+      return {
+        askUser:
+          typeof settings.notification.askUser === "boolean"
+            ? settings.notification.askUser
+            : prevMeta.notification.askUser,
       };
     })(),
     shortcuts: settings.shortcuts
