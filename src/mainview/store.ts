@@ -11,6 +11,7 @@ import type {
   AskUserRequest,
 } from "../shared/schema";
 import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./lib/chat-message";
+import { ALL_FEATURES } from "../shared/constants";
 
 enableArrayMethods();
 enableMapSet();
@@ -116,6 +117,7 @@ export interface AppState {
   sidebarOpen: boolean;
   configuredAgents: SettingsInfo["agents"];
   configuredMcpServers: SettingsInfo["mcpServers"];
+  features: SettingsInfo["features"];
   theme: SettingsInfo["theme"];
   i18n: SettingsInfo["i18n"];
   fileWatcher: SettingsInfo["fileWatcher"];
@@ -187,6 +189,7 @@ export interface AppState {
   setSidebarOpen: (v: boolean) => void;
   setConfiguredAgents: (agents: SettingsInfo["agents"]) => void;
   setConfiguredMcpServers: (mcpServers: SettingsInfo["mcpServers"]) => void;
+  setFeatures: (features: SettingsInfo["features"]) => void;
   setTheme: (theme: SettingsInfo["theme"]) => void;
   setI18n: (i18n: SettingsInfo["i18n"]) => void;
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
@@ -237,6 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
   configuredAgents: [],
   configuredMcpServers: [],
+  features: [...ALL_FEATURES],
   theme: { themeMode: "system" },
   i18n: { language: "en" },
   fileWatcher: { enabled: true },
@@ -395,6 +399,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
   setConfiguredMcpServers: (mcpServers) => set({ configuredMcpServers: mcpServers }),
+  setFeatures: (features) => set({ features }),
   setTheme: (theme) => set({ theme }),
   setI18n: (i18n) => set({ i18n }),
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),

@@ -202,6 +202,7 @@ export function Sidebar() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const configuredAgents = useAppStore((s) => s.configuredAgents);
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
+  const defaultFeatures = useAppStore((s) => s.features);
   const webUIStatus = useAppStore((s) => s.webUIStatus);
   const ilinkStatus = useAppStore((s) => s.ilinkStatus);
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
@@ -465,7 +466,7 @@ export function Sidebar() {
     setNewSessionProjectId(projectId);
     setNewSessionAgentId(enabledAgents[0]?.id ?? "");
     setNewSessionMcpIds(new Set(configuredMcpServers.filter((s) => !s.disabled).map((s) => s.id)));
-    setNewSessionFeatures(ALL_FEATURES);
+    setNewSessionFeatures(defaultFeatures);
     setNewSessionPermissionMode("allow-all");
     setNewSessionDialogOpen(true);
   }

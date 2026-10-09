@@ -34,6 +34,7 @@ function AppContent() {
   const setProjects = useAppStore((s) => s.setProjects);
   const setConfiguredAgents = useAppStore((s) => s.setConfiguredAgents);
   const setConfiguredMcpServers = useAppStore((s) => s.setConfiguredMcpServers);
+  const setFeatures = useAppStore((s) => s.setFeatures);
   const setWebUIStatus = useAppStore((s) => s.setWebUIStatus);
   const setTheme = useAppStore((s) => s.setTheme);
   const setI18n = useAppStore((s) => s.setI18n);
@@ -99,6 +100,7 @@ function AppContent() {
       setSessions(sessions ?? []);
       setConfiguredAgents(settings.agents);
       setConfiguredMcpServers(settings.mcpServers || []);
+      setFeatures(settings.features);
       setWebUIStatus(webUIStatus);
       setIlinkStatus(ilinkStatus);
       setActiveIlinkSessionId(ilinkActive.sessionId);
@@ -144,6 +146,7 @@ function AppContent() {
     setSessions,
     setConfiguredAgents,
     setConfiguredMcpServers,
+    setFeatures,
     setWebUIStatus,
     setTheme,
     setI18n,

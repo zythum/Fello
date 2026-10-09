@@ -3,7 +3,9 @@ import { writeFileSync, readFileSync, existsSync } from "fs";
 
 import { FELLO_DIR } from "./constant";
 
+import { ALL_FEATURES } from "../../shared/constants";
 import type {
+  Feature,
   PeripheralSettingInfo,
   SettingProxyInfo,
   ShortcutSettings,
@@ -100,6 +102,8 @@ interface SpeechProviderMeta {
   ttsEnabled: boolean;
 }
 
+type FeatureMeta = Partial<Record<Feature, boolean>>;
+
 interface SettingsMeta {
   agents: {
     [id: string]: AgentMeta;
@@ -107,6 +111,7 @@ interface SettingsMeta {
   mcpServers: {
     [id: string]: McpServerMeta;
   };
+  features: FeatureMeta;
   theme: {
     theme_mode: "light" | "dark" | "system";
   };
@@ -142,6 +147,14 @@ interface SettingsMeta {
   peripherals?: PeripheralSettingInfo[];
 }
 
+function createDefaultFeatureMeta(): FeatureMeta {
+  const features: FeatureMeta = {};
+  for (const feature of ALL_FEATURES) {
+    features[feature] = true;
+  }
+  return features;
+}
+
 const DEFAULT_SETTINGS: SettingsMeta = {
   agents: {},
   theme: { theme_mode: "system" },
@@ -149,6 +162,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     language: "en",
   },
   mcpServers: {},
+  features: createDefaultFeatureMeta(),
   fileWatcher: {
     enabled: true,
   },
@@ -339,6 +353,19 @@ function readSettings(): SettingsMeta {
       return next;
     })();
 
+    const rawFeatures = rawObj?.features;
+    const features: FeatureMeta = (() => {
+      const next = createDefaultFeatureMeta();
+      if (isObject(rawFeatures)) {
+        for (const feature of ALL_FEATURES) {
+          if (typeof rawFeatures[feature] === "boolean") {
+            next[feature] = rawFeatures[feature];
+          }
+        }
+      }
+      return next;
+    })();
+
     const fileWatcher: SettingsMeta["fileWatcher"] =
       rawObj && isObject(rawObj.fileWatcher) && typeof rawObj.fileWatcher.enabled === "boolean"
         ? { enabled: rawObj.fileWatcher.enabled }
@@ -382,9 +409,7 @@ function readSettings(): SettingsMeta {
       const raw = rawObj && isObject(rawObj.notification) ? rawObj.notification : null;
       return {
         askUser:
-          typeof raw?.askUser === "boolean"
-            ? raw.askUser
-            : DEFAULT_SETTINGS.notification.askUser,
+          typeof raw?.askUser === "boolean" ? raw.askUser : DEFAULT_SETTINGS.notification.askUser,
       };
     })();
 
@@ -548,6 +573,7 @@ function readSettings(): SettingsMeta {
       theme,
       i18n,
       mcpServers,
+      features,
       fileWatcher,
       ilink,
       editor,
@@ -635,6 +661,7 @@ export function getSettings(): SettingsInfo {
         throw new Error(`Invalid mcpServer type ${(srvMeta as any).type}.`);
       })
       .sort((a, b) => meta.mcpServers[a.id].order - meta.mcpServers[b.id].order),
+    features: ALL_FEATURES.filter((feature) => meta.features[feature] !== false),
     i18n: {
       language: meta.i18n.language,
     },
@@ -806,6 +833,15 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
       });
       return nextMcpServers;
     })(),
+    features: settings.features
+      ? (() => {
+          const next: FeatureMeta = {};
+          for (const feature of ALL_FEATURES) {
+            next[feature] = settings.features.includes(feature);
+          }
+          return next;
+        })()
+      : prevMeta.features,
     fileWatcher: (() => {
       if (!settings.fileWatcher) {
         return prevMeta.fileWatcher;

@@ -12,6 +12,7 @@ import {
   Mic,
   Command,
   Gamepad2,
+  Blocks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "../../store";
@@ -46,6 +47,12 @@ export function SettingsLayout() {
       href: "/settings/agents",
       icon: <Bot className="size-4" />,
       label: t("settings.agents.title", "Agents"),
+    },
+    {
+      id: "features",
+      href: "/settings/features",
+      icon: <Blocks className="size-4" />,
+      label: t("settings.features.title", "Features"),
     },
     {
       id: "mcp",

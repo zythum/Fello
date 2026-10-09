@@ -45,6 +45,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   const { toast } = useMessage();
   const configuredAgents = useAppStore((s) => s.configuredAgents);
   const configuredMcpServers = useAppStore((s) => s.configuredMcpServers);
+  const defaultFeatures = useAppStore((s) => s.features);
   const enabledAgents = useMemo(
     () => configuredAgents.filter((a) => !a.disabled),
     [configuredAgents],
@@ -77,7 +78,7 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
   );
   const [onceAt, setOnceAt] = useState<number | null>(isEdit ? (schedule!.cron.at ?? null) : null);
   const [features, setFeatures] = useState<Feature[]>(
-    isEdit ? (schedule!.features ?? ["skills"]) : ["skills"],
+    isEdit ? (schedule!.features ?? ["skills"]) : defaultFeatures,
   );
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(
     isEdit ? (schedule!.mcpServers ?? []) : enabledMcpServers.map((s) => s.id),
@@ -107,10 +108,10 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
       setCronType("cron");
       setCronExpr("0 9 * * 1-5");
       setOnceAt(null);
-      setFeatures(["skills"]);
+      setFeatures(defaultFeatures);
       setMcpServerIds(enabledMcpServers.map((s) => s.id));
     }
-  }, [schedule, open, enabledMcpServers, enabledAgents]);
+  }, [schedule, open, enabledMcpServers, enabledAgents, defaultFeatures]);
 
   const handleSave = async () => {
     if (!name.trim())

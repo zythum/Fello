@@ -325,6 +325,19 @@
         "jsonObject": "Must be a valid JSON object with string values."
       }
     },
+    "features": {
+      "title": "Features",
+      "desc": "Choose which features are enabled by default for new sessions and automations.",
+      "descriptions": {
+        "skills": "Discover and use project and user-installed skills.",
+        "search": "Search files and content in the project.",
+        "imageGeneration": "Generate images with configured image providers.",
+        "memory": "Store and retrieve persistent project memory.",
+        "askUser": "Ask you questions when the agent needs input.",
+        "shareToUser": "Share files and other resources with you."
+      },
+      "updateFailed": "Failed to update feature defaults."
+    },
     "webui": {
       "desc": "Configure remote access to the Fello interface.",
       "title": "WebUI",

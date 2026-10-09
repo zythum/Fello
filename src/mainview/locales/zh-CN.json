@@ -324,6 +324,19 @@
         "jsonObject": "必须是有效的 JSON 对象（值为字符串）。"
       }
     },
+    "features": {
+      "title": "功能",
+      "desc": "选择新建会话和自动化时默认启用的功能。",
+      "descriptions": {
+        "skills": "发现并使用项目和用户安装的技能。",
+        "search": "搜索项目中的文件和内容。",
+        "imageGeneration": "使用已配置的图片生成服务生成图片。",
+        "memory": "存取持久化的项目记忆。",
+        "askUser": "当 Agent 需要输入时向你提问。",
+        "shareToUser": "向你分享文件和其他资源。"
+      },
+      "updateFailed": "更新功能默认设置失败。"
+    },
     "webui": {
       "desc": "配置对 Fello 界面的远程访问。",
       "title": "WebUI",

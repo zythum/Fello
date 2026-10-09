@@ -500,6 +500,8 @@ export interface SettingsInfo {
   agents: AgentInfo[];
   /** MCP 服务器配置 */
   mcpServers: McpServerInfo[];
+  /** 新建会话和自动化时默认启用的 features */
+  features: Feature[];
   /** 主题设置 */
   theme: SettingThemeInfo;
   /** 国际化（语言）设置 */

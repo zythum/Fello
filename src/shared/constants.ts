@@ -87,6 +87,16 @@ export const FEATURE_I18N_KEYS: Record<Feature, string> = {
   image_generation: "constant.feature.imageGeneration",
 };
 
+/** feature → settings description i18n key 映射 */
+export const FEATURE_DESCRIPTION_I18N_KEYS: Record<Feature, string> = {
+  search: "settings.features.descriptions.search",
+  skills: "settings.features.descriptions.skills",
+  ask_user: "settings.features.descriptions.askUser",
+  share_to_user: "settings.features.descriptions.shareToUser",
+  memory: "settings.features.descriptions.memory",
+  image_generation: "settings.features.descriptions.imageGeneration",
+};
+
 /** launch-editor 支持的值到显示名称的映射 */
 export const EDITOR_LABELS: Record<string, string> = {
   code: "VS Code",
