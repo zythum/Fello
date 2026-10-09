@@ -207,13 +207,7 @@ function formatDescription(text: string): string {
  * 与 chat-area 的朗读按钮一致：只负责触发 `speakOnce`（手动朗读的渲染层唯一入口，
  * 内部分句、串行合成并抢占当前朗读），不切换成停止态——停止统一走 chat-header 的朗读指示。
  */
-function AskUserTtsButton({
-  title,
-  description,
-}: {
-  title?: string;
-  description?: string;
-}) {
+function AskUserTtsButton({ title, description }: { title?: string; description?: string }) {
   const { t } = useTranslation();
 
   const spokenText = useMemo(() => {

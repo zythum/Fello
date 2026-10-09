@@ -99,7 +99,7 @@ function AppContent() {
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
       setConfiguredAgents(settings.agents);
-      setConfiguredMcpServers(settings.mcpServers || []);
+      setConfiguredMcpServers(settings.mcpServers);
       setFeatures(settings.features);
       setWebUIStatus(webUIStatus);
       setIlinkStatus(ilinkStatus);
@@ -277,9 +277,7 @@ function AppContent() {
       useAppStore.getState().removeAskUserRequest(sid, detail.askUserId);
     };
 
-    const handleOpenSessionRequested = (
-      detail: BackendEvents["open-session-requested"],
-    ) => {
+    const handleOpenSessionRequested = (detail: BackendEvents["open-session-requested"]) => {
       if (!detail.sessionId) return;
       navigate(`/session-view/${detail.sessionId}`);
     };
