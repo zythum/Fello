@@ -13,9 +13,11 @@ import {
   ChevronUp,
   Clock,
   Keyboard,
+  Volume2,
 } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
 import { resolveMentions } from "../../../lib/mention-utils";
+import { speakOnce } from "../../../lib/tts/tts-reader";
 import type { AskUserRequest, AskUserRequestOption } from "../../../../shared/schema";
 import type { VoiceInputButtonRef } from "../../common/voice-input-button";
 import { useFocusTarget } from "../../../lib/keyboard";
@@ -128,6 +130,10 @@ export function AskUserDialog({ sessionId }: Props) {
               {currentRequest.timeoutAt != null && (
                 <AskUserCountdown timeoutAt={currentRequest.timeoutAt} />
               )}
+              <AskUserTtsButton
+                title={currentRequest.title}
+                description={currentRequest.description}
+              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -193,6 +199,48 @@ function formatDescription(text: string): string {
  * insertPathsAsMentions / absPathToMention / searchFileItemToSuggestItem，
  * 优先级与 chat-input 完全一致：图片 → #image:，项目内 → #file:/#folder:，项目外 → #resource:。
  */
+
+/**
+ * 朗读 ask-user 请求（标题 + 描述）。朗读范围与卡片展示一致：description 若是 JSON，
+ * 按 `formatDescription` 转成的 YAML 朗读，避免念出大段花括号 / 引号。
+ *
+ * 与 chat-area 的朗读按钮一致：只负责触发 `speakOnce`（手动朗读的渲染层唯一入口，
+ * 内部分句、串行合成并抢占当前朗读），不切换成停止态——停止统一走 chat-header 的朗读指示。
+ */
+function AskUserTtsButton({
+  title,
+  description,
+}: {
+  title?: string;
+  description?: string;
+}) {
+  const { t } = useTranslation();
+
+  const spokenText = useMemo(() => {
+    const parts: string[] = [];
+    if (title) parts.push(title);
+    if (description) parts.push(formatDescription(description));
+    return parts.join("\n\n").trim();
+  }, [title, description]);
+
+  if (!spokenText) return null;
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-6 rounded-md shrink-0 text-muted-foreground hover:bg-secondary"
+      onClick={(e) => {
+        e.stopPropagation();
+        speakOnce(spokenText);
+      }}
+      aria-label={t("askUser.read", "Read aloud")}
+      title={t("askUser.read", "Read aloud")}
+    >
+      <Volume2 className="size-4" />
+    </Button>
+  );
+}
 
 function AskUserCountdown({ timeoutAt }: { timeoutAt: number }) {
   const { t } = useTranslation();

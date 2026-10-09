@@ -927,7 +927,8 @@
     "submit": "Submit",
     "autoClose": "Auto closes on timeout",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "read": "Read aloud"
   },
   "shareToUser": {
     "copyToProject": "Copy to project",
