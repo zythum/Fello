@@ -1291,6 +1291,7 @@ const suggestionsStyle: MentionsSuggestionsStyle = {
   },
   item: {
     padding: "6px 12px",
+    whiteSpace: "nowrap",
     "&focused": {
       backgroundColor: "var(--accent)",
     },
