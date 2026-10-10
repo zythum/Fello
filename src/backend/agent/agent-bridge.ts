@@ -1,3 +1,4 @@
+import { appendFileSync } from "fs";
 import { writeFile, readFile } from "fs/promises";
 import {
   ndJsonStream,
@@ -34,7 +35,7 @@ import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 
 // Set to true to enable ACP message logging
-const ACP_VERBOSE_LOG = false;
+const ACP_VERBOSE_LOG: string | boolean = false;
 
 export interface SetSessionModelRequest {
   sessionId: string;
@@ -211,6 +212,9 @@ export class ACPBridge {
     if (!configOptions) return;
     this._configOptions.set(sessionId, configOptions);
 
+    // configOptions is a full set, so a missing category means the capability
+    // is gone (e.g. thought_level disappears when switching to a model without
+    // effort support) — clear it rather than leaving stale state behind.
     const modelOption = configOptions.find(
       (option) => option.type === "select" && option.category === "model",
     );
@@ -225,6 +229,8 @@ export class ACPBridge {
         currentModelId: selectOption.currentValue,
         availableModels,
       });
+    } else {
+      this._modelStates.delete(sessionId);
     }
 
     const modeOption = configOptions.find(
@@ -241,6 +247,8 @@ export class ACPBridge {
         currentModeId: selectOption.currentValue,
         availableModes,
       });
+    } else {
+      this._modeStates.delete(sessionId);
     }
 
     const thoughtLevelOption = configOptions.find(
@@ -259,6 +267,8 @@ export class ACPBridge {
         currentThoughtLevelId: selectOption.currentValue,
         availableThoughtLevels,
       });
+    } else {
+      this._thoughtLevelStates.delete(sessionId);
     }
   }
 
@@ -300,7 +310,11 @@ export class ACPBridge {
       const logReadable = rawStream.readable.pipeThrough(
         new TransformStream({
           transform(msg, controller) {
-            console.log(`[ACP:${acpId} ←]`, JSON.stringify(msg));
+            const logMessage = `[ACP:${acpId} ←] ${JSON.stringify(msg)}`;
+            console.log(logMessage);
+            if (typeof ACP_VERBOSE_LOG === "string") {
+              appendFileSync(ACP_VERBOSE_LOG, logMessage + "\n", "utf8");
+            }
             controller.enqueue(msg);
           },
         }),
@@ -308,7 +322,11 @@ export class ACPBridge {
       const rawWriter = rawStream.writable.getWriter();
       const logWritable = new WritableStream({
         async write(msg) {
-          console.log(`[ACP:${acpId} →]`, JSON.stringify(msg));
+          const logMessage = `[ACP:${acpId} →] ${JSON.stringify(msg)}`;
+          console.log(logMessage);
+          if (typeof ACP_VERBOSE_LOG === "string") {
+            appendFileSync(ACP_VERBOSE_LOG, logMessage + "\n", "utf8");
+          }
           try {
             await rawWriter.write(msg);
           } catch {}

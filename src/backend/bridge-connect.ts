@@ -149,6 +149,25 @@ export function createBridgeConnectModule(
               if (updated) sendEvent("session-changed", { session: updated });
             }
           }
+
+          if (sessionUpdate === "config_option_update") {
+            // config_option_update carries the FULL config option set (mode /
+            // model / thought_level). The bridge has already parsed it into its
+            // in-memory state; mirror it into SessionInfo so the UI (which reads
+            // session.models / session.modes / session.thoughtLevels) stays in
+            // sync — kiro-v3 publishes its model list this way rather than in the
+            // loadSession response. Mirroring the full set (including nulls, not
+            // only non-null fields) is what clears e.g. thought_level when a
+            // model without effort support is selected and the option disappears.
+            const { models, modes, thoughtLevels } = bridge.parseSessionConfigOptions(
+              result.update.configOptions,
+            );
+            if (models || modes || thoughtLevels) {
+              storage.updateSession(currentSessionId, { models, modes, thoughtLevels });
+              const updated = storage.getSession(currentSessionId);
+              if (updated) sendEvent("session-changed", { session: updated });
+            }
+          }
         }
         broadcastAndSaveSessionUpdate(currentSessionId, result);
       }
