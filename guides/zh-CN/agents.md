@@ -128,6 +128,7 @@ Fello 提供实时的 Token 用量追踪：
 | → [Skills 技能](./skills.md) | 安装技能包增强 Agent 专业能力 |
 | → [权限控制与安全](./permissions.md) | 了解 Agent 操作的权限管理 |
 | → [Kiro 作为 Agent](./agents-kiro.md) | 配置 Kiro Stdio Agent（ACP） |
+| → [Kiro CLI V3（实验性）](./agents-kiro-v3.md) | 尝鲜 Kiro CLI V3（尚不稳定） |
 | → [Kimi 作为 Agent](./agents-kimi.md) | 配置 Kimi API / Stdio Agent + Exa MCP |
 | → [DeepSeek 作为 Agent](./agents-deepseek.md) | 配置 DeepSeek API Agent + Exa MCP |
 | → [CodeBuddy 作为 Agent](./agents-codebuddy.md) | 配置 CodeBuddy Stdio Agent（ACP）+ Agent Teams |

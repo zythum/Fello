@@ -128,6 +128,7 @@ Fello provides real-time token usage tracking:
 | → [Skills](./skills.md) | Install skill packs to enhance your Agent's capabilities |
 | → [Permissions & Security](./permissions.md) | Learn about permission management for Agent actions |
 | → [Kiro as an Agent](./agents-kiro.md) | Configure the Kiro Stdio Agent (ACP) |
+| → [Kiro CLI V3 (Experimental)](./agents-kiro-v3.md) | Try Kiro CLI V3 early (not yet stable) |
 | → [Kimi as an Agent](./agents-kimi.md) | Configure the Kimi API / Stdio Agent + Exa MCP |
 | → [DeepSeek as an Agent](./agents-deepseek.md) | Configure the DeepSeek API Agent + Exa MCP |
 | → [CodeBuddy as an Agent](./agents-codebuddy.md) | Configure the CodeBuddy Stdio Agent (ACP) + Agent Teams |

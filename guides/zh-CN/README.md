@@ -12,6 +12,7 @@
 | [快速开始](./quick-start.md) | 下载安装 → 配置第一个 Agent → 发起第一次对话，5 分钟上手 |
 | [Agent 配置与管理](./agents.md) | 添加本地 Stdio Agent 和 API Agent，切换模型，管理多个 Agent |
 | → [Kiro 作为 Agent](./agents-kiro.md) | 配置 Kiro Stdio Agent（ACP） |
+| → [Kiro CLI V3（实验性）](./agents-kiro-v3.md) | 尝鲜 Kiro CLI V3（尚不稳定） |
 | → [Kimi 作为 Agent](./agents-kimi.md) | 配置 Kimi API / Stdio Agent + Exa MCP |
 | → [CodeBuddy 作为 Agent](./agents-codebuddy.md) | 配置 CodeBuddy Stdio Agent（ACP）+ Agent Teams |
 | → [DeepSeek 作为 Agent](./agents-deepseek.md) | 配置 DeepSeek API Agent + Exa MCP |

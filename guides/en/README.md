@@ -11,6 +11,7 @@
 | [Quick Start](./quick-start.md) | Download & install → configure your first Agent → start your first conversation, 5 minutes to get up and running |
 | [Agent Configuration](./agents.md) | Add local Stdio Agents and API Agents, switch models, manage multiple Agents |
 | → [Kiro as an Agent](./agents-kiro.md) | Configure the Kiro Stdio Agent (ACP) |
+| → [Kiro CLI V3 (Experimental)](./agents-kiro-v3.md) | Try Kiro CLI V3 early (not yet stable) |
 | → [Kimi as an Agent](./agents-kimi.md) | Configure the Kimi API / Stdio Agent + Exa MCP |
 | → [CodeBuddy as an Agent](./agents-codebuddy.md) | Configure the CodeBuddy Stdio Agent (ACP) + Agent Teams |
 | → [DeepSeek as an Agent](./agents-deepseek.md) | Configure the DeepSeek API Agent + Exa MCP |

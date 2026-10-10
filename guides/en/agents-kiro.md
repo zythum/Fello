@@ -41,6 +41,8 @@ Open Fello → **Settings** → **Agents**, click **Add Stdio Agent**, and fill 
 
 Click confirm and Kiro will appear in your Agent list. Select **Kiro** when creating a new session to start chatting.
 
+> 💡 **Want to try Kiro CLI V3?** V3 is Kiro's next-generation unified engine (Specs, Plan mode, capability-based permissions, and more). It's still early and not yet stable. The setup and launch flags differ — see → [Kiro CLI V3 (Experimental)](./agents-kiro-v3.md). For everyday use, we recommend sticking with the stable configuration above.
+
 ## How It Works
 
 Fello communicates with Kiro CLI via **ACP (Agent Chat Protocol)**:
@@ -60,4 +62,4 @@ Fello communicates with Kiro CLI via **ACP (Agent Chat Protocol)**:
 
 ---
 
-> 📖 [Kiro CLI Official Docs](https://kiro.dev/docs/cli/)
+> 📖 [Kiro CLI Official Docs](https://kiro.dev/docs/cli/) · [Kiro CLI V3 (Experimental)](./agents-kiro-v3.md)

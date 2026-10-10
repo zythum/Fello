@@ -41,6 +41,8 @@ irm "https://cli.kiro.dev/install.ps1" | iex
 
 点击确认后，Kiro 即出现在 Agent 列表中。新建会话时选择 **Kiro** 即可开始对话。
 
+> 💡 **想体验 Kiro CLI V3？** V3 是 Kiro 的新一代统一引擎（Spec、Plan 模式、能力化权限等），目前仍处于早期阶段、尚不稳定。接入方式与启动参数有所不同，详见 → [Kiro CLI V3（实验性）](./agents-kiro-v3.md)。日常使用建议仍采用上面的稳定版配置。
+
 ## 工作原理
 
 Fello 通过 **ACP（Agent Chat Protocol）** 与 Kiro CLI 通信：
@@ -60,4 +62,4 @@ Fello 通过 **ACP（Agent Chat Protocol）** 与 Kiro CLI 通信：
 
 ---
 
-> 📖 [Kiro CLI 官方文档](https://kiro.dev/docs/cli/)
+> 📖 [Kiro CLI 官方文档](https://kiro.dev/docs/cli/) · [Kiro CLI V3（实验性）](./agents-kiro-v3.md)
