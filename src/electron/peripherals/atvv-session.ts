@@ -63,6 +63,19 @@ export function createAtvvSession({
   let disconnectPromise: Promise<void> | undefined;
   let ready = false;
   let sessionId = 0;
+  /**
+   * 覆盖「正在进行的那次连接」的中止器。
+   *
+   * UBM 的每个慢操作（find / connect / discover / subscribe）都接受 `signal`，`disconnect()`
+   * 会在收尾前 `abort()` 它，尽量让进行中的步骤早点以 AbortError 收场。
+   *
+   * ⚠️ 有一处它**不生效**：`manager.find` 在等 BLE 广播时阻塞在 `iterator.next()` 上，只在流吐出
+   * terminal 后才回头看 `signal.aborted` —— 没设备广播时 abort **唤不醒**那次 45s 扫描。因此
+   * 「开着外设点退出不再卡 45s」靠的不是这里的 signal，而是 host 层在 `destroy()` 里先销毁
+   * manager（`peripherals/index.ts`：`manager.destroy()` 会停掉 scan session，从而唤醒阻塞的
+   * find）。这个 signal 的实际价值在于打断**连接之后**的步骤，以及配合整体清理。
+   */
+  let connectAbort: AbortController | undefined;
 
   /** 持续消费 UBM 的订阅流，并把 Control/Audio 数据转给业务监听器。 */
   async function consumeSubscription(
@@ -145,9 +158,19 @@ export function createAtvvSession({
     if (disconnectPromise) await disconnectPromise;
     if (connection || controlSubscription || audioSubscription) await releaseCurrent();
 
+    // 本次连接的中止器：disconnect() 用它把进行中的 find / connect / discover / subscribe
+    // 立刻打断（见 connectAbort 的说明）。
+    const abort = new AbortController();
+    connectAbort = abort;
+    const signal = abort.signal;
+
     notifyStatus({ state: "preparing", message: "正在检查 macOS CoreBluetooth 状态…" });
     const manager = await getManager();
-    const adapter = await manager.adapter.waitUntilReady({ operation: "scan", timeoutMs: 10_000 });
+    const adapter = await manager.adapter.waitUntilReady({
+      operation: "scan",
+      timeoutMs: 10_000,
+      signal,
+    });
     notifyStatus({
       state: "adapter-ready",
       message: `蓝牙已就绪：power=${adapter.power} / authorization=${adapter.authorization}`,
@@ -162,12 +185,14 @@ export function createAtvvSession({
     });
 
     // recovery boundary 会在 UBM scan 启动后注入系统已连接的 peripheral；
-    // 如果没有恢复结果，manager.find 会继续等待普通 BLE 广播，最长 45 秒。
+    // 如果没有恢复结果，manager.find 会继续等待普通 BLE 广播，最长 45 秒。注意：等广播期间
+    // find 不响应 signal（见 connectAbort 的说明），要让它提前结束需由 host 层销毁 manager。
     const peer = await manager.find({
       query: RC003_DISCOVERY_QUERY,
       select: "first",
       timeoutMs: 45_000,
       delivery: "balanced",
+      signal,
     });
     notifyStatus({
       state: "found",
@@ -179,9 +204,13 @@ export function createAtvvSession({
     let nextControlSubscription: UbmSubscription | undefined;
     let nextAudioSubscription: UbmSubscription | undefined;
     try {
-      nextConnection = await manager.connect(peer, { timeoutMs: 20_000, intent: "direct" });
+      nextConnection = await manager.connect(peer, {
+        timeoutMs: 20_000,
+        intent: "direct",
+        signal,
+      });
       notifyStatus({ state: "discovering", message: "已建立 BLE 连接，正在发现 ATVV GATT…" });
-      const nextGatt = await nextConnection.discover({ timeoutMs: 20_000 });
+      const nextGatt = await nextConnection.discover({ timeoutMs: 20_000, signal });
       const nextTransmit = nextGatt.characteristic(ATVV_SERVICE, ATVV_TRANSMIT);
       const nextAudio = nextGatt.characteristic(ATVV_SERVICE, ATVV_AUDIO);
       const nextControl = nextGatt.characteristic(ATVV_SERVICE, ATVV_CONTROL);
@@ -190,11 +219,13 @@ export function createAtvvSession({
       nextControlSubscription = await nextControl.subscribe({
         delivery: "prefer-notification",
         timeoutMs: 10_000,
+        signal,
       });
       notifyStatus({ state: "subscribing", message: "Control 已订阅，正在订阅 Audio…" });
       nextAudioSubscription = await nextAudio.subscribe({
         delivery: "prefer-notification",
         timeoutMs: 10_000,
+        signal,
       });
 
       // 原子提交：上面任一步失败都会进入 catch，不能提前把 ready 置为 true。
@@ -227,6 +258,7 @@ export function createAtvvSession({
     if (!connectPromise) {
       connectPromise = connectOnce().finally(() => {
         connectPromise = undefined;
+        connectAbort = undefined;
       });
     }
     try {
@@ -257,6 +289,10 @@ export function createAtvvSession({
   async function disconnect(): Promise<void> {
     if (disconnectPromise) return disconnectPromise;
     disconnectPromise = (async () => {
+      // 先中止进行中的连接，再 await 它：能打断的步骤（连接后的 discover / subscribe 等）会尽早
+      // 以 AbortError 返回。但若卡在等广播的 find 上，abort 无效（见 connectAbort 的说明），那一步
+      // 要靠 host 层销毁 manager 来唤醒；退出路径正是先 destroy manager 再调到这里，所以不会久等。
+      connectAbort?.abort();
       if (connectPromise) await connectPromise.catch(() => {});
       await releaseCurrent({ announce: true });
     })().finally(() => {

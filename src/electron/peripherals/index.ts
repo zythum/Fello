@@ -491,18 +491,28 @@ export function createPeripheralHost({
 
     async destroy() {
       destroyed = true;
-      for (const entry of [...mounted.values()]) {
-        // 退出中：同样先掐掉回调，别在拆除阶段还往外发状态。
-        entry.removed = true;
-        await entry.hid?.stop().catch(() => {});
-        await entry.voice?.disconnect().catch(() => {});
-      }
-      mounted.clear();
+      // 先掐掉所有回调，拆除阶段不再往外发状态。
+      for (const entry of mounted.values()) entry.removed = true;
+
+      // 关键顺序：**先销毁 BLE manager，再 await 各通道的 disconnect**。
+      //
+      // 退出时若正好有一次 `manager.find`（最长 45s 扫描）在进行，`voice.disconnect()` 会一直
+      // 等它结束 —— 这就是「开着外设点退出卡 45s」的根因。而 UBM 的 `find()` 在等广播时阻塞在
+      // `iterator.next()` 上，**不响应 AbortSignal**；真正能唤醒它的只有停掉那个 scan session。
+      // `manager.destroy()` 会遍历 activeScanSessions 逐个 `scan.stop()`，scan 一停，阻塞的
+      // find 立刻以 terminal 收场、disconnect 随即返回。所以必须让 destroy 跑在 disconnect 前面。
       if (bleHostPromise) {
         const host = await bleHostPromise.catch(() => null);
         await host?.manager?.destroy?.().catch(() => {});
         bleHostPromise = null;
       }
+
+      // manager 已销毁、扫描已停：这里的 disconnect / stop 都能立刻完成。
+      for (const entry of [...mounted.values()]) {
+        await entry.hid?.stop().catch(() => {});
+        await entry.voice?.disconnect().catch(() => {});
+      }
+      mounted.clear();
     },
   };
 }

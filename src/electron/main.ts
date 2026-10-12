@@ -394,6 +394,30 @@ async function shutdown() {
   await closeBackend().catch(() => {});
 }
 
+/**
+ * 硬终止当前进程（**退出路径的最后兜底**，正常不会走到）。
+ *
+ * 外设的「开着点退出卡死」已在 host 层根治：`peripheralHost.destroy()` 会先销毁 BLE manager、
+ * 停掉进行中的扫描，再收干净各通道，于是 `shutdown()` 能在 2s 上界内完成、`app.quit()` 正常退出。
+ *
+ * 这里只应对将来可能回归的坏情况：某个原生 addon（CoreBluetooth / node-hid）留下常驻后台线程，
+ * 让 `app.quit()`（等事件循环排空）或 `app.exit()`/`process.exit()`（环境销毁阶段 join / 析构
+ * 这些线程）被挂起。SIGKILL 由内核直接回收进程，不经过 JS / 原生析构，任何卡住的线程都拦不住它，
+ * 所以用它保证进程真的结束。
+ */
+function hardExit(): never {
+  try {
+    process.kill(process.pid, "SIGKILL");
+  } catch {
+    // 理论上到不了：SIGKILL 发给自己不会失败。兜底再退一次。
+  }
+  // SIGKILL 是异步投递的，极端情况下调用返回后进程还活着一瞬：用 app.exit 兜底，
+  // 并把本函数标成 never（后面不应再有代码执行）。
+  app.exit(0);
+  // 让类型系统满意：上面两步必然终止进程，这里不会真正返回。
+  throw new Error("unreachable");
+}
+
 // Register Electron-specific APIs
 ipcMain.handle("showOpenDialog", async () => {
   try {
@@ -955,9 +979,17 @@ app.on("before-quit", (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
-  shutdown().then(() => {
-    app.quit();
-  });
+  // 看门狗（最后兜底）：正常情况下 shutdown() 会把外设连接（含进行中的扫描）中止并收干净，
+  // 之后 app.quit() 能正常退出。但万一某个原生句柄仍没放掉导致退出被挂起，这里到点强制结束，
+  // 绝不让用户再次遇到「点了退出却关不掉」。unref 以免看门狗自己拖住事件循环。
+  const watchdog = setTimeout(hardExit, PERIPHERAL_SHUTDOWN_TIMEOUT_MS + 2000);
+  watchdog.unref?.();
+  shutdown()
+    .catch(() => {})
+    .finally(() => {
+      // 收尾已完成：优雅退出。看门狗继续挂着做兜底，真正退成了它也不会触发（已 unref）。
+      app.quit();
+    });
 });
 
 app.whenReady().then(async () => {
