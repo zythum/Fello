@@ -10,7 +10,12 @@ import type {
   SessionNotificationFelloExt,
   AskUserRequest,
 } from "../shared/schema";
-import type { ChatMessage, ToolCallMessage, SubagentMessage } from "./lib/chat-message";
+import type {
+  ChatMessage,
+  ToolCallMessage,
+  SubagentMessage,
+  CompactionMessage,
+} from "./lib/chat-message";
 import { ALL_FEATURES } from "../shared/constants";
 
 enableArrayMethods();
@@ -55,6 +60,7 @@ export interface SessionState {
   askUserRequests: AskUserRequest[];
   activeToolCalls: Map<string, ToolCallMessage>;
   activeSubagents: Map<string, SubagentMessage>;
+  activeCompactions: Map<string, CompactionMessage>;
   pendingNotifications: SessionNotificationFelloExt[];
   /** 暂存的输入框内容，用于 session 切换时恢复 */
   draftInput: string;
@@ -80,6 +86,7 @@ const emptySessionState = (): SessionState => ({
   askUserRequests: [],
   activeToolCalls: new Map(),
   activeSubagents: new Map(),
+  activeCompactions: new Map(),
   pendingNotifications: [],
   draftInput: "",
   draftAttachments: [],

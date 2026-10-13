@@ -102,10 +102,11 @@ export function createBridgeConnectModule(
       // Step 1: adapter preprocessing (pipeline-style across adapters)
       let results: SessionNotification[] = [notification];
       if (currentSessionId) {
+        const resumeId = currentSessionId.replace(`${agentId}:`, "");
         for (const adapter of adapters) {
           const next: SessionNotification[] = [];
           for (const n of results) {
-            const processed = adapter.preprocessNotification(n, currentSessionId, agentId);
+            const processed = adapter.preprocessNotification(bridge, resumeId, n);
             if (processed !== null) {
               next.push(...processed);
             }
@@ -127,6 +128,7 @@ export function createBridgeConnectModule(
               storage.updateSession(currentSessionId, { title: result.update.title });
               const updated = storage.getSession(currentSessionId);
               if (updated) sendEvent("session-changed", { session: updated });
+              continue;
             }
           }
 
@@ -148,6 +150,7 @@ export function createBridgeConnectModule(
               const updated = storage.getSession(currentSessionId);
               if (updated) sendEvent("session-changed", { session: updated });
             }
+            continue;
           }
 
           if (sessionUpdate === "config_option_update") {
@@ -167,6 +170,7 @@ export function createBridgeConnectModule(
               const updated = storage.getSession(currentSessionId);
               if (updated) sendEvent("session-changed", { session: updated });
             }
+            continue;
           }
         }
         broadcastAndSaveSessionUpdate(currentSessionId, result);
@@ -195,8 +199,9 @@ export function createBridgeConnectModule(
         // Adapters translate ext notifications into synthetic
         // SessionNotifications, which are fed back through
         // processSessionUpdate for unified handling.
+        const resumeId = currentSessionId?.replace(`${agentId}:`, "") ?? null;
         for (const adapter of adapters) {
-          const results = adapter.handleExtNotification(method, params, currentSessionId, agentId);
+          const results = adapter.handleExtNotification(bridge, method, resumeId, params);
           if (results.length > 0) {
             for (const result of results) {
               processSessionUpdate(result);
@@ -267,12 +272,30 @@ export function createBridgeConnectModule(
         }
         sendEvent("agent-terminal-output", { sessionId, terminalId, data });
       },
+
+      onPromptSend: (sessionId, req) => {
+        for (const a of adapters) {
+          const res = a.handlePromptSend(bridge, sessionId, req);
+          if (res) {
+            return res;
+          }
+        }
+      },
+      onPromptCancel: (sessionId) => {
+        for (const a of adapters) {
+          const res = a.handlePromptCancel(bridge, sessionId);
+          if (res) {
+            return res;
+          }
+        }
+      },
       // On prompt completion, hand the full PromptResponse to each adapter so
       // it can freeze its own turn-boundary (CodeBuddy extracts its protocol
-      // timestamp; other adapters are no-ops).
+      // timestamp; other adapters are no-ops). `sessionId` here is the bare
+      // protocol/resume id (from the PromptRequest), matching the resumeId
+      // adapters are keyed by everywhere else.
       onPromptCompleted: (sessionId, res) => {
-        const key = `${agentId}:${sessionId}`;
-        for (const a of adapters) a.handlePromptCompleted(key, res);
+        for (const a of adapters) a.handlePromptCompleted(bridge, sessionId, res);
       },
     });
 
@@ -307,15 +330,23 @@ export function createBridgeConnectModule(
       sessionAgentMap.delete(oldKey);
       sessionAgentMap.set(newKey, agentId);
     }
-    for (const a of adapters) a.rekey(oldKey, newKey);
+    // Bridge maps use the full `agentId:xxx` key; adapters are keyed by the
+    // bare resume id, so strip the prefix before handing keys to them.
+    const prefix = agentId !== undefined ? `${agentId}:` : "";
+    const oldResumeId = oldKey.replace(prefix, "");
+    const newResumeId = newKey.replace(prefix, "");
+    for (const a of adapters) a.rekey(oldResumeId, newResumeId);
   }
 
   async function killBridge(sessionKey: string): Promise<void> {
     const p = bridges.get(sessionKey);
     if (p) {
+      const agentId = sessionAgentMap.get(sessionKey);
       bridges.delete(sessionKey);
       sessionAgentMap.delete(sessionKey);
-      for (const a of adapters) a.cleanup(sessionKey);
+      // Adapters are keyed by the bare resume id, not the full bridge key.
+      const resumeId = agentId !== undefined ? sessionKey.replace(`${agentId}:`, "") : sessionKey;
+      for (const a of adapters) a.cleanup(resumeId);
       try {
         const b = await p;
         await b.kill();

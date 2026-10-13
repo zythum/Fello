@@ -647,6 +647,15 @@
       "low": "Low"
     }
   },
+  "compactionBubble": {
+    "title": {
+      "in_progress": "Compacting context…",
+      "completed": "Context compacted",
+      "failed": "Compaction failed",
+      "cancelled": "Compaction cancelled",
+      "unknown": "Context compaction"
+    }
+  },
   "constant": {
     "feature": {
       "askUser": "Ask Me",

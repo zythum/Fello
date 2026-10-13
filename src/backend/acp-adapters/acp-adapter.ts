@@ -1,5 +1,5 @@
-import type { SessionNotification, PromptResponse } from "@agentclientprotocol/sdk";
-import type { ExtNotificationSpec } from "../agent/agent-bridge";
+import type { SessionNotification, PromptRequest, PromptResponse } from "@agentclientprotocol/sdk";
+import type { ExtNotificationSpec, ACPBridge } from "../agent/agent-bridge";
 
 /**
  * Base class for ACP protocol adapters. Each adapter bridges a specific
@@ -46,18 +46,18 @@ export abstract class AcpAdapter {
    * _meta for replay/state-rebuild.
    */
   preprocessNotification(
+    _bridge: ACPBridge,
+    _sessionId: string,
     notification: SessionNotification,
-    _currentSessionId: string,
-    _agentId: string,
   ): SessionNotification[] | null {
     return [notification];
   }
 
   handleExtNotification(
+    _bridge: ACPBridge,
     _method: string,
+    _sessionId: string | null,
     _params: unknown,
-    _currentSessionId: string | null,
-    _agentId: string,
   ): SessionNotification[] {
     return [];
   }
@@ -73,6 +73,14 @@ export abstract class AcpAdapter {
     return {};
   }
 
+  handlePromptSend(
+    _bridge: ACPBridge,
+    _sessionId: string,
+    _req: PromptRequest,
+  ): null | Promise<PromptResponse> {
+    return null;
+  }
+
   /**
    * Called by the bridge when a prompt round completes, with the full
    * PromptResponse in hand. Adapters that do turn-boundary / replay detection
@@ -82,7 +90,11 @@ export abstract class AcpAdapter {
    * codebuddy.ai/requestId + timestamp) need it; generic adapters have no
    * protocol timestamp to work from.
    */
-  handlePromptCompleted(_sessionId: string, _res: PromptResponse): void {}
+  handlePromptCompleted(_bridge: ACPBridge, _sessionId: string, _res: PromptResponse): void {}
+
+  handlePromptCancel(_bridge: ACPBridge, _sessionId: string): null | Promise<void> {
+    return null;
+  }
 
   // ── State lifecycle (default no-ops) ───────────────────────────────
 

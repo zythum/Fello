@@ -58,13 +58,19 @@ export type AgentTerminalOutputCallback = (
   terminalId: string,
   data: string,
 ) => void;
+
+export type PromptSendCallback = (
+  sessionId: string,
+  request: PromptRequest,
+) => null | undefined | Promise<PromptResponse>;
+export type PromptCancelCallback = (sessionId: string) => null | undefined | Promise<void>;
 /**
  * Fired when a prompt round completes, with the full PromptResponse. The
  * bridge just forwards the response as-is; timestamp extraction is
  * protocol-specific and lives in the adapter (handlePromptCompleted), so the
  * callback passes the response whole rather than a pre-parsed timestamp.
  */
-export type PromptCompletedCallback = (sessionId: string, res: PromptResponse) => void;
+export type PromptCompletedCallback = (sessionId: string, response: PromptResponse) => void;
 
 /**
  * Declares an agent-specific ext notification for ACPBridge to register on
@@ -84,6 +90,9 @@ export interface ACPBridgeOptions {
   onExtNotification: SessionExtNotificationCallback;
   onPermissionRequest: PermissionRequestCallback;
   onAgentTerminalOutput: AgentTerminalOutputCallback;
+
+  onPromptSend?: PromptSendCallback;
+  onPromptCancel?: PromptCancelCallback;
   /** Fired when a prompt round completes, with the agent's protocol-clock
    * timestamp (PromptResponse._meta.timestamp, epoch ms). Adapters use it as
    * a turn-boundary for replay detection. Optional. */
@@ -112,10 +121,12 @@ export interface ACPBridgeOptions {
 export class ACPBridge {
   private process: AgentProcess | null = null;
   private connection: ClientConnection | null = null;
-  private onSessionConnect: SessionConnectCallback;
-  private onSessionUpdate: SessionUpdateCallback;
-  private onExtNotification: SessionExtNotificationCallback;
-  private onPermissionRequest: PermissionRequestCallback;
+
+  public onSessionConnect: SessionConnectCallback;
+  public onSessionUpdate: SessionUpdateCallback;
+  public onExtNotification: SessionExtNotificationCallback;
+  public onPermissionRequest: PermissionRequestCallback;
+
   private _isConnected = false;
   private _initializeInfo: InitializeResponse | null = null;
   private _modelStates = new Map<string, SessionModelState>();
@@ -675,19 +686,39 @@ export class ACPBridge {
     }
   }
 
+  async execMethod(method: string, params: unknown) {
+    if (!this.connection) throw new Error("Not connected");
+    return this.connection.agent.request(method, params);
+  }
+
   async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
     if (!this.connection) throw new Error("Not connected");
-    const res = await this.connection.agent.request(methods.agent.session.prompt, params);
+    let resPromise: null | undefined | Promise<PromptResponse> = null;
+    if (this.options.onPromptSend) {
+      resPromise = this.options.onPromptSend(params.sessionId, params);
+    }
+    if (!resPromise) {
+      resPromise = this.connection.agent.request(methods.agent.session.prompt, params);
+    }
+    const res = await resPromise;
     // Forward the completed PromptResponse to adapters so they can freeze
     // their turn-boundary from the agent's own protocol clock. The bridge
     // does no timestamp parsing — that's protocol-specific adapter logic.
-    this.options.onPromptCompleted?.(params.sessionId, res);
+    if (this.options.onPromptCompleted) {
+      this.options.onPromptCompleted(params.sessionId, res);
+    }
     return res;
   }
 
   async cancel(params: CancelNotification): Promise<void> {
     if (!this.connection) return;
-    await this.connection.agent.notify(methods.agent.session.cancel, params);
+    let resPromise: null | undefined | Promise<void> = null;
+    if (this.options.onPromptCancel) {
+      resPromise = this.options.onPromptCancel(params.sessionId);
+    }
+    if (!resPromise) {
+      await this.connection.agent.notify(methods.agent.session.cancel, params);
+    }
   }
 
   async kill(): Promise<void> {

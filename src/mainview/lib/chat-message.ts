@@ -1,4 +1,10 @@
-import { ContentBlock, ToolCall, Plan, ToolCallStatus } from "@agentclientprotocol/sdk";
+import {
+  ContentBlock,
+  ToolCall,
+  Plan,
+  ToolCallStatus,
+  CompactionStatus,
+} from "@agentclientprotocol/sdk";
 import { SubagentStatus } from "../../shared/schema";
 
 /**
@@ -75,6 +81,21 @@ export interface SystemMessage extends BaseMessage<"system_message"> {
 }
 
 /**
+ * 表示一次上下文压缩（compaction）在时间线上的实体。
+ * 对应 ACP 标准的 compaction_update / compaction_summary_chunk：
+ * 以 compactionId 为键做 upsert，status 驱动生命周期，summary 为可展开的
+ * 用户可见摘要。summary 支持通过 chunk 增量追加、再被完整 summary 权威替换。
+ */
+export interface CompactionMessage extends BaseMessage<"compaction"> {
+  compactionId: string;
+  status: CompactionStatus;
+  /** 用户可见的保留摘要内容（可能为空，或流式累积中） */
+  summary: ContentBlock[];
+  /** 失败时的人类可读错误描述 */
+  error?: string | null;
+}
+
+/**
  * 可辨识联合类型 (Discriminated Union)，表示可以出现在聊天视图中的任何消息类型。
  */
 export type ChatMessage =
@@ -84,7 +105,8 @@ export type ChatMessage =
   | ToolCallMessage
   | PlanMessage
   | SubagentMessage
-  | SystemMessage;
+  | SystemMessage
+  | CompactionMessage;
 
 /**
  * 提取所有消息类型中可能出现的 role。

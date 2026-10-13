@@ -1,8 +1,21 @@
 import { produce } from "immer";
-import type { ContentChunk, ToolCall, ToolCallUpdate, Plan } from "@agentclientprotocol/sdk";
+import type {
+  ContentChunk,
+  ToolCall,
+  ToolCallUpdate,
+  Plan,
+  CompactionUpdate,
+  CompactionSummaryChunk,
+} from "@agentclientprotocol/sdk";
 import type { SessionNotificationFelloExt, SubagentUpdate } from "../../shared/schema";
 import type { SessionState } from "../store";
-import type { ToolCallMessage, SubagentMessage, ChatMessage, PlanMessage } from "./chat-message";
+import type {
+  ToolCallMessage,
+  SubagentMessage,
+  ChatMessage,
+  PlanMessage,
+  CompactionMessage,
+} from "./chat-message";
 import { generateUUID } from "./utils";
 
 function calculateUserMessageChunk(
@@ -349,6 +362,99 @@ function calculateSubagent(
   });
 }
 
+/**
+ * ACP compaction_update → upsert a CompactionMessage keyed by compactionId.
+ * Mirrors calculateToolCallUpdate's Map + findIndex upsert. Patch semantics
+ * follow the RFD: an omitted `summary` leaves accumulated content unchanged;
+ * a concrete `summary` array (including []) is an authoritative replacement.
+ * Compaction entities only occur on the main session, never inside subagents.
+ */
+function calculateCompactionUpdate(
+  state: SessionState,
+  update: CompactionUpdate,
+  displayId: string,
+  receivedAt: number,
+): SessionState {
+  return produce(state, (state) => {
+    let message: CompactionMessage | undefined = state.activeCompactions.get(update.compactionId);
+    if (!message) {
+      message = {
+        role: "compaction",
+        compactionId: update.compactionId,
+        status: "in_progress",
+        summary: [],
+        displayId,
+        receivedAt,
+      };
+      state.activeCompactions.set(update.compactionId, message);
+    }
+
+    message.status = update.status;
+    // summary: omitted → keep; null/[] → clear; concrete → authoritative replace.
+    if (Object.prototype.hasOwnProperty.call(update, "summary")) {
+      message.summary = update.summary ?? [];
+    }
+    if (Object.prototype.hasOwnProperty.call(update, "error")) {
+      message.error = update.error;
+    }
+
+    state.activeCompactions.set(update.compactionId, message);
+
+    const messages = state.messages;
+    const idx = messages.findIndex(
+      (m) => m.role === "compaction" && m.compactionId === update.compactionId,
+    );
+    if (idx !== -1) {
+      messages[idx] = message;
+    } else {
+      messages.push(message);
+    }
+  });
+}
+
+/**
+ * ACP compaction_summary_chunk → append one content block to the matching
+ * compaction's accumulated summary. A chunk for an unseen compactionId
+ * first-sees that entity (RFD: clients initialize on first notification).
+ */
+function calculateCompactionSummaryChunk(
+  state: SessionState,
+  update: CompactionSummaryChunk,
+  displayId: string,
+  receivedAt: number,
+): SessionState {
+  return produce(state, (state) => {
+    let message: CompactionMessage | undefined = state.activeCompactions.get(update.compactionId);
+    if (!message) {
+      message = {
+        role: "compaction",
+        compactionId: update.compactionId,
+        status: "in_progress",
+        summary: [],
+        displayId,
+        receivedAt,
+      };
+      state.activeCompactions.set(update.compactionId, message);
+      state.messages.push(message);
+    }
+
+    const block = update.content;
+    const last = message.summary[message.summary.length - 1];
+    if (last && last.type === "text" && block.type === "text") {
+      last.text += block.text;
+    } else {
+      message.summary.push(block);
+    }
+
+    const idx = state.messages.findIndex(
+      (m) => m.role === "compaction" && m.compactionId === update.compactionId,
+    );
+    if (idx !== -1) {
+      state.messages[idx] = message;
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main Reducer Logic
 // ---------------------------------------------------------------------------
@@ -413,6 +519,14 @@ export function reduceSessionNotification(
 
     case "plan":
       nextState = calculatePlan(currentState, subSessionId, update, displayId, receivedAt);
+      break;
+
+    case "compaction_update":
+      nextState = calculateCompactionUpdate(currentState, update, displayId, receivedAt);
+      break;
+
+    case "compaction_summary_chunk":
+      nextState = calculateCompactionSummaryChunk(currentState, update, displayId, receivedAt);
       break;
 
     case "session_info_update":

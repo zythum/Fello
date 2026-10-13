@@ -127,6 +127,7 @@ async function restoreSessionHistory(
       messages: [],
       activeToolCalls: new Map(),
       activeSubagents: new Map(),
+      activeCompactions: new Map(),
     };
 
     for (const notification of result.messages) {

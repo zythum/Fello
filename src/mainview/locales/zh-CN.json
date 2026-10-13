@@ -646,6 +646,15 @@
       "low": "低优先级"
     }
   },
+  "compactionBubble": {
+    "title": {
+      "in_progress": "正在压缩上下文…",
+      "completed": "上下文已压缩",
+      "failed": "压缩失败",
+      "cancelled": "压缩已取消",
+      "unknown": "上下文压缩"
+    }
+  },
   "constant": {
     "feature": {
       "askUser": "向我提问",

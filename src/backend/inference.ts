@@ -82,10 +82,11 @@ export function createInferenceModule(
       // Step 1: adapter preprocessing (pipeline-style)
       let results: SessionNotification[] = [notification];
       if (currentSessionId) {
+        const resumeId = currentSessionId.replace(`${agentId}:`, "");
         for (const adapter of adapters) {
           const next: SessionNotification[] = [];
           for (const n of results) {
-            const processed = adapter.preprocessNotification(n, currentSessionId, agentId);
+            const processed = adapter.preprocessNotification(bridge, resumeId, n);
             if (processed !== null) {
               next.push(...processed);
             }
@@ -120,8 +121,9 @@ export function createInferenceModule(
         processNotification(notification);
       },
       onExtNotification: (method, params) => {
+        const resumeId = currentSessionId?.replace(`${agentId}:`, "") ?? null;
         for (const adapter of adapters) {
-          const results = adapter.handleExtNotification(method, params, currentSessionId, agentId);
+          const results = adapter.handleExtNotification(bridge, method, resumeId, params);
           if (results.length > 0) {
             for (const result of results) {
               processNotification(result);
@@ -139,6 +141,30 @@ export function createInferenceModule(
       },
       onAgentTerminalOutput: (_sessionId, terminalId, data) => {
         terminalLogs[terminalId] = (terminalLogs[terminalId] ?? "") + data;
+      },
+
+      onPromptSend: (sessionId, req) => {
+        for (const a of adapters) {
+          const res = a.handlePromptSend(bridge, sessionId, req);
+          if (res) {
+            return res;
+          }
+        }
+      },
+      onPromptCancel: (sessionId) => {
+        for (const a of adapters) {
+          const res = a.handlePromptCancel(bridge, sessionId);
+          if (res) {
+            return res;
+          }
+        }
+      },
+      // On prompt completion, hand the full PromptResponse to each adapter so
+      // it can freeze its own turn-boundary (CodeBuddy extracts its protocol
+      // timestamp; other adapters are no-ops). `sessionId` here is the bare
+      // protocol/resume id, matching the resumeId adapters are keyed by.
+      onPromptCompleted: (sessionId, res) => {
+        for (const a of adapters) a.handlePromptCompleted(bridge, sessionId, res);
       },
     });
 

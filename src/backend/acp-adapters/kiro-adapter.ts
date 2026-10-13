@@ -1,5 +1,6 @@
 import type { AvailableCommand, SessionNotification } from "@agentclientprotocol/sdk";
 import type { AddonSessionUpdate, SubagentStatus } from "../../shared/schema";
+import type { ACPBridge } from "../agent/agent-bridge";
 import { AcpAdapter } from "./acp-adapter";
 
 // ── Status map ───────────────────────────────────────────────────────
@@ -66,18 +67,18 @@ export class KiroAdapter extends AcpAdapter {
    * Returns an empty array if the method is unrecognized.
    */
   override handleExtNotification(
+    _bridge: ACPBridge,
     method: string,
+    sessionId: string | null,
     params: unknown,
-    currentSessionId: string | null,
-    agentId: string,
   ): SessionNotification[] {
     switch (method) {
       case "_kiro.dev/metadata":
-        return this.handleMetadata(params, currentSessionId, agentId);
+        return this.handleMetadata(sessionId, params);
       case "_kiro.dev/commands/available":
-        return this.handleCommandsAvailable(params, currentSessionId, agentId);
+        return this.handleCommandsAvailable(sessionId, params);
       case "_kiro.dev/subagent/list_update":
-        return this.handleSubagentListUpdate(params, currentSessionId, agentId);
+        return this.handleSubagentListUpdate(sessionId, params);
       default:
         return [];
     }
@@ -85,11 +86,7 @@ export class KiroAdapter extends AcpAdapter {
 
   // ── Handlers ──────────────────────────────────────────────────────
 
-  private handleMetadata(
-    params: unknown,
-    currentSessionId: string | null,
-    agentId: string,
-  ): SessionNotification[] {
+  private handleMetadata(sessionId: string | null, params: unknown): SessionNotification[] {
     if (
       typeof params === "object" &&
       params &&
@@ -97,7 +94,7 @@ export class KiroAdapter extends AcpAdapter {
       typeof params.sessionId === "string" &&
       "contextUsagePercentage" in params &&
       typeof params.contextUsagePercentage === "number" &&
-      currentSessionId === `${agentId}:${params.sessionId}`
+      params.sessionId === sessionId
     ) {
       return [
         {
@@ -114,9 +111,8 @@ export class KiroAdapter extends AcpAdapter {
   }
 
   private handleCommandsAvailable(
+    sessionId: string | null,
     params: unknown,
-    currentSessionId: string | null,
-    agentId: string,
   ): SessionNotification[] {
     if (
       typeof params === "object" &&
@@ -125,7 +121,7 @@ export class KiroAdapter extends AcpAdapter {
       typeof params.sessionId === "string" &&
       "commands" in params &&
       Array.isArray(params.commands) &&
-      currentSessionId === `${agentId}:${params.sessionId}`
+      sessionId === params.sessionId
     ) {
       const commands: AvailableCommand[] = [];
       for (const item of params.commands) {
@@ -150,15 +146,14 @@ export class KiroAdapter extends AcpAdapter {
   }
 
   private handleSubagentListUpdate(
+    sessionId: string | null,
     params: unknown,
-    currentSessionId: string | null,
-    agentId: string,
   ): SessionNotification[] {
     // kiro 没有给主 session 的 sessionId，只能这样兼容
     if (
       typeof params === "object" &&
       params &&
-      currentSessionId &&
+      sessionId &&
       "subagents" in params &&
       Array.isArray(params.subagents)
     ) {
@@ -178,7 +173,7 @@ export class KiroAdapter extends AcpAdapter {
             status: KIRO_STATUS_MAP[String(subagent?.status?.type)],
           };
           results.push({
-            sessionId: currentSessionId.replace(`${agentId}:`, ""),
+            sessionId: sessionId,
             update: {
               sessionUpdate: "session_info_update",
               _meta: { fello: { update } },

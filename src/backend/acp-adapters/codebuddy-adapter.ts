@@ -1,5 +1,6 @@
 import type { SessionNotification, PromptResponse } from "@agentclientprotocol/sdk";
 import type { AddonSessionUpdate, SubagentStatus } from "../../shared/schema";
+import type { ACPBridge } from "../agent/agent-bridge";
 import { AcpAdapter } from "./acp-adapter";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ export class CodebuddyAdapter extends AcpAdapter {
    * clock is the boundary used to drop replayed prior-turn chunks (avoids
    * timezone / clock-skew issues that wall-clock Date.now() would introduce).
    */
-  override handlePromptCompleted(sessionId: string, res: PromptResponse): void {
+  override handlePromptCompleted(_bridge: ACPBridge, sessionId: string, res: PromptResponse): void {
     const meta = res._meta as Record<string, unknown> | undefined;
     if (meta && typeof meta["codebuddy.ai/requestId"] === "string") {
       const ts = Date.parse(typeof meta["timestamp"] === "string" ? meta["timestamp"] : "");
@@ -95,9 +96,9 @@ export class CodebuddyAdapter extends AcpAdapter {
    * Results go through the REST of the pipeline (not this method again).
    */
   override preprocessNotification(
+    _bridge: ACPBridge,
+    sessionId: string,
     notification: SessionNotification,
-    currentSessionId: string,
-    agentId: string,
   ): SessionNotification[] | null {
     const meta = notification.update?._meta as Record<string, unknown> | undefined;
     const sessionUpdate = notification.update?.sessionUpdate;
@@ -118,7 +119,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     ) {
       const ts = Date.parse(metaTimestamp);
       if (!isNaN(ts)) {
-        const boundary = this.turnBoundaryTs.get(currentSessionId);
+        const boundary = this.turnBoundaryTs.get(sessionId);
         if (boundary !== undefined && ts < boundary) {
           return null;
         }
@@ -139,7 +140,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     // Rewrite chunk routing for member events
     let result = notification;
     if (typeof memberEvent === "string") {
-      const state = this.stateMap.get(currentSessionId);
+      const state = this.stateMap.get(sessionId);
       const memberSessionId = state?.members.get(memberEvent)?.sessionId;
       if (memberSessionId && notification.sessionId !== memberSessionId) {
         result = { ...notification, sessionId: memberSessionId };
@@ -149,11 +150,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     // Handle teamUpdate — update state + produce synthetic subagent_updates
     const teamUpdate = meta?.["codebuddy.ai/teamUpdate"];
     if (teamUpdate && typeof teamUpdate === "object") {
-      const synthetic = this.processTeamUpdate(
-        teamUpdate as Record<string, unknown>,
-        currentSessionId,
-        agentId,
-      );
+      const synthetic = this.processTeamUpdate(teamUpdate as Record<string, unknown>, sessionId);
       return synthetic.length > 0 ? [result, ...synthetic] : [result];
     }
 
@@ -177,17 +174,16 @@ export class CodebuddyAdapter extends AcpAdapter {
    */
   private processTeamUpdate(
     teamUpdate: Record<string, unknown>,
-    currentSessionId: string,
-    agentId: string,
+    sessionId: string,
   ): SessionNotification[] {
     const type = typeof teamUpdate.type === "string" ? teamUpdate.type : "";
     const eventTeamName = typeof teamUpdate.teamName === "string" ? teamUpdate.teamName : null;
 
     const getOrCreateState = (): TeamState => {
-      let s = this.stateMap.get(currentSessionId);
+      let s = this.stateMap.get(sessionId);
       if (!s) {
         s = { members: new Map(), activeTeamName: null };
-        this.stateMap.set(currentSessionId, s);
+        this.stateMap.set(sessionId, s);
       }
       return s;
     };
@@ -206,7 +202,7 @@ export class CodebuddyAdapter extends AcpAdapter {
         status,
       };
       return {
-        sessionId: currentSessionId.replace(`${agentId}:`, ""),
+        sessionId,
         update: {
           sessionUpdate: "session_info_update",
           _meta: { fello: { update } },
@@ -221,7 +217,7 @@ export class CodebuddyAdapter extends AcpAdapter {
     }
 
     if (type === "team_deleted") {
-      const state = this.stateMap.get(currentSessionId);
+      const state = this.stateMap.get(sessionId);
       if (!state || !eventTeamName) return [];
       const results: SessionNotification[] = [];
       for (const [memberName, member] of state.members) {

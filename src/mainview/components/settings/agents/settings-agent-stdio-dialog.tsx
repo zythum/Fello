@@ -54,6 +54,12 @@ interface AcpPreset {
 /** 内置快速预设（与 guides/zh-CN/agents-*.md 中的推荐配置一致） */
 const BUILT_IN_PRESETS: AcpPreset[] = [
   { id: "kiro", command: "kiro-cli", args: ["acp"], env: {} },
+  {
+    id: "kiro_v3",
+    command: "kiro-cli",
+    args: ["acp", "--agent-engine=v3", "--auth-method=cli"],
+    env: {},
+  },
   { id: "kimi", command: "kimi-cli", args: ["acp"], env: {} },
   { id: "codebuddy", command: "codebuddy", args: ["--acp"], env: {} },
 ];
