@@ -21,8 +21,8 @@ import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
 import type { AskUserRequest, AskUserResponse, FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const launchEditor = require("launch-editor");
+const nodeRequire = createRequire(import.meta.url);
+const launchEditor = nodeRequire("launch-editor");
 
 import { extractErrorMessage } from "../backend/utils";
 import { t } from "../backend/i18n";

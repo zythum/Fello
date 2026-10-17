@@ -26,7 +26,7 @@ import { ATVV_SERVICE } from "./xiaomi-rc003/atvv-protocol";
 import { createRecoveryBoundary } from "./xiaomi-rc003/recovery-boundary";
 import type { PeripheralStatus } from "../../shared/peripherals";
 
-const require = createRequire(import.meta.url);
+const nodeRequire = createRequire(import.meta.url);
 
 /** 受支持平台，顺序即错误信息里的展示顺序。 */
 export const SUPPORTED_BLE_PLATFORMS = Object.freeze(["darwin", "win32", "linux"] as const);
@@ -38,7 +38,7 @@ type UbmModule = any;
 type UbmProvider = any;
 
 function requireUbm(): UbmModule {
-  return require("unified-ble-manager/electron/main");
+  return nodeRequire("unified-ble-manager/electron/main");
 }
 
 interface ProviderPlan {
@@ -62,7 +62,7 @@ function createDarwinProvider({
   onStatus: (status: unknown) => void;
 }) {
   const ubm = requireUbm();
-  const recovery = require("darwin-corebluetooth-connected-peripherals-recovery");
+  const recovery = nodeRequire("darwin-corebluetooth-connected-peripherals-recovery");
   if (recovery.capabilities.status !== "supported") {
     throw new Error(`${recovery.capabilities.reason}；无法感知系统已连接的 RC003`);
   }
@@ -104,7 +104,7 @@ function createWinRtProvider({ now }: { now: () => number; onStatus: (status: un
 function createBluezProvider({ now }: { now: () => number; onStatus: (status: unknown) => void }) {
   let ubm: UbmModule;
   try {
-    ubm = require("unified-ble-manager/node/bluez");
+    ubm = nodeRequire("unified-ble-manager/node/bluez");
   } catch (error) {
     throw new Error(
       `Linux 上的 BlueZ backend 需要 dbus-next@^0.10.2；请先安装：npm i dbus-next@^0.10.2。原始错误：${
@@ -216,7 +216,7 @@ export async function createPlatformBleHost({
     createBleManagerFromProvider,
     createPublicBleManagerFacade,
     DEFAULT_BLE_MANAGER_OPTIONS,
-  } = require("unified-ble-manager/advanced");
+  } = nodeRequire("unified-ble-manager/advanced");
   const { provider, compatibility, recovery } = plan.createProvider({ now, onStatus });
 
   const adapters = await provider.listAdapters();

@@ -22,7 +22,7 @@
 import { createRequire } from "module";
 import type { PeripheralHidDefinition } from "../../shared/peripherals";
 
-const require = createRequire(import.meta.url);
+const nodeRequire = createRequire(import.meta.url);
 
 export interface HidTransportStatus {
   state:
@@ -114,7 +114,7 @@ export function createHidTransport({ hid, onStatus, onKey }: HidTransportOptions
       let permissionDenied = false;
       try {
         // 惰性加载：node-hid 缺失 / 架构不匹配时不能让宿主启动失败。
-        const HID: HidModule = require("node-hid");
+        const HID: HidModule = nodeRequire("node-hid");
         const devices = await HID.devicesAsync();
         const matching = devices.filter(
           (device: any) => device.vendorId === hid.vendorId && device.productId === hid.productId,

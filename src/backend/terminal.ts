@@ -8,7 +8,7 @@ import type { BackendContext } from "./types";
 import { resolveSafePath } from "./utils";
 import type { ACPBridge } from "./agent/agent-bridge";
 
-const require = createRequire(import.meta.url);
+const nodeRequire = createRequire(import.meta.url);
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ export function createTerminalModule(
   async function ensureNodePtySpawnHelperExecutable() {
     if (process.platform === "win32") return;
     if (isNodePtyHelperPrepared) return;
-    const packageJsonPath = require.resolve("node-pty/package.json");
+    const packageJsonPath = nodeRequire.resolve("node-pty/package.json");
     const packageDir = dirname(packageJsonPath);
     const helperPath = join(
       packageDir,

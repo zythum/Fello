@@ -1,16 +1,15 @@
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import fixPath from "fix-path";
 fixPath();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const currentDir = import.meta.dirname;
 
-process.rendererPath = join(__dirname, "../renderer");
-process.scriptsPath = join(__dirname, "../scripts");
+process.rendererPath = join(currentDir, "../renderer");
+process.scriptsPath = join(currentDir, "../scripts");
 
 const resourcesPath =
   process.env.NODE_ENV === "development"
-    ? join(__dirname, "../../resources")
+    ? join(currentDir, "../../resources")
     : process.resourcesPath;
 
 process.treeSitterWasmPath = join(resourcesPath, "tree-sitter-wasm");

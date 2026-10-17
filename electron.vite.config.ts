@@ -1,9 +1,10 @@
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
-import compression from "vite-plugin-compression";
+import { compression, defineAlgorithm } from "vite-plugin-compression2";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { readFileSync } from "fs";
+import { constants as zlibConstants } from "zlib";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8"));
@@ -42,16 +43,14 @@ export default defineConfig({
     plugins: [
       react(),
       compression({
-        algorithm: "brotliCompress",
-        ext: ".br",
+        include: /\.(js|mjs|json|css|html)$/i,
         threshold: 1024,
-        compressionOptions: { level: 11 },
-      }),
-      compression({
-        algorithm: "gzip",
-        ext: ".gz",
-        threshold: 1024,
-        compressionOptions: { level: 9 },
+        algorithms: [
+          defineAlgorithm("brotliCompress", {
+            params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 11 },
+          }),
+          defineAlgorithm("gzip", { level: 9 }),
+        ],
       }),
     ],
     define: {
@@ -63,7 +62,7 @@ export default defineConfig({
       },
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: resolve(__dirname, "src/mainview/index.html"),
       },
       outDir: "out/renderer",
