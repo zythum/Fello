@@ -111,7 +111,7 @@ sendPrompt: {
 |---|---|---|---|
 | `newSession` | `{ projectId, agentId, mcpServers?, features?, permissionMode? }` | `{ sessionId, initializeInfo, models, modes, thoughtLevels }` | 创建新会话 |
 | `loadSession` | `{ sessionId, force? }` | `{ sessionId, initializeInfo, models, modes, thoughtLevels }` | 恢复已有会话；`force` 可要求重新加载 |
-| `getSessionHistory` | `{ sessionId }` | `{ messages }` | 获取会话历史消息 |
+| `getSessionHistorySegment` | `{ sessionId, segmentId? }` | `{ segmentId, previousSegmentId?, messages }` | 未传 `segmentId` 时获取最新 segment；若其不足 20 个 user group 且存在前驱，会连同前驱一起返回。传入 id 时仅获取指定 segment。`previousSegmentId` 缺失代表没有更早历史。 |
 | `sendPrompt` | `{ sessionId, contents }` | `{ stopReason, usage? }` | 发送用户 Prompt |
 | `cancelPrompt` | `{ sessionId }` | `void` | 取消当前生成 |
 | `respondAskUser` | `{ sessionId, askUserId, value: string \| null, reason? }` | `void` | 响应 askUser 请求 |

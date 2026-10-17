@@ -52,6 +52,11 @@ export interface StagedAttachmentInfo {
   data: string;
 }
 
+export interface SessionHistorySegment {
+  segmentId: number;
+  messages: SessionNotificationFelloExt[];
+}
+
 // Per-session state bucket
 export interface SessionState {
   messages: ChatMessage[];
@@ -62,6 +67,12 @@ export interface SessionState {
   activeSubagents: Map<string, SubagentMessage>;
   activeCompactions: Map<string, CompactionMessage>;
   pendingNotifications: SessionNotificationFelloExt[];
+  /** 已加载的历史分段，按 segmentId 升序保存原始通知以便加载更早记录后重放。 */
+  historySegments: SessionHistorySegment[];
+  /** 最新历史 segment 快照之后收到的实时通知。 */
+  liveHistoryNotifications: SessionNotificationFelloExt[];
+  /** 当前已加载历史之前的最近一个 segment；缺失即无更早历史。 */
+  previousHistorySegmentId?: number;
   /** 暂存的输入框内容，用于 session 切换时恢复 */
   draftInput: string;
   /** 暂存的附件列表（base64 编码），与 draftInput 一同跨 session 保持 */
@@ -88,6 +99,9 @@ const emptySessionState = (): SessionState => ({
   activeSubagents: new Map(),
   activeCompactions: new Map(),
   pendingNotifications: [],
+  historySegments: [],
+  liveHistoryNotifications: [],
+  previousHistorySegmentId: undefined,
   draftInput: "",
   draftAttachments: [],
   completedAt: null,

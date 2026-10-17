@@ -16,8 +16,10 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 │       └── sessions/              # 该项目下的所有会话记录
 │           └── <session_id>/      # 每个会话一个独立文件夹，<session_id> 格式为 `<agent_id>:<resume_id>`
 │               ├── session.json   # 该会话的元数据
-│               ├── messages.jsonl # 历史会话流事件日志 (NDJSON)
-│               └── terminals/     # 终端输出日志
+│               ├── messages.jsonl                # 历史事件 segment 0 (NDJSON)
+│               ├── messages-000001.jsonl         # 后续完整 user-group segment（按需存在）
+│               ├── messages-000002.jsonl
+│               └── terminals/                    # 终端输出日志
 │                   └── <terminal_id>.log
 ├── api-agents/                    # API Agent 会话数据
 │   └── <agent_id>/                # 每个 API Agent 一个独立文件夹
@@ -161,15 +163,16 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `allowedToolKinds` | `string[]` | 被"始终允许"的工具权限种类列表。 |
 | `contextUsedTokens` | `number \| undefined` | 上下文窗口已用 Token 数（可选，持久化后恢复用）。 |
 
-### 6. 历史会话流事件 (`messages.jsonl` / `history.jsonl`)
+### 6. 历史会话流事件 (`messages*.jsonl` / `history.jsonl`)
 
-**Stdio Agent (`messages.jsonl`)**：存储由 ACP 协议产生的会话状态增量更新日志（Event Stream）。
+**Stdio Agent (`messages.jsonl`、`messages-000001.jsonl`...)**：存储由 ACP 协议产生的会话状态增量更新日志（Event Stream）。`messages.jsonl` 是兼容旧数据的 segment 0；后续 segment 使用 6 位递增编号。
 
 | 特性 | 说明 |
 | :--- | :--- |
 | **格式** | **NDJSON** (Newline Delimited JSON)，每行是一个完整的 `SessionNotificationFelloExt` 对象。 |
-| **持久化机制** | 由主进程拦截 `session-update` 事件，通过追加（Append）方式落盘写入文件。 |
-| **读取与恢复** | 在 `loadSession` 时，Fello 会将此文件按行解析，依次在主进程中重新分发（Replay）到前端 Store 的 Reducer，进而完美还原整个历史会话界面。 |
+| **分段规则** | 在一次主 `sendPrompt` 开始时选择目标 segment。单个 segment 最多容纳 20 个完整 user group，或在下一次 prompt 开始前已达到 16 MiB；同一 prompt 的全部 content block、后续 agent 与工具事件不会跨 segment。 |
+| **持久化机制** | 主进程拦截 `session-update` 事件，追加到当前最大编号的 segment。 |
+| **读取与恢复** | 初次打开读取最新 segment；若它不足 20 个 user group 且有前驱，会合并一个前驱以避免首屏过短。前端按 `previousSegmentId` 继续请求更早 segment，并将已加载通知交给同一 Reducer 重放。 |
 
 **API Agent (`history.jsonl`)**：由 `OpenaiCompatibleAgent` 直接管理，存储 AI SDK 的 `ModelMessage` 数组。
 

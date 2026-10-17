@@ -414,7 +414,7 @@ Agent 调用 share_to_user MCP tool
 ## 持久化边界
 
 - 客户端本地保存项目元数据、会话元数据（`session.json`）
-- Stdio Agent 会话的聊天历史通过主进程进行落盘拦截，每个会话在其独立目录下维护完整的 `messages.jsonl` 事件流文件（NDJSON 格式）
+- Stdio Agent 会话的聊天历史通过主进程进行落盘拦截：`messages.jsonl` 为兼容旧数据的 segment 0，后续完整 user group 写入 `messages-000001.jsonl` 等 NDJSON segment；前端按 segment 懒加载
 - API Agent 会话的聊天历史在 `OpenaiCompatibleAgent` 内部直接写入 `history.jsonl`
 - API Agent 会话状态（modelId、allowedToolKinds、contextUsedTokens）持久化到 `session.json`
 - 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话和日志）

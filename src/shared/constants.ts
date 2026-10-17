@@ -67,6 +67,12 @@ export function getMediaKind(mimeType?: string, filename?: string): MediaKind | 
   return null;
 }
 
+/**
+ * 历史消息每页展示的 user message 组数；后端复用同一值作为消息分段阈值，
+ * 使一次「加载更早」恰好展开一个完整分段。
+ */
+export const HISTORY_PAGE_SIZE = 20;
+
 /** 所有可用的 feature 列表，也作为默认值 */
 export const ALL_FEATURES: Feature[] = [
   "skills",

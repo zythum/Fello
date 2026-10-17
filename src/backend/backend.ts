@@ -256,8 +256,8 @@ export function initBackend(
     async loadSession(params) {
       return session.loadSession(params);
     },
-    async getSessionHistory(params) {
-      return session.getSessionHistory(params);
+    async getSessionHistorySegment(params) {
+      return session.getSessionHistorySegment(params);
     },
     async getSessionTokenUsage(params) {
       return session.getSessionTokenUsage(params);

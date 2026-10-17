@@ -1,6 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionActiveSubagents, useSessionMessages } from "../../../lib/session-selectors";
+import {
+  useSessionActiveSubagents,
+  useSessionHistoryPagination,
+  useSessionMessages,
+} from "../../../lib/session-selectors";
 import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
 import { MessageBubble } from "../../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
@@ -12,6 +16,9 @@ import { speakOnce } from "../../../lib/tts/tts-reader";
 import { ArrowDown, ArrowUpToLine, Check, Copy, Bot, Volume2 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 import { useFocusTarget } from "../../../lib/keyboard";
+import { loadPreviousSessionHistory } from "../../../lib/session-lifecycle";
+
+import { HISTORY_PAGE_SIZE } from "../../../../shared/constants";
 
 import type { SessionInfo } from "../../../../shared/schema";
 
@@ -31,6 +38,9 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
   const isStreaming = session.isStreaming;
   const messages = useSessionMessages(sessionId);
   const activeSubagents = useSessionActiveSubagents(sessionId);
+  const { previousSegmentId } = useSessionHistoryPagination(sessionId);
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const isLoadingEarlierRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -271,8 +281,6 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     return messages.filter(isValidMessageToDisplay);
   }, [messages]);
 
-  const PAGE_SIZE = 20;
-
   const allMessageGroups = useMemo(() => {
     const groups: {
       key: string;
@@ -303,32 +311,58 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     return groups;
   }, [renderedMessages]);
 
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // 与后端消息分段阈值共用同一常量。
+  const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
 
-  // Reset visibleCount when session changes
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect
-    setVisibleCount(PAGE_SIZE);
+    setVisibleCount(HISTORY_PAGE_SIZE);
   }, [sessionId]);
 
-  const hasMore = allMessageGroups.length > visibleCount;
+  const hiddenGroupCount = Math.max(0, allMessageGroups.length - visibleCount);
+  const hasCachedMore = hiddenGroupCount > 0;
+  const shouldLoadPreviousSegment =
+    previousSegmentId !== undefined && hiddenGroupCount < HISTORY_PAGE_SIZE;
+  const hasMore = hasCachedMore || previousSegmentId !== undefined;
   const messageGroups = useMemo(
     () =>
-      hasMore ? allMessageGroups.slice(allMessageGroups.length - visibleCount) : allMessageGroups,
-    [allMessageGroups, visibleCount, hasMore],
+      hasCachedMore
+        ? allMessageGroups.slice(Math.max(0, allMessageGroups.length - visibleCount))
+        : allMessageGroups,
+    [allMessageGroups, hasCachedMore, visibleCount],
   );
 
-  const handleLoadMore = useCallback(() => {
+  const handleLoadMore = useCallback(async () => {
+    if (!hasMore || isLoadingEarlierRef.current) return;
+
     const viewport = getViewport();
     const prevScrollHeight = viewport?.scrollHeight ?? 0;
-    setVisibleCount((prev) => prev + PAGE_SIZE);
-    // After render, restore scroll position
-    requestAnimationFrame(() => {
-      if (!viewport) return;
-      const newScrollHeight = viewport.scrollHeight;
-      viewport.scrollTop += newScrollHeight - prevScrollHeight;
-    });
-  }, [getViewport]);
+    const revealNextPage = () => {
+      setVisibleCount((count) => count + HISTORY_PAGE_SIZE);
+      // Wait for React to prepend the newly visible groups before restoring the viewport anchor.
+      requestAnimationFrame(() => {
+        if (!viewport) return;
+        viewport.scrollTop += viewport.scrollHeight - prevScrollHeight;
+      });
+    };
+
+    if (!shouldLoadPreviousSegment) {
+      revealNextPage();
+      return;
+    }
+
+    isLoadingEarlierRef.current = true;
+    setIsLoadingEarlier(true);
+    try {
+      const loaded = await loadPreviousSessionHistory(sessionId);
+      if (loaded) revealNextPage();
+    } catch (error) {
+      console.error("Failed to load earlier session history", error);
+    } finally {
+      isLoadingEarlierRef.current = false;
+      setIsLoadingEarlier(false);
+    }
+  }, [getViewport, hasMore, sessionId, shouldLoadPreviousSegment]);
 
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
@@ -451,7 +485,8 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
               variant="ghost"
               size="sm"
               className="text-xs text-muted-foreground/60 hover:text-muted-foreground"
-              onClick={handleLoadMore}
+              disabled={isLoadingEarlier}
+              onClick={() => void handleLoadMore()}
             >
               {t("chatArea.loadMore", "Load earlier messages")}
             </Button>

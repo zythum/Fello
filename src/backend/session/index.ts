@@ -52,9 +52,11 @@ export interface SessionModule {
     features?: Feature[];
   }) => Promise<SessionResult>;
   loadSession: (params: { sessionId: string; force?: boolean }) => Promise<SessionResult>;
-  getSessionHistory: (params: {
-    sessionId: string;
-  }) => Promise<{ messages: SessionNotificationFelloExt[] }>;
+  getSessionHistorySegment: (params: { sessionId: string; segmentId?: number }) => Promise<{
+    segmentId: number;
+    previousSegmentId?: number;
+    messages: SessionNotificationFelloExt[];
+  }>;
   getSessionTokenUsage: (params: {
     sessionId: string;
   }) => Promise<{ records: SessionTokenUsage[] }>;
@@ -430,10 +432,20 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     };
   }
 
-  async function getSessionHistory({ sessionId }: { sessionId: string }) {
+  async function getSessionHistorySegment({
+    sessionId,
+    segmentId,
+  }: {
+    sessionId: string;
+    segmentId?: number;
+  }) {
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
-    return { messages: notif.mergeNotifications(storage.readSessionMessages(sessionId)) };
+    const segment = storage.readSessionMessageSegment(sessionId, segmentId);
+    return {
+      ...segment,
+      messages: notif.mergeNotifications(segment.messages),
+    };
   }
 
   async function getSessionTokenUsage({ sessionId }: { sessionId: string }) {
@@ -540,23 +552,26 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       if (userId) ilinkBridge.sendTyping(userId, true).catch(() => {});
     }
 
-    for (const content of contents) {
-      const notification: SessionNotification = {
-        sessionId: session.resumeId,
-        update: { sessionUpdate: "user_message_chunk", content },
-      };
-      notif.broadcastAndSaveSessionUpdate(session.id, notification);
-    }
-
+    const hasPromptContents = contents.length > 0;
     let promptResponse: { stopReason: string; usage?: Usage | null } | undefined;
     let promptError: string | undefined;
     try {
+      if (hasPromptContents) storage.beginSessionMessageTurn(session.id);
+      for (const content of contents) {
+        const notification: SessionNotification = {
+          sessionId: session.resumeId,
+          update: { sessionUpdate: "user_message_chunk", content },
+        };
+        notif.broadcastAndSaveSessionUpdate(session.id, notification);
+      }
+
       promptResponse = await b.sendPrompt({ sessionId: session.resumeId, prompt: contents });
       return promptResponse;
     } catch (err) {
       promptError = err instanceof Error ? err.message : String(err);
       throw err;
     } finally {
+      if (hasPromptContents) storage.endSessionMessageTurn(session.id);
       sendEvent("prompt-end", {
         sessionId,
         stopReason:
@@ -885,7 +900,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     clearSession,
     newSession,
     loadSession,
-    getSessionHistory,
+    getSessionHistorySegment,
     getSessionTokenUsage,
     sendPrompt,
     cancelPrompt,

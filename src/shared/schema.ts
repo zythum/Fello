@@ -815,10 +815,12 @@ export type FelloIPCRequests = {
       thoughtLevels: SessionThoughtLevelState | null;
     };
   };
-  /** 获取会话历史记录 */
-  getSessionHistory: {
-    params: { sessionId: string };
+  /** 获取会话历史分段 */
+  getSessionHistorySegment: {
+    params: { sessionId: string; segmentId?: number };
     response: {
+      segmentId: number;
+      previousSegmentId?: number;
       messages: SessionNotificationFelloExt[];
     };
   };

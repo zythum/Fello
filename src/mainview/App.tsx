@@ -210,7 +210,13 @@ function AppContent() {
               break;
             }
           }
-          return state;
+          return {
+            ...state,
+            liveHistoryNotifications: [
+              ...state.liveHistoryNotifications,
+              ...notifications.slice(0, processedCount),
+            ],
+          };
         });
 
         // Re-queue unprocessed updates

@@ -89,3 +89,15 @@ export function useSessionDraftAttachments(sessionId: string | null): StagedAtta
     }),
   );
 }
+
+/** 只订阅历史分段加载状态。 */
+export function useSessionHistoryPagination(sessionId: string | null): {
+  previousSegmentId?: number;
+} {
+  return useAppStore(
+    useShallow((s) => {
+      const state = sessionId ? s.sessionStates.get(sessionId) : undefined;
+      return { previousSegmentId: state?.previousHistorySegmentId };
+    }),
+  );
+}
