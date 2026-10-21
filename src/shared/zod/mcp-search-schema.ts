@@ -25,6 +25,14 @@ export const grepRequestSchema = z.object({
     .positive()
     .optional()
     .describe("Max number of matching lines to return (-m)."),
+  maxColumns: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe(
+      "Max bytes per output line (-M). Longer lines are previewed and cut with '[... omitted end of long line]'. Default: 1024. Set 0 to disable.",
+    ),
   listFiles: z
     .boolean()
     .optional()

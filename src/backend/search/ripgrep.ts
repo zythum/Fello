@@ -51,6 +51,8 @@ function normalizePath(inputPath: string, cwd?: string): string {
 
 // ── Search Handler ───────────────────────────────────────────────────
 
+const DEFAULT_MAX_COLUMNS = 1024;
+
 export interface GrepOptions {
   projectDir: string;
   pattern: string;
@@ -61,6 +63,7 @@ export interface GrepOptions {
   glob?: string;
   context?: number;
   maxResults?: number;
+  maxColumns?: number;
   listFiles?: boolean;
   invertMatch?: boolean;
   wordMatch?: boolean;
@@ -78,6 +81,10 @@ export async function grep(options: GrepOptions): Promise<{ output: string; code
   if (options.glob) args.push("-g", options.glob);
   if (options.context !== undefined) args.push("-C", String(options.context));
   if (options.maxResults !== undefined) args.push("-m", String(options.maxResults));
+  // Long lines (e.g. minified bundles) are cut to `maxColumns` bytes by default,
+  // so a single match cannot flood the model context. 0 disables the limit.
+  const maxColumns = options.maxColumns ?? DEFAULT_MAX_COLUMNS;
+  if (maxColumns > 0) args.push("-M", String(maxColumns), "--max-columns-preview");
   if (options.listFiles) args.push("-l");
   if (options.invertMatch) args.push("-v");
   if (options.wordMatch) args.push("-w");
