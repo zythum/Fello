@@ -328,10 +328,10 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
         ref={scrollAreaRef}
         viewportRef={scrollRef}
         className="flex-1 w-full transform-gpu"
-        viewportClassName="animate-in fade-in chat-area"
+        viewportClassName="animate-in fade-in chat-area [container-type:size]"
       >
         {/* contentRef 供 use-stick-to-bottom 用 ResizeObserver 跟踪内容尺寸变化 */}
-        <div ref={contentRef} className="flex min-h-full flex-col">
+        <div ref={contentRef} className="min-h-full">
           {hasMore && (
             <div className="flex w-full items-center gap-3 px-10 py-3 max-w-5xl mx-auto">
               <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
@@ -381,7 +381,11 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
                   "message-group w-full max-w-5xl mx-auto flex flex-col relative pointer-events-none px-10",
                   {
                     "pt-4": !isFirstGroup,
-                    "flex-1": isLastGroup,
+                    // 最后一条消息组至少撑满一屏。视口是 size 容器（见 ScrollArea 的
+                    // viewportClassName），所以这里的 cqh 等于滚动视口高度，而不是内容
+                    // 包裹层的高度 —— 后者的高度是 auto，百分比 min-height 会算成 0。
+                    // 不能用 flex-1：内容已超出视口时没有空闲空间可分，最后组会退回内容高度。
+                    "min-h-[100cqh]": isLastGroup,
                   },
                 )}
               >
