@@ -24,12 +24,19 @@ function defaultTime(): string {
   return `${pad2(d.getHours())}:00`;
 }
 
-/** 用日期部分 + "HH:mm" 组合出绝对时间戳 */
-function mergeDateTime(date: Date, time: string): number {
+/** 用日期部分 + "HH:mm" 组合出绝对时间戳；未选日期时以当前时间为基准 */
+function mergeDateTime(date: Date | undefined, time: string): number {
   const [h, m] = time.split(":").map((v) => parseInt(v, 10));
-  const next = new Date(date);
+  const next = new Date(date ?? Date.now());
   next.setHours(Number.isFinite(h) ? h : 0, Number.isFinite(m) ? m : 0, 0, 0);
   return next.getTime();
+}
+
+/** 日历可选范围下界：今天零点（react-day-picker 的 before 按自然日比较） */
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 export function DateTimePicker({ value, onChange, timezone }: DateTimePickerProps) {
@@ -60,7 +67,7 @@ export function DateTimePicker({ value, onChange, timezone }: DateTimePickerProp
 
   const handleTimeChange = (next: string) => {
     setTime(next);
-    onChange(mergeDateTime(date ?? new Date(), next));
+    onChange(mergeDateTime(date, next));
   };
 
   return (
@@ -91,7 +98,7 @@ export function DateTimePicker({ value, onChange, timezone }: DateTimePickerProp
             mode="single"
             selected={date}
             onSelect={handleSelectDate}
-            disabled={{ before: new Date() }}
+            disabled={{ before: startOfToday() }}
             timeZone={timeZone}
           />
         </PopoverContent>
