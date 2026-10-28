@@ -1048,7 +1048,8 @@ export function Sidebar() {
                 projectSessions.length > 0
                   ? projectSessions.reduce((max, session) => Math.max(max, session.updatedAt), 0)
                   : project.createdAt;
-              const connectedSessions = projectSessions.filter(
+              // 项目标题只跟随「已连接」加深；微信活跃不参与，避免与会话行的高亮语义混淆。
+              const hasConnectedSession = projectSessions.some(
                 (session) => session.connectionStatus === "connected",
               );
 
@@ -1114,8 +1115,7 @@ export function Sidebar() {
                                 hoveredTriggerIdRef.current = null;
                               }}
                               className={cn(
-                                "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95 outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                                connectedSessions.length > 0 ? "text-sidebar-foreground/60" : "",
+                                "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground/95 outline-none focus-visible:ring-1 focus-visible:ring-ring",
                                 hoverId === currentHoverId || contextMenuId === currentHoverId
                                   ? "bg-sidebar-accent"
                                   : "",
@@ -1128,7 +1128,12 @@ export function Sidebar() {
                           ) : (
                             <FolderClosed className="size-3.5" />
                           )}
-                          <span className="flex-1 truncate leading-normal font-normal uppercase select-none">
+                          <span
+                            className={cn(
+                              "flex-1 truncate leading-normal font-normal select-none",
+                              hasConnectedSession ? "text-sidebar-foreground/90" : "",
+                            )}
+                          >
                             {project.title}
                           </span>
                           <button
@@ -1328,10 +1333,12 @@ export function Sidebar() {
                                       onPointerLeave={() => {
                                         hoveredTriggerIdRef.current = null;
                                       }}
-                                      className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                                      className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                                         activeSessionId === session.id
-                                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                                          ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
+                                          : session.connectionStatus === "connected"
+                                            ? "text-sidebar-foreground/90 hover:bg-sidebar-accent"
+                                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
                                       } ${
                                         hoverId === currentHoverId ||
                                         contextMenuId === currentHoverId
