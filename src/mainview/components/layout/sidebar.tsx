@@ -738,7 +738,46 @@ export function Sidebar() {
     return grouped;
   }, [sessions]);
 
-  const isProjectExpanded = (projectId: string) => expandedProjects[projectId] ?? true;
+  /**
+   * 默认展开策略：
+   * - 只有一个项目时全展开；
+   * - 多个项目时只展开「有会话已连接或为微信活跃」的项目。
+   *
+   * 只在初始化（首次拿到项目列表）那一刻定一次，之后不再跟随连接 / 微信活跃状态变化，
+   * 避免用着用着项目被自动展开或收起。手动切换过的项目始终以 `expandedProjects` 为准。
+   */
+  const defaultExpandedProjectIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (sortedProjects.length <= 1) {
+      for (const project of sortedProjects) ids.add(project.id);
+      return ids;
+    }
+    for (const project of sortedProjects) {
+      const hasActiveSession = (sessionsByProject[project.id] ?? []).some(
+        (session) =>
+          session.connectionStatus === "connected" || session.id === activeIlinkSessionId,
+      );
+      if (hasActiveSession) ids.add(project.id);
+    }
+    return ids;
+  }, [activeIlinkSessionId, sortedProjects, sessionsByProject]);
+
+  // 初始化快照；为 null 时先用实时计算值，保证首帧不会先渲染成全部收起。
+  const [initialExpandedProjectIds, setInitialExpandedProjectIds] = useState<Set<string> | null>(
+    null,
+  );
+  useEffect(() => {
+    if (initialExpandedProjectIds !== null || sortedProjects.length === 0) return;
+    // eslint-disable-next-line react/set-state-in-effect
+    setInitialExpandedProjectIds(defaultExpandedProjectIds);
+  }, [defaultExpandedProjectIds, initialExpandedProjectIds, sortedProjects.length]);
+
+  const isProjectExpanded = useCallback(
+    (projectId: string) =>
+      expandedProjects[projectId] ??
+      (initialExpandedProjectIds ?? defaultExpandedProjectIds).has(projectId),
+    [defaultExpandedProjectIds, expandedProjects, initialExpandedProjectIds],
+  );
   const toggleProject = (projectId: string) => {
     setExpandedProjects((prev) => ({ ...prev, [projectId]: !isProjectExpanded(projectId) }));
   };
@@ -750,14 +789,14 @@ export function Sidebar() {
     const items: SidebarNavigationItem[] = [];
     for (const project of sortedProjects) {
       items.push({ type: "project", id: project.id });
-      if (expandedProjects[project.id] ?? true) {
+      if (isProjectExpanded(project.id)) {
         for (const session of sessionsByProject[project.id] ?? []) {
           items.push({ type: "session", id: session.id, projectId: project.id });
         }
       }
     }
     return items;
-  }, [expandedProjects, sessionsByProject, sortedProjects]);
+  }, [isProjectExpanded, sessionsByProject, sortedProjects]);
 
   const focusNavigationItem = useCallback(
     (item: SidebarNavigationItem) => {
@@ -769,8 +808,11 @@ export function Sidebar() {
           (navigationItem) =>
             sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
         );
-        element =
-          sessionListRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]')[itemIndex];
+        // 收起项目的会话虽然仍挂载（为了保留收起动画），但被包在 inert 容器里，
+        // 不能参与索引，否则焦点会落到错误的行上。
+        element = Array.from(
+          sessionListRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [],
+        ).filter((candidate) => !candidate.closest("[inert]"))[itemIndex];
       }
       if (!element) return;
       element.focus({ preventScroll: true });
@@ -1207,295 +1249,306 @@ export function Sidebar() {
                       </div>
                     </HoverCardContent>
                   </HoverCard>
-                  {expanded &&
-                    projectSessions.map((session) => {
-                      const currentHoverId = sessionHoverId(session.id);
-                      const agentLabel =
-                        configuredAgents.find((a) => a.id === session.agentId)?.id ||
-                        session.agentId;
-                      return (
-                        <HoverCard
-                          key={session.id}
-                          open={hoverId === currentHoverId}
-                          onOpenChange={(open) => {
-                            // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
-                            // 关闭仅当鼠标已离开条目时生效，避免右键菜单关闭后恢复的卡片被残留事件误关（闪现）
-                            if (open) {
-                              if (contextMenuId === null) setHoverId(currentHoverId);
-                            } else if (
-                              hoverId === currentHoverId &&
-                              hoveredTriggerIdRef.current !== currentHoverId
-                            ) {
-                              setHoverId(null);
-                            }
-                          }}
-                        >
-                          <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
-                            <ContextMenu
-                              onOpenChange={(open) => {
-                                // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
-                                // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
-                                setContextMenuId(open ? currentHoverId : null);
-                                if (open) {
-                                  setHoverId(null);
-                                } else if (hoveredTriggerIdRef.current === currentHoverId) {
-                                  setHoverId(currentHoverId);
-                                }
-                              }}
-                            >
-                              <ContextMenuTrigger
-                                render={
-                                  <div
-                                    ref={(element) => {
-                                      const key = sidebarNavigationItemKey({
-                                        type: "session",
-                                        id: session.id,
-                                        projectId: project.id,
-                                      });
-                                      if (element) {
-                                        navigationItemRefs.current.set(key, element);
-                                      } else {
-                                        navigationItemRefs.current.delete(key);
-                                      }
-                                    }}
-                                    tabIndex={-1}
-                                    role="treeitem"
-                                    aria-level={2}
-                                    aria-current={
-                                      activeSessionId === session.id ? "page" : undefined
-                                    }
-                                    onClick={() => handleSelectSession(session)}
-                                    onKeyDown={(event) =>
-                                      handleNavigationKeyDown(event, {
-                                        type: "session",
-                                        id: session.id,
-                                        projectId: project.id,
-                                      })
-                                    }
-                                    onPointerEnter={() => {
-                                      hoveredTriggerIdRef.current = currentHoverId;
-                                    }}
-                                    onPointerLeave={() => {
-                                      hoveredTriggerIdRef.current = null;
-                                    }}
-                                    className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-                                      activeSessionId === session.id
-                                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-                                    } ${
-                                      hoverId === currentHoverId || contextMenuId === currentHoverId
-                                        ? "bg-sidebar-accent"
-                                        : ""
-                                    }`}
-                                  />
-                                }
+                  {/* 0fr → 1fr 的 grid 过渡：高度自适应内容，不需要测量，展开/收起都能过渡。 */}
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows] duration-200 ease-out",
+                      expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    )}
+                    inert={!expanded}
+                  >
+                    <div className="min-h-0 space-y-0.5 overflow-hidden">
+                      {projectSessions.map((session) => {
+                        const currentHoverId = sessionHoverId(session.id);
+                        const agentLabel =
+                          configuredAgents.find((a) => a.id === session.agentId)?.id ||
+                          session.agentId;
+                        return (
+                          <HoverCard
+                            key={session.id}
+                            open={hoverId === currentHoverId}
+                            onOpenChange={(open) => {
+                              // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+                              // 关闭仅当鼠标已离开条目时生效，避免右键菜单关闭后恢复的卡片被残留事件误关（闪现）
+                              if (open) {
+                                if (contextMenuId === null) setHoverId(currentHoverId);
+                              } else if (
+                                hoverId === currentHoverId &&
+                                hoveredTriggerIdRef.current !== currentHoverId
+                              ) {
+                                setHoverId(null);
+                              }
+                            }}
+                          >
+                            <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
+                              <ContextMenu
+                                onOpenChange={(open) => {
+                                  // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
+                                  // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
+                                  setContextMenuId(open ? currentHoverId : null);
+                                  if (open) {
+                                    setHoverId(null);
+                                  } else if (hoveredTriggerIdRef.current === currentHoverId) {
+                                    setHoverId(currentHoverId);
+                                  }
+                                }}
                               >
-                                <div
-                                  className={cn(
-                                    "flex min-w-0 flex-1 items-center gap-1.5",
-                                    session.connectionStatus === "connected" ? "" : "opacity-60",
-                                  )}
+                                <ContextMenuTrigger
+                                  render={
+                                    <div
+                                      ref={(element) => {
+                                        const key = sidebarNavigationItemKey({
+                                          type: "session",
+                                          id: session.id,
+                                          projectId: project.id,
+                                        });
+                                        if (element) {
+                                          navigationItemRefs.current.set(key, element);
+                                        } else {
+                                          navigationItemRefs.current.delete(key);
+                                        }
+                                      }}
+                                      tabIndex={-1}
+                                      role="treeitem"
+                                      aria-level={2}
+                                      aria-current={
+                                        activeSessionId === session.id ? "page" : undefined
+                                      }
+                                      onClick={() => handleSelectSession(session)}
+                                      onKeyDown={(event) =>
+                                        handleNavigationKeyDown(event, {
+                                          type: "session",
+                                          id: session.id,
+                                          projectId: project.id,
+                                        })
+                                      }
+                                      onPointerEnter={() => {
+                                        hoveredTriggerIdRef.current = currentHoverId;
+                                      }}
+                                      onPointerLeave={() => {
+                                        hoveredTriggerIdRef.current = null;
+                                      }}
+                                      className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs font-normal transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                                        activeSessionId === session.id
+                                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+                                      } ${
+                                        hoverId === currentHoverId ||
+                                        contextMenuId === currentHoverId
+                                          ? "bg-sidebar-accent"
+                                          : ""
+                                      }`}
+                                    />
+                                  }
                                 >
-                                  <SessionRowStatus
-                                    sessionId={session.id}
-                                    isStreaming={session.isStreaming}
-                                  />
-                                  <Badge
-                                    variant="outline"
-                                    className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                                  <div
+                                    className={cn(
+                                      "flex min-w-0 flex-1 items-center gap-1.5",
+                                      session.connectionStatus === "connected" ? "" : "opacity-60",
+                                    )}
                                   >
-                                    {agentLabel}
-                                  </Badge>
-                                  <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                                    <SessionRowStatus
+                                      sessionId={session.id}
+                                      isStreaming={session.isStreaming}
+                                    />
+                                    <Badge
+                                      variant="outline"
+                                      className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                                    >
+                                      {agentLabel}
+                                    </Badge>
+                                    <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                                      {session.title || t("sidebar.newSession", "New Session")}
+                                    </span>
+                                    {activeIlinkSessionId === session.id && (
+                                      <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                    )}
+                                  </div>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="w-48">
+                                  <ContextMenuItem
+                                    onClick={() => handleSelectSession(session)}
+                                    className="font-medium text-foreground"
+                                  >
+                                    <Eye className="size-3" />
+                                    {t("sidebar.viewSession", "View Session")}
+                                  </ContextMenuItem>
+                                  <ContextMenuSeparator />
+                                  {!isWebUI && (
+                                    <ContextMenuItem
+                                      onClick={() => void handleRevealProjectInFinder(project)}
+                                    >
+                                      <FolderOpen className="size-3" />
+                                      {t("sidebar.revealInFinder")}
+                                    </ContextMenuItem>
+                                  )}
+                                  {!isWebUI && (
+                                    <ContextMenuItem
+                                      onClick={() => void handleOpenProjectInEditor(project)}
+                                    >
+                                      <Code className="size-3" />
+                                      {t("filePanel.openInEditor", {
+                                        editor:
+                                          EDITOR_LABELS[useAppStore.getState().editor.name] ??
+                                          "Editor",
+                                      })}
+                                    </ContextMenuItem>
+                                  )}
+                                  <ContextMenuItem
+                                    onClick={() => void handleCopyProjectPath(project)}
+                                  >
+                                    <Copy className="size-3" />
+                                    {t("sidebar.copyProjectPath")}
+                                  </ContextMenuItem>
+                                  <ContextMenuItem onClick={() => handleRenameSession(session)}>
+                                    <Pencil className="size-3" />
+                                    {t("sidebar.rename")}
+                                  </ContextMenuItem>
+                                  {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
+                                    <ContextMenuItem
+                                      onClick={() => void handleSetActiveIlinkSession(session.id)}
+                                    >
+                                      <MessageCircle className="size-3" />
+                                      {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                                    </ContextMenuItem>
+                                  )}
+                                  {ilinkStatus.connected && activeIlinkSessionId === session.id && (
+                                    <ContextMenuItem
+                                      onClick={() => void handleSetActiveIlinkSession("")}
+                                    >
+                                      <MessageCircle className="size-3 text-green-500" />
+                                      {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                                    </ContextMenuItem>
+                                  )}
+                                  {session.connectionStatus === "connected" && (
+                                    <>
+                                      <ContextMenuSeparator />
+                                      <ContextMenuItem
+                                        onClick={() => void handleRestartSession(session)}
+                                        disabled={sessionAction !== null}
+                                      >
+                                        {sessionAction?.id === session.id &&
+                                        sessionAction.type === "restart" ? (
+                                          <LoaderCircle className="size-3 animate-spin" />
+                                        ) : (
+                                          <RefreshCw className="size-3" />
+                                        )}
+                                        {t("sidebar.restartSession", "Restart Session")}
+                                      </ContextMenuItem>
+                                      <ContextMenuItem
+                                        onClick={() => void handleCloseSession(session)}
+                                        disabled={sessionAction !== null}
+                                      >
+                                        {sessionAction?.id === session.id &&
+                                        sessionAction.type === "close" ? (
+                                          <LoaderCircle className="size-3 animate-spin" />
+                                        ) : (
+                                          <Power className="size-3" />
+                                        )}
+                                        {sessionAction?.id === session.id &&
+                                        sessionAction.type === "close"
+                                          ? t("sidebar.closingSession", "Closing…")
+                                          : t("sidebar.closeSession", "Close Session")}
+                                      </ContextMenuItem>
+                                    </>
+                                  )}
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem
+                                    variant="destructive"
+                                    onClick={() => void handleDeleteSession(session)}
+                                    disabled={sessionAction !== null}
+                                  >
+                                    <Trash2 className="size-3" />
+                                    {t("sidebar.deleteSession")}
+                                  </ContextMenuItem>
+                                </ContextMenuContent>
+                              </ContextMenu>
+                            </HoverCardTrigger>
+                            <HoverCardContent
+                              side="right"
+                              align="start"
+                              sideOffset={12}
+                              alignOffset={0}
+                              className="w-54 max-w-[20vw] p-3"
+                            >
+                              <div className="flex flex-col gap-2">
+                                <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
+                                  <span>
                                     {session.title || t("sidebar.newSession", "New Session")}
                                   </span>
-                                  {activeIlinkSessionId === session.id && (
-                                    <MessageCircle className="size-3 shrink-0 text-green-500" />
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                                  <Bot className="size-3 shrink-0" />
+                                  <span className="truncate">{session.agentId}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                                  <Folder className="size-3 shrink-0" />
+                                  {isWebUI ? (
+                                    <span className="truncate">{project.title}</span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleRevealProjectInFinder(project)}
+                                      title={project.cwd}
+                                      className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                                    >
+                                      {project.title}
+                                    </button>
                                   )}
                                 </div>
-                              </ContextMenuTrigger>
-                              <ContextMenuContent className="w-48">
-                                <ContextMenuItem
-                                  onClick={() => handleSelectSession(session)}
-                                  className="font-medium text-foreground"
-                                >
-                                  <Eye className="size-3" />
-                                  {t("sidebar.viewSession", "View Session")}
-                                </ContextMenuItem>
-                                <ContextMenuSeparator />
-                                {!isWebUI && (
-                                  <ContextMenuItem
-                                    onClick={() => void handleRevealProjectInFinder(project)}
-                                  >
-                                    <FolderOpen className="size-3" />
-                                    {t("sidebar.revealInFinder")}
-                                  </ContextMenuItem>
-                                )}
-                                {!isWebUI && (
-                                  <ContextMenuItem
-                                    onClick={() => void handleOpenProjectInEditor(project)}
-                                  >
-                                    <Code className="size-3" />
-                                    {t("filePanel.openInEditor", {
-                                      editor:
-                                        EDITOR_LABELS[useAppStore.getState().editor.name] ??
-                                        "Editor",
-                                    })}
-                                  </ContextMenuItem>
-                                )}
-                                <ContextMenuItem
-                                  onClick={() => void handleCopyProjectPath(project)}
-                                >
-                                  <Copy className="size-3" />
-                                  {t("sidebar.copyProjectPath")}
-                                </ContextMenuItem>
-                                <ContextMenuItem onClick={() => handleRenameSession(session)}>
-                                  <Pencil className="size-3" />
-                                  {t("sidebar.rename")}
-                                </ContextMenuItem>
-                                {ilinkStatus.connected && activeIlinkSessionId !== session.id && (
-                                  <ContextMenuItem
-                                    onClick={() => void handleSetActiveIlinkSession(session.id)}
-                                  >
-                                    <MessageCircle className="size-3" />
-                                    {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                                  </ContextMenuItem>
-                                )}
-                                {ilinkStatus.connected && activeIlinkSessionId === session.id && (
-                                  <ContextMenuItem
-                                    onClick={() => void handleSetActiveIlinkSession("")}
-                                  >
-                                    <MessageCircle className="size-3 text-green-500" />
-                                    {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                                  </ContextMenuItem>
-                                )}
-                                {session.connectionStatus === "connected" && (
-                                  <>
-                                    <ContextMenuSeparator />
-                                    <ContextMenuItem
-                                      onClick={() => void handleRestartSession(session)}
-                                      disabled={sessionAction !== null}
-                                    >
-                                      {sessionAction?.id === session.id &&
-                                      sessionAction.type === "restart" ? (
-                                        <LoaderCircle className="size-3 animate-spin" />
-                                      ) : (
-                                        <RefreshCw className="size-3" />
-                                      )}
-                                      {t("sidebar.restartSession", "Restart Session")}
-                                    </ContextMenuItem>
-                                    <ContextMenuItem
-                                      onClick={() => void handleCloseSession(session)}
-                                      disabled={sessionAction !== null}
-                                    >
-                                      {sessionAction?.id === session.id &&
-                                      sessionAction.type === "close" ? (
-                                        <LoaderCircle className="size-3 animate-spin" />
-                                      ) : (
-                                        <Power className="size-3" />
-                                      )}
-                                      {sessionAction?.id === session.id &&
-                                      sessionAction.type === "close"
-                                        ? t("sidebar.closingSession", "Closing…")
-                                        : t("sidebar.closeSession", "Close Session")}
-                                    </ContextMenuItem>
-                                  </>
-                                )}
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  variant="destructive"
-                                  onClick={() => void handleDeleteSession(session)}
-                                  disabled={sessionAction !== null}
-                                >
-                                  <Trash2 className="size-3" />
-                                  {t("sidebar.deleteSession")}
-                                </ContextMenuItem>
-                              </ContextMenuContent>
-                            </ContextMenu>
-                          </HoverCardTrigger>
-                          <HoverCardContent
-                            side="right"
-                            align="start"
-                            sideOffset={12}
-                            alignOffset={0}
-                            className="w-54 max-w-[20vw] p-3"
-                          >
-                            <div className="flex flex-col gap-2">
-                              <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
-                                <span>
-                                  {session.title || t("sidebar.newSession", "New Session")}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                                <Bot className="size-3 shrink-0" />
-                                <span className="truncate">{session.agentId}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                                <Folder className="size-3 shrink-0" />
-                                {isWebUI ? (
-                                  <span className="truncate">{project.title}</span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleRevealProjectInFinder(project)}
-                                    title={project.cwd}
-                                    className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
-                                  >
-                                    {project.title}
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                                <Clock className="size-3 shrink-0" />
-                                <span className="truncate">
-                                  <span className="mr-1">{t("sidebar.updated", "Updated")}:</span>
-                                  <span>
-                                    {formatRelativeTime(session.updatedAt, i18n.language)}
-                                  </span>
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                                <CalendarDays className="size-3 shrink-0" />
-                                <span className="truncate">
-                                  <span className="mr-1">{t("sidebar.created", "Created")}:</span>
-                                  <span>
-                                    {formatRelativeTime(session.createdAt, i18n.language)}
-                                  </span>
-                                </span>
-                              </div>
-                              {ilinkStatus.connected && (
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                                  <MessageCircle
-                                    className={cn(
-                                      "size-3 shrink-0",
-                                      activeIlinkSessionId === session.id && "text-green-500",
-                                    )}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void handleSetActiveIlinkSession(
-                                        activeIlinkSessionId === session.id ? "" : session.id,
-                                      )
-                                    }
-                                    className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
-                                  >
-                                    {t(
-                                      activeIlinkSessionId === session.id
-                                        ? "sidebar.ilinkActiveStatus"
-                                        : "sidebar.ilinkInactiveStatus",
-                                      activeIlinkSessionId === session.id
-                                        ? "WeChat Active"
-                                        : "Not WeChat Active",
-                                    )}
-                                  </button>
+                                  <Clock className="size-3 shrink-0" />
+                                  <span className="truncate">
+                                    <span className="mr-1">{t("sidebar.updated", "Updated")}:</span>
+                                    <span>
+                                      {formatRelativeTime(session.updatedAt, i18n.language)}
+                                    </span>
+                                  </span>
                                 </div>
-                              )}
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      );
-                    })}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                                  <CalendarDays className="size-3 shrink-0" />
+                                  <span className="truncate">
+                                    <span className="mr-1">{t("sidebar.created", "Created")}:</span>
+                                    <span>
+                                      {formatRelativeTime(session.createdAt, i18n.language)}
+                                    </span>
+                                  </span>
+                                </div>
+                                {ilinkStatus.connected && (
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                                    <MessageCircle
+                                      className={cn(
+                                        "size-3 shrink-0",
+                                        activeIlinkSessionId === session.id && "text-green-500",
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleSetActiveIlinkSession(
+                                          activeIlinkSessionId === session.id ? "" : session.id,
+                                        )
+                                      }
+                                      className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                                    >
+                                      {t(
+                                        activeIlinkSessionId === session.id
+                                          ? "sidebar.ilinkActiveStatus"
+                                          : "sidebar.ilinkInactiveStatus",
+                                        activeIlinkSessionId === session.id
+                                          ? "WeChat Active"
+                                          : "Not WeChat Active",
+                                      )}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               );
             })}
