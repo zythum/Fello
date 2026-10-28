@@ -1,15 +1,19 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
+import type { Ref } from "react"
 
 import { cn } from "@/lib/utils"
 
 type ScrollAreaProps = ScrollAreaPrimitive.Root.Props & {
   viewportClassName?: string;
+  /** 转交给 Viewport（滚动元素）的 ref，供需要直接操作滚动的 hook 使用。 */
+  viewportRef?: Ref<HTMLDivElement>;
   hideScrollBar?: boolean
 }
 
 function ScrollArea({
   className,
   viewportClassName,
+  viewportRef,
   children,
   hideScrollBar,
   ...props
@@ -23,6 +27,7 @@ function ScrollArea({
       {/* Edge scrolling (Cmd/Ctrl + ArrowUp/Down) is intentionally left to the browser:
           Chromium scrolls the focused viewport on its own, so no key handler is needed. */}
       <ScrollAreaPrimitive.Viewport
+        ref={viewportRef}
         data-slot="scroll-area-viewport"
         className={cn("size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:outline-1", viewportClassName)}
         style={{ overflowAnchor: "auto" }}
