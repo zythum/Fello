@@ -283,6 +283,11 @@ export function ToolItem({ session, message }: ToolItemProps) {
       ? "content-0"
       : "terminal";
 
+  // defaultTab 会随流式状态变化（运行中 → terminal，完成后 → content-0），但页签语义
+  // 是「挂载时定一次，之后交给用户」，所以冻结初值：否则 Base UI 会因非受控 Tabs 的
+  // defaultValue 变化而告警，而变化的那个值本来也不会生效。
+  const [initialTab] = useState(defaultTab);
+
   const handleStop = useCallback(async () => {
     if (!message.terminalId || stopping) return;
     setStopping(true);
@@ -418,7 +423,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
           </ScrollArea>
         )}
         {(contentItems.length > 0 || message.terminalId) && (
-          <Tabs defaultValue={defaultTab} className="w-full">
+          <Tabs defaultValue={initialTab} className="w-full">
             <TabsList
               variant="line"
               className="w-full h-8 justify-start rounded-none border-b border-border"
