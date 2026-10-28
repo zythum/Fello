@@ -436,17 +436,30 @@ function TreeItem({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {node.isFolder &&
-        isOpen &&
-        node.children?.map((child) => (
-          <TreeItem
-            key={child.id}
-            node={child}
-            previewId={previewId}
-            depth={depth + 1}
-            {...childProps}
-          />
-        ))}
+      {node.isFolder && (
+        // 0fr → 1fr 的 grid 轨道过渡，与侧栏项目一致。子节点是异步 readDir 拿到的，
+        // 所以 1fr 的条件是「已展开且 children 就绪」：数据到位那一刻才开始展开动画，
+        // 否则内容会在容器已经是 1fr 之后突然出现，没有过渡。
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            isOpen && node.children ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+          inert={!isOpen}
+        >
+          <div className="min-h-0 overflow-hidden">
+            {node.children?.map((child) => (
+              <TreeItem
+                key={child.id}
+                node={child}
+                previewId={previewId}
+                depth={depth + 1}
+                {...childProps}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -767,8 +780,11 @@ export const FilePanel = memo(function FilePanel({
         const visibleIds = flattenTree(data);
         const itemIndex = visibleIds.indexOf(id);
         if (itemIndex !== -1) {
-          element =
-            treeRef.current?.querySelectorAll<HTMLDivElement>('[role="treeitem"]')[itemIndex];
+          // 收起目录的行仍挂载（为了保留收起动画），但被包在 inert 容器里，
+          // 不能参与索引，否则焦点会落到错误的行上。
+          element = Array.from(
+            treeRef.current?.querySelectorAll<HTMLDivElement>('[role="treeitem"]') ?? [],
+          ).filter((candidate) => !candidate.closest("[inert]"))[itemIndex];
         }
       }
       if (!element) return;
