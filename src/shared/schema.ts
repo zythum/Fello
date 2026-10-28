@@ -2,10 +2,10 @@ import type {
   SessionNotification,
   InitializeResponse,
   ContentBlock,
-  Usage,
   UsageUpdate,
   AvailableCommand,
 } from "@agentclientprotocol/sdk";
+import type { Usage } from "@agentclientprotocol/sdk/unstable";
 import type { PeripheralSettingInfo, PeripheralStatus } from "./peripherals";
 
 export type { PeripheralSettingInfo, PeripheralStatus };

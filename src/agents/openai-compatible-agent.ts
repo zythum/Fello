@@ -12,7 +12,6 @@ import {
   type ToolSet,
 } from "ai";
 import type {
-  Agent,
   AvailableCommand,
   CancelNotification,
   CloseSessionRequest,
@@ -27,17 +26,17 @@ import type {
   NewSessionRequest,
   NewSessionResponse,
   PromptRequest,
-  PromptResponse,
   ResumeSessionRequest,
   ResumeSessionResponse,
   SessionConfigOption,
   SetSessionConfigOptionRequest,
   SetSessionConfigOptionResponse,
-  Usage,
   UsageUpdate,
 } from "@agentclientprotocol/sdk";
 import { PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { AgentContext } from "@agentclientprotocol/sdk";
+// Usage 与 PromptResponse 的 usage 字段属于 unstable v1 特性，stable 入口不导出。
+import type { PromptResponse, Usage } from "@agentclientprotocol/sdk/unstable";
 import { AgentClientProxy } from "./agent-client-proxy";
 import type {
   ApiAgentInfo,
@@ -209,7 +208,7 @@ ${summary}
   };
 }
 
-export class OpenaiCompatibleAgent implements Agent {
+export class OpenaiCompatibleAgent {
   private sessions = new Map<string, SessionState>();
   private provider: ReturnType<typeof createOpenAICompatible>;
   private connection: AgentClientProxy | null = null;

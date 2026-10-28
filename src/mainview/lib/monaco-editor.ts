@@ -1,8 +1,11 @@
 import * as monaco from "monaco-editor-core";
 import EditorWorker from "monaco-editor-core/esm/vs/editor/editor.worker.start?worker";
 import { shikiToMonaco, textmateThemeToMonacoTheme } from "@shikijs/monaco";
-import { getHighlighterIfLoaded } from "@pierre/diffs";
-import { shikiPreloadPromise } from "./shiki-preload";
+import { createHighlighterCore } from "shiki/core";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
+import { bundledLanguages } from "shiki/langs";
+import { bundledThemes } from "shiki/themes";
+import { SHIKI_GRAMMAR_LANGS, SHIKI_LANGS, SHIKI_THEMES } from "./shiki-preload";
 
 /**
  * 配置 Monaco 的 worker 加载（Vite 专用）。
@@ -44,8 +47,10 @@ function mixHex(hexA: string, ratioA: number, hexB: string, ratioB: number): str
  *   因此必须先 `monaco.languages.register` 注册需要高亮的语言 id。
  * - worker 加载由上方 `self.MonacoEnvironment` 统一接管（Vite `?worker` 产物），
  *   基础 EditorWorker 供 folding / 链接检测等内置服务使用。
- * - 复用 `shiki-preload` 预热好的共享 highlighter（github-light/github-dark + 语言列表），
- *   保证编辑器高亮与 CodeView / FileDiff 完全一致。
+ * - `@shikijs/monaco` 需要真正的 Shiki highlighter 实例。`@pierre/diffs` 自 1.6
+ *   起把 highlighter 换成了自有抽象（不再暴露底层 Shiki 实例），因此这里按与
+ *   `shiki-preload` 相同的主题/语言集合独立创建一个，引擎沿用 `shiki-js` 后端
+ *   所用的 JavaScript RegExp（不额外加载 oniguruma wasm）。
  */
 
 // Monaco 语言 id 通常只允许字母/数字/下划线；带连字符的 id（如 git-commit）跳过，
@@ -61,14 +66,13 @@ let initPromise: Promise<void> | null = null;
 export function initMonacoEditor(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
-      // 等待共享 highlighter 完成预热（应用启动时已由 shiki-preload 触发）
-      await shikiPreloadPromise;
-      const highlighter = getHighlighterIfLoaded();
-      if (!highlighter) {
-        throw new Error("Shiki highlighter is not loaded");
-      }
+      const highlighter = await createHighlighterCore({
+        themes: SHIKI_THEMES.map((name) => bundledThemes[name]),
+        langs: SHIKI_GRAMMAR_LANGS.map((lang) => bundledLanguages[lang]),
+        engine: createJavaScriptRegexEngine(),
+      });
 
-      for (const lang of highlighter.getLoadedLanguages()) {
+      for (const lang of SHIKI_LANGS) {
         if (!REGISTERABLE_LANG_RE.test(lang)) continue;
         const exists = monaco.languages.getLanguages().some((l) => l.id === lang);
         if (!exists) {
@@ -81,7 +85,7 @@ export function initMonacoEditor(): Promise<void> {
       // 对齐 @pierre/diffs 的行号样式：--diffs-fg-number = fg 65% + bg 35% 混合。
       // shikiToMonaco 注册的主题未包含 editorLineNumber 颜色，走 Monaco 默认色（偏蓝），
       // 这里基于 Shiki 主题的 fg/bg 计算并覆盖，亮/暗主题各一份。
-      for (const themeName of ["github-light", "github-dark"]) {
+      for (const themeName of SHIKI_THEMES) {
         const theme = highlighter.getTheme(themeName);
         if (!theme?.fg || !theme?.bg) continue;
         const lineNumberColor = mixHex(theme.fg, 0.65, theme.bg, 0.35);

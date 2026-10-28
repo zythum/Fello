@@ -3,8 +3,8 @@ import type {
   ContentBlock,
   SessionNotification,
   InitializeResponse,
-  Usage,
 } from "@agentclientprotocol/sdk";
+import type { Usage } from "@agentclientprotocol/sdk/unstable";
 import type { BackendContext } from "../types";
 import type { BridgeConnectModule } from "../bridge-connect";
 import type { AskUserModule } from "../ask-user";

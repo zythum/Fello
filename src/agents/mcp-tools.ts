@@ -2,13 +2,8 @@ import type { ToolSet } from "ai";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ContentBlockSchema } from "@modelcontextprotocol/sdk/types.js";
-import type {
-  ContentBlock,
-  McpServer,
-  ToolCall,
-  ToolCallUpdate,
-  ToolKind,
-} from "@agentclientprotocol/sdk";
+import type { ContentBlock, ToolCall, ToolCallUpdate, ToolKind } from "@agentclientprotocol/sdk";
+import type { McpServer } from "@agentclientprotocol/sdk/unstable";
 import type { AgentClientProxy } from "./agent-client-proxy";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
 import { buildProxyEnv } from "../backend/proxy";
