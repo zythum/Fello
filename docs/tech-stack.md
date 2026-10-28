@@ -49,6 +49,7 @@
 | tw-animate-css | ^1.4.0 | 动画样式工具 |
 | sonner | ^2.0.8 | Toast 消息提示组件 |
 | next-themes | ^0.4.6 | 主题切换与感知 |
+| use-stick-to-bottom | ^1.1.6 | 聊天区吸附底部（ResizeObserver + 速度弹簧动画，自动区分用户滚动与程序滚动） |
 
 ## 终端与开发工作区能力
 

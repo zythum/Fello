@@ -133,6 +133,7 @@
     "undici": "^7.29.1",
     "unified-ble-manager": "4.0.27",
     "unified-realtime-asr": "0.3.1",
+    "use-stick-to-bottom": "^1.1.6",
     "web-tree-sitter": "^0.27.1",
     "ws": "^8.22.0",
     "yaml": "^2.9.1",

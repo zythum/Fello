@@ -10,6 +10,7 @@ import { MessageBubble } from "../../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useStickToBottom } from "use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import { copyText as clipboardCopyText } from "@/lib/clipboard";
 import { speakOnce } from "../../../lib/tts/tts-reader";
@@ -22,16 +23,6 @@ import { HISTORY_PAGE_SIZE } from "../../../../shared/constants";
 
 import type { SessionInfo } from "../../../../shared/schema";
 
-/** Scroll to bottom using double-rAF to ensure browser layout is settled. */
-function scrollToBottomNow(bottomEl: HTMLElement | null) {
-  if (!bottomEl) return;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      bottomEl.scrollIntoView({ block: "end", behavior: "auto" });
-    });
-  });
-}
-
 function ChatAreaImpl({ session }: { session: SessionInfo }) {
   const { t } = useTranslation();
   const sessionId = session.id;
@@ -41,17 +32,15 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
   const { previousSegmentId } = useSessionHistoryPagination(sessionId);
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
   const isLoadingEarlierRef = useRef(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasAutoScrolledOnMountRef = useRef(false);
-  const userHasScrolledUpRef = useRef(false);
-  const isProgrammaticScrollRef = useRef(false);
-  const prevScrollHeightRef = useRef(0);
-  const prevScrollTopRef = useRef(0);
   const userMessageElementRefs = useRef(new Map<string, HTMLElement>());
   const userMessageIdsRef = useRef<string[]>([]);
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  // 吸附底部交给 use-stick-to-bottom：它用 ResizeObserver 跟踪内容尺寸、用速度弹簧动画
+  // 跟随流式追加，并自行区分「用户滚动」与「程序滚动」，不再需要手写的阈值与 ref 启发式。
+  const { scrollRef, contentRef, scrollToBottom, stopScroll, isAtBottom } = useStickToBottom({
+    resize: "instant",
+    initial: "instant",
+  });
   const [showThinking, setShowThinking] = useState(false);
   const [activeUserMessageId, setActiveUserMessageId] = useState<string | null>(null);
   const [copiedGroupKey, setCopiedGroupKey] = useState<string | null>(null);
@@ -85,33 +74,8 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
   }, [getViewport]);
   useFocusTarget("chat-area", focusChatArea);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = null;
-    }
-
-    // Mark that this scroll is programmatic so the scroll handler doesn't
-    // incorrectly set userHasScrolledUpRef = true.
-    isProgrammaticScrollRef.current = true;
-    userHasScrolledUpRef.current = false;
-
-    if (behavior === "smooth") {
-      scrollTimeoutRef.current = setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ block: "end", behavior });
-      }, 100);
-      return;
-    }
-
-    scrollToBottomNow(bottomRef.current);
-  }, []);
-
-  const scrollToBottomAuto = useCallback(() => {
-    scrollToBottom("auto");
-  }, [scrollToBottom]);
-
   const scrollToBottomManual = useCallback(() => {
-    scrollToBottom("smooth");
+    void scrollToBottom({ animation: "smooth" });
   }, [scrollToBottom]);
 
   useEffect(() => {
@@ -119,12 +83,6 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     document.addEventListener("fello-scroll-to-bottom", handleScrollToBottom);
     return () => document.removeEventListener("fello-scroll-to-bottom", handleScrollToBottom);
   }, [scrollToBottomManual]);
-
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     const viewport = getViewport();
@@ -160,43 +118,6 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     };
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = viewport;
-      const scrollBottom = scrollHeight - scrollTop - clientHeight;
-      const nextIsAtBottom = scrollBottom < 50;
-      const scrollDelta = scrollTop - prevScrollTopRef.current;
-      prevScrollTopRef.current = scrollTop;
-
-      // Distinguish "user scrolled up" from "content grew, pushing viewport up".
-      // If this scroll event was triggered by our own scrollToBottom, ignore it.
-      if (isProgrammaticScrollRef.current) {
-        isProgrammaticScrollRef.current = false;
-        // Still update isAtBottom but don't mark user as scrolled up.
-        setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
-        prevScrollHeightRef.current = scrollHeight;
-        return;
-      }
-
-      // Any upward movement by the user counts as an intent to read above the
-      // bottom, even if still within the bottom threshold. This makes it easier
-      // to break out of auto-scroll with a small mouse-wheel nudge.
-      const isScrollingUp = scrollDelta <= -1;
-
-      // If the content grew (scrollHeight increased) and the user didn't
-      // actively scroll up, don't mark them as having scrolled up.
-      const contentGrew = scrollHeight > prevScrollHeightRef.current;
-      prevScrollHeightRef.current = scrollHeight;
-
-      if (isScrollingUp) {
-        userHasScrolledUpRef.current = true;
-      } else if (!nextIsAtBottom && contentGrew && scrollBottom >= 50) {
-        // Content grew enough to push us out of the "at bottom" zone.
-        // This is not a user action — keep userHasScrolledUpRef as is.
-      } else {
-        userHasScrolledUpRef.current = !nextIsAtBottom;
-      }
-
-      setIsAtBottom((prev) => (prev === nextIsAtBottom ? prev : nextIsAtBottom));
-
       if (rafId != null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
@@ -204,73 +125,11 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
       });
     };
 
-    const handleWheel = (e: WheelEvent) => {
-      // A negative deltaY means the user is scrolling up. Treat this as an
-      // immediate intent to stop auto-scrolling, even before the scroll event
-      // has fired and updated the position-based heuristics.
-      if (e.deltaY < 0) {
-        userHasScrolledUpRef.current = true;
-      }
-    };
-
     viewport.addEventListener("scroll", handleScroll, { passive: true });
-    viewport.addEventListener("wheel", handleWheel, { passive: true });
     handleScroll();
     return () => {
       viewport.removeEventListener("scroll", handleScroll);
-      viewport.removeEventListener("wheel", handleWheel);
       if (rafId != null) cancelAnimationFrame(rafId);
-    };
-  }, [getViewport]);
-
-  // ── ResizeObserver: auto-scroll when content/viewport size changes ──
-  // Observes the viewport (to catch container resize from panel layout shifts)
-  // and all direct children (to catch content growth from async rendering like
-  // shiki highlighting, mermaid diagrams, image loads, etc.).
-  useEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
-
-    let rafPending = false;
-    const scrollIfNeeded = () => {
-      if (rafPending) return;
-      rafPending = true;
-      requestAnimationFrame(() => {
-        rafPending = false;
-        if (!userHasScrolledUpRef.current) {
-          scrollToBottomNow(bottomRef.current);
-        }
-      });
-    };
-
-    // Observe viewport itself — fires when the container is resized (e.g. panel layout shifts)
-    const observer = new ResizeObserver(scrollIfNeeded);
-    observer.observe(viewport);
-
-    // Also observe all direct children to catch content height changes
-    // (e.g. async shiki highlighting, mermaid rendering, image loads)
-    for (const child of viewport.children) {
-      observer.observe(child);
-    }
-
-    // Watch for new children being added (React re-renders may add/remove message groups)
-    const mo = new MutationObserver((mutations) => {
-      let contentChanged = false;
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node instanceof HTMLElement) {
-            observer.observe(node);
-            contentChanged = true;
-          }
-        }
-      }
-      if (contentChanged) scrollIfNeeded();
-    });
-    mo.observe(viewport, { childList: true });
-
-    return () => {
-      observer.disconnect();
-      mo.disconnect();
     };
   }, [getViewport]);
 
@@ -342,6 +201,8 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
       // Wait for React to prepend the newly visible groups before restoring the viewport anchor.
       requestAnimationFrame(() => {
         if (!viewport) return;
+        // 上方插入内容会让 stick 逻辑重新计算目标位置，先停掉动画再手动补回偏移。
+        stopScroll();
         viewport.scrollTop += viewport.scrollHeight - prevScrollHeight;
       });
     };
@@ -362,7 +223,7 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
       isLoadingEarlierRef.current = false;
       setIsLoadingEarlier(false);
     }
-  }, [getViewport, hasMore, sessionId, shouldLoadPreviousSegment]);
+  }, [getViewport, hasMore, sessionId, shouldLoadPreviousSegment, stopScroll]);
 
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
@@ -396,18 +257,6 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     });
   }, [firstTimelineDisplayId, timelineDisplayIdsKey, getViewport]);
 
-  useEffect(() => {
-    if (!hasAutoScrolledOnMountRef.current) {
-      hasAutoScrolledOnMountRef.current = true;
-      scrollToBottomAuto();
-      return;
-    }
-
-    if (!userHasScrolledUpRef.current && (isAtBottom || isStreaming)) {
-      scrollToBottomAuto();
-    }
-  }, [messages, isAtBottom, isStreaming, scrollToBottomAuto]);
-
   const setUserMessageElement = useCallback((displayId: string, el: HTMLElement | null) => {
     if (!el) {
       userMessageElementRefs.current.delete(displayId);
@@ -424,9 +273,11 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
       const viewportRect = viewport.getBoundingClientRect();
       const scrollTop = viewport.scrollTop;
       const elTop = el.getBoundingClientRect().top - viewportRect.top + scrollTop;
+      // 先中止吸附动画，否则它会把这次跳转拽回底部。
+      stopScroll();
       viewport.scrollTo({ top: Math.max(0, elTop), behavior: "smooth" });
     },
-    [getViewport],
+    [getViewport, stopScroll],
   );
 
   useEffect(() => {
@@ -475,215 +326,217 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
 
       <ScrollArea
         ref={scrollAreaRef}
+        viewportRef={scrollRef}
         className="flex-1 w-full transform-gpu"
         viewportClassName="animate-in fade-in chat-area"
       >
-        {hasMore && (
-          <div className="flex items-center gap-3 px-10 py-3 max-w-5xl mx-auto">
-            <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground/60 hover:text-muted-foreground"
-              disabled={isLoadingEarlier}
-              onClick={() => void handleLoadMore()}
-            >
-              {t("chatArea.loadMore", "Load earlier messages")}
-            </Button>
-            <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
-          </div>
-        )}
-        {messageGroups.map((group, groupIndex) => {
-          const isFirstGroup = groupIndex === 0;
-          const isLastGroup = groupIndex === messageGroups.length - 1;
-          const groupText = getAgentText(group.contentMessages);
-          const groupHasText = groupText.trim().length > 0;
+        {/* contentRef 供 use-stick-to-bottom 用 ResizeObserver 跟踪内容尺寸变化 */}
+        <div ref={contentRef} className="flex min-h-full flex-col">
+          {hasMore && (
+            <div className="flex w-full items-center gap-3 px-10 py-3 max-w-5xl mx-auto">
+              <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground/60 hover:text-muted-foreground"
+                disabled={isLoadingEarlier}
+                onClick={() => void handleLoadMore()}
+              >
+                {t("chatArea.loadMore", "Load earlier messages")}
+              </Button>
+              <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
+            </div>
+          )}
+          {messageGroups.map((group, groupIndex) => {
+            const isFirstGroup = groupIndex === 0;
+            const isLastGroup = groupIndex === messageGroups.length - 1;
+            const groupText = getAgentText(group.contentMessages);
+            const groupHasText = groupText.trim().length > 0;
 
-          // 最后一条消息如果是尚未完成的工具调用，则显示「等待任务完成」而不是「思考中」
-          const lastGroupMessage = group.contentMessages[group.contentMessages.length - 1];
-          const isWaitingForTask =
-            lastGroupMessage?.role === "tool_call" &&
-            (lastGroupMessage.status === "in_progress" || lastGroupMessage.status === "pending");
-          const isWaitingForSubagent = Array.from(activeSubagents?.values() ?? []).some(
-            (subagent) => subagent.status === "in_progress" || subagent.status === "pending",
-          );
+            // 最后一条消息如果是尚未完成的工具调用，则显示「等待任务完成」而不是「思考中」
+            const lastGroupMessage = group.contentMessages[group.contentMessages.length - 1];
+            const isWaitingForTask =
+              lastGroupMessage?.role === "tool_call" &&
+              (lastGroupMessage.status === "in_progress" || lastGroupMessage.status === "pending");
+            const isWaitingForSubagent = Array.from(activeSubagents?.values() ?? []).some(
+              (subagent) => subagent.status === "in_progress" || subagent.status === "pending",
+            );
 
-          // 计算耗时：找出最后一条消息的时间与 userMessage 收到时间之差
-          let durationMs: number | null = null;
-          if (group.userMessage && group.contentMessages.length > 0) {
-            const lastMsg = group.contentMessages[group.contentMessages.length - 1];
-            if (lastMsg.receivedAt && group.userMessage.receivedAt) {
-              const diff = lastMsg.receivedAt - group.userMessage.receivedAt;
-              if (diff > 0) {
-                durationMs = diff;
+            // 计算耗时：找出最后一条消息的时间与 userMessage 收到时间之差
+            let durationMs: number | null = null;
+            if (group.userMessage && group.contentMessages.length > 0) {
+              const lastMsg = group.contentMessages[group.contentMessages.length - 1];
+              if (lastMsg.receivedAt && group.userMessage.receivedAt) {
+                const diff = lastMsg.receivedAt - group.userMessage.receivedAt;
+                if (diff > 0) {
+                  durationMs = diff;
+                }
               }
             }
-          }
 
-          return (
-            <div
-              key={group.key}
-              className={cn(
-                "message-group max-w-5xl mx-auto flex flex-col relative pointer-events-none px-10",
-                {
-                  "pt-4": !isFirstGroup,
-                  "min-h-full": isLastGroup,
-                },
-              )}
-            >
+            return (
               <div
-                className="absolute top-0"
-                ref={(el) => {
-                  if (group.userMessage) {
-                    setUserMessageElement(group.userMessage.displayId, el);
-                  }
-                }}
-              />
-              {group.userMessage && (
-                <div className="message-header sticky z-5 top-0 pt-4 pb-14 -mb-5 bg-linear-to-b from-background via-background/95 via-65% to-background/0">
-                  <div
-                    className="chat-message"
-                    data-role={group.userMessage.role}
-                    data-display-id={group.userMessage.displayId}
-                  >
-                    <MessageBubble
-                      session={session}
-                      message={group.userMessage}
-                      isStreaming={false}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="message-content pb-4">
-                <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
-                  <Bot className="size-5 -translate-y-px" />
-                  <span className="text-sm font-medium">{session.agentId}</span>
-                </div>
-                <div className="mt-6">
-                  {group.contentMessages.map((msg, i, arr) => {
-                    const isLastInGroup = i === arr.length - 1;
-                    const isLastRendered = isLastGroup && isLastInGroup;
-                    const isStreamableRole =
-                      msg.role === "agent_message" || msg.role === "agent_thought";
-                    const isLastMessageStreaming =
-                      isStreaming && isLastRendered && isStreamableRole;
-
-                    return (
-                      <MessageBubble
-                        key={msg.displayId}
-                        session={session}
-                        message={msg}
-                        isStreaming={isLastMessageStreaming}
-                      />
-                    );
-                  })}
-                </div>
+                key={group.key}
+                className={cn(
+                  "message-group w-full max-w-5xl mx-auto flex flex-col relative pointer-events-none px-10",
+                  {
+                    "pt-4": !isFirstGroup,
+                    "flex-1": isLastGroup,
+                  },
+                )}
+              >
                 <div
-                  className={cn(
-                    "text-[11px] text-muted-foreground/50 mt-4 h-4 uppercase tracking-widest",
-                    {
-                      invisible:
-                        !isLastGroup ||
-                        !isStreaming ||
-                        (!showThinking && !isWaitingForTask && !isWaitingForSubagent),
-                    },
-                  )}
-                >
-                  <span className="animate-shimmer-text">
-                    {isWaitingForTask
-                      ? t("chatArea.waitingForTask", "Waiting for task...")
-                      : isWaitingForSubagent
-                        ? t("chatArea.waitingForSubagent", "Waiting for subagent...")
-                        : t("chatArea.thinking", "Thinking...")}
-                  </span>
+                  className="absolute top-0"
+                  ref={(el) => {
+                    if (group.userMessage) {
+                      setUserMessageElement(group.userMessage.displayId, el);
+                    }
+                  }}
+                />
+                {group.userMessage && (
+                  <div className="message-header sticky z-5 top-0 pt-4 pb-14 -mb-5 bg-linear-to-b from-background via-background/95 via-65% to-background/0">
+                    <div
+                      className="chat-message"
+                      data-role={group.userMessage.role}
+                      data-display-id={group.userMessage.displayId}
+                    >
+                      <MessageBubble
+                        session={session}
+                        message={group.userMessage}
+                        isStreaming={false}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="message-content pb-4">
+                  <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
+                    <Bot className="size-5 -translate-y-px" />
+                    <span className="text-sm font-medium">{session.agentId}</span>
+                  </div>
+                  <div className="mt-6">
+                    {group.contentMessages.map((msg, i, arr) => {
+                      const isLastInGroup = i === arr.length - 1;
+                      const isLastRendered = isLastGroup && isLastInGroup;
+                      const isStreamableRole =
+                        msg.role === "agent_message" || msg.role === "agent_thought";
+                      const isLastMessageStreaming =
+                        isStreaming && isLastRendered && isStreamableRole;
+
+                      return (
+                        <MessageBubble
+                          key={msg.displayId}
+                          session={session}
+                          message={msg}
+                          isStreaming={isLastMessageStreaming}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-[11px] text-muted-foreground/50 mt-4 h-4 uppercase tracking-widest",
+                      {
+                        invisible:
+                          !isLastGroup ||
+                          !isStreaming ||
+                          (!showThinking && !isWaitingForTask && !isWaitingForSubagent),
+                      },
+                    )}
+                  >
+                    <span className="animate-shimmer-text">
+                      {isWaitingForTask
+                        ? t("chatArea.waitingForTask", "Waiting for task...")
+                        : isWaitingForSubagent
+                          ? t("chatArea.waitingForSubagent", "Waiting for subagent...")
+                          : t("chatArea.thinking", "Thinking...")}
+                    </span>
+                  </div>
                 </div>
+
+                {(isLastGroup ? !isStreaming : true) && (
+                  <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed -mt-8 mb-4 group/separator pointer-events-auto">
+                    <div className="flex-1 flex items-center">
+                      {durationMs !== null && (
+                        <span className="text-xs text-muted-foreground/50 select-none">
+                          {t("chatArea.duration", { duration: formatDuration(durationMs) })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      {group.userMessage && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            document.dispatchEvent(
+                              new CustomEvent("fello-scroll-to-message", {
+                                detail: group.userMessage!.displayId,
+                              }),
+                            );
+                          }}
+                          title={t("userBubble.locate", "Locate")}
+                        >
+                          <ArrowUpToLine className="size-3.5" />
+                        </Button>
+                      )}
+                      {groupHasText && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakOnce(groupText);
+                          }}
+                          title={t("chat.readAloud", "Read aloud")}
+                          aria-label={t("chat.readAloud", "Read aloud")}
+                        >
+                          <Volume2 className="size-3.5" />
+                        </Button>
+                      )}
+                      {groupHasText && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const ok = await copyText(groupText);
+                            if (!ok) return;
+                            setCopiedGroupKey(group.key);
+                            setTimeout(
+                              () => setCopiedGroupKey((prev) => (prev === group.key ? null : prev)),
+                              2000,
+                            );
+                          }}
+                          title={
+                            copiedGroupKey === group.key
+                              ? t("chatArea.copiedGroup", "Copied")
+                              : t("chatArea.copyGroup", "Copy")
+                          }
+                          aria-label={
+                            copiedGroupKey === group.key
+                              ? t("chatArea.copiedGroup", "Copied")
+                              : t("chatArea.copyGroup", "Copy")
+                          }
+                        >
+                          {copiedGroupKey === group.key ? (
+                            <Check className="size-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {(isLastGroup ? !isStreaming : true) && (
-                <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed -mt-8 mb-4 group/separator pointer-events-auto">
-                  <div className="flex-1 flex items-center">
-                    {durationMs !== null && (
-                      <span className="text-xs text-muted-foreground/50 select-none">
-                        {t("chatArea.duration", { duration: formatDuration(durationMs) })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center">
-                    {group.userMessage && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          document.dispatchEvent(
-                            new CustomEvent("fello-scroll-to-message", {
-                              detail: group.userMessage!.displayId,
-                            }),
-                          );
-                        }}
-                        title={t("userBubble.locate", "Locate")}
-                      >
-                        <ArrowUpToLine className="size-3.5" />
-                      </Button>
-                    )}
-                    {groupHasText && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          speakOnce(groupText);
-                        }}
-                        title={t("chat.readAloud", "Read aloud")}
-                        aria-label={t("chat.readAloud", "Read aloud")}
-                      >
-                        <Volume2 className="size-3.5" />
-                      </Button>
-                    )}
-                    {groupHasText && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-6 shrink-0 bg-background hover:bg-background/80 text-muted-foreground/50 hover:text-muted-foreground/80 transition-opacity group-hover/separator:opacity-100"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await copyText(groupText);
-                          if (!ok) return;
-                          setCopiedGroupKey(group.key);
-                          setTimeout(
-                            () => setCopiedGroupKey((prev) => (prev === group.key ? null : prev)),
-                            2000,
-                          );
-                        }}
-                        title={
-                          copiedGroupKey === group.key
-                            ? t("chatArea.copiedGroup", "Copied")
-                            : t("chatArea.copyGroup", "Copy")
-                        }
-                        aria-label={
-                          copiedGroupKey === group.key
-                            ? t("chatArea.copiedGroup", "Copied")
-                            : t("chatArea.copyGroup", "Copy")
-                        }
-                      >
-                        {copiedGroupKey === group.key ? (
-                          <Check className="size-3.5 text-green-500" />
-                        ) : (
-                          <Copy className="size-3.5" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        <div ref={bottomRef} />
+            );
+          })}
+        </div>
       </ScrollArea>
 
       {!isAtBottom && (
