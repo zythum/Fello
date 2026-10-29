@@ -3,6 +3,8 @@ import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
+  APICallError,
+  RetryError,
   isStepCount,
   streamText,
   generateText,
@@ -206,6 +208,37 @@ The summary below covers the earlier portion of the conversation.
 ${summary}
 </previous_conversation_summary>`,
   };
+}
+
+/**
+ * 把 AI SDK 的请求错误整理成一句可直接展示的文案。
+ *
+ * APICallError 的 message 通常是 provider 返回的 error.message；但如果响应体
+ * 不是预期的错误 JSON，AI SDK 只会用 HTTP statusText（例如 "Unauthorized"），
+ * 信息量不足，这时改用截断后的 responseBody。RetryError（重试用尽）则取最后
+ * 一次真实错误，避免只剩 "Failed after N attempts"。
+ *
+ * 这段文案会随 ACP 错误回传（error.data.details），最终进入会话 toast 和
+ * iLink 回复，因此要面向用户、可读。
+ */
+function describeRequestFailure(error: unknown): string {
+  const apiError = APICallError.isInstance(error)
+    ? error
+    : RetryError.isInstance(error) && APICallError.isInstance(error.lastError)
+      ? error.lastError
+      : null;
+  if (!apiError) {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  const status = apiError.statusCode ? `HTTP ${apiError.statusCode}` : "";
+  const message = apiError.message.trim();
+  // 非 JSON 错误体（如网关返回的 HTML）压成一行，避免污染 toast。
+  const body = (apiError.responseBody ?? "").replace(/\s+/g, " ").trim();
+  // data 有值说明响应体已被 provider 解析成错误对象，message 就是其中的描述。
+  const detail = apiError.data !== undefined || !body ? message : body;
+  const truncated = detail.length > 500 ? `${detail.slice(0, 500)}…` : detail;
+  return [status, truncated].filter(Boolean).join(": ") || "Request failed";
 }
 
 export class OpenaiCompatibleAgent {
@@ -998,7 +1031,9 @@ export class OpenaiCompatibleAgent {
       session.history.push(...historyEntries);
       await this.appendSessionHistory(session.id, ...historyEntries);
 
-      throw err;
+      // 把 AI SDK 的原始错误整理成可展示文案；ACP 会把它放进
+      // error.data.details，最终由 normalizeAcpError 还原给 UI / iLink。
+      throw new Error(describeRequestFailure(err), { cause: err });
     } finally {
       session.abortController = null;
       await this.persistSessionState(session);
