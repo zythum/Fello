@@ -863,7 +863,9 @@
   "panel": {
     "files": "文件",
     "terminal": "终端",
-    "noProjectSelected": "未选择项目"
+    "noProjectSelected": "未选择项目",
+    "collapse": "收起面板",
+    "expand": "展开面板"
   },
   "contentBlock": {
     "unsupported": "不支持的内容块：{{type}}",

@@ -266,7 +266,7 @@ export function Automation() {
                             {schedule.name}
                             <Badge
                               variant="outline"
-                              className="px-1 text-[10px] leading-none uppercase shrink-0"
+                              className="px-1 text-[9px] leading-none uppercase shrink-0"
                             >
                               {schedule.agentId}
                             </Badge>
@@ -274,7 +274,7 @@ export function Automation() {
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  "px-1 text-[10px] leading-none shrink-0",
+                                  "px-1 text-[9px] leading-none shrink-0",
                                   schedule.remainingRuns === 0
                                     ? "border-destructive/40 text-destructive"
                                     : "text-muted-foreground",

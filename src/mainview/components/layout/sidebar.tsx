@@ -954,9 +954,11 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-full min-h-0 w-60 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto transition-[margin] duration-200",
+        // 窗口窄于 800px 时收窄到 w-40，把宽度让给会话内容；
+        // 收起的负 margin 必须与宽度同步，router.tsx 里开关按钮的也要跟着改。
+        "flex h-full min-h-0 w-60 max-[800px]:w-40 flex-col border-r border-border bg-sidebar text-sidebar-foreground pointer-events-auto transition-[margin,width] duration-200",
         {
-          "-ml-60": !sidebarOpen,
+          "-ml-60 max-[800px]:-ml-40": !sidebarOpen,
         },
       )}
     >
@@ -1115,7 +1117,7 @@ export function Sidebar() {
                                 hoveredTriggerIdRef.current = null;
                               }}
                               className={cn(
-                                "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground/95 outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                "flex h-7 cursor-default items-center gap-1.5 rounded-md px-1.5 text-xs font-normal transition-colors text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground/95 outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
                                 hoverId === currentHoverId || contextMenuId === currentHoverId
                                   ? "bg-sidebar-accent"
                                   : "",
@@ -1207,7 +1209,7 @@ export function Sidebar() {
                       align="start"
                       sideOffset={12}
                       alignOffset={0}
-                      className="w-54 max-w-[20vw] p-3"
+                      className="w-54 p-3"
                     >
                       <div className="flex flex-col gap-2">
                         <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
@@ -1333,7 +1335,7 @@ export function Sidebar() {
                                       onPointerLeave={() => {
                                         hoveredTriggerIdRef.current = null;
                                       }}
-                                      className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                                      className={`group flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring ${
                                         activeSessionId === session.id
                                           ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
                                           : session.connectionStatus === "connected"
@@ -1360,7 +1362,7 @@ export function Sidebar() {
                                     />
                                     <Badge
                                       variant="outline"
-                                      className="px-1 -ml-0.5 text-[10px] uppercase select-none max-w-24"
+                                      className="px-1 -ml-0.5 text-[9px] uppercase select-none max-w-24"
                                     >
                                       {agentLabel}
                                     </Badge>
@@ -1476,7 +1478,7 @@ export function Sidebar() {
                               align="start"
                               sideOffset={12}
                               alignOffset={0}
-                              className="w-54 max-w-[20vw] p-3"
+                              className="w-54 p-3"
                             >
                               <div className="flex flex-col gap-2">
                                 <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">

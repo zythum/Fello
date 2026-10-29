@@ -864,7 +864,9 @@
   "panel": {
     "files": "Files",
     "terminal": "Terminal",
-    "noProjectSelected": "No project selected"
+    "noProjectSelected": "No project selected",
+    "collapse": "Collapse panel",
+    "expand": "Expand panel"
   },
   "contentBlock": {
     "unsupported": "Unsupported block type: {{type}}",

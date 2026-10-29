@@ -116,8 +116,8 @@ export function SettingsLayout() {
         <h1 className="text-sm font-medium">{t("settings.title", "Settings")}</h1>
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-48 shrink-0 border-r border-border bg-muted/10">
-          <nav className="flex flex-col gap-1 p-4">
+        <aside className="w-48 max-[800px]:w-36 shrink-0 border-r border-border bg-muted/10 transition-all">
+          <nav className="flex flex-col gap-1 p-4 max-[800px]:px-2 transition-all">
             {tabs.map((tab) => (
               <NavLink
                 key={tab.id}

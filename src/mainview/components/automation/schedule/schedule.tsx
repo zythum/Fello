@@ -224,13 +224,13 @@ export function Schedule() {
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <h1 className="text-sm font-medium truncate">{schedule.name}</h1>
-          <Badge variant="outline" className="px-1 text-[10px] leading-none uppercase shrink-0">
+          <Badge variant="outline" className="px-1 text-[9px] leading-none uppercase shrink-0">
             {schedule.agentId}
           </Badge>
           {schedule.cron.type === "cron" && schedule.remainingRuns !== null && (
             <Badge
               variant="outline"
-              className={`px-1 text-[10px] leading-none shrink-0 ${
+              className={`px-1 text-[9px] leading-none shrink-0 ${
                 schedule.remainingRuns === 0
                   ? "border-destructive/40 text-destructive"
                   : "text-muted-foreground"

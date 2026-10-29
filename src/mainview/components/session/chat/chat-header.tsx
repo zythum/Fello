@@ -13,6 +13,7 @@ import {
   VolumeX,
   AudioLines,
   Square,
+  PanelRightOpen,
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { useTtsPrefsStore } from "../../../lib/tts/tts-prefs";
@@ -46,6 +47,8 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
   const navigate = useNavigate();
   const projects = useAppStore((s) => s.projects);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const panelOpen = useAppStore((s) => s.panelOpen);
+  const setPanelOpen = useAppStore((s) => s.setPanelOpen);
   const isMacApp = useAppStore((s) => s.isMacApp);
   const isFullScreen = useAppStore((s) => s.isFullScreen);
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
@@ -140,7 +143,7 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
       )}
       style={{ WebkitAppRegion: "drag" }}
     >
-      <Badge variant="outline" className="px-1 text-[10px] uppercase select-none">
+      <Badge variant="outline" className="px-1 text-[9px] uppercase select-none">
         {session.agentId}
       </Badge>
       <div className="flex flex-1 min-w-0 items-baseline gap-2">
@@ -243,6 +246,18 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
             </PopoverPrimitive.Positioner>
           </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
+        {!panelOpen && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setPanelOpen(true)}
+            title={t("panel.expand", "Expand panel")}
+            aria-label={t("panel.expand", "Expand panel")}
+            className="text-sidebar-foreground/45 hover:text-sidebar-foreground/70"
+          >
+            <PanelRightOpen className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

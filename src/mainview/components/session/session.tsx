@@ -14,7 +14,7 @@ import {
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { SessionConfigFields } from "../common/session-config";
-import { extractErrorMessage } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 import type { SessionInfo } from "../../../shared/schema";
 import { useMessage } from "../providers/message";
 
@@ -31,6 +31,8 @@ function SessionImpl({ session }: { session: SessionInfo }) {
 
   // Panel state — defaults to "files" so Panel always shows content
   const [panelTab, setPanelTab] = useState<PanelTab>("files");
+  const panelOpen = useAppStore((s) => s.panelOpen);
+  const setPanelOpen = useAppStore((s) => s.setPanelOpen);
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState<boolean>(false);
 
@@ -188,7 +190,16 @@ function SessionImpl({ session }: { session: SessionInfo }) {
               </ResizablePanelGroup>
             </ResizablePanel>
 
-            <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />
+            {/* 面板收起时不显示分隔条，也不让它还能拖动（展开走 chat header 的按钮）。
+                用 disabled 而不是 pointer-events-none：前者会同时撤掉 tabIndex 与方向键行为。
+                不卸载 DOM：分隔条也是网格轨道的一部分，卸载会让轨道数与面板数对不上。 */}
+            <ResizableHandle
+              disabled={!panelOpen}
+              className={cn(
+                "bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250",
+                !panelOpen && "opacity-0",
+              )}
+            />
 
             {/* Right Panel — fixed pixel width, never recalculates */}
             <ResizablePanel
@@ -196,10 +207,13 @@ function SessionImpl({ session }: { session: SessionInfo }) {
               groupResizeBehavior="preserve-pixel-size"
               defaultSize={250}
               minSize={250}
-              maxSize={400}
+              maxSize={panelOpen ? 400 : 0}
+              inert={!panelOpen}
             >
               <Panel
+                open={panelOpen}
                 tab={panelTab}
+                onOpenChange={setPanelOpen}
                 onTabChange={(tab) => setPanelTab(tab)}
                 projectId={currentProjectId}
                 previewFileId={detailType === "file" ? detailFile : null}

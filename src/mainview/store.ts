@@ -136,6 +136,8 @@ export interface AppState {
   // 4. Global UI & Configuration State
   // ==========================================================================
   sidebarOpen: boolean;
+  /** 右侧 session 面板（文件/终端）是否展开；与 sidebarOpen 一样是全局 UI 状态。 */
+  panelOpen: boolean;
   configuredAgents: SettingsInfo["agents"];
   configuredMcpServers: SettingsInfo["mcpServers"];
   features: SettingsInfo["features"];
@@ -208,6 +210,7 @@ export interface AppState {
   // Global mutators
   // ==========================================================================
   setSidebarOpen: (v: boolean) => void;
+  setPanelOpen: (v: boolean) => void;
   setConfiguredAgents: (agents: SettingsInfo["agents"]) => void;
   setConfiguredMcpServers: (mcpServers: SettingsInfo["mcpServers"]) => void;
   setFeatures: (features: SettingsInfo["features"]) => void;
@@ -259,6 +262,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 4. Global UI & Configuration State
   // ==========================================================================
   sidebarOpen: true,
+  panelOpen: true,
   configuredAgents: [],
   configuredMcpServers: [],
   features: [...ALL_FEATURES],
@@ -418,6 +422,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Global mutators
   // ==========================================================================
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
+  setPanelOpen: (v) => set({ panelOpen: v }),
   setConfiguredAgents: (agents) => set({ configuredAgents: agents }),
   setConfiguredMcpServers: (mcpServers) => set({ configuredMcpServers: mcpServers }),
   setFeatures: (features) => set({ features }),

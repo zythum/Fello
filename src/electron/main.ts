@@ -792,10 +792,10 @@ function createMainWindow() {
 
   const win = new BrowserWindow({
     title: "Fello",
-    width: 1100,
+    width: 1200,
     height: 800,
-    minWidth: 800,
-    minHeight: 100,
+    minWidth: 600,
+    minHeight: 400,
     backgroundColor,
     show: false, // Don't show until ready-to-show
     ...(process.platform === "darwin"
