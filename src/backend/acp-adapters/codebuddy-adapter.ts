@@ -64,13 +64,60 @@ export class CodebuddyAdapter extends AcpAdapter {
    * so this stays here rather than in the generic bridge — the agent's own
    * clock is the boundary used to drop replayed prior-turn chunks (avoids
    * timezone / clock-skew issues that wall-clock Date.now() would introduce).
+   *
+   * Also recovers the failure reason: CodeBuddy reports a failed model
+   * request as a normal response with stopReason="refusal" and the actual
+   * cause in _meta["codebuddy.ai/errorMessage"] (a JSON string such as
+   * {"code":-32000,"message":"Authentication required","data":{"details":
+   * "Authentication required. Please use /login command..."}}). Returning it
+   * lets Fello show the real reason instead of the generic "refusal" hint.
    */
-  override handlePromptCompleted(_bridge: ACPBridge, sessionId: string, res: PromptResponse): void {
+  override handlePromptCompleted(
+    _bridge: ACPBridge,
+    sessionId: string,
+    res: PromptResponse,
+  ): string | undefined {
     const meta = res._meta as Record<string, unknown> | undefined;
-    if (meta && typeof meta["codebuddy.ai/requestId"] === "string") {
+    if (!meta) return undefined;
+
+    if (typeof meta["codebuddy.ai/requestId"] === "string") {
       const ts = Date.parse(typeof meta["timestamp"] === "string" ? meta["timestamp"] : "");
       if (!isNaN(ts)) this.turnBoundaryTs.set(sessionId, ts);
     }
+
+    return (
+      CodebuddyAdapter.extractPromptErrorMessage(meta["codebuddy.ai/errorMessage"]) ?? undefined
+    );
+  }
+
+  /**
+   * Extract the user-visible text from codebuddy.ai/errorMessage. The payload
+   * is a JSON string; `data.details` carries the actionable message (e.g.
+   * "Please use /login"), `message` the short reason. Non-JSON payloads are
+   * used verbatim.
+   */
+  private static extractPromptErrorMessage(raw: unknown): string | null {
+    if (typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") {
+        const payload = parsed as Record<string, unknown>;
+        const data = payload.data;
+        if (data && typeof data === "object") {
+          const details = (data as Record<string, unknown>).details;
+          if (typeof details === "string" && details.trim()) return details.trim();
+        }
+        if (typeof payload.message === "string" && payload.message.trim()) {
+          return payload.message.trim();
+        }
+      }
+    } catch {
+      // Not JSON — fall through and use the raw text.
+    }
+    return trimmed;
   }
 
   /**

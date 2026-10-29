@@ -291,11 +291,18 @@ export function createBridgeConnectModule(
       },
       // On prompt completion, hand the full PromptResponse to each adapter so
       // it can freeze its own turn-boundary (CodeBuddy extracts its protocol
-      // timestamp; other adapters are no-ops). `sessionId` here is the bare
+      // timestamp; other adapters are no-ops) and recover a failure reason the
+      // agent reported inside the response (CodeBuddy: refusal +
+      // _meta["codebuddy.ai/errorMessage"]). `sessionId` here is the bare
       // protocol/resume id (from the PromptRequest), matching the resumeId
       // adapters are keyed by everywhere else.
       onPromptCompleted: (sessionId, res) => {
-        for (const a of adapters) a.handlePromptCompleted(bridge, sessionId, res);
+        let error: string | undefined;
+        for (const a of adapters) {
+          const adapterError = a.handlePromptCompleted(bridge, sessionId, res);
+          if (!error && adapterError) error = adapterError;
+        }
+        return error;
       },
     });
 

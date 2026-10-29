@@ -65,12 +65,55 @@ export type PromptSendCallback = (
 ) => null | undefined | Promise<PromptResponse>;
 export type PromptCancelCallback = (sessionId: string) => null | undefined | Promise<void>;
 /**
- * Fired when a prompt round completes, with the full PromptResponse. The
- * bridge just forwards the response as-is; timestamp extraction is
- * protocol-specific and lives in the adapter (handlePromptCompleted), so the
- * callback passes the response whole rather than a pre-parsed timestamp.
+ * Fired when a prompt round completes, with the full PromptResponse.
+ * Protocol-specific interpretation lives in the adapter
+ * (handlePromptCompleted): it may extract a turn-boundary timestamp and/or
+ * return a human-readable error message for failures the agent reported
+ * inside a successful response (e.g. CodeBuddy's refusal + errorMessage).
  */
-export type PromptCompletedCallback = (sessionId: string, response: PromptResponse) => void;
+export type PromptCompletedCallback = (
+  sessionId: string,
+  response: PromptResponse,
+) => string | null | void;
+
+/**
+ * PromptResponse plus Fello-side extensions. `error` is set only when an
+ * adapter recovered a failure reason from the agent's own metadata.
+ */
+export interface PromptResult extends PromptResponse {
+  error?: string;
+}
+
+/**
+ * Flatten an ACP request error into an Error whose message is the agent's own
+ * failure text.
+ *
+ * ACP agents that throw inside a handler are serialized by the SDK as
+ * JSON-RPC `-32603 "Internal error"`, with the thrown `Error.message` moved to
+ * `error.data.details` (see the SDK's errorToResult). Keeping only `.message`
+ * turns every agent-side failure into "Internal error", so both the UI toast
+ * and the iLink reply lose the actual cause.
+ */
+export function normalizeAcpError(error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new Error(error === undefined ? "Request failed" : String(error));
+  }
+
+  const data = (error as { data?: unknown }).data;
+  // { details } is the common shape (the thrown message isn't JSON); the SDK
+  // parses JSON-looking messages instead, in which case data itself is the
+  // value and the original text would be lost.
+  const details =
+    typeof data === "string"
+      ? data
+      : data && typeof data === "object"
+        ? (data as Record<string, unknown>).details
+        : undefined;
+  if (typeof details === "string" && details.trim() && details.trim() !== error.message) {
+    return new Error(details.trim(), { cause: error });
+  }
+  return error;
+}
 
 /**
  * Declares an agent-specific ext notification for ACPBridge to register on
@@ -691,7 +734,7 @@ export class ACPBridge {
     return this.connection.agent.request(method, params);
   }
 
-  async sendPrompt(params: PromptRequest): Promise<PromptResponse> {
+  async sendPrompt(params: PromptRequest): Promise<PromptResult> {
     if (!this.connection) throw new Error("Not connected");
     let resPromise: null | undefined | Promise<PromptResponse> = null;
     if (this.options.onPromptSend) {
@@ -700,14 +743,20 @@ export class ACPBridge {
     if (!resPromise) {
       resPromise = this.connection.agent.request(methods.agent.session.prompt, params);
     }
-    const res = await resPromise;
-    // Forward the completed PromptResponse to adapters so they can freeze
-    // their turn-boundary from the agent's own protocol clock. The bridge
-    // does no timestamp parsing — that's protocol-specific adapter logic.
-    if (this.options.onPromptCompleted) {
-      this.options.onPromptCompleted(params.sessionId, res);
+    let res: PromptResponse;
+    try {
+      res = await resPromise;
+    } catch (err) {
+      // ACP wraps agent-side exceptions as -32603 with the real text in
+      // data.details; surface that text to promptError / UI / iLink.
+      throw normalizeAcpError(err);
     }
-    return res;
+    // Hand the completed PromptResponse to adapters: they freeze their
+    // turn-boundary from the agent's own protocol clock and may recover an
+    // error message the agent folded into the response metadata. The bridge
+    // does no protocol parsing itself.
+    const error = this.options.onPromptCompleted?.(params.sessionId, res) || undefined;
+    return error ? { ...res, error } : res;
   }
 
   async cancel(params: CancelNotification): Promise<void> {

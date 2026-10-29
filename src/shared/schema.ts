@@ -837,7 +837,11 @@ export type FelloIPCRequests = {
       sessionId: string;
       contents: ContentBlock[];
     };
-    response: { stopReason: string; usage?: Usage | null | undefined };
+    /**
+     * `error`（可选）：agent 在正常响应里报告失败原因时由适配器提取，
+     * 例如 CodeBuddy 的 `stopReason: "refusal"` + `_meta["codebuddy.ai/errorMessage"]`。
+     */
+    response: { stopReason: string; usage?: Usage | null | undefined; error?: string };
   };
   /** 取消当前正在生成的回答/任务 */
   cancelPrompt: { params: { sessionId: string }; response: void };

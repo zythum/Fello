@@ -376,8 +376,11 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
           contents,
         });
 
-        // 3. Show warning if not end_turn
-        if (promptResponse.stopReason && promptResponse.stopReason !== "end_turn") {
+        // 3. Show warning if not end_turn (or the agent reported a failure reason)
+        if (
+          promptResponse.error ||
+          (promptResponse.stopReason && promptResponse.stopReason !== "end_turn")
+        ) {
           const stopReasonLabels: Record<string, string> = {
             max_tokens: t("chatInput.stopReasonMaxTokens", "Reached maximum token limit"),
             max_turn_requests: t(
@@ -387,7 +390,12 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
             refusal: t("chatInput.stopReasonRefusal", "Model refused to respond"),
             cancelled: t("chatInput.stopReasonCancelled", "Generation was cancelled"),
           };
-          const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
+          // Prefer the agent's own failure reason (extracted by the protocol
+          // adapter) over the generic stopReason label.
+          const label =
+            promptResponse.error ||
+            stopReasonLabels[promptResponse.stopReason] ||
+            promptResponse.stopReason;
           if (promptResponse.stopReason === "cancelled") {
             toast.info(label);
           } else {

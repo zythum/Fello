@@ -89,8 +89,20 @@ export abstract class AcpAdapter {
    * (e.g. CodeBuddy, which stamps PromptResponse._meta with
    * codebuddy.ai/requestId + timestamp) need it; generic adapters have no
    * protocol timestamp to work from.
+   *
+   * Returning a string surfaces it to the caller as a human-readable error.
+   * Some agents report a failed turn as a *successful* JSON-RPC response
+   * (e.g. CodeBuddy: stopReason="refusal" + the real cause inside
+   * _meta["codebuddy.ai/errorMessage"]), so the adapter is the only layer
+   * that can recover the message. The bridge attaches it to the prompt
+   * result; it does not reject the prompt (the user message is already
+   * persisted and must stay visible).
    */
-  handlePromptCompleted(_bridge: ACPBridge, _sessionId: string, _res: PromptResponse): void {}
+  handlePromptCompleted(
+    _bridge: ACPBridge,
+    _sessionId: string,
+    _res: PromptResponse,
+  ): string | null | void {}
 
   handlePromptCancel(_bridge: ACPBridge, _sessionId: string): null | Promise<void> {
     return null;

@@ -63,7 +63,7 @@ export interface SessionModule {
   sendPrompt: (params: {
     sessionId: string;
     contents: ContentBlock[];
-  }) => Promise<{ stopReason: string; usage?: Usage | null }>;
+  }) => Promise<{ stopReason: string; usage?: Usage | null; error?: string }>;
   cancelPrompt: (params: { sessionId: string }) => Promise<void>;
   updateSession: (params: { sessionId: string; [key: string]: unknown }) => Promise<void>;
   changeWorkDir: () => Promise<{ ok: boolean; cwd: null }>;
@@ -553,7 +553,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     }
 
     const hasPromptContents = contents.length > 0;
-    let promptResponse: { stopReason: string; usage?: Usage | null } | undefined;
+    let promptResponse: { stopReason: string; usage?: Usage | null; error?: string } | undefined;
     let promptError: string | undefined;
     try {
       if (hasPromptContents) storage.beginSessionMessageTurn(session.id);
@@ -614,6 +614,16 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
             flushPromise.then(() =>
               bridge
                 .sendTextReply(userId, t("ilink.promptError", { error: promptError }))
+                .catch(() => {}),
+            );
+          } else if (promptResponse?.error) {
+            // Agent reported the failure inside a successful response
+            // (e.g. CodeBuddy refusal + errorMessage) — show the real reason
+            // instead of the generic stopReason hint.
+            const reason = promptResponse.error;
+            flushPromise.then(() =>
+              bridge
+                .sendTextReply(userId, t("ilink.promptError", { error: reason }))
                 .catch(() => {}),
             );
           } else if (promptResponse?.stopReason && promptResponse.stopReason !== "end_turn") {
