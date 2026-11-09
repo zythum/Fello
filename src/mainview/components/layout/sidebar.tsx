@@ -1039,7 +1039,7 @@ export function Sidebar() {
             ref={sessionListRef}
             role="tree"
             aria-label={t("sidebar.sessions", "Sessions")}
-            className="space-y-0.5 p-1.5 outline-none focus:ring-1 focus:ring-ring/50"
+            className="p-1.5 outline-none focus:ring-1 focus:ring-ring/50"
           >
             {sortedProjects.map((project) => {
               const projectSessions = sessionsByProject[project.id] ?? [];
@@ -1056,7 +1056,7 @@ export function Sidebar() {
               );
 
               return (
-                <div key={project.id} className="space-y-0.5 group">
+                <div key={project.id} className="group">
                   <HoverCard
                     open={hoverId === currentHoverId}
                     onOpenChange={(open) => {
