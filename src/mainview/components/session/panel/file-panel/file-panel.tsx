@@ -1633,12 +1633,17 @@ export const FilePanel = memo(function FilePanel({
     },
     copyPath: async (id: string, isAbsolute: boolean) => {
       if (!activeProjectId) return;
-      const text = await request.getSystemFilePath({
-        projectId: activeProjectId,
-        path: id,
-        isAbsolute,
-      });
-      await copyText(text);
+      const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
+      const paths = await Promise.all(
+        ids.map((nodeId) =>
+          request.getSystemFilePath({
+            projectId: activeProjectId,
+            path: nodeId,
+            isAbsolute,
+          }),
+        ),
+      );
+      await copyText(paths.join("\n"));
     },
     addToChat: (id: string) => {
       const ids = selectedIds.has(id) && selectedIds.size > 1 ? [...selectedIds] : [id];
