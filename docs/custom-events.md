@@ -47,11 +47,17 @@
 ## 3. `fello-scroll-to-bottom`
 
 - **用途**：强制聊天内容区（`chat-area`）向下滚动到底部。
-- **Payload (`detail`)**：无（`null` / `undefined`）。
+- **Payload (`detail`)**：
+  ```ts
+  {
+    duration?: number; // 滚动时长（毫秒），越小滚动越快。省略时使用默认的平滑滚动动画。
+  } | null
+  ```
+  例如：`document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 200 } }))`
 - **分发方 (Dispatchers)**：
   - `chat-input.tsx`：用户按下回车提交新消息后，为了确保发送的新消息（Optimistic Update）能立即出现在视野中，忽略当前的滚动防抖拦截，直接强制滚动到底部。
 - **监听方 (Listeners)**：
-  - `chat-area.tsx`：捕获事件后，直接调用底部的 `scrollIntoView({ behavior: "smooth" })` 方法。
+  - `chat-area.tsx`：捕获事件后，若提供了 `duration` 则按该时长逐帧滚动到底部，否则使用默认的平滑滚动。
 
 ## 4. `fello-scroll-to-message`
 

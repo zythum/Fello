@@ -78,11 +78,61 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     void scrollToBottom({ animation: "smooth" });
   }, [scrollToBottom]);
 
+  // 按指定时长（ms）滚动到底部。时长越小，滚动越快。
+  // 未指定时长时沿用 use-stick-to-bottom 的默认弹簧动画。
+  const durationScrollFrameRef = useRef<number | null>(null);
+  const cancelDurationScroll = useCallback(() => {
+    if (durationScrollFrameRef.current != null) {
+      cancelAnimationFrame(durationScrollFrameRef.current);
+      durationScrollFrameRef.current = null;
+    }
+  }, []);
+
+  const scrollToBottomWithDuration = useCallback(
+    (duration: number | undefined) => {
+      cancelDurationScroll();
+      if (duration == null) {
+        scrollToBottomManual();
+        return;
+      }
+      const viewport = scrollRef.current;
+      if (!viewport) return;
+
+      const startTop = viewport.scrollTop;
+      const startTime = performance.now();
+      const step = (now: number) => {
+        const t = duration <= 0 ? 1 : Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        // 每帧重新计算目标位置，兼容流式输出导致内容变高的情况。
+        const target = viewport.scrollHeight - viewport.clientHeight;
+        viewport.scrollTop = startTop + (target - startTop) * eased;
+        if (t < 1) {
+          durationScrollFrameRef.current = requestAnimationFrame(step);
+        } else {
+          durationScrollFrameRef.current = null;
+          // 动画结束后交还给 use-stick-to-bottom，保证吸附状态正确。
+          void scrollToBottom({ animation: "instant" });
+        }
+      };
+      durationScrollFrameRef.current = requestAnimationFrame(step);
+    },
+    [cancelDurationScroll, scrollToBottom, scrollToBottomManual, scrollRef],
+  );
+
+  useEffect(() => cancelDurationScroll, [cancelDurationScroll]);
+
   useEffect(() => {
-    const handleScrollToBottom = () => scrollToBottomManual();
+    const handleScrollToBottom = (event: Event) => {
+      const detail = (event as CustomEvent<{ duration?: number } | null>).detail;
+      const duration =
+        typeof detail?.duration === "number" && Number.isFinite(detail.duration) && detail.duration >= 0
+          ? detail.duration
+          : undefined;
+      scrollToBottomWithDuration(duration);
+    };
     document.addEventListener("fello-scroll-to-bottom", handleScrollToBottom);
     return () => document.removeEventListener("fello-scroll-to-bottom", handleScrollToBottom);
-  }, [scrollToBottomManual]);
+  }, [scrollToBottomWithDuration]);
 
   useEffect(() => {
     const viewport = getViewport();
