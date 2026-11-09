@@ -155,7 +155,7 @@ function SessionImpl({ session }: { session: SessionInfo }) {
           {/* Outer: always 2 panels → Panel width stable */}
           <ResizablePanelGroup className="flex h-full min-h-0">
             {/* Left: chat + optional detail (inner resizable group) */}
-            <ResizablePanel id="left" minSize={600}>
+            <ResizablePanel id="left" defaultSize={600} minSize={600}>
               <ResizablePanelGroup className="flex h-full min-h-0">
                 {/* Chat — collapses when window too small with detail open */}
                 <ResizablePanel
@@ -174,7 +174,7 @@ function SessionImpl({ session }: { session: SessionInfo }) {
                     {!compact && (
                       <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />
                     )}
-                    <ResizablePanel id="detail" defaultSize={400} minSize={300}>
+                    <ResizablePanel id="detail" defaultSize={600} minSize={300}>
                       <Detail
                         compact={compact}
                         detailType={detailType}
