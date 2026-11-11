@@ -49,6 +49,12 @@ export function SettingsLayout() {
       label: t("settings.agents.title", "Agents"),
     },
     {
+      id: "assistant",
+      href: "/settings/assistant",
+      icon: <Bot className="size-4" />,
+      label: t("settings.assistant.title", "Personal Assistant"),
+    },
+    {
       id: "features",
       href: "/settings/features",
       icon: <Blocks className="size-4" />,

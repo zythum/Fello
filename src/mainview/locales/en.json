@@ -3,6 +3,7 @@
     "welcome": "Welcome",
     "skills": "Skills",
     "automation": "Automation",
+    "assistant": "Personal Assistant",
     "projects": "Projects",
     "noProjects": "No projects yet",
     "noProjectsHint": "Add a project folder to get started",
@@ -105,6 +106,14 @@
       "authorPrefix": "by "
     }
   },
+  "assistant": {
+    "title": "Personal Assistant",
+    "ready": "Ready",
+    "connecting": "Connecting…",
+    "unavailable": "Unavailable",
+    "configure": "Configure assistant",
+    "placeholder": "Message your assistant"
+  },
   "contextMenu": {
     "cut": "Cut",
     "copy": "Copy",
@@ -204,6 +213,24 @@
       "reset": "Reset to default",
       "conflict": "Already used by {{command}}.",
       "saveFailed": "Failed to save shortcuts."
+    },
+    "assistant": {
+      "title": "Personal Assistant",
+      "desc": "Choose the enabled OpenAI-compatible API agent used by your Personal Assistant.",
+      "groupGeneral": "General",
+      "enabled": "Enable Personal Assistant",
+      "enabledDesc": "Connect the assistant automatically while Fello is running.",
+      "enabledUpdated": "Personal Assistant enabled.",
+      "disabledUpdated": "Personal Assistant disabled.",
+      "groupModel": "Model",
+      "sourceAgent": "Source agent",
+      "sourceAgentDesc": "Its API key and model catalog are reused. Changing it restarts the assistant.",
+      "selectAgent": "Select an agent",
+      "empty": "No enabled OpenAI-compatible API agents are available.",
+      "configureAgents": "Configure agents",
+      "reconnectHint": "Changing the agent restarts the Personal Assistant.",
+      "updated": "Personal Assistant agent updated.",
+      "updateFailed": "Failed to update Personal Assistant agent."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",

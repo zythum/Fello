@@ -146,6 +146,7 @@ export interface AppState {
   fileWatcher: SettingsInfo["fileWatcher"];
   proxy: SettingsInfo["proxy"];
   ilink: SettingsInfo["ilink"];
+  assistant: SettingsInfo["assistant"];
   editor: SettingEditorInfo;
   sound: SettingSoundInfo;
   voiceInput: SettingsInfo["voiceInput"];
@@ -219,6 +220,7 @@ export interface AppState {
   setFileWatcher: (fileWatcher: SettingsInfo["fileWatcher"]) => void;
   setProxy: (proxy: SettingsInfo["proxy"]) => void;
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
+  setAssistant: (assistant: SettingsInfo["assistant"]) => void;
   setEditor: (editor: SettingEditorInfo) => void;
   setSound: (sound: SettingSoundInfo) => void;
   setVoiceInput: (voiceInput: SettingsInfo["voiceInput"]) => void;
@@ -271,6 +273,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fileWatcher: { enabled: true },
   proxy: { mode: "off" },
   ilink: { useOriginalImage: false },
+  assistant: { enabled: true, sourceAgentId: null },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
   voiceInput: { altDoublePress: true },
@@ -431,6 +434,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setProxy: (proxy) => set({ proxy }),
   setIlink: (ilink) => set({ ilink }),
+  setAssistant: (assistant) => set({ assistant }),
   setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),
   setVoiceInput: (voiceInput) => set({ voiceInput }),

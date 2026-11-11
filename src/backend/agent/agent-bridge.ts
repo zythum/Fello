@@ -25,6 +25,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type {
   AgentInfo,
+  ApiAgentInfo,
   SessionModelState,
   SessionModeState,
   SessionThoughtLevelState,
@@ -32,6 +33,7 @@ import type {
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
 import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
+import { spawnAssistantAgent } from "./assistant-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 
 // Set to true to enable ACP message logging
@@ -125,8 +127,16 @@ export interface ExtNotificationSpec {
   parse: (params: unknown) => unknown;
 }
 
+export type AssistantAgentInfo = {
+  id: string;
+  type: "assistant";
+  sourceAgent: ApiAgentInfo;
+};
+
+export type ACPBridgeAgentInfo = AgentInfo | AssistantAgentInfo;
+
 export interface ACPBridgeOptions {
-  agentInfo: AgentInfo;
+  agentInfo: ACPBridgeAgentInfo;
   cwd: string;
   onSessionConnect: SessionConnectCallback;
   onSessionUpdate: SessionUpdateCallback;
@@ -341,8 +351,13 @@ export class ACPBridge {
   async connect(): Promise<InitializeResponse> {
     const acpId = this.id;
     const proc =
-      this.options.agentInfo.type === "stdio"
-        ? spawnStdioAgent({
+      this.options.agentInfo.type === "assistant"
+        ? spawnAssistantAgent({
+            agentInfo: this.options.agentInfo.sourceAgent,
+            workspace: this.options.cwd,
+          })
+        : this.options.agentInfo.type === "stdio"
+          ? spawnStdioAgent({
             ...this.options.agentInfo,
             cwd: this.options.cwd,
             env: {

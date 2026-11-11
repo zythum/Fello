@@ -184,6 +184,23 @@ export interface SessionThoughtLevelState {
   currentThoughtLevelId: string;
 }
 
+/** Runtime state for Fello's single built-in personal assistant. */
+export interface AssistantStatus {
+  connectionStatus: "connecting" | "connected" | "disconnected" | "error";
+  error?: string;
+  sourceAgentId: string | null;
+  enabled: boolean;
+  isStreaming: boolean;
+  models: SessionModelState | null;
+  thoughtLevels: SessionThoughtLevelState | null;
+}
+
+export interface AssistantHistoryItem {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+}
+
 /**
  * 代理（Agent）的配置信息
  * 描述了如何启动或连接到一个特定的代理
@@ -360,6 +377,12 @@ export interface SettingILinkInfo {
   useOriginalImage: boolean;
 }
 
+/** Personal Assistant 的全局配置。 */
+export interface SettingAssistantInfo {
+  enabled: boolean;
+  sourceAgentId: string | null;
+}
+
 /**
  * 编辑器配置信息
  */
@@ -510,6 +533,8 @@ export interface SettingsInfo {
   fileWatcher: SettingFileWatcherInfo;
   /** iLink 相关设置 */
   ilink: SettingILinkInfo;
+  /** Personal Assistant 配置 */
+  assistant: SettingAssistantInfo;
   /** 编辑器设置 */
   editor: SettingEditorInfo;
   /** 音效设置 */
@@ -831,6 +856,27 @@ export type FelloIPCRequests = {
       records: SessionTokenUsage[];
     };
   };
+  /** 获取内建个人助理状态。 */
+  getAssistantStatus: { params: void; response: AssistantStatus };
+  getAssistantHistorySegment: {
+    params: { segmentId?: number };
+    response: {
+      segmentId: number;
+      previousSegmentId?: number;
+      messages: SessionNotificationFelloExt[];
+    };
+  };
+  /** 向内建个人助理发送用户输入。 */
+  sendAssistantPrompt: {
+    params: { contents: ContentBlock[] };
+    response: { stopReason: string; usage?: Usage | null; error?: string };
+  };
+  /** 取消内建个人助理正在生成的回复。 */
+  cancelAssistantPrompt: { params: void; response: void };
+  /** 更新内建个人助理当前模型。 */
+  setAssistantModel: { params: { modelId: string }; response: void };
+  /** 更新内建个人助理当前思考等级。 */
+  setAssistantThoughtLevel: { params: { thoughtLevelId: string }; response: void };
   /** 向会话发送用户 Prompt */
   sendPrompt: {
     params: {
@@ -1207,6 +1253,13 @@ export type FelloIPCRequests = {
  * 包含从后端（Main）推送到前端（Renderer/Web）的所有事件及其载荷类型
  */
 export type FelloIPCEvents = {
+  /** 内建个人助理的 ACP 流式通知。 */
+  "assistant-update": { notification: SessionNotificationFelloExt };
+  /** 内建个人助理的连接、模型和流式状态变更。 */
+  "assistant-status-changed": { status: AssistantStatus };
+  "assistant-prompt-start": undefined;
+  "assistant-prompt-end": undefined;
+
   /** 单个会话配置或元数据发生变更时触发（如改名、切换模型），用于前端进行原子级 UI 更新 */
   "session-changed": { session: SessionInfo };
   /** 会话状态更新的事件（如消息流、状态变更等） */

@@ -1,7 +1,11 @@
 import type { AgentInfo, Feature, SessionInfo } from "../../shared/schema";
 import { request } from "../backend";
-import { useAppStore, type SessionState } from "../store";
-import { reduceFlushStreaming, reduceSessionNotification } from "./session-state-reducer";
+import { useAppStore } from "../store";
+import {
+  createNotificationHistoryController,
+  reduceNotifications,
+} from "./notification-history";
+import { reduceFlushStreaming } from "./session-state-reducer";
 
 export type RestartSessionErrorStage = "update" | "load";
 
@@ -84,157 +88,30 @@ async function withSessionLifecycleLock<T>(
   return withSessionLifecycleLocks([sessionId], operation, task);
 }
 
-function notificationDisplayId(
-  notification: SessionState["pendingNotifications"][number],
-): string | undefined {
-  return notification.update._meta?.fello?.displayId;
-}
-
-function reduceNotifications(
-  sessionId: string,
-  state: SessionState,
-  notifications: SessionState["pendingNotifications"],
-  knownDisplayIds = new Set<string>(),
-): { state: SessionState; applied: SessionState["pendingNotifications"] } {
-  let nextState = state;
-  const applied: SessionState["pendingNotifications"] = [];
-
-  for (const notification of notifications) {
-    const displayId = notificationDisplayId(notification);
-    if (displayId && knownDisplayIds.has(displayId)) continue;
-    if (displayId) knownDisplayIds.add(displayId);
-    if (!notification.update) continue;
-    nextState = reduceSessionNotification(sessionId, nextState, notification);
-    applied.push(notification);
-  }
-
-  return { state: nextState, applied };
-}
-
-function replayLoadedHistory(
-  sessionId: string,
-  currentState: SessionState,
-  historySegments: SessionState["historySegments"],
-  liveNotifications: SessionState["liveHistoryNotifications"],
-): { state: SessionState; knownDisplayIds: Set<string> } {
-  const initialState: SessionState = {
-    ...currentState,
-    messages: [],
-    activeToolCalls: new Map(),
-    activeSubagents: new Map(),
-    activeCompactions: new Map(),
-  };
-  const knownDisplayIds = new Set<string>();
-  const historyNotifications = historySegments
-    .slice()
-    .sort((a, b) => a.segmentId - b.segmentId)
-    .flatMap((segment) => segment.messages);
-  const history = reduceNotifications(
+function sessionHistoryController(sessionId: string) {
+  return createNotificationHistoryController({
     sessionId,
-    initialState,
-    historyNotifications,
-    knownDisplayIds,
-  );
-  const live = reduceNotifications(sessionId, history.state, liveNotifications, knownDisplayIds);
-  return { state: live.state, knownDisplayIds };
+    loadSegment: (segmentId) =>
+      request.getSessionHistorySegment(
+        segmentId === undefined ? { sessionId } : { sessionId, segmentId },
+      ),
+    initialLoadError: () => new Error("Session history is unavailable."),
+    previousLoadError: () => new Error("Session history segment is unavailable."),
+  });
 }
 
 function finishLoadingSession(sessionId: string): void {
-  useAppStore.getState().updateSessionState(sessionId, (currentState) => {
-    const { state, applied } = reduceNotifications(
-      sessionId,
-      currentState,
-      currentState.pendingNotifications,
-    );
-    return {
-      ...reduceFlushStreaming(state),
-      liveHistoryNotifications: [...currentState.liveHistoryNotifications, ...applied],
-      pendingNotifications: [],
-      isLoading: false,
-    };
-  });
+  sessionHistoryController(sessionId).finishLoading();
 }
 
-async function restoreSessionHistory(
-  sessionId: string,
-  keepLoading: boolean,
-): Promise<Set<string>> {
-  const result = await request.getSessionHistorySegment({ sessionId });
-  if (!result) {
-    throw new Error("Session history is unavailable.");
-  }
-
-  const store = useAppStore.getState();
-  const historyDisplayIds = new Set<string>();
-  store.updateSessionState(sessionId, (currentState) => {
-    const historySegments = [{ segmentId: result.segmentId, messages: result.messages }];
-    const replayed = replayLoadedHistory(sessionId, currentState, historySegments, []);
-    for (const displayId of replayed.knownDisplayIds) historyDisplayIds.add(displayId);
-
-    const pending = reduceNotifications(
-      sessionId,
-      replayed.state,
-      currentState.pendingNotifications,
-      historyDisplayIds,
-    );
-
-    return {
-      ...reduceFlushStreaming(pending.state),
-      historySegments,
-      liveHistoryNotifications: pending.applied,
-      previousHistorySegmentId: result.previousSegmentId,
-      isLoading: keepLoading,
-      pendingNotifications: [],
-    };
-  });
-
-  return historyDisplayIds;
+function restoreSessionHistory(sessionId: string, keepLoading: boolean): Promise<Set<string>> {
+  return sessionHistoryController(sessionId).loadInitial({ keepLoading });
 }
 
-export async function loadPreviousSessionHistory(sessionId: string): Promise<boolean> {
-  return withSessionLifecycleLock(sessionId, "history", async () => {
-    const previousSegmentId = useAppStore
-      .getState()
-      .getSessionState(sessionId).previousHistorySegmentId;
-    if (previousSegmentId === undefined) return false;
-
-    const result = await request.getSessionHistorySegment({
-      sessionId,
-      segmentId: previousSegmentId,
-    });
-    if (!result) {
-      throw new Error("Session history segment is unavailable.");
-    }
-
-    useAppStore.getState().updateSessionState(sessionId, (currentState) => {
-      const historySegments = [
-        { segmentId: result.segmentId, messages: result.messages },
-        ...currentState.historySegments.filter((segment) => segment.segmentId !== result.segmentId),
-      ];
-      const replayed = replayLoadedHistory(
-        sessionId,
-        currentState,
-        historySegments,
-        currentState.liveHistoryNotifications,
-      );
-      const pending = reduceNotifications(
-        sessionId,
-        replayed.state,
-        currentState.pendingNotifications,
-        replayed.knownDisplayIds,
-      );
-
-      return {
-        ...pending.state,
-        historySegments,
-        liveHistoryNotifications: [...currentState.liveHistoryNotifications, ...pending.applied],
-        previousHistorySegmentId: result.previousSegmentId,
-        pendingNotifications: [],
-      };
-    });
-
-    return true;
-  });
+export function loadPreviousSessionHistory(sessionId: string): Promise<boolean> {
+  return withSessionLifecycleLock(sessionId, "history", () =>
+    sessionHistoryController(sessionId).loadPrevious(),
+  );
 }
 
 export interface LoadSessionOptions {

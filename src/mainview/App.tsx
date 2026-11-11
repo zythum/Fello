@@ -47,6 +47,7 @@ function AppContent() {
   const setShortcuts = useAppStore((s) => s.setShortcuts);
   const setPeripherals = useAppStore((s) => s.setPeripherals);
   const setProxy = useAppStore((s) => s.setProxy);
+  const setAssistant = useAppStore((s) => s.setAssistant);
   const setIsFullScreen = useAppStore((s) => s.setIsFullScreen);
   const setIlinkStatus = useAppStore((s) => s.setIlinkStatus);
   const setActiveIlinkSessionId = useAppStore((s) => s.setActiveIlinkSessionId);
@@ -110,6 +111,7 @@ function AppContent() {
         i18n.changeLanguage(settings.i18n.language);
       }
       if (settings.proxy) setProxy(settings.proxy);
+      if (settings.assistant) setAssistant(settings.assistant);
       if (settings.editor) setEditor(settings.editor);
       if (settings.snippets) setSnippets(settings.snippets);
       if (settings.imageGeneration) setImageGeneration(settings.imageGeneration);
@@ -160,6 +162,7 @@ function AppContent() {
     setShortcuts,
     setPeripherals,
     setProxy,
+    setAssistant,
     setIlinkStatus,
     setActiveIlinkSessionId,
   ]);

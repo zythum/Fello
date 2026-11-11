@@ -984,6 +984,17 @@ export function Sidebar() {
           </span>
         </div>
         <div
+          onClick={() => handleNavigate("/assistant")}
+          className={`group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
+            currentPath === "/assistant"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
+          }`}
+        >
+          <Bot className="size-3.5" />
+          <span className="flex-1 truncate leading-normal select-none uppercase">{t("sidebar.assistant")}</span>
+        </div>
+        <div
           onClick={() => handleNavigate("/skills/installed")}
           className={`mt-0.5 group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
             currentPath.startsWith("/skills")

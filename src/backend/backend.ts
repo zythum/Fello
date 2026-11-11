@@ -29,6 +29,7 @@ import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
 import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
+import { createAssistantModule } from "./assistant";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -106,8 +107,12 @@ export function initBackend(
     getPendingAskUserRequests: askUser.getPendingAskUserRequests,
   });
 
-  // ── Layer 5: automation ──
+  // ── Layer 5: automation + personal assistant ──
   const automation = createAutomationModule(ctx, { inference: _inference });
+  const assistant = createAssistantModule(ctx);
+  assistant.start().catch((err) => {
+    console.warn("[assistant] Failed to start:", err);
+  });
 
   // Try to restore iLink connection on startup
   ilink.tryRestore().catch((err) => {
@@ -138,12 +143,13 @@ export function initBackend(
       return storageOps.getSettings();
     },
     async updateSettings(settings: Parameters<typeof storageOps.updateSettings>[0]) {
+      const previousSettings = storageOps.getSettings();
       const newAgents = settings.agents;
+      const changedOrRemoved = new Set<string>();
       if (newAgents) {
-        const oldAgents = storageOps.getSettings().agents;
+        const oldAgents = previousSettings.agents;
         const oldMap = new Map(oldAgents.map((a) => [a.id, a]));
         const newMap = new Map(newAgents.map((a) => [a.id, a]));
-        const changedOrRemoved = new Set<string>();
 
         for (const [id, oldCfg] of oldMap) {
           if (!newMap.has(id)) {
@@ -190,6 +196,21 @@ export function initBackend(
         }
       }
       storageOps.updateSettings(settings);
+      const currentSettings = storageOps.getSettings();
+      const referencedSourceAgentChanged = (() => {
+        if (!newAgents) return false;
+        const sourceAgentIds = [
+          previousSettings.assistant.sourceAgentId,
+          currentSettings.assistant.sourceAgentId,
+        ].filter((id): id is string => id !== null);
+        return sourceAgentIds.some((id) => changedOrRemoved.has(id));
+      })();
+      const assistantConfigurationChanged =
+        previousSettings.assistant.enabled !== currentSettings.assistant.enabled ||
+        previousSettings.assistant.sourceAgentId !== currentSettings.assistant.sourceAgentId;
+      if (assistantConfigurationChanged || referencedSourceAgentChanged) {
+        await assistant.refreshConfiguration();
+      }
       if (settings.i18n?.language) setLanguage(settings.i18n.language);
       await watcher.syncWatchers();
     },
@@ -244,6 +265,26 @@ export function initBackend(
     },
     async deleteProject(projectId: string) {
       return project.deleteProject(projectId);
+    },
+
+    // Personal Assistant
+    async getAssistantStatus() {
+      return assistant.getStatus();
+    },
+    async getAssistantHistorySegment({ segmentId }) {
+      return assistant.getHistorySegment({ segmentId });
+    },
+    async sendAssistantPrompt({ contents }) {
+      return assistant.sendPrompt(contents);
+    },
+    async cancelAssistantPrompt() {
+      return assistant.cancelPrompt();
+    },
+    async setAssistantModel({ modelId }) {
+      return assistant.setModel(modelId);
+    },
+    async setAssistantThoughtLevel({ thoughtLevelId }) {
+      return assistant.setThoughtLevel(thoughtLevelId);
     },
 
     // Sessions
@@ -544,6 +585,7 @@ export function initBackend(
   // ── closeBackend ─────────────────────────────────────────────────
   async function closeBackend() {
     automation.stopAllCrons();
+    await assistant.stop();
     await asr.closeAll();
     await tts.closeAll();
     webui.stop();

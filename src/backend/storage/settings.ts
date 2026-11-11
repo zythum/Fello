@@ -124,6 +124,10 @@ interface SettingsMeta {
   ilink: {
     useOriginalImage: boolean;
   };
+  assistant: {
+    enabled: boolean;
+    sourceAgentId: string | null;
+  };
   editor: {
     name: string;
   };
@@ -168,6 +172,10 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   ilink: {
     useOriginalImage: false,
+  },
+  assistant: {
+    enabled: true,
+    sourceAgentId: null,
   },
   editor: {
     name: "code",
@@ -381,6 +389,17 @@ function readSettings(): SettingsMeta {
           }
         : DEFAULT_SETTINGS.ilink;
 
+    const assistant: SettingsMeta["assistant"] = (() => {
+      const raw = rawObj && isObject(rawObj.assistant) ? rawObj.assistant : null;
+      return {
+        enabled: typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
+        sourceAgentId:
+          typeof raw?.sourceAgentId === "string" || raw?.sourceAgentId === null
+            ? raw.sourceAgentId
+            : DEFAULT_SETTINGS.assistant.sourceAgentId,
+      };
+    })();
+
     const sound: SettingsMeta["sound"] = (() => {
       const raw = rawObj && isObject(rawObj.sound) ? rawObj.sound : null;
       if (!raw) return DEFAULT_SETTINGS.sound;
@@ -576,6 +595,7 @@ function readSettings(): SettingsMeta {
       features,
       fileWatcher,
       ilink,
+      assistant,
       editor,
       sound,
       voiceInput,
@@ -674,6 +694,10 @@ export function getSettings(): SettingsInfo {
     ilink: {
       useOriginalImage: meta.ilink.useOriginalImage,
     },
+    assistant: {
+      enabled: meta.assistant.enabled,
+      sourceAgentId: meta.assistant.sourceAgentId,
+    },
     editor: {
       name: meta.editor.name,
     },
@@ -736,6 +760,20 @@ export function getSettings(): SettingsInfo {
 export function updateSettings(settings: Partial<SettingsInfo>): void {
   const prevMeta = readSettings();
   const meta: SettingsMeta = {
+    assistant: (() => {
+      if (!settings.assistant) return prevMeta.assistant;
+      return {
+        enabled:
+          typeof settings.assistant.enabled === "boolean"
+            ? settings.assistant.enabled
+            : prevMeta.assistant.enabled,
+        sourceAgentId:
+          typeof settings.assistant.sourceAgentId === "string" ||
+          settings.assistant.sourceAgentId === null
+            ? settings.assistant.sourceAgentId
+            : prevMeta.assistant.sourceAgentId,
+      };
+    })(),
     agents: (() => {
       if (!settings.agents) {
         return prevMeta.agents;

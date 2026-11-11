@@ -3,6 +3,7 @@
     "welcome": "欢迎使用",
     "skills": "技能",
     "automation": "自动化",
+    "assistant": "个人助理",
     "projects": "项目",
     "noProjects": "暂无项目",
     "noProjectsHint": "添加一个项目文件夹开始",
@@ -104,6 +105,14 @@
       "authorPrefix": "作者: "
     }
   },
+  "assistant": {
+    "title": "个人助理",
+    "ready": "就绪",
+    "connecting": "连接中…",
+    "unavailable": "不可用",
+    "configure": "配置个人助理",
+    "placeholder": "向你的个人助理发送消息"
+  },
   "contextMenu": {
     "cut": "剪切",
     "copy": "复制",
@@ -203,6 +212,24 @@
       "reset": "恢复默认",
       "conflict": "已被 {{command}} 使用。",
       "saveFailed": "保存快捷键失败。"
+    },
+    "assistant": {
+      "title": "个人助理",
+      "desc": "选择个人助理使用的已启用 OpenAI-compatible API Agent。",
+      "groupGeneral": "通用",
+      "enabled": "启用个人助理",
+      "enabledDesc": "Fello 运行期间自动连接个人助理。",
+      "enabledUpdated": "个人助理已启用。",
+      "disabledUpdated": "个人助理已停用。",
+      "groupModel": "模型",
+      "sourceAgent": "来源 Agent",
+      "sourceAgentDesc": "复用其 API Key 和模型列表。修改后会重启个人助理。",
+      "selectAgent": "选择 Agent",
+      "empty": "没有可用的已启用 OpenAI-compatible API Agent。",
+      "configureAgents": "配置 Agent",
+      "reconnectHint": "更改 Agent 将重启个人助理。",
+      "updated": "个人助理 Agent 已更新。",
+      "updateFailed": "更新个人助理 Agent 失败。"
     },
     "agents": {
       "desc": "管理智能体的配置和启动命令。",

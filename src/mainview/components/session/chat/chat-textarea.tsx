@@ -89,6 +89,7 @@ type ChatTextareaKeyDownEvent = Parameters<NonNullable<MentionsInputProps["onKey
 
 /** fello 文件树拖拽的私有 MIME 类型 */
 const TREE_NODES_TYPE = "application/x-fello-tree-nodes";
+const EMPTY_MCP_SERVER_IDS: string[] = [];
 
 /** 树节点（file-panel 拖拽）的数据形态 */
 interface TreeDropNode {
@@ -574,7 +575,7 @@ export function ChatTextarea({
   const fileSuggestions = useFileSuggestions(session?.projectId);
   const { fetcher: atSuggestions, getSkills } = useAtSuggestions({
     projectId: session?.projectId,
-    mcpServerIds: session?.mcpServers ?? [],
+    mcpServerIds: session?.mcpServers ?? EMPTY_MCP_SERVER_IDS,
   });
   // 不 memo：需要拿到最新的 textValue 才能追加
   /** 树节点拖拽（file-panel）：追加 mention 文本到输入末尾（与 fello-add-to-chat 行为一致） */

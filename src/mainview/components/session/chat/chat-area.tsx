@@ -23,7 +23,15 @@ import { HISTORY_PAGE_SIZE } from "../../../../shared/constants";
 
 import type { SessionInfo } from "../../../../shared/schema";
 
-function ChatAreaImpl({ session }: { session: SessionInfo }) {
+function ChatAreaImpl({
+  session,
+  showTimeline = true,
+  loadPreviousHistory,
+}: {
+  session: SessionInfo;
+  showTimeline?: boolean;
+  loadPreviousHistory?: () => Promise<boolean>;
+}) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
@@ -265,7 +273,7 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
     isLoadingEarlierRef.current = true;
     setIsLoadingEarlier(true);
     try {
-      const loaded = await loadPreviousSessionHistory(sessionId);
+      const loaded = await (loadPreviousHistory ?? (() => loadPreviousSessionHistory(sessionId)))();
       if (loaded) revealNextPage();
     } catch (error) {
       console.error("Failed to load earlier session history", error);
@@ -273,7 +281,7 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
       isLoadingEarlierRef.current = false;
       setIsLoadingEarlier(false);
     }
-  }, [getViewport, hasMore, sessionId, shouldLoadPreviousSegment, stopScroll]);
+  }, [getViewport, hasMore, loadPreviousHistory, sessionId, shouldLoadPreviousSegment, stopScroll]);
 
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
@@ -366,13 +374,15 @@ function ChatAreaImpl({ session }: { session: SessionInfo }) {
 
   return (
     <div className="w-full relative min-h-0 flex flex-1 group/chat-area">
-      <div className="shrink-0 w-6 -mr-6 relative z-1 pointer-events-none">
-        <ChatTimeline
-          items={timelineItems}
-          activeDisplayId={activeUserMessageId}
-          onSelect={scrollToUserMessage}
-        />
-      </div>
+      {showTimeline && (
+        <div className="shrink-0 w-6 -mr-6 relative z-1 pointer-events-none">
+          <ChatTimeline
+            items={timelineItems}
+            activeDisplayId={activeUserMessageId}
+            onSelect={scrollToUserMessage}
+          />
+        </div>
+      )}
 
       <ScrollArea
         ref={scrollAreaRef}

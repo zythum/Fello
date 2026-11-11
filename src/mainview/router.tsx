@@ -37,6 +37,10 @@ const SettingsAgents = lazyNamed(
   () => import("./components/settings/agents/settings-agents"),
   "SettingsAgents",
 );
+const SettingsAssistant = lazyNamed(
+  () => import("./components/settings/assistant/settings-assistant"),
+  "SettingsAssistant",
+);
 const SettingsFeatures = lazyNamed(
   () => import("./components/settings/features/settings-features"),
   "SettingsFeatures",
@@ -85,6 +89,7 @@ const SkillsSh = lazyNamed(
 const Automation = lazyNamed(() => import("./components/automation/automation"), "Automation");
 const Schedule = lazyNamed(() => import("./components/automation/schedule/schedule"), "Schedule");
 const Task = lazyNamed(() => import("./components/automation/task/task"), "Task");
+const Assistant = lazyNamed(() => import("./components/assistant/assistant"), "Assistant");
 
 function SessionWrapper() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -117,11 +122,13 @@ export function AppRouter() {
       <Suspense fallback={<div className="flex-1 bg-background" />}>
         <Routes>
           <Route path="/" element={<Welcome />} />
+          <Route path="/assistant" element={<Assistant />} />
           <Route path="/session-view/:sessionId" element={<SessionWrapper />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route path="general" element={<SettingsGeneral />} />
             <Route path="shortcuts" element={<SettingsShortcuts />} />
             <Route path="agents" element={<SettingsAgents />} />
+            <Route path="assistant" element={<SettingsAssistant />} />
             <Route path="features" element={<SettingsFeatures />} />
             <Route path="mcp" element={<SettingsMcp />} />
             <Route path="webui" element={<SettingsWebUI />} />
