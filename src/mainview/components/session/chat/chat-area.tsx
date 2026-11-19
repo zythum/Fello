@@ -133,7 +133,9 @@ function ChatAreaImpl({
     const handleScrollToBottom = (event: Event) => {
       const detail = (event as CustomEvent<{ duration?: number } | null>).detail;
       const duration =
-        typeof detail?.duration === "number" && Number.isFinite(detail.duration) && detail.duration >= 0
+        typeof detail?.duration === "number" &&
+        Number.isFinite(detail.duration) &&
+        detail.duration >= 0
           ? detail.duration
           : undefined;
       scrollToBottomWithDuration(duration);

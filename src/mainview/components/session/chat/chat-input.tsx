@@ -362,7 +362,9 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
       }));
       addMessage(session.id, userMessage);
       updateSession({ ...session, isStreaming: true });
-      document.dispatchEvent(new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }));
+      document.dispatchEvent(
+        new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }),
+      );
       if (fromVoicePanel) {
         // 语音面板发送完成 → 焦点交给聊天区（等价于 Cmd+Shift+M 的效果），
         // 方便用遥控器方向键直接浏览输出。

@@ -1,10 +1,7 @@
 import type { AgentInfo, Feature, SessionInfo } from "../../shared/schema";
 import { request } from "../backend";
 import { useAppStore } from "../store";
-import {
-  createNotificationHistoryController,
-  reduceNotifications,
-} from "./notification-history";
+import { createNotificationHistoryController, reduceNotifications } from "./notification-history";
 import { reduceFlushStreaming } from "./session-state-reducer";
 
 export type RestartSessionErrorStage = "update" | "load";

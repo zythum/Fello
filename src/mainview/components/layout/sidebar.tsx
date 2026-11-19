@@ -992,7 +992,9 @@ export function Sidebar() {
           }`}
         >
           <Bot className="size-3.5" />
-          <span className="flex-1 truncate leading-normal select-none uppercase">{t("sidebar.assistant")}</span>
+          <span className="flex-1 truncate leading-normal select-none uppercase">
+            {t("sidebar.assistant")}
+          </span>
         </div>
         <div
           onClick={() => handleNavigate("/skills/installed")}
