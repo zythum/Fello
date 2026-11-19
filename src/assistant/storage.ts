@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
+import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
 import type { ModelMessage } from "ai";
@@ -11,6 +11,7 @@ const SESSION_STORAGE_DIR = join(ASSISTANT_STORAGE_DIR, "session");
 
 const SESSION_STATE_PATH = join(AGENT_STORAGE_DIR, "session.json");
 const MODEL_HISTORY_PATH = join(AGENT_STORAGE_DIR, "history.jsonl");
+const MEMORY_PATH = join(AGENT_STORAGE_DIR, "memory.md");
 
 const MAX_MESSAGE_SEGMENT_BYTES = 16 * 1024 * 1024;
 const MESSAGE_SEGMENT_RE = /^messages(?:-(\d{6}))?\.jsonl$/;
@@ -21,18 +22,20 @@ export type AssistantMessageSegment = {
 };
 
 type MessageSegment = AssistantMessageSegment;
-
 export type PersistedAssistantSession = {
   modelId: string | null;
   thoughtLevel: string;
   contextUsedTokens: number;
+  lastDreamAt: string | null;
+  historyStartedAt: string | null;
+  historyTokens: number;
+  needsDream: boolean;
+  dreamUrgency: "none" | "scheduled" | "required";
 };
 
 function isModelMessage(value: unknown): value is ModelMessage {
   return (
-    !!value &&
-    typeof value === "object" &&
-    typeof (value as { role?: unknown }).role === "string"
+    !!value && typeof value === "object" && typeof (value as { role?: unknown }).role === "string"
   );
 }
 
@@ -84,12 +87,7 @@ function parseMessages(content: string): SessionNotificationFelloExt[] {
 
 async function getCurrentMessageSegment(): Promise<MessageSegment> {
   const segments = await listMessageSegments();
-  return (
-    segments.at(-1) ?? {
-      id: 0,
-      filePath: join(SESSION_STORAGE_DIR, segmentFileName(0)),
-    }
-  );
+  return segments.at(-1) ?? { id: 0, filePath: join(SESSION_STORAGE_DIR, segmentFileName(0)) };
 }
 
 async function countUserMessages(filePath: string): Promise<number> {
@@ -127,9 +125,7 @@ export async function beginAssistantMessageTurn(): Promise<AssistantMessageSegme
 }
 
 export function endAssistantMessageTurn(segment?: AssistantMessageSegment): void {
-  if (!segment || activePromptSegment?.id === segment.id) {
-    activePromptSegment = null;
-  }
+  if (!segment || activePromptSegment?.id === segment.id) activePromptSegment = null;
 }
 
 export async function appendAssistantMessage(
@@ -184,11 +180,23 @@ export async function readAssistantMessageSegment(segmentId?: number): Promise<{
 function parseAssistantSession(raw: string): PersistedAssistantSession | null {
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedAssistantSession>;
+    const urgency = parsed.dreamUrgency;
     return {
       modelId: typeof parsed.modelId === "string" ? parsed.modelId : null,
       thoughtLevel: typeof parsed.thoughtLevel === "string" ? parsed.thoughtLevel : "auto",
       contextUsedTokens:
         typeof parsed.contextUsedTokens === "number" ? parsed.contextUsedTokens : 0,
+      lastDreamAt: typeof parsed.lastDreamAt === "string" ? parsed.lastDreamAt : null,
+      historyStartedAt:
+        typeof parsed.historyStartedAt === "string" ? parsed.historyStartedAt : null,
+      historyTokens:
+        typeof parsed.historyTokens === "number" &&
+        Number.isSafeInteger(parsed.historyTokens) &&
+        parsed.historyTokens >= 0
+          ? parsed.historyTokens
+          : 0,
+      needsDream: typeof parsed.needsDream === "boolean" ? parsed.needsDream : false,
+      dreamUrgency: urgency === "scheduled" || urgency === "required" ? urgency : "none",
     };
   } catch {
     return null;
@@ -200,16 +208,16 @@ export async function loadAssistantSession(): Promise<PersistedAssistantSession 
   return raw === null ? null : parseAssistantSession(raw);
 }
 
-async function writeAssistantSession(session: PersistedAssistantSession): Promise<void> {
-  await ensureAgentStorageDirectory();
-  await writeFile(SESSION_STATE_PATH, `${JSON.stringify(session, null, 2)}\n`, "utf8");
-}
-
 export async function saveAssistantSession(session: PersistedAssistantSession): Promise<void> {
-  await writeAssistantSession(session);
+  await ensureAgentStorageDirectory();
+  // Write to a temporary file and rename, so a crash mid-write cannot corrupt session.json.
+  const temporaryPath = `${SESSION_STATE_PATH}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(session, null, 2)}\n`, "utf8");
+  await rename(temporaryPath, SESSION_STATE_PATH);
 }
 
-function parseModelMessages(raw: string | null): ModelMessage[] {
+export async function loadAssistantHistory(): Promise<ModelMessage[]> {
+  const raw = await readFileIfExists(MODEL_HISTORY_PATH);
   if (!raw) return [];
   return raw
     .split("\n")
@@ -224,10 +232,6 @@ function parseModelMessages(raw: string | null): ModelMessage[] {
     });
 }
 
-export async function loadAssistantHistory(): Promise<ModelMessage[]> {
-  return parseModelMessages(await readFileIfExists(MODEL_HISTORY_PATH));
-}
-
 export async function appendAssistantHistory(messages: ModelMessage[]): Promise<void> {
   if (messages.length === 0) return;
   await ensureAgentStorageDirectory();
@@ -236,4 +240,8 @@ export async function appendAssistantHistory(messages: ModelMessage[]): Promise<
     `${messages.map((message) => JSON.stringify(message)).join("\n")}\n`,
     "utf8",
   );
+}
+
+export async function loadAssistantMemory(): Promise<string> {
+  return (await readFileIfExists(MEMORY_PATH)) ?? "";
 }

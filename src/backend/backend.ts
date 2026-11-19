@@ -195,6 +195,30 @@ export function initBackend(
           }
         }
       }
+      const requestedDream = settings.assistant?.dream ?? previousSettings.assistant.dream;
+      const selectedSourceAgentId =
+        settings.assistant?.sourceAgentId ?? previousSettings.assistant.sourceAgentId;
+      const selectedSourceAgent = selectedSourceAgentId
+        ? (settings.agents ?? previousSettings.agents).find(
+            (agent) => agent.id === selectedSourceAgentId,
+          )
+        : undefined;
+      const contextWindowTokens =
+        selectedSourceAgent?.type === "api"
+          ? (selectedSourceAgent.contextWindowTokens ?? 128_000)
+          : 128_000;
+      if (
+        !Number.isSafeInteger(requestedDream.maxContextTokens) ||
+        requestedDream.maxContextTokens <= 0 ||
+        requestedDream.maxContextTokens > contextWindowTokens
+      ) {
+        throw new Error(
+          `Dream max context tokens must be a positive integer up to ${contextWindowTokens}.`,
+        );
+      }
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(requestedDream.preferredTime)) {
+        throw new Error("Dream preferred time must use HH:mm format.");
+      }
       storageOps.updateSettings(settings);
       const currentSettings = storageOps.getSettings();
       const referencedSourceAgentChanged = (() => {

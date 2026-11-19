@@ -26,6 +26,7 @@ import type {
 import type {
   AgentInfo,
   ApiAgentInfo,
+  SettingAssistantInfo,
   SessionModelState,
   SessionModeState,
   SessionThoughtLevelState,
@@ -131,6 +132,8 @@ export type AssistantAgentInfo = {
   id: string;
   type: "assistant";
   sourceAgent: ApiAgentInfo;
+  getDream: () => SettingAssistantInfo["dream"];
+  onDreamStatus?: (status: { dreaming: boolean; error?: string }) => void;
 };
 
 export type ACPBridgeAgentInfo = AgentInfo | AssistantAgentInfo;
@@ -355,21 +358,23 @@ export class ACPBridge {
         ? spawnAssistantAgent({
             agentInfo: this.options.agentInfo.sourceAgent,
             workspace: this.options.cwd,
+            getDream: this.options.agentInfo.getDream,
+            onDreamStatus: this.options.agentInfo.onDreamStatus,
           })
         : this.options.agentInfo.type === "stdio"
           ? spawnStdioAgent({
-            ...this.options.agentInfo,
-            cwd: this.options.cwd,
-            env: {
-              ...this.options.agentEnv,
-              ...this.options.agentInfo.env,
-            },
-          })
-        : this.options.agentInfo.provider === "openai-compatible"
-          ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
-          : (() => {
-              throw new Error(`Unsupported api provider: ${this.options.agentInfo.provider}`);
-            })();
+              ...this.options.agentInfo,
+              cwd: this.options.cwd,
+              env: {
+                ...this.options.agentEnv,
+                ...this.options.agentInfo.env,
+              },
+            })
+          : this.options.agentInfo.provider === "openai-compatible"
+            ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
+            : (() => {
+                throw new Error(`Unsupported api provider: ${this.options.agentInfo.provider}`);
+              })();
     this.process = proc;
 
     const rawStream = ndJsonStream(proc.input, proc.output);

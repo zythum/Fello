@@ -273,7 +273,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   fileWatcher: { enabled: true },
   proxy: { mode: "off" },
   ilink: { useOriginalImage: false },
-  assistant: { enabled: true, sourceAgentId: null },
+  assistant: {
+    enabled: true,
+    sourceAgentId: null,
+    dream: { maxContextTokens: 96_000, preferredTime: "02:00" },
+  },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
   voiceInput: { altDoublePress: true },

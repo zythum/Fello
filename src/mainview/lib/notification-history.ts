@@ -10,7 +10,9 @@ export interface NotificationHistorySegmentResponse {
 
 export interface NotificationHistoryControllerOptions {
   sessionId: string;
-  loadSegment: (segmentId?: number) => Promise<NotificationHistorySegmentResponse | null | undefined>;
+  loadSegment: (
+    segmentId?: number,
+  ) => Promise<NotificationHistorySegmentResponse | null | undefined>;
   initialLoadError: () => Error;
   previousLoadError: () => Error;
 }
@@ -58,7 +60,12 @@ function replayLoadedHistory(
     .slice()
     .sort((a, b) => a.segmentId - b.segmentId)
     .flatMap((segment) => segment.messages);
-  const history = reduceNotifications(sessionId, initialState, historyNotifications, knownDisplayIds);
+  const history = reduceNotifications(
+    sessionId,
+    initialState,
+    historyNotifications,
+    knownDisplayIds,
+  );
   const live = reduceNotifications(sessionId, history.state, liveNotifications, knownDisplayIds);
   return { state: live.state, knownDisplayIds };
 }
@@ -88,9 +95,15 @@ export function createNotificationHistoryController({
   }
 
   function queueNotification(notification: SessionNotificationFelloExt): void {
+    queueNotifications([notification]);
+  }
+
+  /** Applies a batch in one store write, so the history replay runs once per batch. */
+  function queueNotifications(notifications: SessionNotificationFelloExt[]): void {
+    if (notifications.length === 0) return;
     useAppStore.getState().updateSessionState(sessionId, (currentState) => {
       if (currentState.isLoading) {
-        return { pendingNotifications: [...currentState.pendingNotifications, notification] };
+        return { pendingNotifications: [...currentState.pendingNotifications, ...notifications] };
       }
       const knownDisplayIds = new Set<string>();
       replayLoadedHistory(
@@ -102,16 +115,21 @@ export function createNotificationHistoryController({
       const { state, applied } = reduceNotifications(
         sessionId,
         currentState,
-        [notification],
+        notifications,
         knownDisplayIds,
       );
       return applied.length === 0
         ? {}
-        : { ...state, liveHistoryNotifications: [...currentState.liveHistoryNotifications, ...applied] };
+        : {
+            ...state,
+            liveHistoryNotifications: [...currentState.liveHistoryNotifications, ...applied],
+          };
     });
   }
 
-  async function loadInitial({ keepLoading = false }: { keepLoading?: boolean } = {}): Promise<Set<string>> {
+  async function loadInitial({ keepLoading = false }: { keepLoading?: boolean } = {}): Promise<
+    Set<string>
+  > {
     try {
       const result = await loadSegment();
       if (!result) throw initialLoadError();
@@ -156,7 +174,9 @@ export function createNotificationHistoryController({
       useAppStore.getState().updateSessionState(sessionId, (currentState) => {
         const historySegments = [
           { segmentId: result.segmentId, messages: result.messages },
-          ...currentState.historySegments.filter((segment) => segment.segmentId !== result.segmentId),
+          ...currentState.historySegments.filter(
+            (segment) => segment.segmentId !== result.segmentId,
+          ),
         ];
         const replayed = replayLoadedHistory(
           sessionId,
@@ -185,5 +205,5 @@ export function createNotificationHistoryController({
     });
   }
 
-  return { finishLoading, loadInitial, loadPrevious, queueNotification };
+  return { finishLoading, loadInitial, loadPrevious, queueNotification, queueNotifications };
 }

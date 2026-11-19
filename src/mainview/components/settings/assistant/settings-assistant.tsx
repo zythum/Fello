@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { extractErrorMessage } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 
@@ -39,6 +40,8 @@ export function SettingsAssistant() {
   const setAssistant = useAppStore((state) => state.setAssistant);
   const { toast } = useMessage();
   const [isSaving, setIsSaving] = useState(false);
+  // Null means "no pending edit": the input shows the saved value.
+  const [maxContextDraft, setMaxContextDraft] = useState<string | null>(null);
 
   const availableAgents = useMemo(
     () => configuredAgents.filter(isAssistantSourceAgent),
@@ -78,6 +81,27 @@ export function SettingsAssistant() {
       { ...assistant, sourceAgentId },
       t("settings.assistant.updated", "Personal Assistant agent updated."),
     );
+  };
+
+  const handleDreamChange = (
+    field: "maxContextTokens" | "preferredTime",
+    value: number | string,
+  ) => {
+    const dream = { ...assistant.dream, [field]: value };
+    return updateAssistant(
+      { ...assistant, dream },
+      t("settings.assistant.dreamUpdated", "Dream settings updated."),
+    );
+  };
+
+  const commitMaxContextDraft = () => {
+    const draft = maxContextDraft;
+    setMaxContextDraft(null);
+    if (draft === null) return;
+    const value = Number(draft);
+    if (Number.isSafeInteger(value) && value > 0 && value !== assistant.dream.maxContextTokens) {
+      void handleDreamChange("maxContextTokens", value);
+    }
   };
 
   return (
@@ -152,7 +176,10 @@ export function SettingsAssistant() {
             ) : (
               <div className="flex items-center justify-between gap-6">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium leading-none" htmlFor="assistant-source-agent">
+                  <label
+                    className="text-sm font-medium leading-none"
+                    htmlFor="assistant-source-agent"
+                  >
                     {t("settings.assistant.sourceAgent", "Source agent")}
                   </label>
                   <span className="text-xs text-muted-foreground/90">
@@ -182,6 +209,68 @@ export function SettingsAssistant() {
                 </Select>
               </div>
             )}
+          </div>
+
+          <div className="border-t border-border" />
+
+          <div>
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+              {t("settings.assistant.groupDream", "Dream")}
+            </h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    className="text-sm font-medium leading-none"
+                    htmlFor="assistant-dream-max-context"
+                  >
+                    {t("settings.assistant.dreamMaxContext", "Max context tokens")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.assistant.dreamMaxContextDesc",
+                      "Schedule Dream before assistant context reaches this limit.",
+                    )}
+                  </span>
+                </div>
+                <Input
+                  id="assistant-dream-max-context"
+                  type="number"
+                  min={1}
+                  step={1}
+                  className="w-36 shrink-0"
+                  value={maxContextDraft ?? String(assistant.dream.maxContextTokens)}
+                  onChange={(event) => setMaxContextDraft(event.target.value)}
+                  onBlur={commitMaxContextDraft}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    className="text-sm font-medium leading-none"
+                    htmlFor="assistant-dream-preferred-time"
+                  >
+                    {t("settings.assistant.dreamPreferredTime", "Preferred time")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.assistant.dreamPreferredTimeDesc",
+                      "Preferred local time for a future Dream run.",
+                    )}
+                  </span>
+                </div>
+                <Input
+                  id="assistant-dream-preferred-time"
+                  type="time"
+                  className="w-36 shrink-0"
+                  value={assistant.dream.preferredTime}
+                  onChange={(event) => void handleDreamChange("preferredTime", event.target.value)}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </ScrollArea>

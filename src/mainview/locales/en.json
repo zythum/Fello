@@ -112,7 +112,10 @@
     "connecting": "Connecting…",
     "unavailable": "Unavailable",
     "configure": "Configure assistant",
-    "placeholder": "Message your assistant"
+    "placeholder": "Message your assistant",
+    "notConnected": "Personal Assistant is not connected.",
+    "busyStreaming": "Wait for the current reply to finish.",
+    "busyDreaming": "Wait for Dream to finish."
   },
   "contextMenu": {
     "cut": "Cut",

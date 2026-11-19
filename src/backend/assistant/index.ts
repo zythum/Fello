@@ -2,7 +2,11 @@ import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
 import { join } from "path";
 import type { ContentBlock, SessionNotification, ToolCallUpdate } from "@agentclientprotocol/sdk";
-import type { ApiAgentInfo, AssistantStatus, SessionNotificationFelloExt } from "../../shared/schema";
+import type {
+  ApiAgentInfo,
+  AssistantStatus,
+  SessionNotificationFelloExt,
+} from "../../shared/schema";
 import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
 import {
   appendAssistantMessage,
@@ -22,7 +26,9 @@ export interface AssistantModule {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   getStatus: () => AssistantStatus;
-  getHistorySegment: (params: { segmentId?: number }) => ReturnType<typeof readAssistantMessageSegment>;
+  getHistorySegment: (params: {
+    segmentId?: number;
+  }) => ReturnType<typeof readAssistantMessageSegment>;
   sendPrompt: (contents: ContentBlock[]) => Promise<PromptResult>;
   cancelPrompt: () => Promise<void>;
   setModel: (modelId: string) => Promise<void>;
@@ -32,14 +38,25 @@ export interface AssistantModule {
 
 function mergeToolCallUpdate(base: ToolCallUpdate, update: ToolCallUpdate): ToolCallUpdate {
   const merged: ToolCallUpdate = { ...base };
-  for (const key of ["title", "status", "kind", "rawInput", "locations", "rawOutput", "_meta"] as const) {
+  for (const key of [
+    "title",
+    "status",
+    "kind",
+    "rawInput",
+    "locations",
+    "rawOutput",
+    "_meta",
+  ] as const) {
     if (Object.prototype.hasOwnProperty.call(update, key) && update[key] != null) {
       Object.assign(merged, { [key]: update[key] });
     }
   }
   if (update.content?.length) {
     const types = new Set(update.content.map((item) => item.type));
-    merged.content = [...(merged.content ?? []).filter((item) => !types.has(item.type)), ...update.content];
+    merged.content = [
+      ...(merged.content ?? []).filter((item) => !types.has(item.type)),
+      ...update.content,
+    ];
   }
   return merged;
 }
@@ -47,8 +64,15 @@ function mergeToolCallUpdate(base: ToolCallUpdate, update: ToolCallUpdate): Tool
 function findContentBlock(value: unknown): ContentBlock | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
-  if (typeof item.type === "string" && ["text", "image", "audio", "resource_link", "resource"].includes(item.type)) return item as unknown as ContentBlock;
-  for (const child of Object.values(item)) { const found = findContentBlock(child); if (found) return found; }
+  if (
+    typeof item.type === "string" &&
+    ["text", "image", "audio", "resource_link", "resource"].includes(item.type)
+  )
+    return item as unknown as ContentBlock;
+  for (const child of Object.values(item)) {
+    const found = findContentBlock(child);
+    if (found) return found;
+  }
   return null;
 }
 
@@ -84,6 +108,7 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     sourceAgentId: null,
     enabled: true,
     isStreaming: false,
+    dreaming: false,
     models: null,
     thoughtLevels: null,
   };
@@ -132,9 +157,17 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
       if (update.status !== "completed" && update.status !== "failed") {
         pendingToolCalls.set(key, prior ? mergeToolCallUpdate(prior, update) : { ...update });
       } else {
-        if (prior) enriched.update = mergeToolCallUpdate(prior, update) as SessionNotificationFelloExt["update"];
+        if (prior)
+          enriched.update = mergeToolCallUpdate(
+            prior,
+            update,
+          ) as SessionNotificationFelloExt["update"];
         pendingToolCalls.delete(key);
-        const { rawInput: _rawInput, rawOutput: _rawOutput, ...safeUpdate } = enriched.update as ToolCallUpdate;
+        const {
+          rawInput: _rawInput,
+          rawOutput: _rawOutput,
+          ...safeUpdate
+        } = enriched.update as ToolCallUpdate;
         await appendAssistantMessage(
           { ...enriched, update: safeUpdate as SessionNotificationFelloExt["update"] },
           segment ?? undefined,
@@ -185,13 +218,22 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
 
       await mkdir(ASSISTANT_WORKSPACE, { recursive: true });
       if (generation !== currentGeneration) return;
-      updateStatus({ connectionStatus: "connecting", error: undefined, sourceAgentId, enabled: true });
+      updateStatus({
+        connectionStatus: "connecting",
+        error: undefined,
+        sourceAgentId,
+        enabled: true,
+      });
 
       const nextBridge = new ACPBridge(ASSISTANT_AGENT_ID, {
         agentInfo: {
           id: ASSISTANT_AGENT_ID,
           type: "assistant",
           sourceAgent: agentInfo,
+          getDream: () => ctx.storage.getSettings().assistant.dream,
+          onDreamStatus: ({ dreaming, error }) => {
+            updateStatus({ dreaming, dreamError: error });
+          },
         },
         cwd: ASSISTANT_WORKSPACE,
         extNotificationSpecs,
@@ -323,7 +365,8 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
       thoughtLevelId,
     });
     updateStatus({
-      thoughtLevels: activeBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? status.thoughtLevels,
+      thoughtLevels:
+        activeBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? status.thoughtLevels,
     });
   }
 

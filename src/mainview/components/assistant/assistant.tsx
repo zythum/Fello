@@ -17,10 +17,7 @@ import {
   queueAssistantNotification,
 } from "../../lib/assistant-lifecycle";
 import { ChatArea } from "../session/chat/chat-area";
-import {
-  ChatTextarea,
-  type ChatTextareaSubmitValue,
-} from "../session/chat/chat-textarea";
+import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, extractErrorMessage } from "@/lib/utils";
+import { useMessage } from "../providers/message";
 
 const EMPTY_MODELS: NonNullable<AssistantStatus["models"]>["availableModels"] = [];
 
@@ -71,6 +69,7 @@ function assistantSession(status: AssistantStatus | null): SessionInfo {
 export function Assistant() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { toast } = useMessage();
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
   const isMacApp = useAppStore((state) => state.isMacApp);
@@ -105,6 +104,7 @@ export function Assistant() {
           sourceAgentId: null,
           enabled: true,
           isStreaming: false,
+          dreaming: false,
           models: null,
           thoughtLevels: null,
         });
@@ -120,6 +120,7 @@ export function Assistant() {
   const session = useMemo(() => assistantSession(status), [status]);
   const isConnected = status?.connectionStatus === "connected";
   const isStreaming = status?.isStreaming ?? false;
+  const isDreaming = status?.dreaming ?? false;
   const showMacTrafficLightSpace = isMacApp && !isFullScreen;
   const availableModels = status?.models?.availableModels ?? EMPTY_MODELS;
   const currentModelId = status?.models?.currentModelId ?? null;
@@ -141,11 +142,41 @@ export function Assistant() {
   const send = useCallback(
     async (value: ChatTextareaSubmitValue) => {
       const text = value.text.trim();
-      if (!text || !isConnected || isStreaming) return;
+      if (!text) return;
+      if (!isConnected) {
+        toast.error(t("assistant.notConnected", "Personal Assistant is not connected."));
+        return;
+      }
+      if (isDreaming) {
+        toast.error(t("assistant.busyDreaming", "Wait for Dream to finish."));
+        return;
+      }
+      if (isStreaming) {
+        toast.error(t("assistant.busyStreaming", "Wait for the current reply to finish."));
+        return;
+      }
       setInput("");
+      setStatus((current) =>
+        current?.promptError ? { ...current, promptError: undefined } : current,
+      );
+      document.dispatchEvent(
+        new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }),
+      );
       const contents: ContentBlock[] = [{ type: "text", text }];
       try {
-        await request.sendAssistantPrompt({ contents });
+        const result = await request.sendAssistantPrompt({ contents });
+        const finishedNormally =
+          result.stopReason === "end_turn" || result.stopReason === "cancelled";
+        if (result.error || !finishedNormally) {
+          const message =
+            result.error || result.stopReason || t("assistant.failed", "Assistant failed");
+          toast.error(message);
+          setStatus((current) =>
+            current
+              ? { ...current, promptError: message, isStreaming: false, dreaming: false }
+              : current,
+          );
+        }
       } catch (error) {
         setStatus((current) => ({
           ...(current ?? { models: null, thoughtLevels: null, sourceAgentId: null }),
@@ -154,10 +185,11 @@ export function Assistant() {
           sourceAgentId: null,
           enabled: true,
           isStreaming: false,
+          dreaming: false,
         }));
       }
     },
-    [isConnected, isStreaming],
+    [isConnected, isStreaming, isDreaming, t, toast],
   );
 
   const changeModel = useCallback(
@@ -176,6 +208,7 @@ export function Assistant() {
           connectionStatus: "error",
           error: extractErrorMessage(error) || "Failed to update Assistant model.",
           isStreaming: false,
+          dreaming: false,
         }));
       }
     },
@@ -198,6 +231,7 @@ export function Assistant() {
           connectionStatus: "error",
           error: extractErrorMessage(error) || "Failed to update Assistant thinking level.",
           isStreaming: false,
+          dreaming: false,
         }));
       }
     },
@@ -216,11 +250,17 @@ export function Assistant() {
         <Bot className="size-4 text-primary" />
         <span className="text-sm font-medium">{t("assistant.title", "Personal Assistant")}</span>
         <span className="text-xs text-muted-foreground">
-          {status?.connectionStatus === "connected"
-            ? t("assistant.ready", "Ready")
-            : status?.connectionStatus === "connecting"
-              ? t("assistant.connecting", "Connecting…")
-              : status?.error ?? t("assistant.unavailable", "Unavailable")}
+          {isDreaming
+            ? t("assistant.dreaming", "Dreaming…")
+            : status?.dreamError
+              ? status.dreamError
+              : status?.promptError
+                ? status.promptError
+                : status?.connectionStatus === "connected"
+                  ? t("assistant.ready", "Ready")
+                  : status?.connectionStatus === "connecting"
+                    ? t("assistant.connecting", "Connecting…")
+                    : (status?.error ?? t("assistant.unavailable", "Unavailable"))}
         </span>
         {status?.connectionStatus === "error" && (
           <Button
@@ -251,7 +291,6 @@ export function Assistant() {
             inputRef={inputRef}
             onSubmit={(value) => void send(value)}
             placeholder={t("assistant.placeholder", "Message your assistant")}
-            disabled={!isConnected || isStreaming}
             voiceInputRef={voiceInputRef}
             attachments={null}
             rightSlot={
@@ -273,7 +312,10 @@ export function Assistant() {
                       </span>
                       <ChevronDown className="size-3 shrink-0 opacity-60" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-auto! max-w-72 min-w-(--anchor-width)">
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-auto! max-w-72 min-w-(--anchor-width)"
+                    >
                       {groupedModels.size <= 1
                         ? availableModels.map((model) => (
                             <DropdownMenuItem
@@ -369,12 +411,22 @@ export function Assistant() {
             }
             primaryAction={
               isStreaming ? (
-                <Button size="icon" variant="secondary" onClick={() => void request.cancelAssistantPrompt()}>
-                  <Square className="size-4 fill-current" />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="size-7 cursor-default rounded-lg"
+                  onClick={() => void request.cancelAssistantPrompt()}
+                >
+                  <Square className="size-3.5" />
                 </Button>
               ) : (
-                <Button size="icon" disabled={!input.trim() || !isConnected} onClick={() => void send({ text: input, attachments: [], source: "input" })}>
-                  <ArrowUp className="size-4" />
+                <Button
+                  size="icon"
+                  className="size-7 rounded-lg"
+                  disabled={!input.trim() || !isConnected}
+                  onClick={() => void send({ text: input, attachments: [], source: "input" })}
+                >
+                  <ArrowUp className="size-3.5" />
                 </Button>
               )
             }

@@ -191,6 +191,9 @@ export interface AssistantStatus {
   sourceAgentId: string | null;
   enabled: boolean;
   isStreaming: boolean;
+  dreaming: boolean;
+  dreamError?: string;
+  promptError?: string;
   models: SessionModelState | null;
   thoughtLevels: SessionThoughtLevelState | null;
 }
@@ -381,6 +384,10 @@ export interface SettingILinkInfo {
 export interface SettingAssistantInfo {
   enabled: boolean;
   sourceAgentId: string | null;
+  dream: {
+    maxContextTokens: number;
+    preferredTime: string;
+  };
 }
 
 /**

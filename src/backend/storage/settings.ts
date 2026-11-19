@@ -127,6 +127,10 @@ interface SettingsMeta {
   assistant: {
     enabled: boolean;
     sourceAgentId: string | null;
+    dream: {
+      maxContextTokens: number;
+      preferredTime: string;
+    };
   };
   editor: {
     name: string;
@@ -176,6 +180,10 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   assistant: {
     enabled: true,
     sourceAgentId: null,
+    dream: {
+      maxContextTokens: 96_000,
+      preferredTime: "02:00",
+    },
   },
   editor: {
     name: "code",
@@ -391,12 +399,28 @@ function readSettings(): SettingsMeta {
 
     const assistant: SettingsMeta["assistant"] = (() => {
       const raw = rawObj && isObject(rawObj.assistant) ? rawObj.assistant : null;
+      const rawDream = isObject(raw?.dream) ? raw.dream : null;
+      const maxContextTokens = rawDream?.maxContextTokens;
+      const preferredTime = rawDream?.preferredTime;
       return {
-        enabled: typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
+        enabled:
+          typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
         sourceAgentId:
           typeof raw?.sourceAgentId === "string" || raw?.sourceAgentId === null
             ? raw.sourceAgentId
             : DEFAULT_SETTINGS.assistant.sourceAgentId,
+        dream: {
+          maxContextTokens:
+            typeof maxContextTokens === "number" &&
+            Number.isSafeInteger(maxContextTokens) &&
+            maxContextTokens > 0
+              ? maxContextTokens
+              : DEFAULT_SETTINGS.assistant.dream.maxContextTokens,
+          preferredTime:
+            typeof preferredTime === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(preferredTime)
+              ? preferredTime
+              : DEFAULT_SETTINGS.assistant.dream.preferredTime,
+        },
       };
     })();
 
@@ -697,6 +721,7 @@ export function getSettings(): SettingsInfo {
     assistant: {
       enabled: meta.assistant.enabled,
       sourceAgentId: meta.assistant.sourceAgentId,
+      dream: { ...meta.assistant.dream },
     },
     editor: {
       name: meta.editor.name,
@@ -772,6 +797,18 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           settings.assistant.sourceAgentId === null
             ? settings.assistant.sourceAgentId
             : prevMeta.assistant.sourceAgentId,
+        dream: {
+          maxContextTokens:
+            Number.isSafeInteger(settings.assistant.dream?.maxContextTokens) &&
+            settings.assistant.dream.maxContextTokens > 0
+              ? settings.assistant.dream.maxContextTokens
+              : prevMeta.assistant.dream.maxContextTokens,
+          preferredTime:
+            typeof settings.assistant.dream?.preferredTime === "string" &&
+            /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.assistant.dream.preferredTime)
+              ? settings.assistant.dream.preferredTime
+              : prevMeta.assistant.dream.preferredTime,
+        },
       };
     })(),
     agents: (() => {
