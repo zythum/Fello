@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   isStepCount,
@@ -6,6 +7,7 @@ import {
   type ImagePart,
   type ModelMessage,
   type TextPart,
+  type ToolSet,
 } from "ai";
 import {
   PROTOCOL_VERSION,
@@ -32,7 +34,7 @@ import {
   type SetSessionConfigOptionResponse,
   type UsageUpdate,
 } from "@agentclientprotocol/sdk";
-import type { PromptResponse, Usage } from "@agentclientprotocol/sdk/unstable";
+import type { McpServer, PromptResponse, Usage } from "@agentclientprotocol/sdk/unstable";
 import type {
   ApiAgentInfo,
   ModelInfo,
@@ -51,6 +53,13 @@ import {
 import { runDream } from "./dream";
 import { createCurrentTimeTool } from "./current-time-tool";
 import type { ToolUpdateSender } from "./tool-updates";
+import {
+  closeAssistantMcpTools,
+  createAssistantMcpTools,
+  type AssistantMcpTools,
+} from "./mcp-tools";
+import type { ShareToUserModule } from "../backend/share-to-user";
+import { generateSocketPath, startSocketServer, type SocketServer } from "../backend/socket-server";
 import { createDiaryQueryTool } from "./diary-query";
 import { createReminderTools } from "./reminders/tools";
 import type { ReminderService } from "./reminders/service";
@@ -80,6 +89,8 @@ type AssistantSession = PersistedAssistantSession & {
 export type AssistantAgentOptions = {
   agentInfo: ApiAgentInfo;
   workspace: string;
+  getMcpServers: () => McpServer[];
+  shareToUser: ShareToUserModule;
   getDream: () => SettingAssistantInfo["dream"];
   reminders: ReminderService;
   worker: WorkerService;
@@ -202,8 +213,10 @@ Tools
 - reminder_create / reminder_list / reminder_occurrences / reminder_update / reminder_delete: the user's reminders. Create, change or delete one only when the user asks.
 - fs_list / fs_read / fs_write / fs_move / fs_glob / fs_grep: list, read, write, move and search files. There is no delete tool: move unwanted files into ${workspace}/.trash/<YYYYMMDD-HHmmss>/. Confirm with ask_user before writing or moving things outside your workspace unless the user already asked for that exact change. Never modify the assistant runtime directories (agent/, session/, diary/).
 - ask_user: ask the user when a decision or missing information blocks you. Offer short, concrete options.
+- mcp_assistant_share__share_to_user: share a file that already exists in your workspace with the user. Write it with fs_write first, then pass type="project" and its workspace-relative path. Link/base64 sharing is unavailable.
+- Tools named mcp_<server>__<tool> come from MCP servers (user-selected or built-in). Use them when relevant, especially for web search and fetching pages.
 - worker_create / worker_send / worker_status / worker_read / worker_list / worker_cancel / worker_close / worker_terminate / worker_permission: workers are background ACP agents you drive.
-  - The worker's agent, model and MCP servers come from Settings. worker_create only chooses a workspace.
+  - Worker types (agent, model, features, MCP servers) come from Settings. Pick the type whose name/description matches the task; worker_create chooses a type and workspace only.
   - worker_send starts one turn and returns a turnId immediately; you are not blocked.
   - When a turn finishes or fails you receive a [Worker ... event="finished|failed"] message with the turn id. Use worker_status for an overview and worker_read to read one turn. Read a turn before summarising it to the user.
   - Worker replies are reports, not user messages. Use workers for long or file-heavy work; answer quick questions yourself.
@@ -242,6 +255,9 @@ export class AssistantAgent {
     Promise.resolve();
   private dreamPending: Promise<void> | null = null;
   private dreamTimer: ReturnType<typeof setTimeout> | null = null;
+  private mcp: AssistantMcpTools | null = null;
+  private mcpPending: Promise<AssistantMcpTools | null> | null = null;
+  private shareSocketServer: SocketServer | null = null;
 
   constructor(private readonly options: AssistantAgentOptions) {
     if (options.agentInfo.provider !== "openai-compatible") {
@@ -260,6 +276,97 @@ export class AssistantAgent {
 
   setConnection(context: AgentContext): void {
     this.connection = new AgentClientProxy(context);
+  }
+
+  /** Lazily connects the MCP servers selected in Settings; failures fall back to no MCP tools. */
+  private async ensureMcpTools(): Promise<ToolSet> {
+    if (this.mcp) return this.mcp.tools;
+    if (this.mcpPending) return (await this.mcpPending)?.tools ?? {};
+
+    const pending = (async () => {
+      const shareServer = await this.ensureShareMcpServer();
+      const [shareTools, userTools] = await Promise.all([
+        createAssistantMcpTools({
+          servers: [shareServer],
+          cwd: this.options.workspace,
+          sendUpdate: this.sendToolUpdate,
+        }).catch((error) => {
+          console.error("[assistant] Failed to connect built-in share MCP:", error);
+          return null;
+        }),
+        createAssistantMcpTools({
+          servers: this.options.getMcpServers(),
+          cwd: this.options.workspace,
+          sendUpdate: this.sendToolUpdate,
+        }).catch((error) => {
+          console.error("[assistant] Failed to connect user MCP servers:", error);
+          return null;
+        }),
+      ]);
+      if (!shareTools) {
+        this.shareSocketServer?.stop();
+        this.shareSocketServer = null;
+      }
+      const clients = [...(shareTools?.clients ?? []), ...(userTools?.clients ?? [])];
+      if (clients.length === 0) return null;
+      return {
+        clients,
+        tools: { ...(shareTools?.tools ?? {}), ...(userTools?.tools ?? {}) },
+      };
+    })()
+      .then((mcp) => {
+        this.mcp = mcp;
+        return mcp;
+      })
+      .catch((error) => {
+        console.error("[assistant] Failed to connect MCP servers:", error);
+        this.shareSocketServer?.stop();
+        this.shareSocketServer = null;
+        return null;
+      });
+    this.mcpPending = pending;
+    try {
+      return (await pending)?.tools ?? {};
+    } finally {
+      if (this.mcpPending === pending) this.mcpPending = null;
+    }
+  }
+
+  /** Built-in share MCP: only workspace-relative project shares, never a share directory. */
+  private async ensureShareMcpServer(): Promise<McpServer> {
+    if (!this.shareSocketServer) {
+      const socketPath = generateSocketPath(`assistant-share-${randomUUID()}`);
+      const server = await startSocketServer(socketPath);
+      try {
+        this.options.shareToUser.registerShareToUserRoute(server, ASSISTANT_SESSION_ID, {
+          cwd: this.options.workspace,
+          projectOnly: true,
+        });
+      } catch (error) {
+        server.stop();
+        throw error;
+      }
+      this.shareSocketServer = server;
+    }
+    return {
+      ...this.options.shareToUser.buildShareToUserMcpServer({
+        projectDir: this.options.workspace,
+        socketPath: this.shareSocketServer.socketPath,
+        projectOnly: true,
+      }),
+      name: "assistant-share",
+    };
+  }
+
+  private async closeMcp(): Promise<void> {
+    const pending = this.mcpPending;
+    if (pending) await pending.catch(() => {});
+    const mcp = this.mcp;
+    this.mcp = null;
+    this.mcpPending = null;
+    if (mcp) await closeAssistantMcpTools(mcp);
+    this.shareSocketServer?.stop();
+    this.shareSocketServer = null;
   }
 
   async initialize(_params: InitializeRequest): Promise<InitializeResponse> {
@@ -539,12 +646,14 @@ export class AssistantAgent {
     let text = "";
 
     try {
+      const mcpTools = await this.ensureMcpTools();
       const memory = await loadAssistantMemory();
       const result = streamText({
         model: this.provider.chatModel(modelId),
         system: buildSystemPrompt(this.options.workspace, memory),
         messages: [...session.history, userMessage],
         tools: {
+          ...mcpTools,
           current_time: createCurrentTimeTool({ sendUpdate: this.sendToolUpdate }),
           diary_query: createDiaryQueryTool({
             getModel: () => this.provider.chatModel(modelId),
@@ -637,6 +746,7 @@ export class AssistantAgent {
       if (this.dreamTimer) clearTimeout(this.dreamTimer);
       this.dreamTimer = null;
       await this.dreamPending?.catch(() => {});
+      await this.closeMcp();
       await this.persistSession(this.session);
       this.session = null;
     }
@@ -653,10 +763,12 @@ export class AssistantAgent {
     this.dreamTimer = null;
     if (!this.session) {
       await this.dreamPending?.catch(() => {});
+      await this.closeMcp();
       return;
     }
     this.session.abortController?.abort();
     await this.dreamPending?.catch(() => {});
+    await this.closeMcp();
     await this.persistSession(this.session);
     this.session = null;
   }

@@ -1,4 +1,5 @@
 import type { ConversationTurn } from "../../shared/conversation";
+import type { Feature } from "../../shared/schema";
 
 /** Lifecycle of one worker record. `closed` keeps the record (and its files) for later reads. */
 export type WorkerLifecycleStatus =
@@ -14,14 +15,28 @@ export type WorkerConnectionStatus = "connected" | "connecting" | "disconnected"
 
 export type WorkerPermissionDecision = "allow_once" | "allow_always" | "deny";
 
+/** One selectable worker type exposed to the assistant. */
+export type WorkerTypeInfo = {
+  id: string;
+  name: string;
+  description: string;
+  agentId: string | null;
+  features: Feature[];
+  mcpServers: string[];
+};
+
 export type WorkerCreateInput = {
   workspace: string;
   name?: string;
+  /** Configured worker type id. The assistant must choose one explicitly. */
+  typeId: string;
 };
 
 export type WorkerCreateResult = {
   workerId: string;
   cwd: string;
+  typeId: string;
+  typeName: string;
 };
 
 export type WorkerSendInput = {
@@ -45,6 +60,12 @@ export type WorkerListItem = {
   connectionStatus: WorkerConnectionStatus;
   cwd: string;
   agentId: string;
+  /** Model chosen for this worker; null means the agent default. */
+  modelId: string | null;
+  /** Permission mode snapshot used by this worker. */
+  permissionMode: "ask" | "allow-all";
+  typeId: string | null;
+  typeName: string | null;
   createdAt: number;
   lastActiveAt: number;
   currentTurnId: string | null;
@@ -103,6 +124,8 @@ export type WorkerReadResult = {
  * ACP verbs plus transcript reads; it deliberately has no task/ticket semantics.
  */
 export interface WorkerService {
+  /** Enabled worker types, in settings order, for the assistant to choose from. */
+  listTypes(): WorkerTypeInfo[];
   create(input: WorkerCreateInput): Promise<WorkerCreateResult>;
   send(input: WorkerSendInput): Promise<WorkerSendResult>;
   status(input: { workerId: string }): Promise<WorkerStatusResult>;

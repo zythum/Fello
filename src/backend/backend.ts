@@ -112,6 +112,7 @@ export function initBackend(
   const assistant = createAssistantModule(ctx, {
     askUser,
     filesystem: { grep, glob },
+    mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
   });
   assistant.start().catch((err) => {
     console.warn("[assistant] Failed to start:", err);
@@ -232,9 +233,28 @@ export function initBackend(
         ].filter((id): id is string => id !== null);
         return sourceAgentIds.some((id) => changedOrRemoved.has(id));
       })();
+      const assistantMcpSelectionChanged =
+        previousSettings.assistant.mcpServers.length !==
+          currentSettings.assistant.mcpServers.length ||
+        previousSettings.assistant.mcpServers.some(
+          (id) => !currentSettings.assistant.mcpServers.includes(id),
+        );
+      const assistantMcpConfigChanged = (() => {
+        const ids = new Set([
+          ...previousSettings.assistant.mcpServers,
+          ...currentSettings.assistant.mcpServers,
+        ]);
+        return [...ids].some((id) => {
+          const before = previousSettings.mcpServers.find((server) => server.id === id);
+          const after = currentSettings.mcpServers.find((server) => server.id === id);
+          return JSON.stringify(before) !== JSON.stringify(after);
+        });
+      })();
       const assistantConfigurationChanged =
         previousSettings.assistant.enabled !== currentSettings.assistant.enabled ||
-        previousSettings.assistant.sourceAgentId !== currentSettings.assistant.sourceAgentId;
+        previousSettings.assistant.sourceAgentId !== currentSettings.assistant.sourceAgentId ||
+        assistantMcpSelectionChanged ||
+        assistantMcpConfigChanged;
       if (assistantConfigurationChanged || referencedSourceAgentChanged) {
         await assistant.refreshConfiguration();
       }
@@ -318,6 +338,9 @@ export function initBackend(
     },
     async setAssistantThoughtLevel({ thoughtLevelId }) {
       return assistant.setThoughtLevel(thoughtLevelId);
+    },
+    async restartAssistant() {
+      await assistant.refreshConfiguration();
     },
 
     // Sessions

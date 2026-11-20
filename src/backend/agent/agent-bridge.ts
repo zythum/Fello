@@ -3,6 +3,8 @@ import type { ReminderService } from "../../assistant/reminders/service";
 import type { AskUserFn } from "../../assistant/ask-user-tool";
 import type { FileSystemTools } from "../../assistant/fs/tools";
 import type { WorkerService } from "../../assistant/worker/types";
+import type { ShareToUserModule } from "../share-to-user";
+import type { McpServer } from "@agentclientprotocol/sdk/unstable";
 import { writeFile, readFile } from "fs/promises";
 import {
   ndJsonStream,
@@ -136,10 +138,12 @@ export type AssistantAgentInfo = {
   id: string;
   type: "assistant";
   sourceAgent: ApiAgentInfo;
+  getMcpServers: () => McpServer[];
   getDream: () => SettingAssistantInfo["dream"];
   reminders: ReminderService;
   worker: WorkerService;
   askUser: AskUserFn;
+  shareToUser: ShareToUserModule;
   filesystem: FileSystemTools;
   onDreamStatus?: (status: { dreaming: boolean; error?: string }) => void;
 };
@@ -366,10 +370,12 @@ export class ACPBridge {
         ? spawnAssistantAgent({
             agentInfo: this.options.agentInfo.sourceAgent,
             workspace: this.options.cwd,
+            getMcpServers: this.options.agentInfo.getMcpServers,
             getDream: this.options.agentInfo.getDream,
             reminders: this.options.agentInfo.reminders,
             worker: this.options.agentInfo.worker,
             askUser: this.options.agentInfo.askUser,
+            shareToUser: this.options.agentInfo.shareToUser,
             filesystem: this.options.agentInfo.filesystem,
             onDreamStatus: this.options.agentInfo.onDreamStatus,
           })

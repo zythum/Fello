@@ -78,12 +78,12 @@ export function WorkerPanel() {
         ) : (
           <ItemGroup className="gap-2">
             {workers.map((worker) => (
-              <Item key={worker.id} variant="outline" size="sm">
-                <ItemContent>
+              <Item key={worker.id} variant="outline" size="sm" className="overflow-hidden">
+                <ItemContent className="min-w-0">
                   <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <SquareChevronRight className="size-3.5 shrink-0 text-muted-foreground/70" />
-                      <span className="truncate">{worker.name || worker.id}</span>
+                      <span className="min-w-0 truncate">{worker.name || worker.id}</span>
                     </span>
                     <span
                       className={cn(
@@ -97,8 +97,8 @@ export function WorkerPanel() {
                       )}
                     </span>
                   </ItemTitle>
-                  <ItemDescription className="flex flex-col gap-1 text-xs">
-                    <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
+                  <ItemDescription className="line-clamp-none flex min-w-0 flex-col gap-1 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/70">
                       <span
                         className={cn(
                           "size-1.5 shrink-0 rounded-full",
@@ -111,23 +111,43 @@ export function WorkerPanel() {
                           CONNECTION_FALLBACKS[worker.connectionStatus],
                         )}
                       </span>
+                      {worker.typeName && (
+                        <>
+                          <span className="text-muted-foreground/30">·</span>
+                          <span
+                            className="max-w-20 shrink-0 truncate rounded bg-muted px-1 text-[9px] text-muted-foreground/70"
+                            title={worker.typeId ?? undefined}
+                          >
+                            {worker.typeName}
+                          </span>
+                        </>
+                      )}
                       <span className="text-muted-foreground/30">·</span>
-                      <span className="truncate font-mono">{worker.agentId}</span>
+                      <span className="min-w-0 truncate font-mono">{worker.agentId}</span>
+                    </span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/70">
+                      <span className="shrink-0">{t("assistant.workers.model", "Model")}:</span>
+                      <span
+                        className="min-w-0 truncate font-mono"
+                        title={worker.modelId ?? undefined}
+                      >
+                        {worker.modelId ?? t("assistant.workers.agentDefault", "Agent default")}
+                      </span>
                     </span>
                     <span
-                      className="truncate font-mono text-[10px] text-muted-foreground/50"
+                      className="min-w-0 max-w-full truncate font-mono text-[10px] text-muted-foreground/50"
                       title={worker.cwd}
                     >
                       {worker.cwd}
                     </span>
                     {(worker.currentTurnId || worker.lastTurnId) && (
-                      <span className="truncate text-[10px] text-muted-foreground/60">
+                      <span className="min-w-0 truncate text-[10px] text-muted-foreground/60">
                         {t("assistant.workers.turn", "Turn")}{" "}
                         {worker.currentTurnId ?? worker.lastTurnId}
                       </span>
                     )}
                     {worker.lastError && (
-                      <span className="whitespace-pre-wrap wrap-break-word text-[10px] text-destructive/80 line-clamp-2">
+                      <span className="min-w-0 whitespace-pre-wrap wrap-break-word text-[10px] text-destructive/80 line-clamp-2">
                         {worker.lastError}
                       </span>
                     )}

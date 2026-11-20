@@ -1,6 +1,6 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
-import { basename } from "path";
+import { basename, join } from "path";
 import type {
   McpServer,
   RequestPermissionRequest,
@@ -11,8 +11,12 @@ import { ACPBridge } from "../../agent/agent-bridge";
 import { resolveAgentInfo } from "../../agent/resolve-agent-info";
 import { adapters, agentEnv, extNotificationSpecs } from "../../acp-adapters/adapters";
 import type { BackendContext } from "../../types";
-import type { SessionNotificationFelloExt } from "../../../shared/schema";
+import type { Feature, ProjectInfo, SessionNotificationFelloExt } from "../../../shared/schema";
+import { WORKER_FEATURES } from "../../../shared/constants";
+import { ASSISTANT_SESSION_ID } from "../../../assistant/constants";
 import { assertWritablePath, resolveAssistantPath } from "../../../assistant/fs/path";
+import { generateSocketPath, startSocketServer, type SocketServer } from "../../socket-server";
+import { buildMcpServersConfig, type McpConfigDeps } from "../../session/mcp-config";
 import {
   buildConversationTurns,
   truncateConversationTurn,
@@ -31,6 +35,7 @@ import type {
   WorkerSendResult,
   WorkerService,
   WorkerStatusResult,
+  WorkerTypeInfo,
 } from "../../../assistant/worker/types";
 import { WorkerStore, type WorkerRecord, type WorkerTurn } from "./store";
 
@@ -67,6 +72,8 @@ type WorkerHandle = {
   bridge: ACPBridge | null;
   connectPromise: Promise<ACPBridge> | null;
   running: { turnId: string; startedAt: number; text: string } | null;
+  /** Socket server for this worker's feature MCP servers. */
+  socketServer: SocketServer | null;
   /** True while connecting/loading, when the agent may replay old notifications. */
   suppressNotifications: boolean;
   /** Set by terminate: late notifications and prompt completion must not write again. */
@@ -81,6 +88,8 @@ type SegmentCacheEntry = {
 
 export type WorkerManagerOptions = {
   ctx: BackendContext;
+  /** Feature MCP builders shared with the session layer. */
+  mcpDeps: McpConfigDeps;
   /** Default root for relative workspaces, i.e. the assistant's own workspace. */
   workspaceRoot: string;
   /** Queues a message for the assistant's next turn. */
@@ -137,6 +146,25 @@ export class WorkerManager implements WorkerService {
    * is queued: recovery is the assistant's job (worker_status / worker_read /
    * worker_send). A clean shutdown cancels its turns, so those stay idle.
    */
+  listTypes(): WorkerTypeInfo[] {
+    const settings = this.options.ctx.storage.getSettings();
+    return settings.assistant.workerTypes
+      .filter(
+        (type) =>
+          type.enabled &&
+          type.agentId &&
+          settings.agents.some((agent) => agent.id === type.agentId && !agent.disabled),
+      )
+      .map((type) => ({
+        id: type.id,
+        name: type.name,
+        description: type.description,
+        agentId: type.agentId,
+        features: type.features.filter((feature) => WORKER_FEATURES.includes(feature)),
+        mcpServers: type.mcpServers.slice(),
+      }));
+  }
+
   async init(): Promise<void> {
     await this.store.load();
     for (const record of this.store.list()) {
@@ -150,16 +178,43 @@ export class WorkerManager implements WorkerService {
 
   async create(input: WorkerCreateInput): Promise<WorkerCreateResult> {
     const settings = this.options.ctx.storage.getSettings();
-    const agentId = settings.assistant.worker.agentId;
+    const requestedTypeId = input.typeId?.trim() ?? "";
+    const available = settings.assistant.workerTypes
+      .filter(
+        (candidate) =>
+          candidate.enabled &&
+          candidate.agentId &&
+          settings.agents.some((agent) => agent.id === candidate.agentId && !agent.disabled),
+      )
+      .map((candidate) => candidate.id)
+      .join(", ");
+    if (!requestedTypeId) {
+      throw new Error(
+        `Choose a worker type explicitly.${available ? ` Available: ${available}.` : ""}`,
+      );
+    }
+    const requested = requestedTypeId.toLowerCase();
+    const type = settings.assistant.workerTypes.find(
+      (candidate) =>
+        candidate.enabled &&
+        (candidate.id.toLowerCase() === requested ||
+          candidate.name.toLowerCase() === requested),
+    );
+    if (!type) {
+      throw new Error(
+        `Unknown or disabled worker type "${requestedTypeId}".${available ? ` Available: ${available}.` : ""}`,
+      );
+    }
+    const agentId = type.agentId;
     if (!agentId) {
       throw new Error(
-        "No worker agent configured. Ask the user to choose one in Settings → Personal Assistant → Worker.",
+        `Worker type "${type.name}" has no agent configured. Ask the user to update Settings → Personal Assistant → Worker types.`,
       );
     }
     const agent = settings.agents.find((candidate) => candidate.id === agentId);
     if (!agent || agent.disabled) {
       throw new Error(
-        `Worker agent "${agentId}" is missing or disabled. Ask the user to update Settings → Personal Assistant → Worker.`,
+        `Worker agent "${agentId}" is missing or disabled. Ask the user to update Settings → Personal Assistant → Worker types.`,
       );
     }
 
@@ -172,7 +227,13 @@ export class WorkerManager implements WorkerService {
       id: `w_${randomUUID().slice(0, 8)}`,
       name: input.name?.trim() || basename(cwd),
       agentId,
-      modelId: settings.assistant.worker.modelId,
+      modelId: type.modelId,
+      permissionMode: type.permissionMode ?? "ask",
+      typeId: type.id,
+      typeName: type.name,
+      features: type.features.filter((feature) => WORKER_FEATURES.includes(feature)),
+      mcpServers: type.mcpServers.slice(),
+      instructions: type.instructions.trim(),
       cwd,
       resumeId: null,
       status: "idle",
@@ -187,11 +248,12 @@ export class WorkerManager implements WorkerService {
       bridge: null,
       connectPromise: null,
       running: null,
+      socketServer: null,
       suppressNotifications: false,
       terminated: false,
     });
     this.notifyChange();
-    return { workerId: record.id, cwd };
+    return { workerId: record.id, cwd, typeId: type.id, typeName: type.name };
   }
 
   async send(input: WorkerSendInput): Promise<WorkerSendResult> {
@@ -206,7 +268,8 @@ export class WorkerManager implements WorkerService {
 
     const turnId = randomUUID();
     const startedAt = Date.now();
-    const prompt = `${input.message}${WORKER_REPORT_FOOTER}`;
+    const instructions = handle.record.instructions?.trim();
+    const prompt = `${instructions ? `${instructions}\n\n---\n` : ""}${input.message}${WORKER_REPORT_FOOTER}`;
 
     const segmentId = await this.store.beginTurn(handle.record.id);
     await this.store.append(handle.record.id, {
@@ -405,6 +468,7 @@ export class WorkerManager implements WorkerService {
       await handle.bridge.kill().catch(() => {});
       handle.bridge = null;
     }
+    this.stopSocketServer(handle);
     handle.record.lastActiveAt = Date.now();
     await this.store.upsert(handle.record);
     this.handles.delete(handle.record.id);
@@ -434,6 +498,7 @@ export class WorkerManager implements WorkerService {
         await handle.bridge.kill().catch(() => {});
         handle.bridge = null;
       }
+      this.stopSocketServer(handle);
       this.handles.delete(record.id);
     }
 
@@ -475,6 +540,7 @@ export class WorkerManager implements WorkerService {
           await handle.bridge.kill().catch(() => {});
           handle.bridge = null;
         }
+        this.stopSocketServer(handle);
         if (handle.record.status !== "closed") {
           // A clean shutdown cancels the turn, so the worker is idle when the app
           // comes back. Crashes leave "running" behind and init() marks it interrupted.
@@ -513,6 +579,10 @@ export class WorkerManager implements WorkerService {
       connectionStatus: this.connectionStatusOf(this.handles.get(record.id)),
       cwd: record.cwd,
       agentId: record.agentId,
+      modelId: record.modelId ?? null,
+      permissionMode: record.permissionMode ?? "ask",
+      typeId: record.typeId ?? null,
+      typeName: record.typeName ?? null,
       createdAt: record.createdAt,
       lastActiveAt: record.lastActiveAt,
       currentTurnId,
@@ -541,6 +611,7 @@ export class WorkerManager implements WorkerService {
       bridge: null,
       connectPromise: null,
       running: null,
+      socketServer: null,
       suppressNotifications: false,
       terminated: false,
     };
@@ -555,7 +626,7 @@ export class WorkerManager implements WorkerService {
     handle.suppressNotifications = true;
     handle.connectPromise = (async () => {
       const agentInfo = resolveAgentInfo(handle.record.agentId);
-      const mcpServers = this.buildMcpServers();
+      const mcpServers = await this.buildMcpServers(handle);
       const bridge = new ACPBridge(handle.record.agentId, {
         agentInfo,
         cwd: handle.record.cwd,
@@ -611,6 +682,7 @@ export class WorkerManager implements WorkerService {
       } catch (error) {
         handle.bridge = null;
         await bridge.kill().catch(() => {});
+        this.stopSocketServer(handle);
         throw error;
       }
     })().finally(() => {
@@ -620,36 +692,71 @@ export class WorkerManager implements WorkerService {
     return handle.connectPromise;
   }
 
-  private buildMcpServers(): McpServer[] {
-    const settings = this.options.ctx.storage.getSettings();
-    const servers: McpServer[] = [];
-    for (const id of settings.assistant.worker.mcpServers) {
-      const config = settings.mcpServers.find((candidate) => candidate.id === id);
-      if (!config || config.disabled) continue;
-      if (config.type === "stdio") {
-        servers.push({
-          name: id,
-          command: config.command,
-          args: config.args,
-          env: Object.entries(config.env).map(([name, value]) => ({ name, value })),
-        });
-      } else if (config.type === "http") {
-        servers.push({
-          type: "http",
-          name: id,
-          url: config.url,
-          headers: Object.entries(config.headers).map(([name, value]) => ({ name, value })),
-        });
-      } else if (config.type === "sse") {
-        servers.push({
-          type: "sse",
-          name: id,
-          url: config.url,
-          headers: Object.entries(config.headers).map(([name, value]) => ({ name, value })),
+  private async buildMcpServers(handle: WorkerHandle): Promise<McpServer[]> {
+    const record = handle.record;
+    const features = (record.features ?? []).filter((feature) =>
+      WORKER_FEATURES.includes(feature),
+    );
+    const socketServer = await this.ensureSocketServer(handle, features);
+    const project: ProjectInfo = {
+      id: createHash("sha1").update(record.cwd).digest("hex"),
+      title: record.name,
+      cwd: record.cwd,
+      createdAt: record.createdAt,
+    };
+    return buildMcpServersConfig(
+      record.mcpServers ?? [],
+      { project, socketPath: socketServer.socketPath, features },
+      this.options.ctx,
+      this.options.mcpDeps,
+    );
+  }
+
+  private async ensureSocketServer(
+    handle: WorkerHandle,
+    features: Feature[],
+  ): Promise<SocketServer> {
+    if (handle.socketServer) return handle.socketServer;
+    const socketPath = generateSocketPath(`worker-${handle.record.id}`);
+    const server = await startSocketServer(socketPath);
+    try {
+      const shareDir = join(handle.record.cwd, "share");
+      this.options.mcpDeps.toolbox.registerToolboxRoute(server, handle.record.cwd);
+      if (features.includes("skills")) {
+        this.options.mcpDeps.skills.registerSkillsRoute(server, handle.record.cwd);
+      }
+      if (features.includes("search")) {
+        this.options.mcpDeps.search.registerSearchRoute(server, handle.record.cwd);
+      }
+      if (features.includes("ask_user")) {
+        this.options.mcpDeps.askUser.registerAskUserRoute(server, ASSISTANT_SESSION_ID, {
+          titlePrefix: `[${handle.record.name}] `,
         });
       }
+      if (features.includes("share_to_user")) {
+        this.options.mcpDeps.shareToUser.registerShareToUserRoute(server, ASSISTANT_SESSION_ID, {
+          cwd: handle.record.cwd,
+          shareDir,
+        });
+      }
+      if (features.includes("image_generation")) {
+        this.options.mcpDeps.imageGeneration.registerImageGenerationRoute(
+          server,
+          ASSISTANT_SESSION_ID,
+          { shareDir },
+        );
+      }
+    } catch (error) {
+      server.stop();
+      throw error;
     }
-    return servers;
+    handle.socketServer = server;
+    return server;
+  }
+
+  private stopSocketServer(handle: WorkerHandle): void {
+    handle.socketServer?.stop();
+    handle.socketServer = null;
   }
 
   private handleNotification(handle: WorkerHandle, notification: SessionNotification): void {
@@ -718,8 +825,9 @@ export class WorkerManager implements WorkerService {
 
     if (closed || handle.terminated || stopReason === "cancelled" || this.shuttingDown) return;
     const event = error ? "failed" : "finished";
+    const typeLabel = handle.record.typeName ?? handle.record.typeId ?? "worker";
     const lines = [
-      `[Worker id="${handle.record.id}" event="${event}" turn="${turnId}"] ${handle.record.name}`,
+      `[Worker id="${handle.record.id}" type="${typeLabel}" event="${event}" turn="${turnId}"] ${handle.record.name}`,
     ];
     if (error) lines.push(`Error: ${error}`);
     else if (stopReason) lines.push(`Stop reason: ${stopReason}`);
@@ -732,6 +840,15 @@ export class WorkerManager implements WorkerService {
     handle: WorkerHandle,
     request: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
+    if ((handle.record.permissionMode ?? "ask") === "allow-all") {
+      const allowOption =
+        request.options.find((option) => option.kind === "allow_always") ??
+        request.options.find((option) => option.kind === "allow_once");
+      return Promise.resolve({
+        outcome: { outcome: "selected", optionId: allowOption?.optionId ?? "deny" },
+      });
+    }
+
     const permissionId = `p_${randomUUID().slice(0, 8)}`;
     const title = request.toolCall.title ?? request.toolCall.toolCallId;
     const rawInput = request.toolCall.rawInput;
@@ -776,7 +893,7 @@ export class WorkerManager implements WorkerService {
       const kinds = [...new Set(options.map((option) => option.kind))];
       this.options.notify(
         [
-          `[Worker id="${handle.record.id}" event="permission" permission="${permissionId}"] ${handle.record.name} requests permission`,
+          `[Worker id="${handle.record.id}" type="${handle.record.typeName ?? handle.record.typeId ?? "worker"}" event="permission" permission="${permissionId}"] ${handle.record.name} requests permission`,
           `Tool: ${title}`,
           input ? truncate(input, 800) : null,
           `Options: ${kinds.join(", ") || "none"}`,

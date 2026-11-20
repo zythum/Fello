@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { join, relative, isAbsolute } from "path";
+import { join, relative, resolve, isAbsolute, sep } from "path";
 import { fileURLToPath } from "url";
 import { readFile, writeFile } from "fs/promises";
 import { existsSync, mkdirSync } from "fs";
@@ -14,8 +14,19 @@ import type { IlinkState } from "./ilink";
 
 // ── Types ────────────────────────────────────────────────────────────
 
+export interface ShareToUserContext {
+  /** Working directory used for project-relative shares. */
+  cwd: string;
+  /** Directory that receives link/base64 shares. Omitted for project-only callers. */
+  shareDir?: string;
+  /** Reject link/base64 shares and only allow workspace-relative project paths. */
+  projectOnly?: boolean;
+}
+
 export interface ShareToUserOptions {
   sessionId: string;
+  /** Overrides session lookup for non-session callers such as workers. */
+  context?: ShareToUserContext;
   type: "link" | "base64" | "project";
   uri?: string;
   data?: string;
@@ -32,8 +43,16 @@ export interface ShareToUserResult {
 
 export interface ShareToUserModule {
   shareToUser: (options: ShareToUserOptions) => Promise<ShareToUserResult>;
-  registerShareToUserRoute: (server: SocketServer, sessionId: string) => void;
-  buildShareToUserMcpServer: (options: { projectDir: string; socketPath: string }) => {
+  registerShareToUserRoute: (
+    server: SocketServer,
+    sessionId: string,
+    context?: ShareToUserContext,
+  ) => void;
+  buildShareToUserMcpServer: (options: {
+    projectDir: string;
+    socketPath: string;
+    projectOnly?: boolean;
+  }) => {
     name: string;
     command: string;
     args: string[];
@@ -55,23 +74,32 @@ export function createShareToUserModule(
   const { storage } = ctx;
 
   async function shareToUser(options: ShareToUserOptions): Promise<ShareToUserResult> {
-    const { sessionId, type, uri, data, name, mimeType } = options;
+    const { sessionId, context, type, uri, data, name, mimeType } = options;
     const resolvedMimeType = resolveMimeType(name, mimeType);
+    const session = context ? null : storage.getSession(sessionId);
+    const cwd = context?.cwd ?? session?.cwd;
 
     // ── type='project': zero-copy, reference project file directly ──
     if (type === "project" && uri) {
-      const session = storage.getSession(sessionId);
-      if (!session) throw new Error(`Session not found: ${sessionId}`);
+      if (!cwd) throw new Error(`Session not found: ${sessionId}`);
 
       // Normalize `uri` to a project-relative path. Callers may pass an
       // absolute path or a file:// URI; the frontend /project/<id>/<path>
       // route and reveal/preview actions all expect a relative path.
       let projectPath = uri.startsWith("file://") ? fileURLToPath(uri) : uri;
       if (isAbsolute(projectPath)) {
-        const rel = relative(session.cwd, projectPath);
+        const rel = relative(cwd, projectPath);
         if (!rel.startsWith("..") && !isAbsolute(rel)) {
           projectPath = rel;
         }
+      }
+      if (context?.projectOnly) {
+        const absolute = isAbsolute(projectPath) ? projectPath : resolve(cwd, projectPath);
+        const rel = relative(cwd, absolute);
+        if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+          throw new Error("Shared project paths must stay inside the assistant workspace.");
+        }
+        projectPath = rel;
       }
 
       const ilinkBridge = deps.ilink.getBridge();
@@ -80,7 +108,7 @@ export function createShareToUserModule(
         const toUserId = ilinkBridge.userId;
         if (toUserId) {
           deps.ilink.appendMediaBuffer({
-            filePath: join(session.cwd, projectPath),
+            filePath: join(cwd, projectPath),
             name,
             toUserId,
             mimeType: resolvedMimeType,
@@ -91,8 +119,13 @@ export function createShareToUserModule(
     }
 
     // ── type='link' or 'base64': copy to share directory ──
+    if (context?.projectOnly) {
+      throw new Error(
+        "This share tool only accepts workspace-relative project files. Write the file into the workspace first and use type='project'.",
+      );
+    }
     const shareId = randomUUID();
-    const shareDir = storage.sessionShareDir(sessionId);
+    const shareDir = context?.shareDir ?? storage.sessionShareDir(sessionId);
     if (!shareDir) throw new Error(`Session not found: ${sessionId}`);
 
     const targetDir = join(shareDir, shareId);
@@ -146,15 +179,23 @@ export function createShareToUserModule(
     return { name, sharePath: `${shareId}/${name}`, mimeType: resolvedMimeType };
   }
 
-  function registerShareToUserRoute(server: SocketServer, sessionId: string) {
+  function registerShareToUserRoute(
+    server: SocketServer,
+    sessionId: string,
+    context?: ShareToUserContext,
+  ) {
     server.registry("share-to-user/share", async (payload) => {
       const request = shareToUserRequestSchema.parse(payload);
-      const result: ShareToUserRespond = await shareToUser({ sessionId, ...request });
+      const result: ShareToUserRespond = await shareToUser({ sessionId, context, ...request });
       return result;
     });
   }
 
-  function buildShareToUserMcpServer(options: { projectDir: string; socketPath: string }) {
+  function buildShareToUserMcpServer(options: {
+    projectDir: string;
+    socketPath: string;
+    projectOnly?: boolean;
+  }) {
     return {
       name: "share-to-user",
       command: process.execPath,
@@ -164,6 +205,7 @@ export function createShareToUserModule(
         options.projectDir,
         "--socket-path",
         options.socketPath,
+        ...(options.projectOnly ? ["--project-only"] : []),
       ],
       env: [{ name: "ELECTRON_RUN_AS_NODE", value: "1" }],
     };

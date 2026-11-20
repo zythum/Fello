@@ -16,11 +16,21 @@ export function createWorkerTools({
   worker: WorkerService;
   sendUpdate: ToolUpdateSender;
 }) {
+  const types = worker.listTypes();
+  const typeList = types.length
+    ? types
+        .map((type) => `- ${type.id} ("${type.name}"): ${type.description || "No description"}`)
+        .join("\n")
+    : "- (no enabled worker types configured)";
+
   return {
     worker_create: tool({
-      description:
-        "Create a worker: a persistent ACP agent session you drive in the background. The agent, model and MCP servers come from Settings → Personal Assistant → Worker. `workspace` is the worker's cwd (absolute, or relative to your workspace) and is created if missing. Returns a workerId; no work starts until you call worker_send. Use workers for substantial, file-heavy or long jobs and answer quick questions yourself.",
+      description: `Create a worker: a persistent ACP agent session you drive in the background. Choose the worker type whose name/description best matches the task; its agent, model, features and MCP servers come from Settings → Personal Assistant → Worker types. Choose one of the available types explicitly:\n${typeList}\n\`workspace\` is the worker's cwd (absolute, or relative to your workspace) and is created if missing. Returns a workerId; no work starts until you call worker_send. Use workers for substantial, file-heavy or long jobs and answer quick questions yourself.`,
       inputSchema: z.object({
+        typeId: z
+          .string()
+          .min(1)
+          .describe("Worker type id from the available list. Required."),
         workspace: z
           .string()
           .min(1)
@@ -43,7 +53,8 @@ export function createWorkerTools({
             rawInput: input,
           },
           () => worker.create(input),
-          (result) => `Worker ${result.workerId} ready in ${result.cwd}`,
+          (result) =>
+            `Worker ${result.workerId} (${result.typeName}) ready in ${result.cwd}`,
         ),
     }),
 

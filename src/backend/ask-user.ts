@@ -35,7 +35,11 @@ export interface AskUserModule {
     value: string | null;
     reason?: string | null;
   }) => Promise<void>;
-  registerAskUserRoute: (server: SocketServer, sessionId: string) => void;
+  registerAskUserRoute: (
+    server: SocketServer,
+    sessionId: string,
+    options?: { titlePrefix?: string },
+  ) => void;
   buildAskUserMcpServer: (options: { projectDir: string; socketPath: string }) => {
     name: string;
     command: string;
@@ -170,12 +174,17 @@ export function createAskUserModule(
     }
   }
 
-  function registerAskUserRoute(server: SocketServer, sessionId: string) {
+  function registerAskUserRoute(
+    server: SocketServer,
+    sessionId: string,
+    options?: { titlePrefix?: string },
+  ) {
     server.registry("ask-user/ask", async (payload) => {
       const request = askUserAskRequestSchema.parse(payload);
       const result: z.infer<typeof askUserAskRespondSchema> = await askUser({
         sessionId,
         ...request,
+        title: options?.titlePrefix ? `${options.titlePrefix}${request.title}` : request.title,
       });
       return result;
     });

@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
-import type { ContentBlock, SessionNotification, ToolCallUpdate } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  SessionNotification,
+  ToolCallUpdate,
+  UsageUpdate,
+} from "@agentclientprotocol/sdk";
+import type { McpServer, Usage } from "@agentclientprotocol/sdk/unstable";
 import type {
   ApiAgentInfo,
   AssistantStatus,
@@ -25,6 +31,7 @@ import { ASSISTANT_WORKSPACE } from "../storage/constant";
 import type { BackendContext } from "../types";
 import type { AskUserModule } from "../ask-user";
 import type { FileSystemTools } from "../../assistant/fs/tools";
+import type { McpConfigDeps } from "../session/mcp-config";
 import { WorkerManager } from "./worker/manager";
 
 export interface AssistantModule {
@@ -92,6 +99,39 @@ function getAssistantApiAgent(ctx: BackendContext, agentId: string): ApiAgentInf
     : null;
 }
 
+/** The assistant's own MCP servers (separate from the worker's selection). */
+function buildAssistantMcpServers(ctx: BackendContext): McpServer[] {
+  const settings = ctx.storage.getSettings();
+  const servers: McpServer[] = [];
+  for (const id of settings.assistant.mcpServers) {
+    const config = settings.mcpServers.find((candidate) => candidate.id === id);
+    if (!config) continue;
+    if (config.type === "stdio") {
+      servers.push({
+        name: id,
+        command: config.command,
+        args: config.args,
+        env: Object.entries(config.env).map(([name, value]) => ({ name, value })),
+      });
+    } else if (config.type === "http") {
+      servers.push({
+        type: "http",
+        name: id,
+        url: config.url,
+        headers: Object.entries(config.headers).map(([name, value]) => ({ name, value })),
+      });
+    } else if (config.type === "sse") {
+      servers.push({
+        type: "sse",
+        name: id,
+        url: config.url,
+        headers: Object.entries(config.headers).map(([name, value]) => ({ name, value })),
+      });
+    }
+  }
+  return servers;
+}
+
 function enrichNotification(notification: SessionNotification): SessionNotificationFelloExt {
   return {
     ...notification,
@@ -118,7 +158,7 @@ class AssistantBusyError extends Error {
 
 export function createAssistantModule(
   ctx: BackendContext,
-  deps: { askUser: AskUserModule; filesystem: FileSystemTools },
+  deps: { askUser: AskUserModule; filesystem: FileSystemTools; mcpDeps: McpConfigDeps },
 ): AssistantModule {
   let bridge: ACPBridge | null = null;
   let starting: Promise<void> | null = null;
@@ -132,6 +172,8 @@ export function createAssistantModule(
     dreaming: false,
     models: null,
     thoughtLevels: null,
+    usage: null,
+    lastTurnUsage: null,
   };
 
   // Wakes are messages injected into the assistant's chat: reminder deliveries and worker
@@ -160,6 +202,7 @@ export function createAssistantModule(
 
   const workerManager = new WorkerManager({
     ctx,
+    mcpDeps: deps.mcpDeps,
     workspaceRoot: ASSISTANT_WORKSPACE,
     notify: (text) => {
       enqueueWake({ key: `worker:${randomUUID()}`, text, at: Date.now() });
@@ -292,6 +335,12 @@ export function createAssistantModule(
     const enriched = enrichNotification(notification);
     const type = enriched.update.sessionUpdate;
     if (type === "usage_update" || type === "available_commands_update") {
+      if (type === "usage_update") {
+        const usage = enriched.update as UsageUpdate;
+        updateStatus({
+          usage: { used: usage.used, size: usage.size, cost: usage.cost },
+        });
+      }
       ctx.sendEvent("assistant-update", { notification: enriched });
       return;
     }
@@ -379,11 +428,13 @@ export function createAssistantModule(
           id: ASSISTANT_AGENT_ID,
           type: "assistant",
           sourceAgent: agentInfo,
+          getMcpServers: () => buildAssistantMcpServers(ctx),
           getDream: () => ctx.storage.getSettings().assistant.dream,
           reminders,
           worker: workerManager,
           askUser: (options) =>
             deps.askUser.askUser({ sessionId: ASSISTANT_SESSION_ID, ...options }),
+          shareToUser: deps.mcpDeps.shareToUser,
           filesystem: deps.filesystem,
           onDreamStatus: ({ dreaming, error }) => {
             updateStatus({ dreaming, dreamError: error });
@@ -493,10 +544,12 @@ export function createAssistantModule(
           messageSegment,
         );
       }
-      return await activeBridge.sendPrompt({
+      const result: PromptResult & { usage?: Usage | null } = await activeBridge.sendPrompt({
         sessionId: ASSISTANT_SESSION_ID,
         prompt: contents,
       });
+      if (result.usage) updateStatus({ lastTurnUsage: result.usage });
+      return result;
     } finally {
       await notificationTail;
       endAssistantMessageTurn(messageSegment);

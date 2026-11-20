@@ -86,6 +86,14 @@ export const ALL_FEATURES: Feature[] = [
   "share_to_user",
 ];
 
+/**
+ * 可注入后台 worker 的 feature 列表。
+ * Worker 是可对话的 ACP 会话：ask_user 路由到助理页的提问弹层，share_to_user /
+ * image_generation 使用 worker 自己的 share 目录。
+ * memory 属于助理的长期记忆体系，不开放给 worker，避免概念混淆。
+ */
+export const WORKER_FEATURES: Feature[] = ALL_FEATURES.filter((feature) => feature !== "memory");
+
 /** feature → i18n key 映射 */
 export const FEATURE_I18N_KEYS: Record<Feature, string> = {
   search: "constant.feature.search",

@@ -271,7 +271,12 @@ export type MemoryFileWithIds = {
 
 export interface MemoryModule {
   /** Register Socket routes for Session Agent's mcp-memory */
-  registerMemoryRoute: (server: SocketServer, projectId: string, sessionId: string) => void;
+  registerMemoryRoute: (
+    server: SocketServer,
+    projectId: string,
+    sessionId: string,
+    context?: SessionContext,
+  ) => void;
   /** Build the mcp-memory MCP server config for Session Agent */
   buildMemoryMcpServer: (options: { projectDir: string; socketPath: string }) => {
     name: string;
@@ -424,8 +429,14 @@ export function createMemoryModule(
 
   // ── Socket Route Handlers ──────────────────────────────────────────
 
-  function registerMemoryRoute(server: SocketServer, projectId: string, sessionId: string): void {
+  function registerMemoryRoute(
+    server: SocketServer,
+    projectId: string,
+    sessionId: string,
+    context?: SessionContext,
+  ): void {
     function getSessionContext(): SessionContext {
+      if (context) return context;
       const session = _ctx.storage.getSession(sessionId);
       return {
         agentId: session?.agentId ?? "default",

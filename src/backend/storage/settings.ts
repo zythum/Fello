@@ -7,6 +7,7 @@ import { ALL_FEATURES } from "../../shared/constants";
 import type {
   Feature,
   PeripheralSettingInfo,
+  SettingAssistantWorkerType,
   SettingProxyInfo,
   ShortcutSettings,
   SnippetInfo,
@@ -127,15 +128,12 @@ interface SettingsMeta {
   assistant: {
     enabled: boolean;
     sourceAgentId: string | null;
+    mcpServers: string[];
     dream: {
       maxContextTokens: number;
       preferredTime: string;
     };
-    worker: {
-      agentId: string | null;
-      modelId: string | null;
-      mcpServers: string[];
-    };
+    workerTypes: SettingAssistantWorkerType[];
   };
   editor: {
     name: string;
@@ -186,15 +184,12 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   assistant: {
     enabled: true,
     sourceAgentId: null,
+    mcpServers: ["exa"],
     dream: {
       maxContextTokens: 96_000,
       preferredTime: "02:00",
     },
-    worker: {
-      agentId: null,
-      modelId: null,
-      mcpServers: [],
-    },
+    workerTypes: [],
   },
   editor: {
     name: "code",
@@ -217,6 +212,41 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   peripherals: [],
 };
+
+function normalizeWorkerType(value: unknown): SettingAssistantWorkerType | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === "string" ? record.id.trim() : "";
+  if (!id) return null;
+  const features =
+    Array.isArray(record.features) && record.features.every((item) => typeof item === "string")
+      ? [
+          ...new Set(
+            (record.features as string[]).filter((item): item is Feature =>
+              (ALL_FEATURES as readonly string[]).includes(item),
+            ),
+          ),
+        ]
+      : [];
+  const agentId =
+    typeof record.agentId === "string" && record.agentId.trim() ? record.agentId.trim() : null;
+  const modelId =
+    typeof record.modelId === "string" && record.modelId.trim() ? record.modelId.trim() : null;
+  return {
+    id,
+    name: typeof record.name === "string" && record.name.trim() ? record.name.trim() : id,
+    description: typeof record.description === "string" ? record.description.trim() : "",
+    enabled: typeof record.enabled === "boolean" ? record.enabled : true,
+    agentId,
+    modelId,
+    permissionMode: record.permissionMode === "allow-all" ? "allow-all" : "ask",
+    features,
+    mcpServers: Array.isArray(record.mcpServers)
+      ? [...new Set(record.mcpServers.filter((item): item is string => typeof item === "string"))]
+      : [],
+    instructions: typeof record.instructions === "string" ? record.instructions.trim() : "",
+  };
+}
 
 function settingsPath() {
   return join(FELLO_DIR, "settings.json");
@@ -414,6 +444,21 @@ function readSettings(): SettingsMeta {
       const rawDream = isObject(raw?.dream) ? raw.dream : null;
       const maxContextTokens = rawDream?.maxContextTokens;
       const preferredTime = rawDream?.preferredTime;
+      const rawWorkerTypes = raw?.workerTypes;
+      const workerTypes = Array.isArray(rawWorkerTypes)
+        ? (() => {
+            const types: SettingAssistantWorkerType[] = [];
+            const seen = new Set<string>();
+            for (const value of rawWorkerTypes) {
+              const type = normalizeWorkerType(value);
+              const key = type?.id.toLowerCase();
+              if (!type || !key || seen.has(key)) continue;
+              seen.add(key);
+              types.push(type);
+            }
+            return types;
+          })()
+        : [];
       return {
         enabled:
           typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
@@ -421,6 +466,9 @@ function readSettings(): SettingsMeta {
           typeof raw?.sourceAgentId === "string" || raw?.sourceAgentId === null
             ? raw.sourceAgentId
             : DEFAULT_SETTINGS.assistant.sourceAgentId,
+        mcpServers: Array.isArray(raw?.mcpServers)
+          ? raw.mcpServers.filter((id): id is string => typeof id === "string")
+          : DEFAULT_SETTINGS.assistant.mcpServers,
         dream: {
           maxContextTokens:
             typeof maxContextTokens === "number" &&
@@ -433,23 +481,7 @@ function readSettings(): SettingsMeta {
               ? preferredTime
               : DEFAULT_SETTINGS.assistant.dream.preferredTime,
         },
-        worker: (() => {
-          const rawWorker = isObject(raw?.worker) ? raw.worker : null;
-          const modelId = rawWorker?.modelId;
-          return {
-            agentId:
-              typeof rawWorker?.agentId === "string" || rawWorker?.agentId === null
-                ? (rawWorker.agentId as string | null)
-                : DEFAULT_SETTINGS.assistant.worker.agentId,
-            modelId:
-              typeof modelId === "string" && modelId.trim()
-                ? modelId.trim()
-                : DEFAULT_SETTINGS.assistant.worker.modelId,
-            mcpServers: Array.isArray(rawWorker?.mcpServers)
-              ? rawWorker.mcpServers.filter((id): id is string => typeof id === "string")
-              : DEFAULT_SETTINGS.assistant.worker.mcpServers,
-          };
-        })(),
+        workerTypes,
       };
     })();
 
@@ -752,12 +784,13 @@ export function getSettings(): SettingsInfo {
     assistant: {
       enabled: meta.assistant.enabled,
       sourceAgentId: meta.assistant.sourceAgentId,
+      mcpServers: meta.assistant.mcpServers.slice(),
       dream: { ...meta.assistant.dream },
-      worker: {
-        agentId: meta.assistant.worker.agentId,
-        modelId: meta.assistant.worker.modelId,
-        mcpServers: meta.assistant.worker.mcpServers.slice(),
-      },
+      workerTypes: meta.assistant.workerTypes.map((type) => ({
+        ...type,
+        features: type.features.slice(),
+        mcpServers: type.mcpServers.slice(),
+      })),
     },
     editor: {
       name: meta.editor.name,
@@ -824,6 +857,20 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
   const meta: SettingsMeta = {
     assistant: (() => {
       if (!settings.assistant) return prevMeta.assistant;
+      const workerTypes = Array.isArray(settings.assistant.workerTypes)
+        ? (() => {
+            const types: SettingAssistantWorkerType[] = [];
+            const seen = new Set<string>();
+            for (const value of settings.assistant.workerTypes) {
+              const type = normalizeWorkerType(value);
+              const key = type?.id.toLowerCase();
+              if (!type || !key || seen.has(key)) continue;
+              seen.add(key);
+              types.push(type);
+            }
+            return types;
+          })()
+        : prevMeta.assistant.workerTypes;
       return {
         enabled:
           typeof settings.assistant.enabled === "boolean"
@@ -834,6 +881,9 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           settings.assistant.sourceAgentId === null
             ? settings.assistant.sourceAgentId
             : prevMeta.assistant.sourceAgentId,
+        mcpServers: Array.isArray(settings.assistant.mcpServers)
+          ? settings.assistant.mcpServers.filter((id): id is string => typeof id === "string")
+          : prevMeta.assistant.mcpServers,
         dream: {
           maxContextTokens:
             Number.isSafeInteger(settings.assistant.dream?.maxContextTokens) &&
@@ -846,25 +896,7 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
               ? settings.assistant.dream.preferredTime
               : prevMeta.assistant.dream.preferredTime,
         },
-        worker: (() => {
-          const worker = settings.assistant.worker;
-          if (!worker) return prevMeta.assistant.worker;
-          return {
-            agentId:
-              typeof worker.agentId === "string" || worker.agentId === null
-                ? worker.agentId
-                : prevMeta.assistant.worker.agentId,
-            modelId:
-              typeof worker.modelId === "string"
-                ? worker.modelId.trim() || null
-                : worker.modelId === null
-                  ? null
-                  : prevMeta.assistant.worker.modelId,
-            mcpServers: Array.isArray(worker.mcpServers)
-              ? worker.mcpServers.filter((id): id is string => typeof id === "string")
-              : prevMeta.assistant.worker.mcpServers,
-          };
-        })(),
+        workerTypes,
       };
     })(),
     agents: (() => {

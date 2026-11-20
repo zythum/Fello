@@ -30,6 +30,8 @@ export interface SessionConfigFieldsProps {
   /** 权限模式；与 `onPermissionModeChange` 同时提供才渲染权限分区 */
   permissionMode?: PermissionMode;
   onPermissionModeChange?: (next: PermissionMode) => void;
+  /** Set false to hide the Features section (for example the Personal Assistant). */
+  showFeatures?: boolean;
   /**
    * 视觉变体：
    * - `popover`：会话头部弹出层风格（紧凑行 + 分区之间的分隔线，无 MCP 时整段隐藏）
@@ -46,6 +48,7 @@ export function SessionConfigFields({
   onFeaturesChange,
   permissionMode,
   onPermissionModeChange,
+  showFeatures = true,
   variant = "popover",
   className,
 }: SessionConfigFieldsProps) {
@@ -98,21 +101,23 @@ export function SessionConfigFields({
         </div>
       )}
 
-      <div className={cn(isCard && "flex flex-col gap-2")}>
-        <div className={sectionTitleClassName}>{t("sessionConfig.features", "Features")}</div>
-        <div className={toggleGridClassName(ALL_FEATURES.length, variant)}>
-          {ALL_FEATURES.map((feature) => (
-            <ToggleRow
-              key={feature}
-              variant={variant}
-              label={t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
-              checked={features.includes(feature)}
-              onToggle={(checked) => toggleFeature(feature, checked)}
-            />
-          ))}
+      {showFeatures && (
+        <div className={cn(isCard && "flex flex-col gap-2")}>
+          <div className={sectionTitleClassName}>{t("sessionConfig.features", "Features")}</div>
+          <div className={toggleGridClassName(ALL_FEATURES.length, variant)}>
+            {ALL_FEATURES.map((feature) => (
+              <ToggleRow
+                key={feature}
+                variant={variant}
+                label={t(FEATURE_I18N_KEYS[feature], { defaultValue: feature })}
+                checked={features.includes(feature)}
+                onToggle={(checked) => toggleFeature(feature, checked)}
+              />
+            ))}
+          </div>
+          {!isCard && <div className="border-t border-border/50 my-1" />}
         </div>
-        {!isCard && <div className="border-t border-border/50 my-1" />}
-      </div>
+      )}
 
       {showMcpSection && (
         <div className={cn(isCard && "flex flex-col gap-2")}>

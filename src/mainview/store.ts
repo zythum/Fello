@@ -276,8 +276,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   assistant: {
     enabled: true,
     sourceAgentId: null,
+    mcpServers: ["exa"],
     dream: { maxContextTokens: 96_000, preferredTime: "02:00" },
-    worker: { agentId: null, modelId: null, mcpServers: [] },
+    workerTypes: [],
   },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
@@ -439,7 +440,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setProxy: (proxy) => set({ proxy }),
   setIlink: (ilink) => set({ ilink }),
-  setAssistant: (assistant) => set({ assistant }),
+  // 兼容旧版后端/旧设置缓存：老进程的 assistant 可能没有这些新字段。
+  setAssistant: (assistant) =>
+    set({
+      assistant: {
+        ...assistant,
+        mcpServers: assistant.mcpServers ?? [],
+        workerTypes: (assistant.workerTypes ?? []).map((type) => ({
+          ...type,
+          features: type.features ?? [],
+          mcpServers: type.mcpServers ?? [],
+          instructions: type.instructions ?? "",
+          enabled: type.enabled ?? true,
+          permissionMode: type.permissionMode ?? "ask",
+        })),
+      },
+    }),
   setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),
   setVoiceInput: (voiceInput) => set({ voiceInput }),

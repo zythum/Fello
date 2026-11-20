@@ -22,12 +22,22 @@ export interface ImageGenerationResult {
   filePaths: string[];
 }
 
+export interface ImageGenerationContext {
+  /** Directory that receives generated images (workers have no session share dir). */
+  shareDir: string;
+}
+
 export interface ImageGenerationModule {
   generateImage: (
     sessionId: string,
     request: ImageGenerationRequest,
+    context?: ImageGenerationContext,
   ) => Promise<ImageGenerationResult>;
-  registerImageGenerationRoute: (server: SocketServer, sessionId: string) => void;
+  registerImageGenerationRoute: (
+    server: SocketServer,
+    sessionId: string,
+    context?: ImageGenerationContext,
+  ) => void;
   buildImageGenerationMcpServer: (options: { projectDir: string; socketPath: string }) => {
     name: string;
     command: string;
@@ -159,6 +169,7 @@ export function createImageGenerationModule(
   async function generateImage(
     sessionId: string,
     request: ImageGenerationRequest,
+    context?: ImageGenerationContext,
   ): Promise<ImageGenerationResult> {
     const provider = getActiveProvider();
 
@@ -166,7 +177,7 @@ export function createImageGenerationModule(
     const apiResult = await callOpenAICompatibleApi(provider, request);
 
     // Save to share directory
-    const shareDir = storage.sessionShareDir(sessionId);
+    const shareDir = context?.shareDir ?? storage.sessionShareDir(sessionId);
     if (!shareDir) throw new Error(`Session not found: ${sessionId}`);
 
     const shareId = randomUUID();
@@ -227,10 +238,14 @@ export function createImageGenerationModule(
     return { respond, filePaths };
   }
 
-  function registerImageGenerationRoute(server: SocketServer, sessionId: string) {
+  function registerImageGenerationRoute(
+    server: SocketServer,
+    sessionId: string,
+    context?: ImageGenerationContext,
+  ) {
     server.registry("image-generation/generate", async (payload) => {
       const request = imageGenerationRequestSchema.parse(payload);
-      const result = await generateImage(sessionId, request);
+      const result = await generateImage(sessionId, request, context);
       return result;
     });
   }

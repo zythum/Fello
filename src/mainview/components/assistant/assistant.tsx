@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowUp, Astroid, Check, ChevronDown, Gauge, Loader2, PanelRightOpen, Square } from "lucide-react";
+import {
+  ArrowUp,
+  Astroid,
+  Check,
+  ChevronDown,
+  Gauge,
+  HatGlasses,
+  Loader2,
+  PanelRightOpen,
+  RefreshCw,
+  Settings2,
+  Square,
+} from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
   AssistantStatus,
@@ -38,6 +50,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, extractErrorMessage, generateUUID } from "@/lib/utils";
 import type { ChatMessage } from "../../lib/chat-message";
+import { useTtsAutoRead } from "../../lib/tts/use-tts-auto-read";
+import { electron } from "../../electron";
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import { CopyableRow } from "../common/copyable-row";
+import { SessionConfigFields } from "../common/session-config";
+import { TtsMenuButton, TtsReadoutButton } from "../common/tts-header-controls";
+import { UsageButton } from "../common/usage-button";
 import { useMessage } from "../providers/message";
 
 const EMPTY_MODELS: NonNullable<AssistantStatus["models"]>["availableModels"] = [];
@@ -69,8 +88,8 @@ function assistantSession(status: AssistantStatus | null): SessionInfo {
           ? "connecting"
           : "disconnected",
     isStreaming: status?.isStreaming ?? false,
-    usage: null,
-    lastTurnUsage: null,
+    usage: status?.usage ?? null,
+    lastTurnUsage: status?.lastTurnUsage ?? null,
   };
 }
 
@@ -80,6 +99,8 @@ export function Assistant() {
   const { toast } = useMessage();
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
+  const assistantSettings = useAppStore((state) => state.assistant);
+  const setAssistant = useAppStore((state) => state.setAssistant);
   const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
   const [detailFile, setDetailFile] = useState<string | null>(null);
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
@@ -93,8 +114,14 @@ export function Assistant() {
   const isFullScreen = useAppStore((state) => state.isFullScreen);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [input, setInput] = useState("");
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [localMcpServers, setLocalMcpServers] = useState<string[]>(
+    () => assistantSettings.mcpServers ?? [],
+  );
+  const assistantMcpServers = assistantSettings.mcpServers ?? [];
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
+  useTtsAutoRead(ASSISTANT_SESSION_ID);
 
   useEffect(() => {
     let active = true;
@@ -154,6 +181,21 @@ export function Assistant() {
     };
     document.addEventListener("fello-add-to-chat", handleAddToChat);
     return () => document.removeEventListener("fello-add-to-chat", handleAddToChat);
+  }, []);
+
+  // Tool/share bubbles dispatch this when their preview button is clicked.
+  useEffect(() => {
+    const handlePreviewFile = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ projectId?: string | null; relativePath?: string | null }>
+      ).detail;
+      const relativePath = detail?.relativePath ?? null;
+      if (!relativePath) return;
+      if (detail?.projectId && detail.projectId !== ASSISTANT_PROJECT_ID) return;
+      setDetailFile(relativePath);
+    };
+    document.addEventListener("fello-preview-file", handlePreviewFile);
+    return () => document.removeEventListener("fello-preview-file", handlePreviewFile);
   }, []);
 
   useEffect(() => {
@@ -314,6 +356,36 @@ export function Assistant() {
     [currentThoughtLevelId],
   );
 
+  const handleRestartAssistant = async () => {
+    if (isRestarting) return;
+    setIsRestarting(true);
+    try {
+      const mcpChanged =
+        localMcpServers.length !== assistantMcpServers.length ||
+        localMcpServers.some((id) => !assistantMcpServers.includes(id));
+      if (mcpChanged) {
+        const previous = assistantSettings;
+        const next = { ...assistantSettings, mcpServers: localMcpServers };
+        setAssistant(next);
+        try {
+          await request.updateSettings({ assistant: next });
+        } catch (error) {
+          setAssistant(previous);
+          throw error;
+        }
+      } else {
+        await request.restartAssistant();
+      }
+    } catch (error) {
+      toast.error(
+        extractErrorMessage(error) ||
+          t("assistant.restartFailed", "Failed to restart assistant."),
+      );
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
   return (
     <main
       ref={setMainEl}
@@ -323,7 +395,7 @@ export function Assistant() {
       {/* Content stays mounted and fades in once initialization finishes, like Session's chat area. */}
       <ResizablePanelGroup
         className={cn(
-          "flex min-h-0 flex-1 transition-opacity duration-500",
+          "flex h-full min-h-0 flex-1 transition-opacity duration-500",
           isInitializing && "pointer-events-none opacity-0",
         )}
       >
@@ -366,6 +438,71 @@ export function Assistant() {
             </span>
           </div>
           <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
+            <TtsReadoutButton />
+            <TtsMenuButton />
+            <UsageButton session={session} />
+            <PopoverPrimitive.Root
+              onOpenChange={(open) => {
+                if (open) setLocalMcpServers(assistantMcpServers);
+              }}
+            >
+              <PopoverPrimitive.Trigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors data-pressed:bg-sidebar-accent/40">
+                <Settings2 className="size-4" />
+              </PopoverPrimitive.Trigger>
+              <PopoverPrimitive.Portal>
+                <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
+                  <PopoverPrimitive.Popup className="z-10 max-h-[70vh] w-110 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+                    <div className="space-y-px py-1">
+                      <div className="px-2">
+                        <CopyableRow label={t("assistant.id", "ID")} value={ASSISTANT_SESSION_ID} />
+                      </div>
+                      <div className="px-2">
+                        <CopyableRow
+                          label={t("assistant.workspace", "Path")}
+                          value={status?.workspace ?? ""}
+                          openFolderTitle={t(
+                            "assistant.openWorkspace",
+                            "Open Workspace Folder",
+                          )}
+                          onOpenFolder={() => {
+                            if (status?.workspace) electron.revealInFinder(status.workspace);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <SessionConfigFields
+                      variant="popover"
+                      showFeatures={false}
+                      features={[]}
+                      onFeaturesChange={() => {}}
+                      mcpServers={localMcpServers}
+                      onMcpServersChange={setLocalMcpServers}
+                    />
+
+                    <div className="mt-1 px-1">
+                      <Button
+                        size="xs"
+                        className="h-7 w-full gap-1.5 text-xs font-normal"
+                        onClick={() => void handleRestartAssistant()}
+                        disabled={isRestarting}
+                      >
+                        {isRestarting ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="size-3" />
+                        )}
+                        <span>
+                          {isRestarting
+                            ? t("assistant.restarting", "Restarting…")
+                            : t("assistant.restart", "Restart Assistant")}
+                        </span>
+                      </Button>
+                    </div>
+                  </PopoverPrimitive.Popup>
+                </PopoverPrimitive.Positioner>
+              </PopoverPrimitive.Portal>
+            </PopoverPrimitive.Root>
             {status?.connectionStatus === "error" && (
               <Button
                 size="sm"
@@ -393,6 +530,8 @@ export function Assistant() {
           session={session}
           showTimeline={false}
           loadPreviousHistory={loadPreviousAssistantHistory}
+          avatar={HatGlasses}
+          name={t("assistant.title", "Personal Assistant")}
         />
 
         <div className="-mt-6 relative p-6 transition-opacity duration-300">

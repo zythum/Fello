@@ -205,6 +205,10 @@ export interface AssistantStatus {
   promptError?: string;
   models: SessionModelState | null;
   thoughtLevels: SessionThoughtLevelState | null;
+  /** Context-window usage reported by the assistant agent. */
+  usage?: UsageUpdate | null;
+  /** Usage of the last completed assistant turn. */
+  lastTurnUsage?: Usage | null;
 }
 
 /** Worker state shown in the Personal Assistant's Workers panel. */
@@ -226,6 +230,13 @@ export interface AssistantWorkerInfo {
   connectionStatus: AssistantWorkerConnectionStatus;
   cwd: string;
   agentId: string;
+  /** Model chosen for this worker; null means the agent default. */
+  modelId: string | null;
+  /** Permission mode snapshot used by this worker. */
+  permissionMode: "ask" | "allow-all";
+  /** Worker type snapshot used when this worker was created. */
+  typeId: string | null;
+  typeName: string | null;
   createdAt: number;
   lastActiveAt: number;
   currentTurnId: string | null;
@@ -417,27 +428,43 @@ export interface SettingILinkInfo {
 }
 
 /**
- * Personal Assistant 执行后台 worker 时使用的 agent 配置。
- * worker 本身只是一个普通 ACP session：这里只决定"用谁、用哪个模型、挂哪些 MCP"。
+ * Personal Assistant 的 worker 类型（专家模式）。
+ * worker 本身是一个普通 ACP session；类型决定"用谁、用哪个模型、启哪些 feature、挂哪些 MCP"。
  */
-export interface SettingAssistantWorkerInfo {
-  /** 已启用 agent 的 id；null 表示还没配置，此时无法创建 worker。 */
+export interface SettingAssistantWorkerType {
+  /** 稳定标识，用于 worker_create(typeId) 与持久化。 */
+  id: string;
+  /** 展示名，例如 "Coder"。 */
+  name: string;
+  /** 给助理选型用的描述：擅长什么、什么时候用。 */
+  description: string;
+  enabled: boolean;
+  /** 已启用 agent 的 id；null 表示还没配置，此时无法用该类型创建 worker。 */
   agentId: string | null;
   /** 留空使用 agent 默认模型。 */
   modelId: string | null;
+  /** Permission mode for tool calls in worker sessions. */
+  permissionMode: "ask" | "allow-all";
+  /** 该类型启用的 Fello features（memory 不开放给 worker）。 */
+  features: Feature[];
   /** 复用的全局 MCP server id 列表。 */
   mcpServers: string[];
+  /** 追加到每次 worker_send 的角色说明；为空表示不追加。 */
+  instructions: string;
 }
 
 /** Personal Assistant 的全局配置。 */
 export interface SettingAssistantInfo {
   enabled: boolean;
   sourceAgentId: string | null;
+  /** 助理自身可使用的全局 MCP server id 列表（与 workerTypes[].mcpServers 独立）。 */
+  mcpServers: string[];
   dream: {
     maxContextTokens: number;
     preferredTime: string;
   };
-  worker: SettingAssistantWorkerInfo;
+  /** 助理可创建的 worker 类型（专家模式）；数组顺序仅用于 UI 排序。 */
+  workerTypes: SettingAssistantWorkerType[];
 }
 
 /**
@@ -945,6 +972,8 @@ export type FelloIPCRequests = {
   setAssistantModel: { params: { modelId: string }; response: void };
   /** 更新内建个人助理当前思考等级。 */
   setAssistantThoughtLevel: { params: { thoughtLevelId: string }; response: void };
+  /** 重启个人助理 bridge，使配置变更生效。 */
+  restartAssistant: { params: void; response: void };
   /** 向会话发送用户 Prompt */
   sendPrompt: {
     params: {

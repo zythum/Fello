@@ -15,6 +15,7 @@ function getArg(name: string): string | undefined {
 
 const socketPath = getArg("socket-path");
 const projectDir = getArg("project-dir");
+const projectOnly = process.argv.includes("--project-only");
 
 if (!socketPath) {
   console.error("[mcp-share-to-user] Missing required argument: --socket-path");
@@ -38,9 +39,15 @@ const server = new McpServer({
 server.registerTool(
   "share_to_user",
   {
-    description: `Share a file to the user's chat area for them to see. Supports images (with preview), PDFs, documents, and any file type (shown as a file card).
+    description: projectOnly
+      ? `Share a file that already exists in your workspace with the user. Write the file first, then pass type="project" and its workspace-relative path. Link/base64 sharing is not available.`
+      : `Share a file to the user's chat area for them to see. Supports images (with preview), PDFs, documents, and any file type (shown as a file card).
 Provide the file as a file:// URI, https:// URL, base64-encoded data, or a project-relative path (zero-copy).`,
-    inputSchema: shareToUserRequestSchema,
+    inputSchema: projectOnly
+      ? shareToUserRequestSchema.refine((data) => data.type === "project", {
+          message: "Only type='project' is supported in this workspace.",
+        })
+      : shareToUserRequestSchema,
   },
   async (input) => {
     try {

@@ -521,12 +521,14 @@ function ShareToUserBubble({
   }, [session.projectId, projectPath]);
 
   const handleDownload = useCallback(() => {
-    const url = resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`);
+    const url = projectPath
+      ? resolveFileUrl(`/project/${session.projectId}/${projectPath}`)
+      : resolveFileUrl(`/share/${session.projectId}/${session.id}/${sharePath}`);
     const a = document.createElement("a");
     a.href = url;
     a.download = name;
     a.click();
-  }, [session, name, sharePath]);
+  }, [session, name, sharePath, projectPath]);
 
   const previewButton = isProject ? (
     <Button

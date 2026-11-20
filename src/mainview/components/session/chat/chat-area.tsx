@@ -14,7 +14,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import { copyText as clipboardCopyText } from "@/lib/clipboard";
 import { speakOnce } from "../../../lib/tts/tts-reader";
-import { ArrowDown, ArrowUpToLine, Check, Copy, Bot, Volume2 } from "lucide-react";
+import { ArrowDown, ArrowUpToLine, Check, Copy, Bot, Volume2, type LucideIcon } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 import { useFocusTarget } from "../../../lib/keyboard";
 import { loadPreviousSessionHistory } from "../../../lib/session-lifecycle";
@@ -27,10 +27,16 @@ function ChatAreaImpl({
   session,
   showTimeline = true,
   loadPreviousHistory,
+  avatar,
+  name,
 }: {
   session: SessionInfo;
   showTimeline?: boolean;
   loadPreviousHistory?: () => Promise<boolean>;
+  /** 消息组头部的 agent 头像图标，默认 Bot（助理页可传 HatGlasses 等）。 */
+  avatar?: LucideIcon;
+  /** 消息组头部展示的 agent 名称，默认 session.agentId。 */
+  name?: string;
 }) {
   const { t } = useTranslation();
   const sessionId = session.id;
@@ -374,6 +380,8 @@ function ChatAreaImpl({
     return clipboardCopyText(text);
   }, []);
 
+  const AgentAvatar = avatar ?? Bot;
+
   return (
     <div className="w-full relative min-h-0 flex flex-1 group/chat-area">
       {showTimeline && (
@@ -477,8 +485,8 @@ function ChatAreaImpl({
 
                 <div className="message-content pb-4">
                   <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
-                    <Bot className="size-5 -translate-y-px" />
-                    <span className="text-sm font-medium">{session.agentId}</span>
+                    <AgentAvatar className="size-5 -translate-y-px" />
+                    <span className="text-sm font-medium">{name ?? session.agentId}</span>
                   </div>
                   <div className="mt-6">
                     {group.contentMessages.map((msg, i, arr) => {

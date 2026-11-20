@@ -1,6 +1,6 @@
 import { appendFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import type { SessionNotificationFelloExt } from "../../../shared/schema";
+import type { Feature, SessionNotificationFelloExt } from "../../../shared/schema";
 import { HISTORY_PAGE_SIZE } from "../../../shared/constants";
 import { ASSISTANT_AGENT_DIR } from "../../../assistant/storage";
 import type { WorkerLifecycleStatus } from "../../../assistant/worker/types";
@@ -21,6 +21,14 @@ export type WorkerRecord = {
   name: string;
   agentId: string;
   modelId: string | null;
+  /** Permission mode snapshot; missing old records behave as "ask". */
+  permissionMode?: "ask" | "allow-all";
+  /** Worker type snapshot; optional so records created before worker types still load. */
+  typeId?: string | null;
+  typeName?: string | null;
+  features?: Feature[];
+  mcpServers?: string[];
+  instructions?: string;
   cwd: string;
   /** ACP session id, needed to resume after a restart. */
   resumeId: string | null;
