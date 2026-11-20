@@ -291,6 +291,10 @@ function AppContent() {
       navigate(`/session-view/${detail.sessionId}`);
     };
 
+    const handleOpenAssistantRequested = () => {
+      navigate("/assistant");
+    };
+
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
       const store = useAppStore.getState();
       if (!store.sessionStates.has(detail.sessionId)) {
@@ -389,6 +393,7 @@ function AppContent() {
     subscribe.on("ask-user-request", handleAskUserRequest);
     subscribe.on("ask-user-response", handleAskUserResponse);
     subscribe.on("open-session-requested", handleOpenSessionRequested);
+    subscribe.on("open-assistant-requested", handleOpenAssistantRequested);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -533,6 +538,7 @@ function AppContent() {
       subscribe.off("ask-user-request", handleAskUserRequest);
       subscribe.off("ask-user-response", handleAskUserResponse);
       subscribe.off("open-session-requested", handleOpenSessionRequested);
+      subscribe.off("open-assistant-requested", handleOpenAssistantRequested);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);

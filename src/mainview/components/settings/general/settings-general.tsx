@@ -115,6 +115,18 @@ export function SettingsGeneral() {
     }
   };
 
+  const handleReminderNotificationChange = async (checked: boolean) => {
+    const newNotification = { ...notification, reminder: checked };
+    setNotification(newNotification);
+    try {
+      await request.updateSettings({ notification: newNotification });
+    } catch {
+      toast.error(
+        t("settings.general.saveNotificationFailed", "Failed to save notification setting."),
+      );
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-hidden">
@@ -503,6 +515,23 @@ export function SettingsGeneral() {
                   <Switch
                     checked={notification.askUser}
                     onCheckedChange={handleAskUserNotificationChange}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium leading-none">
+                      {t("settings.general.reminderNotification", "Reminders")}
+                    </label>
+                    <span className="text-xs text-muted-foreground/90">
+                      {t(
+                        "settings.general.reminderNotificationDesc",
+                        "Show a system notification when a Personal Assistant reminder is due.",
+                      )}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={notification.reminder}
+                    onCheckedChange={handleReminderNotificationChange}
                   />
                 </div>
               </div>

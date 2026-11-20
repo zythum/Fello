@@ -1,5 +1,5 @@
 import { join } from "path";
-import { CronJob } from "cron";
+import { Cron } from "croner";
 import type { McpServer } from "@agentclientprotocol/sdk";
 import { store, normalizeRemainingRuns } from "./store";
 import type { BackendContext } from "../types";
@@ -47,7 +47,7 @@ export function createAutomationModule(
 
   // ── Scheduler state ────────────────────────────────────────────────
 
-  const scheduledCrons = new Map<string, CronJob>();
+  const scheduledCrons = new Map<string, Cron>();
   const runningTasks = new Set<string>();
 
   function getNextRun(schedule: Schedule): number | null {
@@ -61,7 +61,7 @@ export function createAutomationModule(
     const job = scheduledCrons.get(schedule.id);
     if (!job) return null;
     try {
-      return job.nextDate().toMillis();
+      return job.nextRun()?.getTime() ?? null;
     } catch {
       return null;
     }
@@ -89,28 +89,22 @@ export function createAutomationModule(
     unscheduleCron(schedule.id);
     if (isRunLimitReached(schedule)) return;
 
-    // 单次计划：用 Date 一次性调度（cron 库对 realDate 会置 runOnce，触发后不再重排）
+    // 单次计划：用 Date 一次性调度（传入 Date 时 croner 只触发一次）
     if (schedule.cron.type === "once") {
       const at = schedule.cron.at;
       // 已过期的时间点不注册；启动时由 restoreActiveSchedules 判定为「已错过」
       if (!at || at <= Date.now()) return;
       try {
-        const onceJob = new CronJob(
-          new Date(at),
-          async () => {
-            try {
-              await executeTask(schedule.id, "cron");
-            } catch (err) {
-              console.error(`[Automation] Failed to run once task for "${schedule.name}":`, err);
-            } finally {
-              unscheduleCron(schedule.id);
-            }
-          },
-          null,
-          false,
-        );
+        const onceJob = new Cron(new Date(at), async () => {
+          try {
+            await executeTask(schedule.id, "cron");
+          } catch (err) {
+            console.error(`[Automation] Failed to run once task for "${schedule.name}":`, err);
+          } finally {
+            unscheduleCron(schedule.id);
+          }
+        });
         scheduledCrons.set(schedule.id, onceJob);
-        onceJob.start();
         console.log(
           `[Automation] Scheduled once "${schedule.name}" at ${new Date(at).toLocaleString(storage.getSettings().i18n?.language)}`,
         );
@@ -122,8 +116,9 @@ export function createAutomationModule(
 
     if (schedule.cron.type !== "cron" || !schedule.cron.expr) return;
     try {
-      const cronJob = new CronJob(
+      const cronJob = new Cron(
         schedule.cron.expr,
+        { mode: "5-part" },
         async () => {
           if (runningTasks.has(schedule.id)) return;
           try {
@@ -132,11 +127,8 @@ export function createAutomationModule(
             console.error(`[Automation] Failed to start task for "${schedule.name}":`, err);
           }
         },
-        null,
-        false,
       );
       scheduledCrons.set(schedule.id, cronJob);
-      cronJob.start();
       const next = getNextRun(schedule);
       console.log(
         `[Automation] Scheduled "${schedule.name}" (${schedule.cron.expr}) next: ${next ? new Date(next).toLocaleString(storage.getSettings().i18n?.language) : "?"}`,

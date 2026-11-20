@@ -1,4 +1,5 @@
 import { appendFileSync } from "fs";
+import type { ReminderService } from "../../assistant/reminders/service";
 import { writeFile, readFile } from "fs/promises";
 import {
   ndJsonStream,
@@ -133,6 +134,7 @@ export type AssistantAgentInfo = {
   type: "assistant";
   sourceAgent: ApiAgentInfo;
   getDream: () => SettingAssistantInfo["dream"];
+  reminders: ReminderService;
   onDreamStatus?: (status: { dreaming: boolean; error?: string }) => void;
 };
 
@@ -359,6 +361,7 @@ export class ACPBridge {
             agentInfo: this.options.agentInfo.sourceAgent,
             workspace: this.options.cwd,
             getDream: this.options.agentInfo.getDream,
+            reminders: this.options.agentInfo.reminders,
             onDreamStatus: this.options.agentInfo.onDreamStatus,
           })
         : this.options.agentInfo.type === "stdio"

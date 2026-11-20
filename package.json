@@ -110,7 +110,7 @@
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@parcel/watcher": "^2.6.0",
     "ai": "^7.0.155",
-    "cron": "^4.4.0",
+    "croner": "11.0.1",
     "cronstrue": "^3.38.0",
     "custom-electron-titlebar": "^4.4.1",
     "darwin-corebluetooth-connected-peripherals-recovery": "^0.1.1",

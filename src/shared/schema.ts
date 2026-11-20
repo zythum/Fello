@@ -7,6 +7,13 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type { Usage } from "@agentclientprotocol/sdk/unstable";
 import type { PeripheralSettingInfo, PeripheralStatus } from "./peripherals";
+import type { Reminder } from "./reminder";
+
+/** Reminders plus the server's time zone. The UI evaluates cron times and calendar days in that zone. */
+export interface AssistantReminderList {
+  reminders: Reminder[];
+  timeZone: string;
+}
 
 export type { PeripheralSettingInfo, PeripheralStatus };
 
@@ -421,6 +428,8 @@ export interface SettingVoiceInputInfo {
 export interface SettingNotificationInfo {
   /** 是否显示 ask_user 的系统通知 */
   askUser: boolean;
+  /** 是否在个人助理提醒到点时显示系统通知 */
+  reminder: boolean;
 }
 
 /**
@@ -865,6 +874,8 @@ export type FelloIPCRequests = {
   };
   /** 获取内建个人助理状态。 */
   getAssistantStatus: { params: void; response: AssistantStatus };
+  /** 获取个人助理的全部提醒（含已停用和已删除）。 */
+  listAssistantReminders: { params: void; response: AssistantReminderList };
   getAssistantHistorySegment: {
     params: { segmentId?: number };
     response: {
@@ -1264,6 +1275,8 @@ export type FelloIPCEvents = {
   "assistant-update": { notification: SessionNotificationFelloExt };
   /** 内建个人助理的连接、模型和流式状态变更。 */
   "assistant-status-changed": { status: AssistantStatus };
+  /** 个人助理提醒的任何变更后推送完整列表。 */
+  "assistant-reminders-changed": AssistantReminderList;
   "assistant-prompt-start": undefined;
   "assistant-prompt-end": undefined;
 
@@ -1277,6 +1290,10 @@ export type FelloIPCEvents = {
   "ask-user-response": AskUserResponse;
   /** Electron 原生通知点击后，请求 renderer 打开对应 session */
   "open-session-requested": { sessionId: string };
+  /** 点击提醒的系统通知后，请求前端打开个人助理页面。 */
+  "open-assistant-requested": undefined;
+  /** 个人助理提醒到点时发出，由主进程决定是否显示系统通知。 */
+  "assistant-reminder-due": { id: string; text: string; dueAt: number };
   /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
   /** 终端退出的事件 */

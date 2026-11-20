@@ -7,6 +7,8 @@ import type {
   AssistantStatus,
   SessionNotificationFelloExt,
 } from "../../shared/schema";
+import type { AssistantReminderList } from "../../shared/schema";
+import { serverTimeZone } from "../../assistant/reminders/service";
 import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
 import {
   appendAssistantMessage,
@@ -16,6 +18,8 @@ import {
   readAssistantMessageSegment,
 } from "../../assistant/storage";
 import { ACPBridge, type PromptResult } from "../agent/agent-bridge";
+import { CATCH_UP_WINDOW_MS, ReminderService, type DueReminder } from "../../assistant/reminders/service";
+import { ReminderStore } from "../../assistant/reminders/store";
 import { adapters, agentEnv, extNotificationSpecs } from "../acp-adapters/adapters";
 import { FELLO_DIR } from "../storage/constant";
 import type { BackendContext } from "../types";
@@ -26,10 +30,11 @@ export interface AssistantModule {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   getStatus: () => AssistantStatus;
+  listReminders: () => AssistantReminderList;
   getHistorySegment: (params: {
     segmentId?: number;
   }) => ReturnType<typeof readAssistantMessageSegment>;
-  sendPrompt: (contents: ContentBlock[]) => Promise<PromptResult>;
+  sendPrompt: (contents: ContentBlock[], options?: { onlyIfIdle?: boolean }) => Promise<PromptResult>;
   cancelPrompt: () => Promise<void>;
   setModel: (modelId: string) => Promise<void>;
   setThoughtLevel: (thoughtLevelId: string) => Promise<void>;
@@ -99,6 +104,14 @@ function enrichNotification(notification: SessionNotification): SessionNotificat
   };
 }
 
+/** Thrown when a reminder is due while the assistant is streaming or dreaming. */
+class AssistantBusyError extends Error {
+  constructor() {
+    super("Assistant is busy.");
+    this.name = "AssistantBusyError";
+  }
+}
+
 export function createAssistantModule(ctx: BackendContext): AssistantModule {
   let bridge: ACPBridge | null = null;
   let starting: Promise<void> | null = null;
@@ -112,6 +125,83 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     models: null,
     thoughtLevels: null,
   };
+
+  // Due reminders wait here until the assistant is connected and idle. A one-time reminder that
+  // cannot be sent within CATCH_UP_WINDOW_MS of its due time is marked missed instead.
+  const dueReminders: DueReminder[] = [];
+  let draining = false;
+  let drainRetry: ReturnType<typeof setTimeout> | null = null;
+  const reminders = new ReminderService({
+    store: new ReminderStore(),
+    onDue: (due) => {
+      // The native notification is shown when a reminder is due, even if the chat message waits for the assistant to be idle.
+      const reminder = reminders.get(due.id);
+      if (reminder?.status === "scheduled") {
+        ctx.sendEvent("assistant-reminder-due", {
+          id: reminder.id,
+          text: reminder.text,
+          dueAt: due.dueAt,
+        });
+      }
+      dueReminders.push(due);
+      void drainReminders();
+    },
+    onChange: () => {
+      ctx.sendEvent("assistant-reminders-changed", {
+        reminders: reminders.listAll(),
+        timeZone: serverTimeZone(),
+      });
+    },
+  });
+
+  function scheduleDrainRetry() {
+    if (drainRetry) return;
+    drainRetry = setTimeout(() => {
+      drainRetry = null;
+      void drainReminders();
+    }, 60_000);
+  }
+
+  async function drainReminders(): Promise<void> {
+    if (draining) return;
+    draining = true;
+    try {
+      while (dueReminders.length > 0) {
+        const due = dueReminders[0];
+        const reminder = reminders.get(due.id);
+        if (!reminder || reminder.status !== "scheduled") {
+          dueReminders.shift();
+          continue;
+        }
+        // Expiry is checked before connection state, so a long disconnect still marks reminders missed.
+        if (Date.now() - due.dueAt > CATCH_UP_WINDOW_MS) {
+          dueReminders.shift();
+          if (reminder.trigger.type === "once") await reminders.markMissed(due.id);
+          continue;
+        }
+        if (!bridge?.isConnected || status.isStreaming || status.dreaming) break;
+        dueReminders.shift();
+        const firedAt = Date.now();
+        try {
+          await sendPrompt(
+            [{ type: "text", text: `[Reminder id="${reminder.id}"] ${reminder.text}` }],
+            { onlyIfIdle: true },
+          );
+        } catch (error) {
+          // Busy is not a failure: the reminder waits for the assistant to become idle.
+          if (!(error instanceof AssistantBusyError)) {
+            console.error("[assistant] Failed to deliver reminder:", error);
+          }
+          dueReminders.unshift(due);
+          break;
+        }
+        await reminders.markDelivered(due.id, firedAt);
+      }
+    } finally {
+      draining = false;
+    }
+    if (dueReminders.length > 0) scheduleDrainRetry();
+  }
 
   function publishStatus() {
     ctx.sendEvent("assistant-status-changed", { status });
@@ -231,8 +321,10 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
           type: "assistant",
           sourceAgent: agentInfo,
           getDream: () => ctx.storage.getSettings().assistant.dream,
+          reminders,
           onDreamStatus: ({ dreaming, error }) => {
             updateStatus({ dreaming, dreamError: error });
+            if (!dreaming) void drainReminders();
           },
         },
         cwd: ASSISTANT_WORKSPACE,
@@ -290,6 +382,7 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
           thoughtLevels:
             load.thoughtLevels ?? nextBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? null,
         });
+        void drainReminders();
       } catch (error) {
         if (generation !== currentGeneration || bridge !== nextBridge) return;
         bridge = null;
@@ -314,8 +407,13 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     return bridge;
   }
 
-  async function sendPrompt(contents: ContentBlock[]): Promise<PromptResult> {
+  async function sendPrompt(
+    contents: ContentBlock[],
+    options: { onlyIfIdle?: boolean } = {},
+  ): Promise<PromptResult> {
     const activeBridge = await requireBridge();
+    // Check and set the busy state with no await in between, so a user prompt and a reminder cannot both start.
+    if (options.onlyIfIdle && (status.isStreaming || status.dreaming)) throw new AssistantBusyError();
     if (status.isStreaming) await cancelPrompt();
     updateStatus({ isStreaming: true });
     ctx.sendEvent("assistant-prompt-start", undefined);
@@ -344,6 +442,7 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
       }
       updateStatus({ isStreaming: false });
       ctx.sendEvent("assistant-prompt-end", undefined);
+      void drainReminders();
     }
   }
 
@@ -385,10 +484,15 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     await activeBridge?.kill().catch(() => {});
   }
 
+  void reminders.start().catch((error) => {
+    console.error("[assistant] Failed to load reminders:", error);
+  });
+
   return {
     start,
     stop,
     getStatus: () => status,
+    listReminders: () => ({ reminders: reminders.listAll(), timeZone: serverTimeZone() }),
     getHistorySegment,
     sendPrompt,
     cancelPrompt,

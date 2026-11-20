@@ -49,8 +49,11 @@ import {
   type PersistedAssistantSession,
 } from "./storage";
 import { runDream } from "./dream";
-import { createCurrentTimeTool, type ToolUpdateSender } from "./current-time-tool";
+import { createCurrentTimeTool } from "./current-time-tool";
+import type { ToolUpdateSender } from "./tool-updates";
 import { createDiaryQueryTool } from "./diary-query";
+import { createReminderTools } from "./reminders/tools";
+import type { ReminderService } from "./reminders/service";
 
 const MODEL_CONFIG_ID = "model";
 const THOUGHT_LEVEL_CONFIG_ID = "thought_level";
@@ -74,6 +77,7 @@ export type AssistantAgentOptions = {
   agentInfo: ApiAgentInfo;
   workspace: string;
   getDream: () => SettingAssistantInfo["dream"];
+  reminders: ReminderService;
   onDreamStatus?: (status: { dreaming: boolean; error?: string }) => void;
 };
 
@@ -181,7 +185,7 @@ function buildSystemPrompt(workspace: string, memory: string): string {
     : "";
   return `You are Fello's personal assistant. Help with planning, writing, analysis, and conversation.
 
-The current workspace is empty: ${workspace}. There are no files available to you. Your tools are current_time, which returns the current date and time, and diary_query, which searches the user's past diary entries. Use them when the time or past conversations matter. You have no filesystem, shell, MCP, task, or subagent permissions beyond these read-only tools. Do not try to load AGENTS.md. Do not claim to have completed work that you did not actually perform.${memorySection}`;
+The current workspace is empty: ${workspace}. There are no files available to you. Your tools are current_time, which returns the current date and time, and diary_query, which searches the user's past diary entries. Use them when the time or past conversations matter. You also have reminder_create, reminder_list, reminder_occurrences, reminder_update and reminder_delete to manage the user's reminders. Create, change, or delete a reminder only when the user asks. Messages that start with [Reminder id="..."] are reminders the app delivered at the scheduled time. Use the id in that tag directly with reminder_update or reminder_delete when the user refers to that reminder. You have no filesystem, shell, MCP, task, or subagent permissions beyond these tools. Do not try to load AGENTS.md. Do not claim to have completed work that you did not actually perform.${memorySection}`;
 }
 
 async function countTokens(text: string): Promise<number> {
@@ -517,6 +521,7 @@ export class AssistantAgent {
             getModel: () => this.provider.chatModel(modelId),
             sendUpdate: this.sendToolUpdate,
           }),
+          ...createReminderTools({ service: this.options.reminders, sendUpdate: this.sendToolUpdate }),
         },
         stopWhen: isStepCount(5),
         abortSignal: abortController.signal,

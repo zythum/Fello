@@ -281,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
   voiceInput: { altDoublePress: true },
-  notification: { askUser: true },
+  notification: { askUser: true, reminder: true },
   snippets: [],
   imageGeneration: [],
   speechProviders: [],

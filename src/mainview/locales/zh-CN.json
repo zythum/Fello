@@ -114,7 +114,18 @@
     "placeholder": "向你的个人助理发送消息",
     "notConnected": "个人助理未连接。",
     "busyStreaming": "请等待当前回复结束。",
-    "busyDreaming": "请等待 Dream 完成。"
+    "busyDreaming": "请等待 Dream 完成。",
+    "reminders": {
+      "title": "提醒",
+      "empty": "当天没有提醒",
+      "status": {
+        "scheduled": "待触发",
+        "fired": "已触发",
+        "missed": "错过",
+        "disabled": "已停用",
+        "deleted": "已删除"
+      }
+    }
   },
   "contextMenu": {
     "cut": "剪切",
@@ -196,7 +207,9 @@
       "editor": "使用编辑器打开",
       "editorDesc": "选择用于打开文件的编辑器",
       "selectEditor": "选择编辑器",
-      "saveEditorFailed": "保存编辑器设置失败。"
+      "saveEditorFailed": "保存编辑器设置失败。",
+      "reminderNotification": "提醒",
+      "reminderNotificationDesc": "个人助理的提醒到点时显示系统通知。"
     },
     "shortcuts": {
       "title": "快捷键",
@@ -853,7 +866,8 @@
   },
   "userBubble": {
     "copy": "复制",
-    "locate": "定位"
+    "locate": "定位",
+    "reminder": "提醒"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",

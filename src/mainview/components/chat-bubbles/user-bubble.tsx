@@ -2,13 +2,28 @@ import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
 import { copyText } from "@/lib/clipboard";
-import { ChevronsUpDown, ChevronsDownUp, Copy, Check, ArrowUpToLine } from "lucide-react";
+import {
+  Bell,
+  ChevronsUpDown,
+  ChevronsDownUp,
+  Copy,
+  Check,
+  ArrowUpToLine,
+  type LucideIcon,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import { parseLeadingTag } from "../../../shared/message-tag";
 import type { UserMessage } from "../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
+
+/** Leading tag types that get a badge. Tags of other types stay as plain text. */
+const TAG_BADGES: Record<string, { icon: LucideIcon; className: string; labelKey: string; fallback: string }> = {
+  Reminder: { icon: Bell, className: "text-yellow-400", labelKey: "userBubble.reminder", fallback: "Reminder" },
+};
 
 /** 转义 markdown 特殊字符，使文本原样显示，不触发 markdown / HTML 渲染 */
 function escapeMarkdown(text: string): string {
@@ -37,15 +52,25 @@ export const UserBubble = memo(function UserBubble({
 
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // A leading tag of a known type (for example [Reminder id="..."]) becomes a badge and is removed from the text.
+  const leadingTag = useMemo(() => {
+    const first = message.contents.find((block) => block.type === "text");
+    const tag = first?.type === "text" ? parseLeadingTag(first.text) : null;
+    return tag && Object.hasOwn(TAG_BADGES, tag.type) ? tag : null;
+  }, [message.contents]);
+
   // 将 text block 包裹在代码块中，避免 markdown / HTML 渲染，以源码形式显示
   const safeContents = useMemo<ContentBlock[]>(() => {
-    return message.contents.map((block) => {
+    // The leading tag belongs to the first text block only.
+    const firstTextIndex = message.contents.findIndex((block) => block.type === "text");
+    return message.contents.map((block, index) => {
       if (block.type === "text") {
-        return { ...block, text: escapeMarkdown(block.text) };
+        const text = leadingTag && index === firstTextIndex ? leadingTag.body : block.text;
+        return { ...block, text: escapeMarkdown(text) };
       }
       return block;
     });
-  }, [message.contents]);
+  }, [message.contents, leadingTag]);
 
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -97,9 +122,9 @@ export const UserBubble = memo(function UserBubble({
 
   return (
     <div className="flex flex-col">
-      <div className="flex justify-end items-stretch group/user-bubble">
+      <div className="flex justify-end items-end group/user-bubble">
         {hasText && (
-          <div className="py-2 pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto flex items-center gap-0.5">
+          <div className="pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto flex items-baseline gap-0.5">
             <Button
               variant="ghost"
               size="icon-xs"
@@ -129,6 +154,20 @@ export const UserBubble = memo(function UserBubble({
           </div>
         )}
         <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary p-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
+          {leadingTag && (
+            <Badge className="absolute left-0 h-6 top-0 -translate-full ml-3 mt-3 shadow size-7">
+              {(() => {
+                const badge = TAG_BADGES[leadingTag.type];
+                const Icon = badge.icon;
+                const className = badge.className;
+                return (
+                  <>
+                    <Icon className={cn("-m-1", className)} aria-label={t(badge.labelKey, badge.fallback)} />
+                  </>
+                );
+              })()}
+            </Badge>
+          )}
           <div className="relative flex">
             <div
               className={cn(

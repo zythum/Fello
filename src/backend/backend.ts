@@ -295,6 +295,9 @@ export function initBackend(
     async getAssistantStatus() {
       return assistant.getStatus();
     },
+    async listAssistantReminders() {
+      return assistant.listReminders();
+    },
     async getAssistantHistorySegment({ segmentId }) {
       return assistant.getHistorySegment({ segmentId });
     },

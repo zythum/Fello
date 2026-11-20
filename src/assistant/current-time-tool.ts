@@ -1,9 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
-
-/** Sends a tool_call or tool_call_update to the assistant's UI. */
-export type ToolUpdateSender = (update: SessionNotification["update"]) => Promise<void>;
+import type { ToolUpdateSender } from "./tool-updates";
 
 const LOCAL_TIME_FORMAT: Intl.DateTimeFormatOptions = {
   year: "numeric",

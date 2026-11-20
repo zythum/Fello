@@ -3,7 +3,7 @@ import { join } from "path";
 import { generateText, isStepCount, tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import { DIARY_DIR } from "./dream";
-import type { ToolUpdateSender } from "./current-time-tool";
+import type { ToolUpdateSender } from "./tool-updates";
 
 /** Diary files are named by their period: `<start>--<end>.md`, written by Dream. */
 const DIARY_FILE_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}--\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.md$/;

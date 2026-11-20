@@ -145,6 +145,7 @@ interface SettingsMeta {
   };
   notification: {
     askUser: boolean;
+    reminder: boolean;
   };
   shortcuts: ShortcutSettings;
   proxy?: SettingProxyInfo;
@@ -198,6 +199,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   notification: {
     askUser: true,
+    reminder: true,
   },
   shortcuts: {},
   proxy: {
@@ -453,6 +455,8 @@ function readSettings(): SettingsMeta {
       return {
         askUser:
           typeof raw?.askUser === "boolean" ? raw.askUser : DEFAULT_SETTINGS.notification.askUser,
+        reminder:
+          typeof raw?.reminder === "boolean" ? raw.reminder : DEFAULT_SETTINGS.notification.reminder,
       };
     })();
 
@@ -736,6 +740,7 @@ export function getSettings(): SettingsInfo {
     },
     notification: {
       askUser: meta.notification.askUser,
+      reminder: meta.notification.reminder,
     },
     shortcuts: Object.fromEntries(
       Object.entries(meta.shortcuts).map(([commandId, shortcuts]) => [
@@ -980,6 +985,10 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           typeof settings.notification.askUser === "boolean"
             ? settings.notification.askUser
             : prevMeta.notification.askUser,
+        reminder:
+          typeof settings.notification.reminder === "boolean"
+            ? settings.notification.reminder
+            : prevMeta.notification.reminder,
       };
     })(),
     shortcuts: settings.shortcuts

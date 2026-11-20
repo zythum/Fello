@@ -211,6 +211,84 @@ function openSessionFromNotification(sessionId: string) {
   flushPendingSessionNavigation(win);
 }
 
+/** Route of the window's current page, for example "/assistant", or "" when unknown. */
+function currentRouteOfWindow(win: BrowserWindow): string {
+  try {
+    const hash = new URL(win.webContents.getURL()).hash;
+    return hash.startsWith("#") ? hash.slice(1) : hash;
+  } catch {
+    return "";
+  }
+}
+
+function shouldShowReminderNotification(): boolean {
+  const win = mainWindow;
+  return (
+    !win ||
+    win.isDestroyed() ||
+    !win.isVisible() ||
+    win.isMinimized() ||
+    !win.isFocused() ||
+    !currentRouteOfWindow(win).startsWith("/assistant")
+  );
+}
+
+function openAssistantFromNotification() {
+  let win = mainWindow;
+  if (!win || win.isDestroyed()) {
+    if (!app.isReady()) return;
+    win = createMainWindow();
+  }
+
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.show();
+  win.focus();
+
+  const target = win;
+  const send = () => {
+    if (!target.isDestroyed()) target.webContents.send("open-assistant-requested", undefined);
+  };
+  if (target.webContents.isLoading()) {
+    target.webContents.once("did-finish-load", send);
+  } else {
+    send();
+  }
+}
+
+function showReminderNotification(reminder: FelloIPCSchema["events"]["assistant-reminder-due"]) {
+  if (!app.isReady() || !storageOps.getSettings().notification.reminder) return;
+  if (!Notification.isSupported()) {
+    console.warn("[reminder] Native notifications are not supported on this system");
+    return;
+  }
+  if (!shouldShowReminderNotification()) return;
+
+  let notification: Notification;
+  try {
+    notification = new Notification({
+      id: `reminder:${reminder.id}:${reminder.dueAt}`,
+      groupId: "reminder",
+      title: t("reminder.notificationTitle"),
+      body: reminder.text,
+    });
+  } catch (error) {
+    console.error("[reminder] Failed to create native notification:", error);
+    return;
+  }
+
+  notification.on("failed", (_event, error) => {
+    console.error(`[reminder] Native notification failed for ${reminder.id}:`, error);
+  });
+  notification.on("click", () => {
+    openAssistantFromNotification();
+  });
+  try {
+    notification.show();
+  } catch (error) {
+    console.error("[reminder] Failed to show native notification:", error);
+  }
+}
+
 function safeSend<K extends keyof FelloIPCSchema["events"]>(
   channel: K,
   payload: FelloIPCSchema["events"][K],
@@ -219,6 +297,8 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
     showAskUserNotification(payload as AskUserRequest);
   } else if (channel === "ask-user-response") {
     closeAskUserNotification((payload as AskUserResponse).askUserId);
+  } else if (channel === "assistant-reminder-due") {
+    showReminderNotification(payload as FelloIPCSchema["events"]["assistant-reminder-due"]);
   }
 
   if (!mainWindow || mainWindow.isDestroyed()) return false;

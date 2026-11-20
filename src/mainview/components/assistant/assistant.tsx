@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowUp, Astroid, Bot, Check, ChevronDown, Gauge, Square } from "lucide-react";
+import { ArrowUp, Astroid, Check, ChevronDown, Gauge, PanelRightOpen, Square } from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
   AssistantStatus,
@@ -19,7 +19,10 @@ import {
 import { ChatArea } from "../session/chat/chat-area";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Panel, type PanelTab } from "./panel/panel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +32,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, extractErrorMessage } from "@/lib/utils";
+import { cn, extractErrorMessage, generateUUID } from "@/lib/utils";
+import type { ChatMessage } from "../../lib/chat-message";
 import { useMessage } from "../providers/message";
 
 const EMPTY_MODELS: NonNullable<AssistantStatus["models"]>["availableModels"] = [];
@@ -72,6 +76,9 @@ export function Assistant() {
   const { toast } = useMessage();
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
+  const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
+  const panelOpen = useAppStore((state) => state.panelOpen);
+  const setPanelOpen = useAppStore((state) => state.setPanelOpen);
   const isMacApp = useAppStore((state) => state.isMacApp);
   const isFullScreen = useAppStore((state) => state.isFullScreen);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
@@ -159,10 +166,25 @@ export function Assistant() {
       setStatus((current) =>
         current?.promptError ? { ...current, promptError: undefined } : current,
       );
+      // Same as Session: show the message at once with optimistic ids. The backend's copy
+      // carries the same optimistic_id and replaces this one when it arrives.
+      const displayId = generateUUID();
+      const contents: ContentBlock[] = [
+        {
+          type: "text",
+          text,
+          _meta: { display_id: displayId, optimistic_id: generateUUID() },
+        },
+      ];
+      useAppStore.getState().addMessage(ASSISTANT_SESSION_ID, {
+        role: "user_message",
+        contents,
+        displayId,
+        receivedAt: Date.now(),
+      } satisfies ChatMessage);
       document.dispatchEvent(
         new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }),
       );
-      const contents: ContentBlock[] = [{ type: "text", text }];
       try {
         const result = await request.sendAssistantPrompt({ contents });
         const finishedNormally =
@@ -178,6 +200,10 @@ export function Assistant() {
           );
         }
       } catch (error) {
+        // The message never reached the backend, so drop the optimistic copy (matched by its displayId).
+        useAppStore.getState().updateSessionState(ASSISTANT_SESSION_ID, (state) => ({
+          messages: state.messages.filter((message) => message.displayId !== displayId),
+        }));
         setStatus((current) => ({
           ...(current ?? { models: null, thoughtLevels: null, sourceAgentId: null }),
           connectionStatus: "error",
@@ -240,199 +266,245 @@ export function Assistant() {
 
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <header
-        className={cn(
-          "relative flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background pr-4 transition-[padding] duration-200",
-          sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
-        )}
-        style={{ WebkitAppRegion: "drag" }}
-      >
-        <Bot className="size-4 text-primary" />
-        <span className="text-sm font-medium">{t("assistant.title", "Personal Assistant")}</span>
-        <span className="text-xs text-muted-foreground">
-          {isDreaming
-            ? t("assistant.dreaming", "Dreaming…")
-            : status?.dreamError
-              ? status.dreamError
-              : status?.promptError
-                ? status.promptError
-                : status?.connectionStatus === "connected"
-                  ? t("assistant.ready", "Ready")
-                  : status?.connectionStatus === "connecting"
-                    ? t("assistant.connecting", "Connecting…")
-                    : (status?.error ?? t("assistant.unavailable", "Unavailable"))}
-        </span>
-        {status?.connectionStatus === "error" && (
-          <Button
-            className="ml-auto"
-            size="sm"
-            variant="outline"
-            style={{ WebkitAppRegion: "no-drag" }}
-            onClick={() => navigate("/settings/assistant")}
-          >
-            {t("assistant.configure", "Configure assistant")}
-          </Button>
-        )}
-      </header>
 
-      <ChatArea
-        session={session}
-        showTimeline={false}
-        loadPreviousHistory={loadPreviousAssistantHistory}
-      />
+      <ResizablePanelGroup className="flex min-h-0 flex-1">
+        <ResizablePanel id="chat" minSize={400}>
+          <div className="flex h-full min-h-0 flex-col">
+        <header
+          className={cn(
+            "relative flex h-12 items-center border-b border-border gap-2 pr-2.5 bg-background shrink-0 transition-[padding] duration-200",
+            sidebarOpen ? "pl-2.5" : showMacTrafficLightSpace ? "pl-27" : "pl-10",
+          )}
+          style={{ WebkitAppRegion: "drag" }}
+        >
+          {status?.sourceAgentId && (
+            <Badge variant="outline" className="px-1 text-[9px] uppercase select-none">
+              {status.sourceAgentId}
+            </Badge>
+          )}
+          <div className="flex flex-1 min-w-0 items-baseline gap-2">
+            <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
+              {t("assistant.title", "Personal Assistant")}
+            </span>
+            <span className="flex-1 text-[10px] text-muted-foreground truncate">
+              {isDreaming
+                ? t("assistant.dreaming", "Dreaming…")
+                : status?.dreamError
+                  ? status.dreamError
+                  : status?.promptError
+                    ? status.promptError
+                    : status?.connectionStatus === "connected"
+                      ? t("assistant.ready", "Ready")
+                      : status?.connectionStatus === "connecting"
+                        ? t("assistant.connecting", "Connecting…")
+                        : (status?.error ?? t("assistant.unavailable", "Unavailable"))}
+            </span>
+          </div>
+          <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
+            {status?.connectionStatus === "error" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/settings/assistant")}
+              >
+                {t("assistant.configure", "Configure assistant")}
+              </Button>
+            )}
+            {!panelOpen && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setPanelOpen(true)}
+                title={t("panel.expand", "Expand panel")}
+                aria-label={t("panel.expand", "Expand panel")}
+                className="text-sidebar-foreground/45 hover:text-sidebar-foreground/70"
+              >
+                <PanelRightOpen className="size-4" />
+              </Button>
+            )}
+          </div>
+        </header>
+        <ChatArea
+          session={session}
+          showTimeline={false}
+          loadPreviousHistory={loadPreviousAssistantHistory}
+        />
 
-      <div className="-mt-6 relative p-6 transition-opacity duration-300">
-        <div className="mx-auto max-w-5xl">
-          <ChatTextarea
-            sessionId={ASSISTANT_SESSION_ID}
-            className="shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20"
-            textValue={input}
-            onTextValueChange={setInput}
-            inputRef={inputRef}
-            onSubmit={(value) => void send(value)}
-            placeholder={t("assistant.placeholder", "Message your assistant")}
-            voiceInputRef={voiceInputRef}
-            attachments={null}
-            rightSlot={
-              <>
-                {availableModels.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 min-w-16 max-w-48 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
-                        />
-                      }
-                    >
-                      <Astroid className="size-3.5 shrink-0" />
-                      <span className="truncate">
-                        {currentModel?.name ?? t("assistant.selectModel", "Model")}
-                      </span>
-                      <ChevronDown className="size-3 shrink-0 opacity-60" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-auto! max-w-72 min-w-(--anchor-width)"
-                    >
-                      {groupedModels.size <= 1
-                        ? availableModels.map((model) => (
-                            <DropdownMenuItem
-                              key={model.modelId}
-                              onClick={() => void changeModel(model.modelId)}
-                              className="gap-2"
-                            >
-                              <Check
-                                className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                              />
-                              <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                                <span className="truncate">{model.name}</span>
-                                {model.description && (
-                                  <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                                    {model.description}
-                                  </span>
-                                )}
-                              </div>
-                            </DropdownMenuItem>
-                          ))
-                        : Array.from(groupedModels.entries()).map(([group, models]) =>
-                            group ? (
-                              <DropdownMenuSub key={group}>
-                                <DropdownMenuSubTrigger>{group}</DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent className="max-w-72">
-                                  {models.map((model) => (
-                                    <DropdownMenuItem
-                                      key={model.modelId}
-                                      onClick={() => void changeModel(model.modelId)}
-                                      className="gap-2"
-                                    >
-                                      <Check
-                                        className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                                      />
-                                      <span className="truncate">{model.name}</span>
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuSub>
-                            ) : (
-                              models.map((model) => (
-                                <DropdownMenuItem
-                                  key={model.modelId}
-                                  onClick={() => void changeModel(model.modelId)}
-                                  className="gap-2"
-                                >
-                                  <Check
-                                    className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                                  />
-                                  <span className="truncate">{model.name}</span>
-                                </DropdownMenuItem>
-                              ))
-                            ),
-                          )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {availableThoughtLevels.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 min-w-16 max-w-32 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
-                        />
-                      }
-                    >
-                      <Gauge className="size-3.5 shrink-0" />
-                      <span className="truncate">
-                        {availableThoughtLevels.find((level) => level.id === currentThoughtLevelId)
-                          ?.name ?? t("assistant.selectThinking", "Thinking")}
-                      </span>
-                      <ChevronDown className="size-3 shrink-0 opacity-60" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-auto! min-w-(--anchor-width)">
-                      {availableThoughtLevels.map((level) => (
-                        <DropdownMenuItem
-                          key={level.id}
-                          onClick={() => void changeThoughtLevel(level.id)}
-                          className="gap-2"
-                        >
-                          <Check
-                            className={`size-3 shrink-0 ${level.id === currentThoughtLevelId ? "opacity-100" : "opacity-0"}`}
+        <div className="-mt-6 relative p-6 transition-opacity duration-300">
+          <div className="mx-auto max-w-5xl">
+            <ChatTextarea
+              sessionId={ASSISTANT_SESSION_ID}
+              className="shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20"
+              textValue={input}
+              onTextValueChange={setInput}
+              inputRef={inputRef}
+              onSubmit={(value) => void send(value)}
+              placeholder={t("assistant.placeholder", "Message your assistant")}
+              voiceInputRef={voiceInputRef}
+              attachments={null}
+              rightSlot={
+                <>
+                  {availableModels.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 min-w-16 max-w-48 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
                           />
-                          <span>{level.name}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </>
-            }
-            primaryAction={
-              isStreaming ? (
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="size-7 cursor-default rounded-lg"
-                  onClick={() => void request.cancelAssistantPrompt()}
-                >
-                  <Square className="size-3.5" />
-                </Button>
-              ) : (
-                <Button
-                  size="icon"
-                  className="size-7 rounded-lg"
-                  disabled={!input.trim() || !isConnected}
-                  onClick={() => void send({ text: input, attachments: [], source: "input" })}
-                >
-                  <ArrowUp className="size-3.5" />
-                </Button>
-              )
-            }
-          />
+                        }
+                      >
+                        <Astroid className="size-3.5 shrink-0" />
+                        <span className="truncate">
+                          {currentModel?.name ?? t("assistant.selectModel", "Model")}
+                        </span>
+                        <ChevronDown className="size-3 shrink-0 opacity-60" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-auto! max-w-72 min-w-(--anchor-width)"
+                      >
+                        {groupedModels.size <= 1
+                          ? availableModels.map((model) => (
+                              <DropdownMenuItem
+                                key={model.modelId}
+                                onClick={() => void changeModel(model.modelId)}
+                                className="gap-2"
+                              >
+                                <Check
+                                  className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                                />
+                                <div className="flex min-w-0 flex-col gap-0.5 pr-3">
+                                  <span className="truncate">{model.name}</span>
+                                  {model.description && (
+                                    <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
+                                      {model.description}
+                                    </span>
+                                  )}
+                                </div>
+                              </DropdownMenuItem>
+                            ))
+                          : Array.from(groupedModels.entries()).map(([group, models]) =>
+                              group ? (
+                                <DropdownMenuSub key={group}>
+                                  <DropdownMenuSubTrigger>{group}</DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent className="max-w-72">
+                                    {models.map((model) => (
+                                      <DropdownMenuItem
+                                        key={model.modelId}
+                                        onClick={() => void changeModel(model.modelId)}
+                                        className="gap-2"
+                                      >
+                                        <Check
+                                          className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                                        />
+                                        <span className="truncate">{model.name}</span>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                              ) : (
+                                models.map((model) => (
+                                  <DropdownMenuItem
+                                    key={model.modelId}
+                                    onClick={() => void changeModel(model.modelId)}
+                                    className="gap-2"
+                                  >
+                                    <Check
+                                      className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
+                                    />
+                                    <span className="truncate">{model.name}</span>
+                                  </DropdownMenuItem>
+                                ))
+                              ),
+                            )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  {availableThoughtLevels.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 min-w-16 max-w-32 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
+                          />
+                        }
+                      >
+                        <Gauge className="size-3.5 shrink-0" />
+                        <span className="truncate">
+                          {availableThoughtLevels.find((level) => level.id === currentThoughtLevelId)
+                            ?.name ?? t("assistant.selectThinking", "Thinking")}
+                        </span>
+                        <ChevronDown className="size-3 shrink-0 opacity-60" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-auto! min-w-(--anchor-width)">
+                        {availableThoughtLevels.map((level) => (
+                          <DropdownMenuItem
+                            key={level.id}
+                            onClick={() => void changeThoughtLevel(level.id)}
+                            className="gap-2"
+                          >
+                            <Check
+                              className={`size-3 shrink-0 ${level.id === currentThoughtLevelId ? "opacity-100" : "opacity-0"}`}
+                            />
+                            <span>{level.name}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </>
+              }
+              primaryAction={
+                isStreaming ? (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="size-7 cursor-default rounded-lg"
+                    onClick={() => void request.cancelAssistantPrompt()}
+                  >
+                    <Square className="size-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    className="size-7 rounded-lg"
+                    disabled={!input.trim() || !isConnected}
+                    onClick={() => void send({ text: input, attachments: [], source: "input" })}
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                )
+              }
+            />
+          </div>
         </div>
-      </div>
+          </div>
+        </ResizablePanel>
+
+        {/* Collapsed: no handle, and the panel cannot be dragged open. Same pattern as Session. */}
+        <ResizableHandle
+          disabled={!panelOpen}
+          className={cn(
+            "bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250",
+            !panelOpen && "opacity-0",
+          )}
+        />
+
+        <ResizablePanel
+          id="panel"
+          groupResizeBehavior="preserve-pixel-size"
+          defaultSize={280}
+          minSize={250}
+          maxSize={panelOpen ? 400 : 0}
+          inert={!panelOpen}
+        >
+          <Panel tab={panelTab} onTabChange={setPanelTab} onOpenChange={setPanelOpen} />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </main>
   );
 }

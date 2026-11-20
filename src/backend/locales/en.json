@@ -78,5 +78,8 @@
     "featureMemory": "Memory",
     "featureAskUser": "Ask Me",
     "featureShareToUser": "Share to User"
+  },
+  "reminder": {
+    "notificationTitle": "Fello reminder"
   }
 }

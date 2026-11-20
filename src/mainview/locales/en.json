@@ -115,7 +115,18 @@
     "placeholder": "Message your assistant",
     "notConnected": "Personal Assistant is not connected.",
     "busyStreaming": "Wait for the current reply to finish.",
-    "busyDreaming": "Wait for Dream to finish."
+    "busyDreaming": "Wait for Dream to finish.",
+    "reminders": {
+      "title": "Reminders",
+      "empty": "No reminders on this day",
+      "status": {
+        "scheduled": "Scheduled",
+        "fired": "Triggered",
+        "missed": "Missed",
+        "disabled": "Disabled",
+        "deleted": "Deleted"
+      }
+    }
   },
   "contextMenu": {
     "cut": "Cut",
@@ -197,7 +208,9 @@
       "editor": "Open in Editor",
       "editorDesc": "Choose the editor to open files",
       "selectEditor": "Select editor",
-      "saveEditorFailed": "Failed to save editor setting."
+      "saveEditorFailed": "Failed to save editor setting.",
+      "reminderNotification": "Reminders",
+      "reminderNotificationDesc": "Show a system notification when a Personal Assistant reminder is due."
     },
     "shortcuts": {
       "title": "Shortcuts",
@@ -854,7 +867,8 @@
   },
   "userBubble": {
     "copy": "Copy",
-    "locate": "Locate"
+    "locate": "Locate",
+    "reminder": "Reminder"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",

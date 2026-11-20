@@ -78,5 +78,8 @@
     "featureMemory": "记忆",
     "featureAskUser": "向我提问",
     "featureShareToUser": "分享给用户"
+  },
+  "reminder": {
+    "notificationTitle": "Fello 提醒"
   }
 }
