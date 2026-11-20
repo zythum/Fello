@@ -22,6 +22,11 @@ import type {
   FelloIPCSchema,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
+import {
+  buildConversationDocument,
+  buildConversationTurns,
+  stringifyConversationDocument,
+} from "../../shared/conversation";
 import { startSocketServer, generateSocketPath, type SocketServer } from "../socket-server";
 import { writeActiveSessionId } from "../ilink/ilink-bridge";
 import { t } from "../i18n";
@@ -60,6 +65,8 @@ export interface SessionModule {
   getSessionTokenUsage: (params: {
     sessionId: string;
   }) => Promise<{ records: SessionTokenUsage[] }>;
+  /** Serialized conversation (JSON) for the download button in the session header. */
+  exportConversation: (sessionId: string) => Promise<{ filename: string; json: string }>;
   sendPrompt: (params: {
     sessionId: string;
     contents: ContentBlock[];
@@ -452,6 +459,33 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     return { records: storage.readTokenUsage(sessionId) };
+  }
+
+  async function exportConversation(sessionId: string) {
+    const session = storage.getSession(sessionId);
+    if (!session) throw new Error("Session does not exist");
+    const turns = buildConversationTurns(storage.readAllSessionMessages(sessionId), {
+      sessionId: session.resumeId,
+    });
+    const document = buildConversationDocument(
+      {
+        id: session.id,
+        title: session.title,
+        agentId: session.agentId,
+        cwd: session.cwd,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+      },
+      turns,
+    );
+    // Keep the download name filesystem-safe; fall back to the session id.
+    const base =
+      (session.title || session.id)
+        .replace(/[\\/:*?"<>|]+/g, "_")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || session.id;
+    return { filename: `${base}.json`, json: stringifyConversationDocument(document) };
   }
 
   async function sendPrompt({
@@ -912,6 +946,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     loadSession,
     getSessionHistorySegment,
     getSessionTokenUsage,
+    exportConversation,
     sendPrompt,
     cancelPrompt,
     updateSession,

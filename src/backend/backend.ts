@@ -336,6 +336,9 @@ export function initBackend(
     async getSessionTokenUsage(params) {
       return session.getSessionTokenUsage(params);
     },
+    async exportSession({ sessionId }) {
+      return session.exportConversation(sessionId);
+    },
     async sendPrompt(params) {
       return session.sendPrompt(params);
     },

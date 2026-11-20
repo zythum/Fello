@@ -14,6 +14,7 @@ import {
   AudioLines,
   Square,
   PanelRightOpen,
+  Download,
 } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { useTtsPrefsStore } from "../../../lib/tts/tts-prefs";
@@ -61,6 +62,7 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
   const [localFeatures, setLocalFeatures] = useState<Feature[]>([]);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handlePermissionChange = useCallback(
     async (permissionMode: SessionInfo["permissionMode"]) => {
@@ -134,6 +136,31 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
       setIsClosing(false);
     }
   };
+
+  const handleExport = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const { filename, json } = await request.exportSession({ sessionId: session.id });
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      // Let the download start before revoking the object URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("Failed to export session:", err);
+      toast.error(
+        extractErrorMessage(err) ||
+          t("chatHeader.failedToExportSession", "Failed to export conversation."),
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, session.id, t, toast]);
 
   return (
     <div
@@ -220,17 +247,8 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
                 <div className="mt-1 flex gap-1">
                   <Button
                     size="xs"
-                    className="flex flex-3 items-center gap-2 h-7 text-xs font-normal"
-                    onClick={handleSyncAndRefresh}
-                    disabled={isClosing || isRestarting}
-                  >
-                    {isRestarting && <Loader2 className="size-3 animate-spin" />}
-                    <span>{t("chatHeader.refresh", "Restart Session")}</span>
-                  </Button>
-                  <Button
-                    size="xs"
                     variant="destructive"
-                    className="flex flex-1 items-center gap-1.5 h-7 text-xs font-normal"
+                    className="flex min-w-30 items-center gap-1.5 h-7 text-xs font-normal"
                     onClick={handleCloseSession}
                     disabled={isClosing || isRestarting}
                   >
@@ -240,6 +258,31 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
                         ? t("chatHeader.closingSession", "Closing…")
                         : t("chatHeader.closeSession", "Close Session")}
                     </span>
+                  </Button>
+                  <div className="flex-1"></div>
+                  <Button
+                    size="xs"
+                    className="flex min-w-30 items-center gap-2 h-7 text-xs font-normal"
+                    onClick={handleSyncAndRefresh}
+                    disabled={isClosing || isRestarting}
+                  >
+                    {isRestarting && <Loader2 className="size-3 animate-spin" />}
+                    <span>{t("chatHeader.refresh", "Restart Session")}</span>
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="outline"
+                    className="size-7 shrink-0"
+                    onClick={() => void handleExport()}
+                    disabled={isClosing || isRestarting || isExporting}
+                    title={t("chatHeader.exportSession", "Export conversation (JSON)")}
+                    aria-label={t("chatHeader.exportSession", "Export conversation (JSON)")}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Download className="size-3.5" />
+                    )}
                   </Button>
                 </div>
               </PopoverPrimitive.Popup>

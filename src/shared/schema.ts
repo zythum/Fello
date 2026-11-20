@@ -913,6 +913,11 @@ export type FelloIPCRequests = {
       records: SessionTokenUsage[];
     };
   };
+  /** 导出会话的序列化 JSON，供渲染层触发下载。 */
+  exportSession: {
+    params: { sessionId: string };
+    response: { filename: string; json: string };
+  };
   /** 获取内建个人助理状态。 */
   getAssistantStatus: { params: void; response: AssistantStatus };
   /** 获取助理当前的所有 worker 及其状态。 */

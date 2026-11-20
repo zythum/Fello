@@ -198,6 +198,13 @@ function readSessionMessageSegment(
   };
 }
 
+/** Every stored notification of a session, ordered by segment. Used by the JSON export. */
+function readAllSessionMessages(sessionIdOrSubSessionId: string): SessionNotificationFelloExt[] {
+  return listSessionMessageSegments(sessionIdOrSubSessionId).flatMap((segment) =>
+    parseSessionMessages(readFileSync(segment.filePath, "utf-8")),
+  );
+}
+
 function appendTerminalOutput(sessionIdOrSubSessionId: string, terminalId: string, data: string) {
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(terminalId)) {
     throw new Error("Invalid terminalId");
@@ -296,6 +303,7 @@ export const storageOps = {
   endSessionMessageTurn,
   appendSessionMessage,
   readSessionMessageSegment,
+  readAllSessionMessages,
   appendTerminalOutput,
   readTerminalOutput,
   appendTokenUsage,
