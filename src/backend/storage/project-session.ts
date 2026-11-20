@@ -10,11 +10,11 @@ import type {
   SessionThoughtLevelState,
   Feature,
 } from "../../shared/schema";
-import { ALL_FEATURES } from "../../shared/constants";
+import { ALL_FEATURES, ASSISTANT_PROJECT_ID } from "../../shared/constants";
 import type { AvailableCommand, InitializeResponse, UsageUpdate } from "@agentclientprotocol/sdk";
 import type { Usage } from "@agentclientprotocol/sdk/unstable";
 
-import { PROJECTS_DIR } from "./constant";
+import { ASSISTANT_WORKSPACE, PROJECTS_DIR } from "./constant";
 
 interface ProjectMeta {
   // === 仅内存状态 ===
@@ -245,6 +245,16 @@ export function deleteProject(projectId: string) {
 }
 
 export function getProject(projectId: string): ProjectInfo | null {
+  // The assistant workspace is a virtual project: it is not in the sidebar or
+  // sessions list, but every project file operation can address it by this id.
+  if (projectId === ASSISTANT_PROJECT_ID) {
+    return {
+      id: ASSISTANT_PROJECT_ID,
+      title: "Personal Assistant",
+      cwd: ASSISTANT_WORKSPACE,
+      createdAt: 0,
+    };
+  }
   const project = projectMetaMemo.get(projectId);
   if (!project) return null;
   return {

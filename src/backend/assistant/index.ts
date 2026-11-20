@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
-import { join } from "path";
 import type { ContentBlock, SessionNotification, ToolCallUpdate } from "@agentclientprotocol/sdk";
 import type {
   ApiAgentInfo,
@@ -22,13 +21,11 @@ import { ACPBridge, type PromptResult } from "../agent/agent-bridge";
 import { CATCH_UP_WINDOW_MS, ReminderService } from "../../assistant/reminders/service";
 import { ReminderStore } from "../../assistant/reminders/store";
 import { adapters, agentEnv, extNotificationSpecs } from "../acp-adapters/adapters";
-import { FELLO_DIR } from "../storage/constant";
+import { ASSISTANT_WORKSPACE } from "../storage/constant";
 import type { BackendContext } from "../types";
 import type { AskUserModule } from "../ask-user";
 import type { FileSystemTools } from "../../assistant/fs/tools";
 import { WorkerManager } from "./worker/manager";
-
-export const ASSISTANT_WORKSPACE = join(FELLO_DIR, "workspaces", "__assistant__");
 
 export interface AssistantModule {
   start: () => Promise<void>;

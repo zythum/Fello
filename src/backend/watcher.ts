@@ -1,9 +1,11 @@
-import { statSync } from "fs";
+import { mkdirSync, statSync } from "fs";
 import watcher from "@parcel/watcher";
 import { join, relative } from "path";
 import type { BackendContext } from "./types";
 import { toPosixPath } from "./utils";
 import { isSelfWrite } from "./self-write";
+import { ASSISTANT_PROJECT_ID } from "../shared/constants";
+import { ASSISTANT_WORKSPACE } from "./storage/constant";
 
 const MAX_BATCH_CHANGES = 1000;
 
@@ -37,6 +39,15 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
     const enabled = isFileWatcherEnabled();
     const projects = storage.listProjects();
     const currentProjects = new Map(projects.map((p) => [p.id, p]));
+    // The assistant workspace is a virtual project: watch it so its file panel
+    // receives the same fs-changed events as project sessions.
+    mkdirSync(ASSISTANT_WORKSPACE, { recursive: true });
+    currentProjects.set(ASSISTANT_PROJECT_ID, {
+      id: ASSISTANT_PROJECT_ID,
+      title: "Personal Assistant",
+      cwd: ASSISTANT_WORKSPACE,
+      createdAt: 0,
+    });
 
     if (!enabled) {
       for (const [projectId, subscription] of subscriptions.entries()) {
