@@ -126,6 +126,24 @@
         "disabled": "Disabled",
         "deleted": "Deleted"
       }
+    },
+    "workers": {
+      "title": "Workers",
+      "empty": "No workers yet",
+      "turn": "Turn",
+      "status": {
+        "running": "Running",
+        "awaiting_permission": "Awaiting permission",
+        "idle": "Idle",
+        "failed": "Failed",
+        "closed": "Closed",
+        "interrupted": "Interrupted"
+      },
+      "connection": {
+        "connected": "Connected",
+        "connecting": "Connecting",
+        "disconnected": "Disconnected"
+      }
     }
   },
   "contextMenu": {
@@ -246,7 +264,17 @@
       "configureAgents": "Configure agents",
       "reconnectHint": "Changing the agent restarts the Personal Assistant.",
       "updated": "Personal Assistant agent updated.",
-      "updateFailed": "Failed to update Personal Assistant agent."
+      "updateFailed": "Failed to update Personal Assistant agent.",
+      "groupWorker": "Worker",
+      "workerAgent": "Worker agent",
+      "workerAgentDesc": "Agent used by background workers. New workers use it; running workers keep their agent.",
+      "workerModel": "Worker model",
+      "workerModelDesc": "Leave empty to use the agent's default model.",
+      "workerModelPlaceholder": "Agent default",
+      "workerMcp": "Worker MCP servers",
+      "workerMcpDesc": "MCP servers passed to every worker session.",
+      "workerMcpEmpty": "No MCP servers configured.",
+      "workerUpdated": "Worker settings updated."
     },
     "agents": {
       "desc": "Manage agent configurations and startup commands.",

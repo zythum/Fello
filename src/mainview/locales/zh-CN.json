@@ -125,6 +125,24 @@
         "disabled": "已停用",
         "deleted": "已删除"
       }
+    },
+    "workers": {
+      "title": "执行器",
+      "empty": "暂无执行器",
+      "turn": "轮次",
+      "status": {
+        "running": "运行中",
+        "awaiting_permission": "等待权限",
+        "idle": "空闲",
+        "failed": "失败",
+        "closed": "已关闭",
+        "interrupted": "已中断"
+      },
+      "connection": {
+        "connected": "已连接",
+        "connecting": "连接中",
+        "disconnected": "未连接"
+      }
     }
   },
   "contextMenu": {
@@ -245,7 +263,17 @@
       "configureAgents": "配置 Agent",
       "reconnectHint": "更改 Agent 将重启个人助理。",
       "updated": "个人助理 Agent 已更新。",
-      "updateFailed": "更新个人助理 Agent 失败。"
+      "updateFailed": "更新个人助理 Agent 失败。",
+      "groupWorker": "Worker",
+      "workerAgent": "Worker Agent",
+      "workerAgentDesc": "后台 worker 使用的 Agent。新创建的 worker 使用它，已运行的 worker 保持原 Agent。",
+      "workerModel": "Worker 模型",
+      "workerModelDesc": "留空则使用 Agent 的默认模型。",
+      "workerModelPlaceholder": "Agent 默认",
+      "workerMcp": "Worker MCP 服务器",
+      "workerMcpDesc": "每个 worker 会话都会挂载这些 MCP 服务器。",
+      "workerMcpEmpty": "尚未配置 MCP 服务器。",
+      "workerUpdated": "Worker 设置已更新。"
     },
     "agents": {
       "desc": "管理智能体的配置和启动命令。",

@@ -1,10 +1,11 @@
 import { useTranslation } from "react-i18next";
-import { Bell, PanelRightClose } from "lucide-react";
+import { Bell, PanelRightClose, SquareChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ReminderPanel } from "./reminder-panel/reminder-panel";
+import { WorkerPanel } from "./worker-panel/worker-panel";
 
-export type PanelTab = "reminders";
+export type PanelTab = "reminders" | "workers";
 
 interface PanelProps {
   tab: PanelTab;
@@ -29,6 +30,10 @@ export function Panel({ tab, onTabChange, onOpenChange }: PanelProps) {
               <Bell className="size-3.5" />
               {t("assistant.reminders.title", "Reminders")}
             </TabsTrigger>
+            <TabsTrigger value="workers" className="flex-1 text-xs gap-1.5">
+              <SquareChevronRight className="size-3.5" />
+              {t("assistant.workers.title", "Workers")}
+            </TabsTrigger>
           </TabsList>
           <Button
             variant="ghost"
@@ -44,6 +49,9 @@ export function Panel({ tab, onTabChange, onOpenChange }: PanelProps) {
 
         <TabsContent value="reminders" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
           <ReminderPanel />
+        </TabsContent>
+        <TabsContent value="workers" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
+          <WorkerPanel />
         </TabsContent>
       </Tabs>
     </div>
