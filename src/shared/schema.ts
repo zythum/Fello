@@ -197,6 +197,8 @@ export interface AssistantStatus {
   error?: string;
   sourceAgentId: string | null;
   enabled: boolean;
+  /** Absolute path of the assistant's workspace (the virtual project's cwd). */
+  workspace: string;
   isStreaming: boolean;
   dreaming: boolean;
   dreamError?: string;

@@ -127,6 +127,7 @@ export function createAssistantModule(
     connectionStatus: "disconnected",
     sourceAgentId: null,
     enabled: true,
+    workspace: ASSISTANT_WORKSPACE,
     isStreaming: false,
     dreaming: false,
     models: null,

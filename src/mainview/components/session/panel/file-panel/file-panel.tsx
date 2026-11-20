@@ -468,12 +468,15 @@ export interface FilePanelProps {
   projectId: string;
   previewFileId: string | null;
   onPreviewFile: (file: string) => void;
+  /** Overrides the project cwd (used by the assistant's virtual workspace). */
+  cwd?: string;
 }
 
 export const FilePanel = memo(function FilePanel({
   projectId,
   previewFileId,
   onPreviewFile,
+  cwd: cwdOverride,
 }: FilePanelProps) {
   const { t } = useTranslation();
   const treeRef = useRef<HTMLDivElement>(null);
@@ -518,9 +521,10 @@ export const FilePanel = memo(function FilePanel({
   const { confirm } = useMessage();
 
   const activeProjectId = projectId;
-  const cwd = useMemo(() => {
+  const projectCwd = useMemo(() => {
     return projects.find((p) => p.id === projectId)?.cwd ?? "";
   }, [projectId, projects]);
+  const cwd = cwdOverride ?? projectCwd;
 
   useEffect(() => {
     refreshSeqRef.current += 1;

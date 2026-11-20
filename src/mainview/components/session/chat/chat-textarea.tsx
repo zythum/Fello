@@ -180,6 +180,8 @@ async function insertInputFiles(
  */
 function useChatDropTarget({
   sessionId,
+  projectId,
+  projectCwd,
   textareaRef,
   attachmentAccepts,
   attachments,
@@ -187,6 +189,8 @@ function useChatDropTarget({
   onDropTreeNodes,
 }: {
   sessionId: string;
+  projectId?: string;
+  projectCwd?: string;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   /** 图片附件白名单（透传给 insertInputFiles） */
   attachmentAccepts?: readonly string[];
@@ -196,6 +200,8 @@ function useChatDropTarget({
   onDropTreeNodes: (nodes: TreeDropNode[]) => void;
 }) {
   const session = useSessionById(sessionId);
+  const effectiveProjectId = session?.projectId ?? projectId;
+  const effectiveProjectCwd = session?.cwd ?? projectCwd;
   const [isDragOver, setIsDragOver] = useState(false);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -238,8 +244,8 @@ function useChatDropTarget({
       if (files.length > 0) {
         const handled = await insertInputFiles(files, {
           textarea: textareaRef.current,
-          projectId: session?.projectId,
-          projectCwd: session?.cwd,
+          projectId: effectiveProjectId,
+          projectCwd: effectiveProjectCwd,
           attachmentAccepts,
           attachments,
           onAttachmentChange,
@@ -257,10 +263,10 @@ function useChatDropTarget({
         .filter(Boolean);
       if (uriPaths.length > 0) {
         const target = textareaRef.current;
-        if (target && session?.projectId) {
+        if (target && effectiveProjectId) {
           await insertPathsAsMentions(target, uriPaths, {
-            projectId: session.projectId,
-            projectCwd: session.cwd,
+            projectId: effectiveProjectId,
+            projectCwd: effectiveProjectCwd,
           });
         }
         return;
@@ -276,7 +282,15 @@ function useChatDropTarget({
         // ignore malformed data
       }
     },
-    [attachmentAccepts, attachments, onAttachmentChange, session, textareaRef, onDropTreeNodes],
+    [
+      attachmentAccepts,
+      attachments,
+      effectiveProjectCwd,
+      effectiveProjectId,
+      onAttachmentChange,
+      textareaRef,
+      onDropTreeNodes,
+    ],
   );
 
   return { isDragOver, onDrop, onDragOver, onDragLeave };
@@ -451,6 +465,14 @@ const displayTransform = (_id: string, display: string) => display;
 export interface ChatTextareaProps {
   /** 建议源（`#` 文件 / `@` 应用）所归属的 session */
   sessionId: string;
+  /**
+   * Fallback project for suggestion sources and file drops when the session is not in
+   * the sessions store, for example the assistant's pseudo session.
+   */
+  projectId?: string;
+  projectCwd?: string;
+  /** MCP servers for `@` suggestions when no session is available. */
+  mcpServerIds?: string[];
   /** 输入框文本（受控） */
   textValue: string;
   onTextValueChange: (value: string) => void;
@@ -546,6 +568,9 @@ export interface ChatTextareaVoicePanel {
 
 export function ChatTextarea({
   sessionId,
+  projectId,
+  projectCwd,
+  mcpServerIds,
   textValue,
   onTextValueChange,
   inputRef,
@@ -572,10 +597,13 @@ export function ChatTextarea({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const compact = variant === "compact";
   const session = useSessionById(sessionId);
-  const fileSuggestions = useFileSuggestions(session?.projectId);
+  const effectiveProjectId = session?.projectId ?? projectId;
+  const effectiveProjectCwd = session?.cwd ?? projectCwd;
+  const effectiveMcpServerIds = session?.mcpServers ?? mcpServerIds ?? EMPTY_MCP_SERVER_IDS;
+  const fileSuggestions = useFileSuggestions(effectiveProjectId);
   const { fetcher: atSuggestions, getSkills } = useAtSuggestions({
-    projectId: session?.projectId,
-    mcpServerIds: session?.mcpServers ?? EMPTY_MCP_SERVER_IDS,
+    projectId: effectiveProjectId,
+    mcpServerIds: effectiveMcpServerIds,
   });
   // 不 memo：需要拿到最新的 textValue 才能追加
   /** 树节点拖拽（file-panel）：追加 mention 文本到输入末尾（与 fello-add-to-chat 行为一致） */
@@ -587,6 +615,8 @@ export function ChatTextarea({
 
   const { isDragOver, onDrop, onDragOver, onDragLeave } = useChatDropTarget({
     sessionId,
+    projectId: effectiveProjectId,
+    projectCwd: effectiveProjectCwd,
     textareaRef: inputRef,
     attachmentAccepts,
     attachments,
@@ -724,8 +754,8 @@ export function ChatTextarea({
     event.preventDefault();
     void insertInputFiles(files, {
       textarea: inputRef.current,
-      projectId: session?.projectId,
-      projectCwd: session?.cwd,
+      projectId: effectiveProjectId,
+      projectCwd: effectiveProjectCwd,
       attachmentAccepts,
       attachments,
       onAttachmentChange,
@@ -741,8 +771,8 @@ export function ChatTextarea({
 
     await insertInputFiles(files, {
       textarea: inputRef.current,
-      projectId: session?.projectId,
-      projectCwd: session?.cwd,
+      projectId: effectiveProjectId,
+      projectCwd: effectiveProjectCwd,
       attachmentAccepts,
       attachments,
       onAttachmentChange,

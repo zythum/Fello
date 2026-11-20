@@ -9,6 +9,7 @@ import type {
   SessionNotificationFelloExt,
 } from "../../../shared/schema";
 import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../../assistant/constants";
+import { ASSISTANT_PROJECT_ID } from "../../../shared/constants";
 import { request, subscribe } from "../../backend";
 import { useAppStore } from "../../store";
 import {
@@ -18,6 +19,8 @@ import {
 } from "../../lib/assistant-lifecycle";
 import { ChatArea } from "../session/chat/chat-area";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
+import { FileDetail } from "../session/detail/file/file-detail";
+import { nodesToMentionText, resolveMentions } from "../../lib/mention-utils";
 import { AskUserDialog } from "../session/chat/chat-ask-user-dialog";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
 import { Badge } from "@/components/ui/badge";
@@ -44,11 +47,11 @@ function assistantSession(status: AssistantStatus | null): SessionInfo {
   return {
     id: ASSISTANT_SESSION_ID,
     resumeId: ASSISTANT_SESSION_ID,
-    projectId: "",
-    projectTitle: "",
+    projectId: ASSISTANT_PROJECT_ID,
+    projectTitle: "Personal Assistant",
     agentId: ASSISTANT_AGENT_ID,
     title: "Personal Assistant",
-    cwd: "",
+    cwd: status?.workspace ?? "",
     createdAt: now,
     updatedAt: now,
     mcpServers: [],
@@ -78,6 +81,9 @@ export function Assistant() {
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
   const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
+  const [detailFile, setDetailFile] = useState<string | null>(null);
+  const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
+  const [compact, setCompact] = useState(false);
   const isHistoryLoading = useAppStore(
     (state) => state.sessionStates.get(ASSISTANT_SESSION_ID)?.isLoading ?? true,
   );
@@ -123,6 +129,7 @@ export function Assistant() {
           error: error instanceof Error ? error.message : String(error),
           sourceAgentId: null,
           enabled: true,
+          workspace: "",
           isStreaming: false,
           dreaming: false,
           models: null,
@@ -136,6 +143,27 @@ export function Assistant() {
       subscribe.off("assistant-update", onUpdate);
     };
   }, [resetSessionState]);
+
+  useEffect(() => {
+    const handleAddToChat = (event: Event) => {
+      const nodes = (event as CustomEvent<{ id: string; name: string; isFolder: boolean }[]>).detail;
+      if (!nodes || nodes.length === 0) return;
+      const mentions = nodesToMentionText(nodes);
+      setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));
+      requestAnimationFrame(() => inputRef.current?.focus());
+    };
+    document.addEventListener("fello-add-to-chat", handleAddToChat);
+    return () => document.removeEventListener("fello-add-to-chat", handleAddToChat);
+  }, []);
+
+  useEffect(() => {
+    if (!mainEl) return;
+    const callback = () => setCompact(mainEl.offsetWidth < 1000);
+    const observer = new ResizeObserver(callback);
+    observer.observe(mainEl);
+    callback();
+    return () => observer.disconnect();
+  }, [mainEl]);
 
   const session = useMemo(() => assistantSession(status), [status]);
   const isInitializing =
@@ -163,7 +191,7 @@ export function Assistant() {
 
   const send = useCallback(
     async (value: ChatTextareaSubmitValue) => {
-      const text = value.text.trim();
+      const text = resolveMentions(value.text).trim();
       if (!text) return;
       if (!isConnected) {
         toast.error(t("assistant.notConnected", "Personal Assistant is not connected."));
@@ -220,7 +248,12 @@ export function Assistant() {
           messages: state.messages.filter((message) => message.displayId !== displayId),
         }));
         setStatus((current) => ({
-          ...(current ?? { models: null, thoughtLevels: null, sourceAgentId: null }),
+          ...(current ?? {
+            models: null,
+            thoughtLevels: null,
+            sourceAgentId: null,
+            workspace: "",
+          }),
           connectionStatus: "error",
           error: error instanceof Error ? error.message : String(error),
           sourceAgentId: null,
@@ -245,6 +278,7 @@ export function Assistant() {
             thoughtLevels: null,
             sourceAgentId: null,
             enabled: true,
+            workspace: "",
           }),
           connectionStatus: "error",
           error: extractErrorMessage(error) || "Failed to update Assistant model.",
@@ -268,6 +302,7 @@ export function Assistant() {
             thoughtLevels: null,
             sourceAgentId: null,
             enabled: true,
+            workspace: "",
           }),
           connectionStatus: "error",
           error: extractErrorMessage(error) || "Failed to update Assistant thinking level.",
@@ -280,7 +315,10 @@ export function Assistant() {
   );
 
   return (
-    <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+    <main
+      ref={setMainEl}
+      className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
+    >
 
       {/* Content stays mounted and fades in once initialization finishes, like Session's chat area. */}
       <ResizablePanelGroup
@@ -289,7 +327,13 @@ export function Assistant() {
           isInitializing && "pointer-events-none opacity-0",
         )}
       >
-        <ResizablePanel id="chat" minSize={400}>
+        <ResizablePanel
+          id="chat"
+          minSize={400}
+          disabled={compact && detailFile !== null}
+          collapsedSize={0}
+          maxSize={compact && detailFile ? 0 : undefined}
+        >
           <div className="relative flex h-full min-h-0 flex-col">
         <header
           className={cn(
@@ -355,6 +399,8 @@ export function Assistant() {
           <div className="mx-auto max-w-5xl">
             <ChatTextarea
               sessionId={ASSISTANT_SESSION_ID}
+              projectId={ASSISTANT_PROJECT_ID}
+              projectCwd={status?.workspace ?? ""}
               className="shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20"
               textValue={input}
               onTextValueChange={setInput}
@@ -511,6 +557,22 @@ export function Assistant() {
           </div>
         </ResizablePanel>
 
+        {detailFile && (
+          <>
+            {!compact && (
+              <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />
+            )}
+            <ResizablePanel id="detail" defaultSize={500} minSize={300}>
+              <FileDetail
+                compact={compact}
+                projectId={ASSISTANT_PROJECT_ID}
+                file={detailFile}
+                onClose={() => setDetailFile(null)}
+              />
+            </ResizablePanel>
+          </>
+        )}
+
         {/* Collapsed: no handle, and the panel cannot be dragged open. Same pattern as Session. */}
         <ResizableHandle
           disabled={!panelOpen}
@@ -528,7 +590,14 @@ export function Assistant() {
           maxSize={panelOpen ? 400 : 0}
           inert={!panelOpen}
         >
-          <Panel tab={panelTab} onTabChange={setPanelTab} onOpenChange={setPanelOpen} />
+          <Panel
+            tab={panelTab}
+            onTabChange={setPanelTab}
+            onOpenChange={setPanelOpen}
+            workspace={status?.workspace ?? ""}
+            previewFileId={detailFile}
+            onPreviewFile={setDetailFile}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
 
