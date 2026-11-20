@@ -46,21 +46,21 @@ export function useSessionIsLoading(sessionId: string | null): boolean {
   });
 }
 
-/** 只订阅 askUserRequests 数组 */
+/**
+ * 只订阅 askUserRequests 数组。
+ *
+ * 不要求 session 出现在 `sessions` 列表里：个人助理是伪会话，没有列表项，但
+ * ask-user 请求同样落在自己的 store 桶里。已删除会话的桶会由 sessions-changed 清理，
+ * 这里直接信任桶即可。
+ */
 export function useSessionAskUserRequests(sessionId: string | null): AskUserRequest[] | null {
   return useAppStore(
     useShallow((s) => {
       if (!sessionId) {
         return null;
       }
-      const session = s.sessions.find((session) => session.id === sessionId);
-      if (session) {
-        const state = s.sessionStates.get(session.id);
-        if (state && state.askUserRequests.length > 0) {
-          return state.askUserRequests;
-        }
-      }
-      return null;
+      const state = s.sessionStates.get(sessionId);
+      return state && state.askUserRequests.length > 0 ? state.askUserRequests : null;
     }),
   );
 }
