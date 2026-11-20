@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import {
   Bot,
   Globe,
+  HatGlasses,
   MessageCircle,
   SlidersHorizontal,
   Wrench,
@@ -51,7 +52,7 @@ export function SettingsLayout() {
     {
       id: "assistant",
       href: "/settings/assistant",
-      icon: <Bot className="size-4" />,
+      icon: <HatGlasses className="size-4" />,
       label: t("settings.assistant.title", "Personal Assistant"),
     },
     {

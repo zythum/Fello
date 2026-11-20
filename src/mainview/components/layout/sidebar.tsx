@@ -69,6 +69,7 @@ import {
   FolderOpen,
   FolderPlus,
   Globe,
+  HatGlasses,
   HelpCircle,
   Home,
   Library,
@@ -991,7 +992,7 @@ export function Sidebar() {
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
           }`}
         >
-          <Bot className="size-3.5" />
+          <HatGlasses className="size-3.5" />
           <span className="flex-1 truncate leading-normal select-none uppercase">
             {t("sidebar.assistant")}
           </span>
