@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowUp, Astroid, Check, ChevronDown, Gauge, PanelRightOpen, Square } from "lucide-react";
+import { ArrowUp, Astroid, Check, ChevronDown, Gauge, Loader2, PanelRightOpen, Square } from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
   AssistantStatus,
@@ -77,6 +77,9 @@ export function Assistant() {
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
   const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
+  const isHistoryLoading = useAppStore(
+    (state) => state.sessionStates.get(ASSISTANT_SESSION_ID)?.isLoading ?? true,
+  );
   const panelOpen = useAppStore((state) => state.panelOpen);
   const setPanelOpen = useAppStore((state) => state.setPanelOpen);
   const isMacApp = useAppStore((state) => state.isMacApp);
@@ -125,6 +128,8 @@ export function Assistant() {
   }, [resetSessionState]);
 
   const session = useMemo(() => assistantSession(status), [status]);
+  const isInitializing =
+    status === null || status.connectionStatus === "connecting" || isHistoryLoading;
   const isConnected = status?.connectionStatus === "connected";
   const isStreaming = status?.isStreaming ?? false;
   const isDreaming = status?.dreaming ?? false;
@@ -265,9 +270,15 @@ export function Assistant() {
   );
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+    <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
 
-      <ResizablePanelGroup className="flex min-h-0 flex-1">
+      {/* Content stays mounted and fades in once initialization finishes, like Session's chat area. */}
+      <ResizablePanelGroup
+        className={cn(
+          "flex min-h-0 flex-1 transition-opacity duration-500",
+          isInitializing && "pointer-events-none opacity-0",
+        )}
+      >
         <ResizablePanel id="chat" minSize={400}>
           <div className="flex h-full min-h-0 flex-col">
         <header
@@ -505,6 +516,18 @@ export function Assistant() {
           <Panel tab={panelTab} onTabChange={setPanelTab} onOpenChange={setPanelOpen} />
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      {isInitializing && (
+        <div
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background animate-in fade-in"
+          style={{ WebkitAppRegion: "drag" }}
+        >
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-sm font-normal text-muted-foreground/60">
+            {t("assistant.connecting", "Connecting…")}
+          </p>
+        </div>
+      )}
     </main>
   );
 }
