@@ -1,4 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   useSessionActiveSubagents,
@@ -49,6 +57,9 @@ function ChatAreaImpl({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const userMessageElementRefs = useRef(new Map<string, HTMLElement>());
   const userMessageIdsRef = useRef<string[]>([]);
+  const messageGroupRefs = useRef(new Map<string, HTMLDivElement>());
+  const pendingScrollAnchorRef = useRef<{ key: string; top: number } | null>(null);
+  const scrollAnchorTokenRef = useRef(0);
   // 吸附底部交给 use-stick-to-bottom：它用 ResizeObserver 跟踪内容尺寸、用速度弹簧动画
   // 跟随流式追加，并自行区分「用户滚动」与「程序滚动」，不再需要手写的阈值与 ref 启发式。
   const { scrollRef, contentRef, scrollToBottom, stopScroll, isAtBottom } = useStickToBottom({
@@ -89,6 +100,7 @@ function ChatAreaImpl({
   useFocusTarget("chat-area", focusChatArea);
 
   const scrollToBottomManual = useCallback(() => {
+    pendingScrollAnchorRef.current = null;
     void scrollToBottom({ animation: "smooth" });
   }, [scrollToBottom]);
 
@@ -144,6 +156,7 @@ function ChatAreaImpl({
         detail.duration >= 0
           ? detail.duration
           : undefined;
+      pendingScrollAnchorRef.current = null;
       scrollToBottomWithDuration(duration);
     };
     document.addEventListener("fello-scroll-to-bottom", handleScrollToBottom);
@@ -257,20 +270,64 @@ function ChatAreaImpl({
     [allMessageGroups, hasCachedMore, visibleCount],
   );
 
+  // Loading earlier history inserts content above the viewport. Anchor the first
+  // visible message group so its screen position survives the insertion.
+  useLayoutEffect(() => {
+    const anchor = pendingScrollAnchorRef.current;
+    if (!anchor) return;
+    const viewport = getViewport();
+    const element = messageGroupRefs.current.get(anchor.key);
+    if (!viewport || !element) return;
+    const delta = element.getBoundingClientRect().top - anchor.top;
+    if (delta !== 0) viewport.scrollTop += delta;
+  }, [messageGroups, getViewport]);
+
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || isLoadingEarlierRef.current) return;
 
     const viewport = getViewport();
-    const prevScrollHeight = viewport?.scrollHeight ?? 0;
+    if (!viewport) return;
+
+    // Capture the first visible group BEFORE inserting content. After the render,
+    // useLayoutEffect restores its offset instead of using a scrollHeight delta —
+    // the latter either fires before the insertion or double-corrects when the
+    // browser's own scroll anchoring already adjusted the viewport.
+    const viewportTop = viewport.getBoundingClientRect().top;
+    let anchor: { key: string; top: number } | null = null;
+    for (const group of messageGroups) {
+      const element = messageGroupRefs.current.get(group.key);
+      if (!element) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom > viewportTop + 1) {
+        anchor = { key: group.key, top: rect.top };
+        break;
+      }
+    }
+    if (!anchor && messageGroups.length > 0) {
+      const first = messageGroups[0];
+      const element = messageGroupRefs.current.get(first.key);
+      if (element) anchor = { key: first.key, top: element.getBoundingClientRect().top };
+    }
+    pendingScrollAnchorRef.current = anchor;
+    const anchorToken = ++scrollAnchorTokenRef.current;
+    cancelDurationScroll();
+    stopScroll();
+
+    // Keep the anchor through the next two frames so both the async history load
+    // and the visibleCount update can run their layout effects.
+    const clearAnchorSoon = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollAnchorTokenRef.current === anchorToken) {
+            pendingScrollAnchorRef.current = null;
+          }
+        });
+      });
+    };
+
     const revealNextPage = () => {
       setVisibleCount((count) => count + HISTORY_PAGE_SIZE);
-      // Wait for React to prepend the newly visible groups before restoring the viewport anchor.
-      requestAnimationFrame(() => {
-        if (!viewport) return;
-        // 上方插入内容会让 stick 逻辑重新计算目标位置，先停掉动画再手动补回偏移。
-        stopScroll();
-        viewport.scrollTop += viewport.scrollHeight - prevScrollHeight;
-      });
+      clearAnchorSoon();
     };
 
     if (!shouldLoadPreviousSegment) {
@@ -283,13 +340,24 @@ function ChatAreaImpl({
     try {
       const loaded = await (loadPreviousHistory ?? (() => loadPreviousSessionHistory(sessionId)))();
       if (loaded) revealNextPage();
+      else clearAnchorSoon();
     } catch (error) {
       console.error("Failed to load earlier session history", error);
+      clearAnchorSoon();
     } finally {
       isLoadingEarlierRef.current = false;
       setIsLoadingEarlier(false);
     }
-  }, [getViewport, hasMore, loadPreviousHistory, sessionId, shouldLoadPreviousSegment, stopScroll]);
+  }, [
+    cancelDurationScroll,
+    getViewport,
+    hasMore,
+    loadPreviousHistory,
+    messageGroups,
+    sessionId,
+    shouldLoadPreviousSegment,
+    stopScroll,
+  ]);
 
   const timelineItems = useMemo<ChatTimelineItem[]>(
     () =>
@@ -340,6 +408,7 @@ function ChatAreaImpl({
       const scrollTop = viewport.scrollTop;
       const elTop = el.getBoundingClientRect().top - viewportRect.top + scrollTop;
       // 先中止吸附动画，否则它会把这次跳转拽回底部。
+      pendingScrollAnchorRef.current = null;
       stopScroll();
       viewport.scrollTo({ top: Math.max(0, elTop), behavior: "smooth" });
     },
@@ -447,6 +516,10 @@ function ChatAreaImpl({
             return (
               <div
                 key={group.key}
+                ref={(element) => {
+                  if (element) messageGroupRefs.current.set(group.key, element);
+                  else messageGroupRefs.current.delete(group.key);
+                }}
                 className={cn(
                   "message-group w-full max-w-5xl mx-auto flex flex-col relative pointer-events-none px-10",
                   {
