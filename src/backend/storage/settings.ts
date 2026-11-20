@@ -131,6 +131,11 @@ interface SettingsMeta {
       maxContextTokens: number;
       preferredTime: string;
     };
+    worker: {
+      agentId: string | null;
+      modelId: string | null;
+      mcpServers: string[];
+    };
   };
   editor: {
     name: string;
@@ -184,6 +189,11 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     dream: {
       maxContextTokens: 96_000,
       preferredTime: "02:00",
+    },
+    worker: {
+      agentId: null,
+      modelId: null,
+      mcpServers: [],
     },
   },
   editor: {
@@ -423,6 +433,23 @@ function readSettings(): SettingsMeta {
               ? preferredTime
               : DEFAULT_SETTINGS.assistant.dream.preferredTime,
         },
+        worker: (() => {
+          const rawWorker = isObject(raw?.worker) ? raw.worker : null;
+          const modelId = rawWorker?.modelId;
+          return {
+            agentId:
+              typeof rawWorker?.agentId === "string" || rawWorker?.agentId === null
+                ? (rawWorker.agentId as string | null)
+                : DEFAULT_SETTINGS.assistant.worker.agentId,
+            modelId:
+              typeof modelId === "string" && modelId.trim()
+                ? modelId.trim()
+                : DEFAULT_SETTINGS.assistant.worker.modelId,
+            mcpServers: Array.isArray(rawWorker?.mcpServers)
+              ? rawWorker.mcpServers.filter((id): id is string => typeof id === "string")
+              : DEFAULT_SETTINGS.assistant.worker.mcpServers,
+          };
+        })(),
       };
     })();
 
@@ -726,6 +753,11 @@ export function getSettings(): SettingsInfo {
       enabled: meta.assistant.enabled,
       sourceAgentId: meta.assistant.sourceAgentId,
       dream: { ...meta.assistant.dream },
+      worker: {
+        agentId: meta.assistant.worker.agentId,
+        modelId: meta.assistant.worker.modelId,
+        mcpServers: meta.assistant.worker.mcpServers.slice(),
+      },
     },
     editor: {
       name: meta.editor.name,
@@ -814,6 +846,25 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
               ? settings.assistant.dream.preferredTime
               : prevMeta.assistant.dream.preferredTime,
         },
+        worker: (() => {
+          const worker = settings.assistant.worker;
+          if (!worker) return prevMeta.assistant.worker;
+          return {
+            agentId:
+              typeof worker.agentId === "string" || worker.agentId === null
+                ? worker.agentId
+                : prevMeta.assistant.worker.agentId,
+            modelId:
+              typeof worker.modelId === "string"
+                ? worker.modelId.trim() || null
+                : worker.modelId === null
+                  ? null
+                  : prevMeta.assistant.worker.modelId,
+            mcpServers: Array.isArray(worker.mcpServers)
+              ? worker.mcpServers.filter((id): id is string => typeof id === "string")
+              : prevMeta.assistant.worker.mcpServers,
+          };
+        })(),
       };
     })(),
     agents: (() => {

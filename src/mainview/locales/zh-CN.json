@@ -867,7 +867,8 @@
   "userBubble": {
     "copy": "复制",
     "locate": "定位",
-    "reminder": "提醒"
+    "reminder": "提醒",
+    "worker": "执行器"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",

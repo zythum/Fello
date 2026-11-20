@@ -132,6 +132,9 @@ Return only one JSON object that matches this JSON Schema exactly. Use the field
 JSON Schema:
 ${DREAM_JSON_SCHEMA}
 
+## Event messages
+- Messages that start with [Reminder ...] or [Worker ...] were injected by the application, not written by the user. Never record them as things the user said, asked for, or decided.
+
 ## Diary recap rules
 - summary: a few sentences covering what the user worked on, asked about, and decided during the period.
 - timeline: one entry per meaningful exchange or event, in order. Include concrete details: names, numbers, places, dates, tools, results, and what the user said about their situation.

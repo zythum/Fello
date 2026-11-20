@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
+import { ASSISTANT_SESSION_ID } from "../assistant/constants";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
@@ -130,6 +131,22 @@ function AppContent() {
         } catch {
           // ignore
         }
+      }
+      // 个人助理是伪会话，不在 sessions 列表里，单独恢复它的 pending 请求。
+      try {
+        const pending = await request.getPendingAskUserRequests({
+          sessionId: ASSISTANT_SESSION_ID,
+        });
+        if (pending.length > 0) {
+          if (!useAppStore.getState().sessionStates.has(ASSISTANT_SESSION_ID)) {
+            useAppStore.getState().resetSessionState(ASSISTANT_SESSION_ID);
+          }
+          for (const req of pending) {
+            useAppStore.getState().addAskUserRequest(ASSISTANT_SESSION_ID, req);
+          }
+        }
+      } catch {
+        // ignore
       }
 
       tiks.init();
@@ -276,6 +293,10 @@ function AppContent() {
     const handleAskUserRequest = (detail: BackendEvents["ask-user-request"]) => {
       const sid = detail.sessionId;
       if (!sid) return;
+      // 助理页面关闭时它的 store 桶可能不存在，必须先建桶，否则请求会被丢弃。
+      if (sid === ASSISTANT_SESSION_ID && !useAppStore.getState().sessionStates.has(sid)) {
+        useAppStore.getState().resetSessionState(sid);
+      }
       useAppStore.getState().addAskUserRequest(sid, detail);
       tiks.pop();
     };

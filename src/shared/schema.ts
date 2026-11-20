@@ -205,6 +205,33 @@ export interface AssistantStatus {
   thoughtLevels: SessionThoughtLevelState | null;
 }
 
+/** Worker state shown in the Personal Assistant's Workers panel. */
+export type AssistantWorkerStatus =
+  | "running"
+  | "awaiting_permission"
+  | "idle"
+  | "failed"
+  | "closed"
+  | "interrupted";
+
+export type AssistantWorkerConnectionStatus = "connected" | "connecting" | "disconnected";
+
+export interface AssistantWorkerInfo {
+  id: string;
+  name: string;
+  status: AssistantWorkerStatus;
+  /** Whether the worker's agent process is currently loaded. */
+  connectionStatus: AssistantWorkerConnectionStatus;
+  cwd: string;
+  agentId: string;
+  createdAt: number;
+  lastActiveAt: number;
+  currentTurnId: string | null;
+  lastTurnId: string | null;
+  lastStopReason: string | null;
+  lastError: string | null;
+}
+
 export interface AssistantHistoryItem {
   id: string;
   role: "user" | "assistant";
@@ -387,6 +414,19 @@ export interface SettingILinkInfo {
   useOriginalImage: boolean;
 }
 
+/**
+ * Personal Assistant 执行后台 worker 时使用的 agent 配置。
+ * worker 本身只是一个普通 ACP session：这里只决定"用谁、用哪个模型、挂哪些 MCP"。
+ */
+export interface SettingAssistantWorkerInfo {
+  /** 已启用 agent 的 id；null 表示还没配置，此时无法创建 worker。 */
+  agentId: string | null;
+  /** 留空使用 agent 默认模型。 */
+  modelId: string | null;
+  /** 复用的全局 MCP server id 列表。 */
+  mcpServers: string[];
+}
+
 /** Personal Assistant 的全局配置。 */
 export interface SettingAssistantInfo {
   enabled: boolean;
@@ -395,6 +435,7 @@ export interface SettingAssistantInfo {
     maxContextTokens: number;
     preferredTime: string;
   };
+  worker: SettingAssistantWorkerInfo;
 }
 
 /**
@@ -874,6 +915,8 @@ export type FelloIPCRequests = {
   };
   /** 获取内建个人助理状态。 */
   getAssistantStatus: { params: void; response: AssistantStatus };
+  /** 获取助理当前的所有 worker 及其状态。 */
+  listAssistantWorkers: { params: void; response: AssistantWorkerInfo[] };
   /** 获取个人助理的全部提醒（含已停用和已删除）。 */
   listAssistantReminders: { params: void; response: AssistantReminderList };
   getAssistantHistorySegment: {
@@ -1277,6 +1320,8 @@ export type FelloIPCEvents = {
   "assistant-status-changed": { status: AssistantStatus };
   /** 个人助理提醒的任何变更后推送完整列表。 */
   "assistant-reminders-changed": AssistantReminderList;
+  /** 个人助理 worker 列表或状态变更后推送完整列表。 */
+  "assistant-workers-changed": AssistantWorkerInfo[];
   "assistant-prompt-start": undefined;
   "assistant-prompt-end": undefined;
 

@@ -9,6 +9,7 @@ import {
   Copy,
   Check,
   ArrowUpToLine,
+  SquareChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,12 @@ import type { BaseBubbleProps } from "./base-bubble";
 /** Leading tag types that get a badge. Tags of other types stay as plain text. */
 const TAG_BADGES: Record<string, { icon: LucideIcon; className: string; labelKey: string; fallback: string }> = {
   Reminder: { icon: Bell, className: "text-yellow-400", labelKey: "userBubble.reminder", fallback: "Reminder" },
+  Worker: {
+    icon: SquareChevronRight,
+    className: "text-sky-400",
+    labelKey: "userBubble.worker",
+    fallback: "Worker",
+  },
 };
 
 /** 转义 markdown 特殊字符，使文本原样显示，不触发 markdown / HTML 渲染 */
@@ -155,7 +162,7 @@ export const UserBubble = memo(function UserBubble({
         )}
         <div className="group relative min-w-12 max-w-[80%] rounded-3xl rounded-tr-sm border border-border bg-secondary p-2 text-[13px] leading-snug font-normal text-card-foreground/75 pointer-events-auto">
           {leadingTag && (
-            <Badge className="absolute left-0 h-6 top-0 -translate-full ml-3 mt-3 shadow size-7">
+            <Badge className="absolute left-0 h-6 top-0 -translate-full ml-3 mt-3 shadow size-6">
               {(() => {
                 const badge = TAG_BADGES[leadingTag.type];
                 const Icon = badge.icon;

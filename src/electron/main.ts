@@ -24,6 +24,7 @@ import { createRequire } from "module";
 const nodeRequire = createRequire(import.meta.url);
 const launchEditor = nodeRequire("launch-editor");
 
+import { ASSISTANT_SESSION_ID } from "../assistant/constants";
 import { extractErrorMessage } from "../backend/utils";
 import { t } from "../backend/i18n";
 import { storageOps } from "../backend/storage";
@@ -86,14 +87,14 @@ function getActiveSessionIdFromWindow(win: BrowserWindow): string | null {
 
 function shouldShowAskUserNotification(sessionId: string): boolean {
   const win = mainWindow;
-  return (
-    !win ||
-    win.isDestroyed() ||
-    !win.isVisible() ||
-    win.isMinimized() ||
-    !win.isFocused() ||
-    getActiveSessionIdFromWindow(win) !== sessionId
-  );
+  if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized() || !win.isFocused()) {
+    return true;
+  }
+  // The assistant is a pseudo session: it is "active" whenever its page is showing.
+  if (sessionId === ASSISTANT_SESSION_ID) {
+    return !currentRouteOfWindow(win).startsWith("/assistant");
+  }
+  return getActiveSessionIdFromWindow(win) !== sessionId;
 }
 
 function closeAskUserNotification(askUserId: string) {
@@ -161,7 +162,8 @@ function showAskUserNotification(request: AskUserRequest) {
   });
   notification.on("click", () => {
     closeAskUserNotification(request.askUserId);
-    openSessionFromNotification(request.sessionId);
+    if (request.sessionId === ASSISTANT_SESSION_ID) openAssistantFromNotification();
+    else openSessionFromNotification(request.sessionId);
   });
   notification.on("close", () => {
     if (askUserNotifications.get(request.askUserId) === notification) {

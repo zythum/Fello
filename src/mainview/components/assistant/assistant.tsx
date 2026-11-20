@@ -18,6 +18,7 @@ import {
 } from "../../lib/assistant-lifecycle";
 import { ChatArea } from "../session/chat/chat-area";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
+import { AskUserDialog } from "../session/chat/chat-ask-user-dialog";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,15 @@ export function Assistant() {
   useEffect(() => {
     let active = true;
     resetSessionState(ASSISTANT_SESSION_ID);
+    // reset 会清空 askUser 队列：把后端仍然挂着的请求补回来（离开页面期间可能产生）。
+    void request
+      .getPendingAskUserRequests({ sessionId: ASSISTANT_SESSION_ID })
+      .then((pending) => {
+        for (const req of pending) {
+          useAppStore.getState().addAskUserRequest(ASSISTANT_SESSION_ID, req);
+        }
+      })
+      .catch(() => {});
 
     const onStatus = (detail: { status: AssistantStatus }) => {
       if (active) setStatus(detail.status);
@@ -280,7 +290,7 @@ export function Assistant() {
         )}
       >
         <ResizablePanel id="chat" minSize={400}>
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="relative flex h-full min-h-0 flex-col">
         <header
           className={cn(
             "relative flex h-12 items-center border-b border-border gap-2 pr-2.5 bg-background shrink-0 transition-[padding] duration-200",
@@ -492,6 +502,11 @@ export function Assistant() {
               }
             />
           </div>
+        </div>
+
+        {/* 与 session 的挂法一致：弹层只覆盖 chat 列，不盖住右侧 panel。 */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <AskUserDialog sessionId={ASSISTANT_SESSION_ID} />
         </div>
           </div>
         </ResizablePanel>

@@ -245,3 +245,6 @@ export async function appendAssistantHistory(messages: ModelMessage[]): Promise<
 export async function loadAssistantMemory(): Promise<string> {
   return (await readFileIfExists(MEMORY_PATH)) ?? "";
 }
+
+/** Shared root for assistant runtime data (`~/.fello/assistant/agent`). */
+export { AGENT_STORAGE_DIR as ASSISTANT_AGENT_DIR };

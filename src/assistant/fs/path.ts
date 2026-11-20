@@ -1,0 +1,47 @@
+import { homedir } from "os";
+import { isAbsolute, join, resolve, sep } from "path";
+
+/**
+ * Paths that belong to the assistant runtime itself. The filesystem tools may read them,
+ * but never write, move or use them as a worker workspace: corrupting session.json,
+ * history.jsonl, reminders.json or a diary would break the assistant.
+ */
+const PROTECTED_WRITE_PREFIXES = [
+  join(homedir(), ".fello", "assistant", "agent"),
+  join(homedir(), ".fello", "assistant", "session"),
+  join(homedir(), ".fello", "assistant", "diary"),
+];
+
+/** Expands `~` and resolves relative input against the assistant workspace. */
+export function resolveAssistantPath(input: string, workspace: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) throw new Error("Path is empty.");
+  const expanded =
+    trimmed === "~"
+      ? homedir()
+      : trimmed.startsWith("~/")
+        ? join(homedir(), trimmed.slice(2))
+        : trimmed;
+  return isAbsolute(expanded) ? resolve(expanded) : resolve(workspace, expanded);
+}
+
+function isInside(path: string, parent: string): boolean {
+  return path === parent || path.startsWith(parent + sep);
+}
+
+/**
+ * Rejects writes into the assistant's own runtime directories. Reads are unrestricted:
+ * the assistant may inspect anything, but its bookkeeping is system-owned.
+ */
+export function assertWritablePath(path: string): void {
+  const blocked = PROTECTED_WRITE_PREFIXES.find((prefix) => isInside(path, prefix));
+  if (blocked) {
+    throw new Error(
+      `Refusing to modify ${path}: it belongs to the assistant runtime (${blocked}).`,
+    );
+  }
+}
+
+export function isProtectedWritePath(path: string): boolean {
+  return PROTECTED_WRITE_PREFIXES.some((prefix) => isInside(path, prefix));
+}

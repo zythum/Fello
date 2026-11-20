@@ -277,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     enabled: true,
     sourceAgentId: null,
     dream: { maxContextTokens: 96_000, preferredTime: "02:00" },
+    worker: { agentId: null, modelId: null, mcpServers: [] },
   },
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },

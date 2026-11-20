@@ -5,6 +5,7 @@ import type { ContentBlock, SessionNotification, ToolCallUpdate } from "@agentcl
 import type {
   ApiAgentInfo,
   AssistantStatus,
+  AssistantWorkerInfo,
   SessionNotificationFelloExt,
 } from "../../shared/schema";
 import type { AssistantReminderList } from "../../shared/schema";
@@ -18,19 +19,25 @@ import {
   readAssistantMessageSegment,
 } from "../../assistant/storage";
 import { ACPBridge, type PromptResult } from "../agent/agent-bridge";
-import { CATCH_UP_WINDOW_MS, ReminderService, type DueReminder } from "../../assistant/reminders/service";
+import { CATCH_UP_WINDOW_MS, ReminderService } from "../../assistant/reminders/service";
 import { ReminderStore } from "../../assistant/reminders/store";
 import { adapters, agentEnv, extNotificationSpecs } from "../acp-adapters/adapters";
 import { FELLO_DIR } from "../storage/constant";
 import type { BackendContext } from "../types";
+import type { AskUserModule } from "../ask-user";
+import type { FileSystemTools } from "../../assistant/fs/tools";
+import { WorkerManager } from "./worker/manager";
 
 export const ASSISTANT_WORKSPACE = join(FELLO_DIR, "workspaces", "__assistant__");
 
 export interface AssistantModule {
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  /** Stops the assistant bridge, workers and reminder timers. Called on app shutdown. */
+  shutdown: () => Promise<void>;
   getStatus: () => AssistantStatus;
   listReminders: () => AssistantReminderList;
+  listWorkers: () => Promise<AssistantWorkerInfo[]>;
   getHistorySegment: (params: {
     segmentId?: number;
   }) => ReturnType<typeof readAssistantMessageSegment>;
@@ -112,7 +119,10 @@ class AssistantBusyError extends Error {
   }
 }
 
-export function createAssistantModule(ctx: BackendContext): AssistantModule {
+export function createAssistantModule(
+  ctx: BackendContext,
+  deps: { askUser: AskUserModule; filesystem: FileSystemTools },
+): AssistantModule {
   let bridge: ACPBridge | null = null;
   let starting: Promise<void> | null = null;
   let generation = 0;
@@ -126,15 +136,52 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     thoughtLevels: null,
   };
 
-  // Due reminders wait here until the assistant is connected and idle. A one-time reminder that
-  // cannot be sent within CATCH_UP_WINDOW_MS of its due time is marked missed instead.
-  const dueReminders: DueReminder[] = [];
+  // Wakes are messages injected into the assistant's chat: reminder deliveries and worker
+  // events. They wait until the assistant is connected and idle. Reminder wakes expire after
+  // CATCH_UP_WINDOW_MS; worker wakes stay queued until delivered.
+  type Wake = {
+    key: string;
+    text: string;
+    at: number;
+    expireMs?: number;
+    isValid?: () => boolean;
+    onDelivered?: () => Promise<void> | void;
+    onExpired?: () => Promise<void> | void;
+  };
+  const pendingWakes: Wake[] = [];
   let draining = false;
   let drainRetry: ReturnType<typeof setTimeout> | null = null;
+
+  async function publishWorkers(): Promise<void> {
+    try {
+      ctx.sendEvent("assistant-workers-changed", await workerManager.list());
+    } catch (error) {
+      console.error("[assistant] Failed to publish workers:", error);
+    }
+  }
+
+  const workerManager = new WorkerManager({
+    ctx,
+    workspaceRoot: ASSISTANT_WORKSPACE,
+    notify: (text) => {
+      enqueueWake({ key: `worker:${randomUUID()}`, text, at: Date.now() });
+    },
+    onChange: () => {
+      void publishWorkers();
+    },
+  });
+  void workerManager
+    .init()
+    .then(() => publishWorkers())
+    .catch((error) => {
+      console.error("[assistant] Failed to load workers:", error);
+    });
+
   const reminders = new ReminderService({
     store: new ReminderStore(),
     onDue: (due) => {
-      // The native notification is shown when a reminder is due, even if the chat message waits for the assistant to be idle.
+      // The native notification is shown when a reminder is due, even if the chat message
+      // waits for the assistant to be idle.
       const reminder = reminders.get(due.id);
       if (reminder?.status === "scheduled") {
         ctx.sendEvent("assistant-reminder-due", {
@@ -143,8 +190,21 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
           dueAt: due.dueAt,
         });
       }
-      dueReminders.push(due);
-      void drainReminders();
+      enqueueWake({
+        key: `reminder:${due.id}:${due.dueAt}`,
+        text: `[Reminder id="${reminder?.id ?? due.id}"] ${reminder?.text ?? ""}`,
+        at: due.dueAt,
+        expireMs: CATCH_UP_WINDOW_MS,
+        isValid: () => {
+          const current = reminders.get(due.id);
+          return !!current && current.status === "scheduled";
+        },
+        onDelivered: () => reminders.markDelivered(due.id, Date.now()),
+        onExpired: async () => {
+          const current = reminders.get(due.id);
+          if (current?.trigger.type === "once") await reminders.markMissed(due.id);
+        },
+      });
     },
     onChange: () => {
       ctx.sendEvent("assistant-reminders-changed", {
@@ -154,53 +214,54 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     },
   });
 
+  function enqueueWake(wake: Wake): void {
+    pendingWakes.push(wake);
+    void drainWakes();
+  }
+
   function scheduleDrainRetry() {
     if (drainRetry) return;
     drainRetry = setTimeout(() => {
       drainRetry = null;
-      void drainReminders();
+      void drainWakes();
     }, 60_000);
   }
 
-  async function drainReminders(): Promise<void> {
+  async function drainWakes(): Promise<void> {
     if (draining) return;
     draining = true;
     try {
-      while (dueReminders.length > 0) {
-        const due = dueReminders[0];
-        const reminder = reminders.get(due.id);
-        if (!reminder || reminder.status !== "scheduled") {
-          dueReminders.shift();
+      while (pendingWakes.length > 0) {
+        const wake = pendingWakes[0];
+        // Expiry and validity are checked before connection state, so a long disconnect
+        // still expires or drops outdated items.
+        if (wake.expireMs !== undefined && Date.now() - wake.at > wake.expireMs) {
+          pendingWakes.shift();
+          await wake.onExpired?.();
           continue;
         }
-        // Expiry is checked before connection state, so a long disconnect still marks reminders missed.
-        if (Date.now() - due.dueAt > CATCH_UP_WINDOW_MS) {
-          dueReminders.shift();
-          if (reminder.trigger.type === "once") await reminders.markMissed(due.id);
+        if (wake.isValid && !wake.isValid()) {
+          pendingWakes.shift();
           continue;
         }
         if (!bridge?.isConnected || status.isStreaming || status.dreaming) break;
-        dueReminders.shift();
-        const firedAt = Date.now();
+        pendingWakes.shift();
         try {
-          await sendPrompt(
-            [{ type: "text", text: `[Reminder id="${reminder.id}"] ${reminder.text}` }],
-            { onlyIfIdle: true },
-          );
+          await sendPrompt([{ type: "text", text: wake.text }], { onlyIfIdle: true });
         } catch (error) {
-          // Busy is not a failure: the reminder waits for the assistant to become idle.
+          // Busy is not a failure: the wake waits for the assistant to become idle.
           if (!(error instanceof AssistantBusyError)) {
-            console.error("[assistant] Failed to deliver reminder:", error);
+            console.error("[assistant] Failed to deliver wake:", error);
           }
-          dueReminders.unshift(due);
+          pendingWakes.unshift(wake);
           break;
         }
-        await reminders.markDelivered(due.id, firedAt);
+        await wake.onDelivered?.();
       }
     } finally {
       draining = false;
     }
-    if (dueReminders.length > 0) scheduleDrainRetry();
+    if (pendingWakes.length > 0) scheduleDrainRetry();
   }
 
   function publishStatus() {
@@ -322,9 +383,13 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
           sourceAgent: agentInfo,
           getDream: () => ctx.storage.getSettings().assistant.dream,
           reminders,
+          worker: workerManager,
+          askUser: (options) =>
+            deps.askUser.askUser({ sessionId: ASSISTANT_SESSION_ID, ...options }),
+          filesystem: deps.filesystem,
           onDreamStatus: ({ dreaming, error }) => {
             updateStatus({ dreaming, dreamError: error });
-            if (!dreaming) void drainReminders();
+            if (!dreaming) void drainWakes();
           },
         },
         cwd: ASSISTANT_WORKSPACE,
@@ -382,7 +447,7 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
           thoughtLevels:
             load.thoughtLevels ?? nextBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? null,
         });
-        void drainReminders();
+        void drainWakes();
       } catch (error) {
         if (generation !== currentGeneration || bridge !== nextBridge) return;
         bridge = null;
@@ -442,7 +507,7 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
       }
       updateStatus({ isStreaming: false });
       ctx.sendEvent("assistant-prompt-end", undefined);
-      void drainReminders();
+      void drainWakes();
     }
   }
 
@@ -484,6 +549,21 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
     await activeBridge?.kill().catch(() => {});
   }
 
+  /**
+   * Final cleanup. Order matters: abort the assistant first (its ACP agent's
+   * abortAll runs when the bridge closes), then cancel every worker.
+   */
+  async function shutdown(): Promise<void> {
+    reminders.stop();
+    if (drainRetry) {
+      clearTimeout(drainRetry);
+      drainRetry = null;
+    }
+    pendingWakes.length = 0;
+    await stop();
+    await workerManager.shutdown();
+  }
+
   void reminders.start().catch((error) => {
     console.error("[assistant] Failed to load reminders:", error);
   });
@@ -491,8 +571,10 @@ export function createAssistantModule(ctx: BackendContext): AssistantModule {
   return {
     start,
     stop,
+    shutdown,
     getStatus: () => status,
     listReminders: () => ({ reminders: reminders.listAll(), timeZone: serverTimeZone() }),
+    listWorkers: () => workerManager.list(),
     getHistorySegment,
     sendPrompt,
     cancelPrompt,

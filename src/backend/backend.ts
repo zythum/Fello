@@ -14,7 +14,7 @@ import {
 import { createWebUIModule } from "./webui";
 import { createWatcherModule } from "./watcher";
 import { createSkillsModule, SKILL_FILENAME } from "./skills";
-import { createSearchModule } from "./search";
+import { createSearchModule, glob, grep } from "./search";
 import { createAskUserModule } from "./ask-user";
 import { createShareToUserModule } from "./share-to-user";
 import { createBridgeConnectModule } from "./bridge-connect";
@@ -109,7 +109,10 @@ export function initBackend(
 
   // ── Layer 5: automation + personal assistant ──
   const automation = createAutomationModule(ctx, { inference: _inference });
-  const assistant = createAssistantModule(ctx);
+  const assistant = createAssistantModule(ctx, {
+    askUser,
+    filesystem: { grep, glob },
+  });
   assistant.start().catch((err) => {
     console.warn("[assistant] Failed to start:", err);
   });
@@ -297,6 +300,9 @@ export function initBackend(
     },
     async listAssistantReminders() {
       return assistant.listReminders();
+    },
+    async listAssistantWorkers() {
+      return assistant.listWorkers();
     },
     async getAssistantHistorySegment({ segmentId }) {
       return assistant.getHistorySegment({ segmentId });
@@ -612,7 +618,7 @@ export function initBackend(
   // ── closeBackend ─────────────────────────────────────────────────
   async function closeBackend() {
     automation.stopAllCrons();
-    await assistant.stop();
+    await assistant.shutdown();
     await asr.closeAll();
     await tts.closeAll();
     webui.stop();
