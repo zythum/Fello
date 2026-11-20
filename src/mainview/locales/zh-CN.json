@@ -127,8 +127,8 @@
       }
     },
     "workers": {
-      "title": "执行器",
-      "empty": "暂无执行器",
+      "title": "子代理",
+      "empty": "暂无子代理",
       "turn": "轮次",
       "status": {
         "running": "运行中",
@@ -899,7 +899,7 @@
     "copy": "复制",
     "locate": "定位",
     "reminder": "提醒",
-    "worker": "执行器"
+    "worker": "子代理"
   },
   "session": {
     "usageSummary": "{{total}} tk  ( ↓ {{input}}  ↑ {{output}}{{cachedPart}} )",
