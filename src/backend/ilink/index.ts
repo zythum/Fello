@@ -1,5 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { Feature, SessionInfo, SessionModelState } from "../../shared/schema";
+import type { AssistantStatus, Feature, SessionInfo, SessionModelState } from "../../shared/schema";
+import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
 import type { WeixinMessage } from "./ilink-client";
 import {
   ILinkBridge,
@@ -62,8 +63,11 @@ export interface IlinkHandlerDeps {
   setModel: SessionModule["setModel"];
   updateSession: SessionModule["updateSession"];
   loadSession: SessionModule["loadSession"];
+  isSessionStreaming: SessionModule["isSessionStreaming"];
   respondAskUser: AskUserModule["respondAskUser"];
   getPendingAskUserRequests: AskUserModule["getPendingAskUserRequests"];
+  /** The assistant is a pseudo session, so its status comes from its own module. */
+  getAssistantStatus: () => AssistantStatus;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────
@@ -88,6 +92,17 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   function getHandlers(): IlinkHandlerDeps {
     if (!handlers) throw new Error("[ilink] handlers not yet initialized");
     return handlers;
+  }
+
+  /** The assistant is a pseudo session: selectable only while enabled in settings. */
+  function isAssistantAvailable(): boolean {
+    return storage.getSettings().assistant.enabled;
+  }
+
+  function isKnownIlinkSessionId(sessionId: string | null): sessionId is string {
+    if (!sessionId) return false;
+    if (sessionId === ASSISTANT_SESSION_ID) return isAssistantAvailable();
+    return !!storage.getSession(sessionId);
   }
 
   // ── Menu helpers ───────────────────────────────────────────────────
@@ -204,7 +219,15 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const { trimmed, combinedText, hasImages } = input;
 
     const sessionId = activeSessionId ?? "";
-    if (!sessionId) {
+    if (!isKnownIlinkSessionId(sessionId)) {
+      // The selection can go stale while connected (deleted session, disabled assistant).
+      // Drop it so WeChat gets the normal "no active session" guidance instead of an error.
+      if (activeSessionId) {
+        activeSessionId = null;
+        replyBuffer = "";
+        writeActiveSessionId(null).catch(() => {});
+        sendEvent("ilink-active-session-changed", { sessionId: null });
+      }
       console.warn("[iLink] No active session, ignoring message");
       if (msg.from_user_id) {
         const lines = [
@@ -282,10 +305,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   // ── Commands ───────────────────────────────────────────────────────
 
   async function handleIlinkCommand(trimmed: string, msg: WeixinMessage) {
-    const session = activeSessionId ? storage.getSession(activeSessionId) : null;
-    if (session && session.isStreaming) {
+    const sessionId = activeSessionId;
+    if (sessionId && getHandlers().isSessionStreaming(sessionId)) {
       getHandlers()
-        .cancelPrompt({ sessionId: session.id })
+        .cancelPrompt({ sessionId })
         .catch((err: unknown) => {
           console.warn("[iLink] Failed to cancel prompt:", err);
         });
@@ -308,7 +331,8 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
 
   async function handleCommandSwitchSession(msg: WeixinMessage) {
     const allSessions = storage.listSessions();
-    if (allSessions.length === 0) {
+    const assistantAvailable = isAssistantAvailable();
+    if (allSessions.length === 0 && !assistantAvailable) {
       if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, t("ilink.noSessions"));
       return;
     }
@@ -318,8 +342,18 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push(`📋 **${t("ilink.sessionList")}**`);
     lines.push("", t("ilink.sessionListDesc"));
     let index = 1;
-    let isFirstGroup = true;
     const sessionEntries: Array<{ sessionId: string; label: string }> = [];
+    if (assistantAvailable) {
+      const marker = activeSessionId === ASSISTANT_SESSION_ID ? " 👈" : "";
+      lines.push(`\n**${t("ilink.personalAssistant")}**`, "");
+      lines.push(`  ${index}. [${ASSISTANT_AGENT_ID}] ${t("ilink.personalAssistant")}${marker}`);
+      sessionEntries.push({
+        sessionId: ASSISTANT_SESSION_ID,
+        label: t("ilink.personalAssistant"),
+      });
+      index++;
+    }
+    let isFirstGroup = !assistantAvailable;
     const grouped = new Map<string, typeof allSessions>();
     for (const s of allSessions) {
       const project = projectMap.get(s.projectId);
@@ -508,6 +542,12 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     );
   }
 
+  /** Assistant turns have no permission / feature / MCP switches (they are config options). */
+  async function replyAssistantUnsupported(msg: WeixinMessage) {
+    if (!msg.from_user_id) return;
+    await bridge?.sendTextReply(msg.from_user_id, t("ilink.assistantUnsupported"));
+  }
+
   // ── Permission mode ───────────────────────────────────────────────
 
   const PERMISSION_MODES: SessionInfo["permissionMode"][] = ["ask", "allow-all"];
@@ -526,6 +566,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandPermission(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await replyAssistantUnsupported(msg);
+      return;
+    }
     const session = sessionId ? storage.getSession(sessionId) : null;
     if (!session) {
       await replyNoActiveSession(msg);
@@ -579,6 +623,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandFeatures(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await replyAssistantUnsupported(msg);
+      return;
+    }
     if (!sessionId || !storage.getSession(sessionId)) {
       await replyNoActiveSession(msg);
       return;
@@ -673,6 +721,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandMcpServers(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await replyAssistantUnsupported(msg);
+      return;
+    }
     if (!sessionId || !storage.getSession(sessionId)) {
       await replyNoActiveSession(msg);
       return;
@@ -817,6 +869,31 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   // ── Session status ─────────────────────────────────────────────────
 
   async function handleCommandInfo(msg: WeixinMessage) {
+    if (activeSessionId === ASSISTANT_SESSION_ID) {
+      const status = getHandlers().getAssistantStatus();
+      const modelState = status.models;
+      const currentModel = modelState?.availableModels.find(
+        (model) => model.modelId === modelState.currentModelId,
+      );
+      const lines = [
+        `📋 **${t("ilink.personalAssistant")}**\n`,
+        `**${t("ilink.workspace")}**: \`${status.workspace}\``,
+        `**${t("ilink.agent")}**: \`${status.sourceAgentId ?? "—"}\``,
+        `**${t("ilink.model")}**: \`${currentModel?.name || modelState?.currentModelId || "—"}\``,
+        `**${t("ilink.connectionStatus")}**: ${status.connectionStatus}`,
+      ];
+      if (status.error) lines.push("", `⚠️ ${status.error}`);
+      lines.push(
+        "",
+        "---",
+        "- " + t("ilink.switchSessionGuide"),
+        "- " + t("ilink.modelGuide"),
+        "- " + t("ilink.snippetGuide"),
+      );
+      if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, lines.join("\n"));
+      return;
+    }
+
     const currentSession = activeSessionId ? storage.getSession(activeSessionId) : null;
     const message = (() => {
       const lines: string[] = [];
@@ -911,8 +988,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       sendEvent("ilink-active-session-changed", { sessionId: null });
       return;
     }
-    const session = storage.getSession(sessionId);
-    if (!session) throw new Error("Session does not exist");
+    if (!isKnownIlinkSessionId(sessionId)) throw new Error("Session does not exist");
     activeSessionId = sessionId;
     replyBuffer = "";
     await writeActiveSessionId(sessionId);
@@ -920,10 +996,10 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   }
 
   async function getActiveIlinkSession() {
-    if (activeSessionId) return { sessionId: activeSessionId };
+    if (isKnownIlinkSessionId(activeSessionId)) return { sessionId: activeSessionId };
     try {
       const savedId = await readActiveSessionId();
-      if (savedId && storage.getSession(savedId)) {
+      if (isKnownIlinkSessionId(savedId)) {
         activeSessionId = savedId;
         return { sessionId: savedId };
       }
@@ -936,7 +1012,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const restored = await b.tryRestore();
     if (restored) {
       const savedId = await readActiveSessionId();
-      if (savedId && storage.getSession(savedId)) {
+      if (isKnownIlinkSessionId(savedId)) {
         activeSessionId = savedId;
         sendEvent("ilink-active-session-changed", { sessionId: savedId });
       }

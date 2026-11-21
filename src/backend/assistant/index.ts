@@ -32,6 +32,12 @@ import type { BackendContext } from "../types";
 import type { AskUserModule } from "../ask-user";
 import type { FileSystemTools } from "../../assistant/fs/tools";
 import type { McpConfigDeps } from "../session/mcp-config";
+import type { IlinkState } from "../ilink";
+import {
+  bufferAgentChunkForIlink,
+  flushIlinkMedia,
+  flushIlinkReply,
+} from "../session/notifications";
 import { WorkerManager } from "./worker/manager";
 
 export interface AssistantModule {
@@ -158,7 +164,12 @@ class AssistantBusyError extends Error {
 
 export function createAssistantModule(
   ctx: BackendContext,
-  deps: { askUser: AskUserModule; filesystem: FileSystemTools; mcpDeps: McpConfigDeps },
+  deps: {
+    askUser: AskUserModule;
+    filesystem: FileSystemTools;
+    mcpDeps: McpConfigDeps;
+    ilink: IlinkState;
+  },
 ): AssistantModule {
   let bridge: ACPBridge | null = null;
   let starting: Promise<void> | null = null;
@@ -334,6 +345,15 @@ export function createAssistantModule(
   ): Promise<void> {
     const enriched = enrichNotification(notification);
     const type = enriched.update.sessionUpdate;
+
+    // Same iLink forwarding as regular sessions: the assistant can drive WeChat when selected.
+    bufferAgentChunkForIlink(deps.ilink, ASSISTANT_SESSION_ID, enriched);
+    const ilinkActive = deps.ilink.getActiveSessionId() === ASSISTANT_SESSION_ID;
+    if (type === "tool_call" && ilinkActive) {
+      void flushIlinkReply(deps.ilink);
+      flushIlinkMedia(deps.ilink);
+    }
+
     if (type === "usage_update" || type === "available_commands_update") {
       if (type === "usage_update") {
         const usage = enriched.update as UsageUpdate;
@@ -370,6 +390,7 @@ export function createAssistantModule(
           { ...enriched, update: safeUpdate as SessionNotificationFelloExt["update"] },
           segment ?? undefined,
         );
+        if (ilinkActive) flushIlinkMedia(deps.ilink);
       }
     } else {
       await appendAssistantMessage(enriched, segment ?? undefined);
@@ -552,6 +573,11 @@ export function createAssistantModule(
       return result;
     } finally {
       await notificationTail;
+      // Flush any buffered reply even when the turn was interrupted (or started by a wake).
+      if (deps.ilink.getActiveSessionId() === ASSISTANT_SESSION_ID) {
+        await flushIlinkReply(deps.ilink);
+        flushIlinkMedia(deps.ilink);
+      }
       endAssistantMessageTurn(messageSegment);
       if (activeMessageSegment?.id === messageSegment.id) {
         activeMessageSegment = null;

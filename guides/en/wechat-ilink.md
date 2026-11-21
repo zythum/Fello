@@ -36,6 +36,8 @@ After connecting WeChat, you need to assign an AI session to handle incoming WeC
 
 > 💡 **Switching the active session:** You can right-click another session anytime to reassign it. Only one session is active at a time. To unbind, use the "Unset WeChat Active" option in the right-click menu.
 
+> 🤖 **Personal Assistant:** The built-in Personal Assistant can also handle WeChat messages. Select it from the active-session dropdown in **Settings → WeChat iLink**; its replies are forwarded to WeChat like any other session.
+
 ### Sending & Receiving Messages
 
 | Feature | Description |
@@ -51,14 +53,14 @@ Messages starting with `!` sent in WeChat are treated as commands. A command **i
 
 | Command | Function | Description |
 |------|------|------|
-| `!s` | **Switch session** | Lists all sessions (grouped by project); reply with a number to switch to that session |
+| `!s` | **Switch session** | Lists all sessions (and the Personal Assistant, when enabled), grouped by project; reply with a number to switch to that session |
 | `!n` | **New session** | Lists all projects; reply with a number to create a new session under that project and switch to it |
 | `!m` | **Switch model** | Lists the models available in the current session; reply with a number to switch (API Agent only) |
 | `!p` | **Switch permission** | Lists the permission modes (Ask / Allow all); reply with a number to switch. Applied immediately, **without restarting** the session |
 | `!f` | **Toggle features** | Lists the session's feature switches; reply with a number to toggle one. The session **restarts** so the change takes effect |
 | `!c` | **Toggle MCP** | Lists the session's MCP server switches; reply with a number to toggle one. The session **restarts** so the change takes effect |
 | `!q` | **Quick phrase** | Lists configured Snippets; reply with a number to send the corresponding content to the Agent |
-| `!` | **View status** | Shows the current active session info (title, project, Agent, permission, Features, MCP status) |
+| `!` | **View status** | Shows the current active session info (title, project, Agent, permission, Features, MCP status), or the Personal Assistant's workspace, Agent, model and connection status |
 
 > 💡 **Interaction:** After running `!s`, `!n`, `!m`, `!p`, or `!q`, you get a numbered list; just reply with the corresponding **number** to complete the action. For example, send `!s` and reply `2` to switch to the 2nd session.
 
@@ -67,6 +69,8 @@ Messages starting with `!` sent in WeChat are treated as commands. A command **i
 > 🔁 **Toggle commands:** `!f` and `!c` are **multi-select** switches — replying with a number flips that switch and restarts the session (Features and MCP are only read when a session is loaded). Restarting cancels any ongoing Agent reply, but the history is preserved. The list is re-sent after every toggle so you can flip several switches in a row; send `0` to exit the menu.
 
 > 🔐 **Permission command:** `!p` is a **single-choice** menu like `!m` — one reply completes the switch, with no follow-up interaction. The permission mode is read on every permission request, so it **does not restart** the session. After switching to "Ask", permission requests are pushed to WeChat — reply with a number to allow or reject.
+
+> 🤖 **Assistant limitations:** While the Personal Assistant is the active session, `!p`, `!f`, and `!c` reply that the setting is unsupported — the assistant has no permission mode, Feature switches, or session MCP selection. `!`, `!s`, `!m`, and `!q` work as usual.
 
 > ⚡ **Interruption:** Any message starting with `!` first cancels an ongoing Agent response, then executes the command. So even if you just want to interrupt the Agent, send any `!` message (e.g. `!stop`). Send `!` on its own to view the current status and command list; an unknown command gets an "unknown command" hint.
 

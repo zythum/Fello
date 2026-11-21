@@ -31,10 +31,17 @@ import { startSocketServer, generateSocketPath, type SocketServer } from "../soc
 import { writeActiveSessionId } from "../ilink/ilink-bridge";
 import { t } from "../i18n";
 import { buildMcpServersConfig, type McpConfigDeps } from "./mcp-config";
-import { createNotificationHandler } from "./notifications";
+import {
+  createNotificationHandler,
+  flushIlinkMedia,
+  flushIlinkReply,
+  startIlinkTyping,
+} from "./notifications";
 import type { IlinkState } from "../ilink";
 import type { ImageGenerationModule } from "../image-generation";
 import type { ToolboxModule } from "../toolbox";
+import type { AssistantModule } from "../assistant";
+import { ASSISTANT_SESSION_ID } from "../../assistant/constants";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -85,6 +92,8 @@ export interface SessionModule {
   setMode: (params: { sessionId: string; modeId: string }) => Promise<void>;
   getThoughtLevels: (params: { sessionId: string }) => Promise<SessionThoughtLevelState | null>;
   setThoughtLevel: (params: { sessionId: string; thoughtLevelId: string }) => Promise<void>;
+  /** Whether the session (or the assistant pseudo session) is currently running a turn. */
+  isSessionStreaming: (sessionId: string) => boolean;
 }
 
 import type { MemoryModule } from "../memory";
@@ -99,6 +108,7 @@ export interface SessionDeps {
   imageGeneration: ImageGenerationModule;
   toolbox: ToolboxModule;
   ilink: IlinkState;
+  assistant: AssistantModule;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────
@@ -115,6 +125,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     imageGeneration,
     toolbox,
     ilink: ilinkState,
+    assistant,
   } = deps;
 
   const mcpDeps: McpConfigDeps = {
@@ -242,10 +253,24 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     };
   }
 
+  /** The assistant has its own bridge; a load is just "make sure it is connected". */
+  async function loadAssistantSession(): Promise<SessionResult> {
+    await assistant.start();
+    const status = assistant.getStatus();
+    return {
+      sessionId: ASSISTANT_SESSION_ID,
+      initializeInfo: null,
+      models: status.models,
+      modes: null,
+      thoughtLevels: status.thoughtLevels,
+    };
+  }
+
   const sessionLoadPromiseMap = new Map<string, ReturnType<typeof _loadSession>>();
   const closingSessionIds = new Set<string>();
   async function loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
     if (closingSessionIds.has(sessionId)) throw new Error("Session is closing");
+    if (sessionId === ASSISTANT_SESSION_ID) return loadAssistantSession();
     const last = sessionLoadPromiseMap.get(sessionId);
     if (last) {
       if (force) throw new Error("Session is already loading");
@@ -488,6 +513,71 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     return { filename: `${base}.json`, json: stringifyConversationDocument(document) };
   }
 
+  type PromptTurnResult = { stopReason: string; error?: string };
+
+  /**
+   * Finish an iLink turn: hide the typing indicator, flush buffered text/media, then append
+   * any turn-level hint (error or non-normal stop reason).
+   */
+  function finishIlinkTurn(
+    sessionId: string,
+    result: { promptResponse?: PromptTurnResult; promptError?: string },
+  ): void {
+    startIlinkTyping(ilinkState, sessionId, false);
+
+    const ilinkBridge = ilinkState.getBridge();
+    if (!ilinkBridge?.isConnected || sessionId !== ilinkState.getActiveSessionId()) return;
+    const userId = ilinkBridge.userId;
+    if (!userId) return;
+
+    const { promptResponse, promptError } = result;
+    const flushPromise = flushIlinkReply(ilinkState);
+    if (promptError) {
+      flushPromise.then(() =>
+        ilinkBridge
+          .sendTextReply(userId, t("ilink.promptError", { error: promptError }))
+          .catch(() => {}),
+      );
+    } else if (promptResponse?.error) {
+      // Agent reported the failure inside a successful response
+      // (e.g. CodeBuddy refusal + errorMessage) — show the real reason
+      // instead of the generic stopReason hint.
+      const reason = promptResponse.error;
+      flushPromise.then(() =>
+        ilinkBridge
+          .sendTextReply(userId, t("ilink.promptError", { error: reason }))
+          .catch(() => {}),
+      );
+    } else if (promptResponse?.stopReason && promptResponse.stopReason !== "end_turn") {
+      const stopReasonLabels: Record<string, string> = {
+        max_tokens: t("ilink.promptMaxTokens"),
+        max_turn_requests: t("ilink.promptMaxTurnRequests"),
+        refusal: t("ilink.promptRefusal"),
+        cancelled: t("ilink.promptCancelled"),
+      };
+      const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
+      flushPromise.then(() => ilinkBridge.sendTextReply(userId, label).catch(() => {}));
+    }
+    flushIlinkMedia(ilinkState);
+  }
+
+  /** iLink / external callers reach the assistant through the same session I/O surface. */
+  async function sendAssistantPrompt(contents: ContentBlock[]) {
+    const sessionId = ASSISTANT_SESSION_ID;
+    startIlinkTyping(ilinkState, sessionId, true);
+    let promptResponse: PromptTurnResult | undefined;
+    let promptError: string | undefined;
+    try {
+      promptResponse = await assistant.sendPrompt(contents);
+      return promptResponse;
+    } catch (err) {
+      promptError = err instanceof Error ? err.message : String(err);
+      throw err;
+    } finally {
+      finishIlinkTurn(sessionId, { promptResponse, promptError });
+    }
+  }
+
   async function sendPrompt({
     sessionId,
     contents,
@@ -495,6 +585,8 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     contents: ContentBlock[];
   }) {
+    if (sessionId === ASSISTANT_SESSION_ID) return sendAssistantPrompt(contents);
+
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const project = storage.getProject(session.projectId);
@@ -579,12 +671,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     if (updated) sendEvent("session-changed", { session: updated });
     sendEvent("prompt-start", { sessionId });
 
-    const ilinkBridge = ilinkState.getBridge();
-    const ilinkActiveSessionId = ilinkState.getActiveSessionId();
-    if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
-      const userId = ilinkBridge.userId;
-      if (userId) ilinkBridge.sendTyping(userId, true).catch(() => {});
-    }
+    startIlinkTyping(ilinkState, sessionId, true);
 
     const hasPromptContents = contents.length > 0;
     let promptResponse: { stopReason: string; usage?: Usage | null; error?: string } | undefined;
@@ -631,52 +718,15 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       const updated2 = storage.getSession(sessionId);
       if (updated2) sendEvent("session-changed", { session: updated2 });
 
-      const bridge = ilinkState.getBridge();
-      const activeId = ilinkState.getActiveSessionId();
-      if (bridge?.isConnected && sessionId === activeId) {
-        const userId = bridge.userId;
-        if (userId) {
-          bridge.sendTyping(userId, false).catch(() => {});
-          const bufferedText = ilinkState.getReplyBuffer();
-          ilinkState.setReplyBuffer("");
-          const flushPromise = bufferedText
-            ? bridge.sendTextReply(userId, bufferedText).catch((err) => {
-                console.warn("[iLink] Failed to forward reply to WeChat:", err);
-              })
-            : Promise.resolve();
-          if (promptError) {
-            flushPromise.then(() =>
-              bridge
-                .sendTextReply(userId, t("ilink.promptError", { error: promptError }))
-                .catch(() => {}),
-            );
-          } else if (promptResponse?.error) {
-            // Agent reported the failure inside a successful response
-            // (e.g. CodeBuddy refusal + errorMessage) — show the real reason
-            // instead of the generic stopReason hint.
-            const reason = promptResponse.error;
-            flushPromise.then(() =>
-              bridge
-                .sendTextReply(userId, t("ilink.promptError", { error: reason }))
-                .catch(() => {}),
-            );
-          } else if (promptResponse?.stopReason && promptResponse.stopReason !== "end_turn") {
-            const stopReasonLabels: Record<string, string> = {
-              max_tokens: t("ilink.promptMaxTokens"),
-              max_turn_requests: t("ilink.promptMaxTurnRequests"),
-              refusal: t("ilink.promptRefusal"),
-              cancelled: t("ilink.promptCancelled"),
-            };
-            const label = stopReasonLabels[promptResponse.stopReason] || promptResponse.stopReason;
-            flushPromise.then(() => bridge.sendTextReply(userId, label).catch(() => {}));
-          }
-          notif.flushIlinkMedia(bridge);
-        }
-      }
+      finishIlinkTurn(sessionId, { promptResponse, promptError });
     }
   }
 
   async function cancelPrompt({ sessionId }: { sessionId: string }) {
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await assistant.cancelPrompt();
+      return;
+    }
     const session = storage.getSession(sessionId);
     if (!session) return;
     const pending = await askUser.getPendingAskUserRequests({ sessionId });
@@ -862,6 +912,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function getModels({ sessionId }: { sessionId: string }) {
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await assistant.start();
+      return assistant.getStatus().models;
+    }
     const session = storage.getSession(sessionId);
     if (!session) return null;
     const connectPromise = bridgeConnect.bridges.get(sessionId);
@@ -871,6 +925,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function setModel({ sessionId, modelId }: { sessionId: string; modelId: string }) {
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await assistant.setModel(modelId);
+      return;
+    }
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgeConnect.bridges.get(sessionId);
@@ -925,6 +983,10 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     thoughtLevelId: string;
   }) {
+    if (sessionId === ASSISTANT_SESSION_ID) {
+      await assistant.setThoughtLevel(thoughtLevelId);
+      return;
+    }
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const connectPromise = bridgeConnect.bridges.get(sessionId);
@@ -937,6 +999,11 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
       const updated = storage.getSession(session.id);
       if (updated) sendEvent("session-changed", { session: updated });
     }
+  }
+
+  function isSessionStreaming(sessionId: string): boolean {
+    if (sessionId === ASSISTANT_SESSION_ID) return assistant.getStatus().isStreaming;
+    return storage.getSession(sessionId)?.isStreaming ?? false;
   }
 
   return {
@@ -962,5 +1029,6 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     setMode,
     getThoughtLevels,
     setThoughtLevel,
+    isSessionStreaming,
   };
 }

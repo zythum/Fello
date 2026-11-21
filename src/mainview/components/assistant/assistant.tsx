@@ -51,9 +51,7 @@ import {
 import { cn, extractErrorMessage, generateUUID } from "@/lib/utils";
 import type { ChatMessage } from "../../lib/chat-message";
 import { useTtsAutoRead } from "../../lib/tts/use-tts-auto-read";
-import { electron } from "../../electron";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
-import { CopyableRow } from "../common/copyable-row";
 import { SessionConfigFields } from "../common/session-config";
 import { TtsMenuButton, TtsReadoutButton } from "../common/tts-header-controls";
 import { UsageButton } from "../common/usage-button";
@@ -452,25 +450,6 @@ export function Assistant() {
               <PopoverPrimitive.Portal>
                 <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
                   <PopoverPrimitive.Popup className="z-10 max-h-[70vh] w-110 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
-                    <div className="space-y-px py-1">
-                      <div className="px-2">
-                        <CopyableRow label={t("assistant.id", "ID")} value={ASSISTANT_SESSION_ID} />
-                      </div>
-                      <div className="px-2">
-                        <CopyableRow
-                          label={t("assistant.workspace", "Path")}
-                          value={status?.workspace ?? ""}
-                          openFolderTitle={t(
-                            "assistant.openWorkspace",
-                            "Open Workspace Folder",
-                          )}
-                          onOpenFolder={() => {
-                            if (status?.workspace) electron.revealInFinder(status.workspace);
-                          }}
-                        />
-                      </div>
-                    </div>
-
                     <SessionConfigFields
                       variant="popover"
                       showFeatures={false}

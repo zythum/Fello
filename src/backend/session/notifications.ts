@@ -76,10 +76,55 @@ function mergeToolCallUpdate<T extends ToolCallUpdate>(base: ToolCallUpdate, upd
   return merged as T;
 }
 
-function flushIlinkMedia(
-  bridge: NonNullable<ReturnType<IlinkState["getBridge"]>>,
+// ── iLink forwarding helpers ─────────────────────────────────────────
+//
+// Shared by regular sessions (broadcastAndSaveSessionUpdate) and the personal assistant
+// (its own notification pipeline). Keeping one implementation means the assistant's replies
+// are buffered/flushed exactly like a session's.
+
+/**
+ * Buffer one agent text chunk for WeChat.
+ *
+ * Only the active iLink session is forwarded; other sessions never touch the reply buffer.
+ */
+export function bufferAgentChunkForIlink(
   ilinkState: IlinkState,
-) {
+  sessionId: string,
+  notification: SessionNotification,
+): void {
+  const bridge = ilinkState.getBridge();
+  const userId = bridge?.userId;
+  if (!bridge?.isConnected || !userId || sessionId !== ilinkState.getActiveSessionId()) return;
+  const update = notification.update;
+  if (update?.sessionUpdate !== "agent_message_chunk") return;
+  const content = update.content;
+  if (content?.type === "text" && content.text) ilinkState.appendReplyBuffer(content.text);
+}
+
+/** Toggle the WeChat typing indicator for the currently active iLink session. */
+export function startIlinkTyping(ilinkState: IlinkState, sessionId: string, typing: boolean): void {
+  const bridge = ilinkState.getBridge();
+  const userId = bridge?.userId;
+  if (!bridge?.isConnected || !userId || sessionId !== ilinkState.getActiveSessionId()) return;
+  bridge.sendTyping(userId, typing).catch(() => {});
+}
+
+/** Flush buffered agent text to WeChat. Safe to call when nothing is buffered. */
+export function flushIlinkReply(ilinkState: IlinkState): Promise<void> {
+  const bridge = ilinkState.getBridge();
+  const userId = bridge?.userId;
+  const bufferedText = ilinkState.getReplyBuffer();
+  ilinkState.setReplyBuffer("");
+  if (!bridge?.isConnected || !userId || !bufferedText) return Promise.resolve();
+  return bridge.sendTextReply(userId, bufferedText).catch((err) => {
+    console.warn("[iLink] Failed to forward reply to WeChat:", err);
+  });
+}
+
+/** Send files/images queued by share_to_user / image_generation to WeChat. */
+export function flushIlinkMedia(ilinkState: IlinkState): void {
+  const bridge = ilinkState.getBridge();
+  if (!bridge?.isConnected) return;
   const items = ilinkState.getMediaBuffer();
   if (items.length === 0) return;
   ilinkState.clearMediaBuffer();
@@ -144,38 +189,16 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
       },
     };
 
-    const enrichedUpdate = enrichedNotification.update;
     const ilinkBridge = deps.ilink.getBridge();
-    const ilinkActiveSessionId = deps.ilink.getActiveSessionId();
+    const ilinkActive = !!ilinkBridge?.isConnected && sessionId === deps.ilink.getActiveSessionId();
 
     // iLink forwarding: agent response → WeChat
-    if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
-      const userId = ilinkBridge.userId;
-      if (userId) {
-        if (enrichedUpdate.sessionUpdate === "agent_message_chunk") {
-          const content = enrichedUpdate.content;
-          if (content?.type === "text" && content.text) {
-            deps.ilink.appendReplyBuffer(content.text);
-          }
-        }
-      }
-    }
+    bufferAgentChunkForIlink(deps.ilink, sessionId, enrichedNotification);
 
     // Flush buffered text before tool call
-    if (
-      sessionUpdate === "tool_call" &&
-      ilinkBridge?.isConnected &&
-      sessionId === ilinkActiveSessionId
-    ) {
-      const userId = ilinkBridge.userId;
-      const buffer = deps.ilink.getReplyBuffer();
-      if (userId && buffer) {
-        deps.ilink.setReplyBuffer("");
-        ilinkBridge.sendTextReply(userId, buffer).catch((err) => {
-          console.warn("[iLink] Failed to forward pre-tool text to WeChat:", err);
-        });
-      }
-      flushIlinkMedia(ilinkBridge, deps.ilink);
+    if (sessionUpdate === "tool_call" && ilinkActive) {
+      void flushIlinkReply(deps.ilink);
+      flushIlinkMedia(deps.ilink);
     }
 
     if (sessionUpdate === "tool_call_update") {
@@ -210,8 +233,8 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
           update: omit(enrichedNotification.update as any, ["rawInput", "rawOutput"]),
         } as SessionNotificationFelloExt);
 
-        if (ilinkBridge?.isConnected && sessionId === ilinkActiveSessionId) {
-          flushIlinkMedia(ilinkBridge, deps.ilink);
+        if (ilinkActive) {
+          flushIlinkMedia(deps.ilink);
         }
       }
     } else {
@@ -279,8 +302,6 @@ export function createNotificationHandler(ctx: BackendContext, deps: { ilink: Il
     mergeNotifications,
     addRestoring,
     removeRestoring,
-    flushIlinkMedia: (bridge: NonNullable<ReturnType<IlinkState["getBridge"]>>) =>
-      flushIlinkMedia(bridge, deps.ilink),
     clear,
   };
 }

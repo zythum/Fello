@@ -12,6 +12,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
 import type { ProjectInfo, SessionInfo, Feature } from "../../../shared/schema";
 import { ALL_FEATURES, EDITOR_LABELS } from "../../../shared/constants";
+import { ASSISTANT_SESSION_ID } from "../../../assistant/constants";
 import { request, isWebUI } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
@@ -996,6 +997,9 @@ export function Sidebar() {
           <span className="flex-1 truncate leading-normal select-none uppercase">
             {t("sidebar.assistant")}
           </span>
+          {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
+            <MessageCircle className="size-3 shrink-0 text-green-500" />
+          )}
         </div>
         <div
           onClick={() => handleNavigate("/skills/installed")}

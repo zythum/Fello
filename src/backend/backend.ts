@@ -79,7 +79,14 @@ export function initBackend(
   const asr = createAsrManager(ctx);
   const tts = createTtsManager(ctx);
 
-  // ── Layer 4: session, project, terminal ──
+  // ── Layer 4: assistant + session, project, terminal ──
+  // The assistant is a pseudo session; session I/O dispatches to it by id, so it must exist first.
+  const assistant = createAssistantModule(ctx, {
+    askUser,
+    filesystem: { grep, glob },
+    mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
+    ilink: ilink.state,
+  });
   const session = createSessionModule(ctx, {
     bridgeConnect,
     askUser,
@@ -90,6 +97,7 @@ export function initBackend(
     imageGeneration,
     toolbox,
     ilink: ilink.state,
+    assistant,
   });
   const project = createProjectModule(ctx, { session, watcher });
   const terminal = createTerminalModule(ctx, { bridges: bridgeConnect.bridges });
@@ -103,17 +111,14 @@ export function initBackend(
     setModel: session.setModel,
     updateSession: session.updateSession,
     loadSession: session.loadSession,
+    isSessionStreaming: session.isSessionStreaming,
     respondAskUser: askUser.respondAskUser,
     getPendingAskUserRequests: askUser.getPendingAskUserRequests,
+    getAssistantStatus: assistant.getStatus,
   });
 
-  // ── Layer 5: automation + personal assistant ──
+  // ── Layer 5: automation + personal assistant lifecycle ──
   const automation = createAutomationModule(ctx, { inference: _inference });
-  const assistant = createAssistantModule(ctx, {
-    askUser,
-    filesystem: { grep, glob },
-    mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
-  });
   assistant.start().catch((err) => {
     console.warn("[assistant] Failed to start:", err);
   });
