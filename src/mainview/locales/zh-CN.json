@@ -279,7 +279,7 @@
       "name": "名称",
       "nameDesc": "显示在侧边栏和助理页面；留空则使用默认名称。",
       "enabled": "启用个人助理",
-      "enabledDesc": "Fello 运行期间自动连接个人助理。",
+      "enabledDesc": "Fello 运行期间连接个人助理，并在侧边栏显示入口。",
       "groupModel": "模型",
       "sourceAgent": "来源 Agent",
       "sourceAgentDesc": "复用其 API Key 和模型列表。修改后会重启个人助理。",

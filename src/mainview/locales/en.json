@@ -280,7 +280,7 @@
       "name": "Name",
       "nameDesc": "Shown in the sidebar and on the assistant page. Leave empty to use the default name.",
       "enabled": "Enable Personal Assistant",
-      "enabledDesc": "Connect the assistant automatically while Fello is running.",
+      "enabledDesc": "Connect the assistant while Fello is running and show its sidebar entry.",
       "groupModel": "Model",
       "sourceAgent": "Source agent",
       "sourceAgentDesc": "Its API key and model catalog are reused. Changing it restarts the assistant.",

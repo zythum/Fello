@@ -178,7 +178,7 @@ export function createAssistantModule(
   let status: AssistantStatus = {
     connectionStatus: "disconnected",
     sourceAgentId: null,
-    enabled: true,
+    enabled: false,
     workspace: ASSISTANT_WORKSPACE,
     isStreaming: false,
     dreaming: false,

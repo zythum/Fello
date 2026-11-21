@@ -185,7 +185,8 @@ const DEFAULT_SETTINGS: SettingsMeta = {
   },
   assistant: {
     name: "",
-    enabled: true,
+    // 个人助理默认关闭；开启后才会连接助理并在侧边栏显示入口。
+    enabled: false,
     sourceAgentId: null,
     mcpServers: ["exa"],
     dream: {

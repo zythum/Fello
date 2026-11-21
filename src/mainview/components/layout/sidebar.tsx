@@ -315,6 +315,8 @@ export function Sidebar() {
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
   // 只订阅名称字符串（原始值），避免跟随整个 assistant 配置重渲染
   const assistantName = useAppStore((s) => s.assistant.name);
+  // 关闭个人助理时整个分区隐藏（设置在设置页切换后立即生效）
+  const assistantEnabled = useAppStore((s) => s.assistant.enabled);
   const displayAssistantName = assistantName?.trim() || t("sidebar.assistant");
   // 只订阅当前会话的 completedAt（原始值），不订阅整个 sessionStates
   const activeCompletedAt = useAppStore((s) =>
@@ -935,8 +937,8 @@ export function Sidebar() {
   const addProjectButtonRef = useRef<HTMLButtonElement>(null);
   const sessionListRef = useRef<HTMLDivElement>(null);
   const navigationItems = useMemo(() => {
-    // 个人助理固定在项目区上方，始终是导航中的第一项。
-    const items: SidebarNavigationItem[] = [{ type: "assistant" }];
+    // 个人助理固定在项目区上方，是导航中的第一项；关闭时整段不参与键盘导航。
+    const items: SidebarNavigationItem[] = assistantEnabled ? [{ type: "assistant" }] : [];
     for (const project of sortedProjects) {
       items.push({ type: "project", id: project.id });
       if (isProjectExpanded(project.id)) {
@@ -946,7 +948,7 @@ export function Sidebar() {
       }
     }
     return items;
-  }, [isProjectExpanded, sessionsByProject, sortedProjects]);
+  }, [assistantEnabled, isProjectExpanded, sessionsByProject, sortedProjects]);
 
   const focusNavigationItem = useCallback(
     (item: SidebarNavigationItem) => {
@@ -1024,9 +1026,12 @@ export function Sidebar() {
           sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
       );
       if (navigationItems.length === 0) return;
-      // 个人助理占据第 0 项；它下面的「添加项目」按钮位于第一个项目行上方，
-      // 因此从第一个项目按 ArrowUp 仍回到该按钮，保持按钮的键盘可达性。
-      if (key === "ArrowUp" && currentIndex === 1 && item.type === "project") {
+      // 「添加项目」按钮位于第一个项目行上方；个人助理开启时占据第 0 项，
+      // 因此按「第一个非助理项」判断，保证按钮始终可通过 ArrowUp 到达。
+      const firstProjectIndex = navigationItems.findIndex(
+        (navigationItem) => navigationItem.type !== "assistant",
+      );
+      if (key === "ArrowUp" && currentIndex === firstProjectIndex && item.type === "project") {
         addProjectButtonRef.current?.focus({ preventScroll: true });
         return;
       }
@@ -1096,11 +1101,11 @@ export function Sidebar() {
       return;
     }
 
-    // 按钮上方是个人助理分区，ArrowUp 回到它，形成完整的上/下移动链路
+    // 按钮上方是个人助理分区（关闭时不参与导航），ArrowUp 回到它
     if (key === "ArrowUp") {
       event.preventDefault();
       event.stopPropagation();
-      focusNavigationItem({ type: "assistant" });
+      if (assistantEnabled) focusNavigationItem({ type: "assistant" });
       return;
     }
 
@@ -1181,163 +1186,170 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-      {/* 个人助理区：固定在「项目」上方，只有一行，行样式与会话行一致（默认图标为 HatGlasses） */}
-      <div className="flex items-center px-3 pt-2">
-        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
-          {t("sidebar.assistant")}
-        </span>
-      </div>
-      <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-3">
-        <HoverCard
-          open={hoverId === assistantRowHoverId}
-          onOpenChange={(open) => {
-            // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
-            if (open) {
-              if (contextMenuId === null) setHoverId(assistantRowHoverId);
-            } else if (
-              hoverId === assistantRowHoverId &&
-              hoveredTriggerIdRef.current !== assistantRowHoverId
-            ) {
-              setHoverId(null);
-            }
-          }}
-        >
-          <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
-            <ContextMenu
+      {/* 个人助理区：固定在「项目」上方，只有一行，行样式与会话行一致（默认图标为 HatGlasses）；
+          关闭个人助理时整段隐藏 */}
+      {assistantEnabled && (
+        <>
+          <div className="flex items-center px-3 pt-2">
+            <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
+              {t("sidebar.assistant")}
+            </span>
+          </div>
+          <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-3">
+            <HoverCard
+              open={hoverId === assistantRowHoverId}
               onOpenChange={(open) => {
-                // 右键菜单打开时隐藏 hoverCard，并保持条目高亮；
-                // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
-                setContextMenuId(open ? assistantRowHoverId : null);
+                // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
                 if (open) {
+                  if (contextMenuId === null) setHoverId(assistantRowHoverId);
+                } else if (
+                  hoverId === assistantRowHoverId &&
+                  hoveredTriggerIdRef.current !== assistantRowHoverId
+                ) {
                   setHoverId(null);
-                } else if (hoveredTriggerIdRef.current === assistantRowHoverId) {
-                  setHoverId(assistantRowHoverId);
                 }
               }}
             >
-              <ContextMenuTrigger
-                render={
-                  <div
-                    ref={(element) => {
-                      if (element) navigationItemRefs.current.set("assistant", element);
-                      else navigationItemRefs.current.delete("assistant");
-                    }}
-                    tabIndex={-1}
-                    role="treeitem"
-                    aria-level={1}
-                    aria-current={currentPath === "/assistant" ? "page" : undefined}
-                    onClick={() => handleNavigate("/assistant")}
-                    onKeyDown={(event) => handleNavigationKeyDown(event, { type: "assistant" })}
-                    onPointerEnter={() => {
-                      hoveredTriggerIdRef.current = assistantRowHoverId;
-                    }}
-                    onPointerLeave={() => {
-                      hoveredTriggerIdRef.current = null;
-                    }}
-                    className={cn(
-                      "flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
-                      currentPath === "/assistant"
-                        ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95",
-                      hoverId === assistantRowHoverId || contextMenuId === assistantRowHoverId
-                        ? "bg-sidebar-accent"
-                        : "",
+              <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
+                <ContextMenu
+                  onOpenChange={(open) => {
+                    // 右键菜单打开时隐藏 hoverCard，并保持条目高亮；
+                    // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
+                    setContextMenuId(open ? assistantRowHoverId : null);
+                    if (open) {
+                      setHoverId(null);
+                    } else if (hoveredTriggerIdRef.current === assistantRowHoverId) {
+                      setHoverId(assistantRowHoverId);
+                    }
+                  }}
+                >
+                  <ContextMenuTrigger
+                    render={
+                      <div
+                        ref={(element) => {
+                          if (element) navigationItemRefs.current.set("assistant", element);
+                          else navigationItemRefs.current.delete("assistant");
+                        }}
+                        tabIndex={-1}
+                        role="treeitem"
+                        aria-level={1}
+                        aria-current={currentPath === "/assistant" ? "page" : undefined}
+                        onClick={() => handleNavigate("/assistant")}
+                        onKeyDown={(event) => handleNavigationKeyDown(event, { type: "assistant" })}
+                        onPointerEnter={() => {
+                          hoveredTriggerIdRef.current = assistantRowHoverId;
+                        }}
+                        onPointerLeave={() => {
+                          hoveredTriggerIdRef.current = null;
+                        }}
+                        className={cn(
+                          "flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
+                          currentPath === "/assistant"
+                            ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95",
+                          hoverId === assistantRowHoverId || contextMenuId === assistantRowHoverId
+                            ? "bg-sidebar-accent"
+                            : "",
+                        )}
+                      />
+                    }
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <AssistantRowStatus />
+                      <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                        {displayAssistantName}
+                      </span>
+                      {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
+                        <MessageCircle className="size-3 shrink-0 text-green-500" />
+                      )}
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    <ContextMenuItem
+                      onClick={() => handleNavigate("/assistant")}
+                      className="font-medium text-foreground"
+                    >
+                      <Eye className="size-3" />
+                      {t("sidebar.openAssistant", "Open Assistant")}
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleNavigate("/settings/assistant")}>
+                      <Settings2 className="size-3" />
+                      {t("sidebar.assistantSettings", "Assistant Settings")}
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => void handleRenameAssistant()}>
+                      <Pencil className="size-3" />
+                      {t("sidebar.rename", "Rename")}
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => void handleCopyAssistantWorkspace()}>
+                      <Copy className="size-3" />
+                      {t("sidebar.copyAssistantWorkspace", "Copy workspace path")}
+                    </ContextMenuItem>
+                    {ilinkStatus.connected && activeIlinkSessionId !== ASSISTANT_SESSION_ID && (
+                      <ContextMenuItem
+                        onClick={() => void handleSetActiveIlinkSession(ASSISTANT_SESSION_ID)}
+                      >
+                        <MessageCircle className="size-3" />
+                        {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                      </ContextMenuItem>
                     )}
-                  />
-                }
+                    {ilinkStatus.connected && activeIlinkSessionId === ASSISTANT_SESSION_ID && (
+                      <ContextMenuItem onClick={() => void handleSetActiveIlinkSession("")}>
+                        <MessageCircle className="size-3 text-green-500" />
+                        {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              </HoverCardTrigger>
+              <HoverCardContent
+                side="right"
+                align="start"
+                sideOffset={12}
+                alignOffset={0}
+                className="w-54 p-3"
               >
-                <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <AssistantRowStatus />
-                  <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                    {displayAssistantName}
-                  </span>
-                  {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
-                    <MessageCircle className="size-3 shrink-0 text-green-500" />
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
+                    <span>{displayAssistantName}</span>
+                  </div>
+                  <AssistantHoverDetails />
+                  {ilinkStatus.connected && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                      <MessageCircle
+                        className={cn(
+                          "size-3 shrink-0",
+                          activeIlinkSessionId === ASSISTANT_SESSION_ID && "text-green-500",
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleSetActiveIlinkSession(
+                            activeIlinkSessionId === ASSISTANT_SESSION_ID
+                              ? ""
+                              : ASSISTANT_SESSION_ID,
+                          )
+                        }
+                        className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                      >
+                        {t(
+                          activeIlinkSessionId === ASSISTANT_SESSION_ID
+                            ? "sidebar.ilinkActiveStatus"
+                            : "sidebar.ilinkInactiveStatus",
+                          activeIlinkSessionId === ASSISTANT_SESSION_ID
+                            ? "WeChat Active"
+                            : "Not WeChat Active",
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-48">
-                <ContextMenuItem
-                  onClick={() => handleNavigate("/assistant")}
-                  className="font-medium text-foreground"
-                >
-                  <Eye className="size-3" />
-                  {t("sidebar.openAssistant", "Open Assistant")}
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => handleNavigate("/settings/assistant")}>
-                  <Settings2 className="size-3" />
-                  {t("sidebar.assistantSettings", "Assistant Settings")}
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => void handleRenameAssistant()}>
-                  <Pencil className="size-3" />
-                  {t("sidebar.rename", "Rename")}
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => void handleCopyAssistantWorkspace()}>
-                  <Copy className="size-3" />
-                  {t("sidebar.copyAssistantWorkspace", "Copy workspace path")}
-                </ContextMenuItem>
-                {ilinkStatus.connected && activeIlinkSessionId !== ASSISTANT_SESSION_ID && (
-                  <ContextMenuItem
-                    onClick={() => void handleSetActiveIlinkSession(ASSISTANT_SESSION_ID)}
-                  >
-                    <MessageCircle className="size-3" />
-                    {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                  </ContextMenuItem>
-                )}
-                {ilinkStatus.connected && activeIlinkSessionId === ASSISTANT_SESSION_ID && (
-                  <ContextMenuItem onClick={() => void handleSetActiveIlinkSession("")}>
-                    <MessageCircle className="size-3 text-green-500" />
-                    {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                  </ContextMenuItem>
-                )}
-              </ContextMenuContent>
-            </ContextMenu>
-          </HoverCardTrigger>
-          <HoverCardContent
-            side="right"
-            align="start"
-            sideOffset={12}
-            alignOffset={0}
-            className="w-54 p-3"
-          >
-            <div className="flex flex-col gap-2">
-              <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
-                <span>{displayAssistantName}</span>
-              </div>
-              <AssistantHoverDetails />
-              {ilinkStatus.connected && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                  <MessageCircle
-                    className={cn(
-                      "size-3 shrink-0",
-                      activeIlinkSessionId === ASSISTANT_SESSION_ID && "text-green-500",
-                    )}
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleSetActiveIlinkSession(
-                        activeIlinkSessionId === ASSISTANT_SESSION_ID ? "" : ASSISTANT_SESSION_ID,
-                      )
-                    }
-                    className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
-                  >
-                    {t(
-                      activeIlinkSessionId === ASSISTANT_SESSION_ID
-                        ? "sidebar.ilinkActiveStatus"
-                        : "sidebar.ilinkInactiveStatus",
-                      activeIlinkSessionId === ASSISTANT_SESSION_ID
-                        ? "WeChat Active"
-                        : "Not WeChat Active",
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          </HoverCardContent>
-        </HoverCard>
-      </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
+        </>
+      )}
       {/* 项目区（标题 + 列表）整体作为「拖入文件夹添加项目」的落点，行为与点「添加项目」按钮一致 */}
       <div
         className="relative flex min-h-0 flex-1 flex-col"

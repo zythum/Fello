@@ -275,7 +275,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ilink: { useOriginalImage: false },
   assistant: {
     name: "",
-    enabled: true,
+    enabled: false,
     sourceAgentId: null,
     mcpServers: ["exa"],
     dream: { maxContextTokens: 64_000, preferredTime: "02:00" },
