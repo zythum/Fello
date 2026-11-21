@@ -274,6 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   proxy: { mode: "off" },
   ilink: { useOriginalImage: false },
   assistant: {
+    name: "",
     enabled: true,
     sourceAgentId: null,
     mcpServers: ["exa"],
@@ -445,6 +446,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       assistant: {
         ...assistant,
+        name: assistant.name ?? "",
         mcpServers: assistant.mcpServers ?? [],
         workerTypes: (assistant.workerTypes ?? []).map((type) => ({
           ...type,

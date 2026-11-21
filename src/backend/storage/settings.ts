@@ -126,6 +126,8 @@ interface SettingsMeta {
     useOriginalImage: boolean;
   };
   assistant: {
+    /** 空字符串 = 使用默认的本地化名称 */
+    name: string;
     enabled: boolean;
     sourceAgentId: string | null;
     mcpServers: string[];
@@ -182,6 +184,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     useOriginalImage: false,
   },
   assistant: {
+    name: "",
     enabled: true,
     sourceAgentId: null,
     mcpServers: ["exa"],
@@ -460,6 +463,7 @@ function readSettings(): SettingsMeta {
           })()
         : [];
       return {
+        name: typeof raw?.name === "string" ? raw.name.trim() : DEFAULT_SETTINGS.assistant.name,
         enabled:
           typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
         sourceAgentId:
@@ -782,6 +786,7 @@ export function getSettings(): SettingsInfo {
       useOriginalImage: meta.ilink.useOriginalImage,
     },
     assistant: {
+      name: meta.assistant.name,
       enabled: meta.assistant.enabled,
       sourceAgentId: meta.assistant.sourceAgentId,
       mcpServers: meta.assistant.mcpServers.slice(),
@@ -872,6 +877,10 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           })()
         : prevMeta.assistant.workerTypes;
       return {
+        name:
+          typeof settings.assistant.name === "string"
+            ? settings.assistant.name.trim()
+            : prevMeta.assistant.name,
         enabled:
           typeof settings.assistant.enabled === "boolean"
             ? settings.assistant.enabled

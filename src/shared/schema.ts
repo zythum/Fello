@@ -455,6 +455,11 @@ export interface SettingAssistantWorkerType {
 
 /** Personal Assistant 的全局配置。 */
 export interface SettingAssistantInfo {
+  /**
+   * 个人助理的显示名称。
+   * 空字符串表示使用默认的本地化名称（「个人助理」/ "Personal Assistant"）。
+   */
+  name: string;
   enabled: boolean;
   sourceAgentId: string | null;
   /** 助理自身可使用的全局 MCP server id 列表（与 workerTypes[].mcpServers 独立）。 */

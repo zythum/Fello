@@ -269,6 +269,8 @@
       "title": "Personal Assistant",
       "desc": "Choose the enabled OpenAI-compatible API agent used by your Personal Assistant.",
       "groupGeneral": "General",
+      "name": "Name",
+      "nameDesc": "Shown in the sidebar and on the assistant page. Leave empty to use the default name.",
       "enabled": "Enable Personal Assistant",
       "enabledDesc": "Connect the assistant automatically while Fello is running.",
       "groupModel": "Model",

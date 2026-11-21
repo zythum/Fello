@@ -99,6 +99,11 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     return storage.getSettings().assistant.enabled;
   }
 
+  /** 个人助理的展示名：设置里没填就沿用本地化的默认名称。 */
+  function getAssistantLabel(): string {
+    return storage.getSettings().assistant.name || t("ilink.personalAssistant");
+  }
+
   function isKnownIlinkSessionId(sessionId: string | null): sessionId is string {
     if (!sessionId) return false;
     if (sessionId === ASSISTANT_SESSION_ID) return isAssistantAvailable();
@@ -345,11 +350,12 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     const sessionEntries: Array<{ sessionId: string; label: string }> = [];
     if (assistantAvailable) {
       const marker = activeSessionId === ASSISTANT_SESSION_ID ? " 👈" : "";
-      lines.push(`\n**${t("ilink.personalAssistant")}**`, "");
-      lines.push(`  ${index}. [${ASSISTANT_AGENT_ID}] ${t("ilink.personalAssistant")}${marker}`);
+      const assistantLabel = getAssistantLabel();
+      lines.push(`\n**${assistantLabel}**`, "");
+      lines.push(`  ${index}. [${ASSISTANT_AGENT_ID}] ${assistantLabel}${marker}`);
       sessionEntries.push({
         sessionId: ASSISTANT_SESSION_ID,
-        label: t("ilink.personalAssistant"),
+        label: assistantLabel,
       });
       index++;
     }
@@ -876,7 +882,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
         (model) => model.modelId === modelState.currentModelId,
       );
       const lines = [
-        `📋 **${t("ilink.personalAssistant")}**\n`,
+        `📋 **${getAssistantLabel()}**\n`,
         `**${t("ilink.workspace")}**: \`${status.workspace}\``,
         `**${t("ilink.agent")}**: \`${status.sourceAgentId ?? "—"}\``,
         `**${t("ilink.model")}**: \`${currentModel?.name || modelState?.currentModelId || "—"}\``,

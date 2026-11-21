@@ -99,6 +99,8 @@ export function Assistant() {
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
   const assistantSettings = useAppStore((state) => state.assistant);
   const setAssistant = useAppStore((state) => state.setAssistant);
+  const assistantName =
+    assistantSettings.name?.trim() || t("assistant.title", "Personal Assistant");
   const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
   const [detailFile, setDetailFile] = useState<string | null>(null);
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
@@ -419,7 +421,7 @@ export function Assistant() {
           )}
           <div className="flex flex-1 min-w-0 items-baseline gap-2">
             <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
-              {t("assistant.title", "Personal Assistant")}
+              {assistantName}
             </span>
             <span className="flex-1 text-[10px] text-muted-foreground truncate">
               {isDreaming
@@ -510,7 +512,7 @@ export function Assistant() {
           showTimeline={false}
           loadPreviousHistory={loadPreviousAssistantHistory}
           avatar={HatGlasses}
-          name={t("assistant.title", "Personal Assistant")}
+          name={assistantName}
         />
 
         <div className="-mt-6 relative p-6 transition-opacity duration-300">

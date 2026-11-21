@@ -36,6 +36,9 @@ export function SettingsILink() {
   const ilink = useAppStore((s) => s.ilink);
   const setIlink = useAppStore((s) => s.setIlink);
   const assistantEnabled = useAppStore((s) => s.assistant.enabled);
+  const assistantName = useAppStore((s) => s.assistant.name);
+  const assistantLabel =
+    assistantName?.trim() || t("settings.ilink.personalAssistant", "Personal Assistant");
 
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginHint, setLoginHint] = useState<string>("");
@@ -317,7 +320,7 @@ export function SettingsILink() {
                     placeholder={t("settings.ilink.selectSession", "-- Select a session --")}
                   >
                     {activeIlinkSessionId === ASSISTANT_SESSION_ID
-                      ? t("settings.ilink.personalAssistant", "Personal Assistant")
+                      ? assistantLabel
                       : sessions.find((session) => session.id === activeIlinkSessionId)?.title}
                   </SelectValue>
                 </SelectTrigger>
@@ -327,12 +330,8 @@ export function SettingsILink() {
                   </SelectGroup>
                   {assistantEnabled && (
                     <SelectGroup>
-                      <SelectLabel>
-                        {t("settings.ilink.personalAssistant", "Personal Assistant")}
-                      </SelectLabel>
-                      <SelectItem value={ASSISTANT_SESSION_ID}>
-                        {t("settings.ilink.personalAssistant", "Personal Assistant")}
-                      </SelectItem>
+                      <SelectLabel>{assistantLabel}</SelectLabel>
+                      <SelectItem value={ASSISTANT_SESSION_ID}>{assistantLabel}</SelectItem>
                     </SelectGroup>
                   )}
                   {ilinkSessionGroups.map((group) => (

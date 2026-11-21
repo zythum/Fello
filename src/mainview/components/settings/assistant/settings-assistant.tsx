@@ -136,6 +136,8 @@ export function SettingsAssistant() {
   const [isSaving, setIsSaving] = useState(false);
   // Null means "no pending edit": the input shows the saved value.
   const [maxContextDraft, setMaxContextDraft] = useState<string | null>(null);
+  /** 名称草稿；null 表示没有未保存的编辑，输入框直接显示已保存名称。 */
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [workerDialogType, setWorkerDialogType] = useState<SettingAssistantWorkerType | null>(null);
   const workerTypeSensors = useSensors(
@@ -152,12 +154,17 @@ export function SettingsAssistant() {
     [configuredAgents],
   );
 
-  const updateAssistant = async (nextAssistant: typeof assistant): Promise<boolean> => {
-    const previous = assistant;
+  /**
+   * 以补丁形式更新助理配置，始终基于 store 里的最新值合并。
+   * 避免输入框 blur 提交后紧接着点击其它控件时，用渲染闭包里的旧值覆盖刚保存的字段。
+   */
+  const updateAssistant = async (patch: Partial<typeof assistant>): Promise<boolean> => {
+    const previous = useAppStore.getState().assistant;
     const normalized = {
-      ...nextAssistant,
-      mcpServers: nextAssistant.mcpServers ?? [],
-      workerTypes: nextAssistant.workerTypes ?? [],
+      ...previous,
+      ...patch,
+      mcpServers: patch.mcpServers ?? previous.mcpServers ?? [],
+      workerTypes: patch.workerTypes ?? previous.workerTypes ?? [],
     };
     setAssistant(normalized);
     setIsSaving(true);
@@ -176,20 +183,29 @@ export function SettingsAssistant() {
     }
   };
 
-  const handleEnabledChange = (enabled: boolean) =>
-    updateAssistant({ ...assistant, enabled });
+  const handleEnabledChange = (enabled: boolean) => updateAssistant({ enabled });
 
   const handleChange = (sourceAgentId: string | null) => {
     if (!sourceAgentId || sourceAgentId === assistant.sourceAgentId) return;
-    return updateAssistant({ ...assistant, sourceAgentId });
+    return updateAssistant({ sourceAgentId });
   };
 
   const handleDreamChange = (
     field: "maxContextTokens" | "preferredTime",
     value: number | string,
   ) => {
-    const dream = { ...assistant.dream, [field]: value };
-    return updateAssistant({ ...assistant, dream });
+    const dream = { ...useAppStore.getState().assistant.dream, [field]: value };
+    return updateAssistant({ dream });
+  };
+
+  /** 提交名称编辑：留空表示恢复默认名称（由显示层做本地化兜底）。 */
+  const commitNameDraft = () => {
+    const draft = nameDraft;
+    setNameDraft(null);
+    if (draft === null) return;
+    const name = draft.trim();
+    if (name === assistant.name) return;
+    void updateAssistant({ name });
   };
 
   const commitMaxContextDraft = () => {
@@ -203,7 +219,7 @@ export function SettingsAssistant() {
   };
 
   const saveWorkerTypes = (nextTypes: SettingAssistantWorkerType[]) =>
-    updateAssistant({ ...assistant, workerTypes: nextTypes });
+    updateAssistant({ workerTypes: nextTypes });
 
   const handleSaveWorkerType = async (type: SettingAssistantWorkerType): Promise<boolean> => {
     const editingId = workerDialogType?.id ?? null;
@@ -288,7 +304,7 @@ export function SettingsAssistant() {
     const mcpServers = enabled
       ? [...new Set([...assistantMcpServers, id])]
       : assistantMcpServers.filter((candidate) => candidate !== id);
-    void updateAssistant({ ...assistant, mcpServers });
+    void updateAssistant({ mcpServers });
   };
 
   const handleAddExa = async () => {
@@ -300,12 +316,12 @@ export function SettingsAssistant() {
       headers: {},
       disabled: false,
     };
-    const previousAssistant = assistant;
+    const previousAssistant = useAppStore.getState().assistant;
     const previousMcpServers = configuredMcpServers;
     const nextMcpServers = [...configuredMcpServers, exa];
     const nextAssistant = {
-      ...assistant,
-      mcpServers: [...new Set([...assistantMcpServers, exa.id])],
+      ...previousAssistant,
+      mcpServers: [...new Set([...(previousAssistant.mcpServers ?? []), exa.id])],
     };
     setConfiguredMcpServers(nextMcpServers);
     setAssistant(nextAssistant);
@@ -344,24 +360,51 @@ export function SettingsAssistant() {
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
               {t("settings.assistant.groupGeneral", "General")}
             </h4>
-            <div className="flex items-center justify-between gap-6">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium leading-none" htmlFor="assistant-enabled">
-                  {t("settings.assistant.enabled", "Enable Personal Assistant")}
-                </label>
-                <span className="text-xs text-muted-foreground/90">
-                  {t(
-                    "settings.assistant.enabledDesc",
-                    "Connect the assistant automatically while Fello is running.",
-                  )}
-                </span>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium leading-none" htmlFor="assistant-enabled">
+                    {t("settings.assistant.enabled", "Enable Personal Assistant")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.assistant.enabledDesc",
+                      "Connect the assistant automatically while Fello is running.",
+                    )}
+                  </span>
+                </div>
+                <Switch
+                  id="assistant-enabled"
+                  checked={assistant.enabled}
+                  disabled={isSaving}
+                  onCheckedChange={(checked) => void handleEnabledChange(checked)}
+                />
               </div>
-              <Switch
-                id="assistant-enabled"
-                checked={assistant.enabled}
-                disabled={isSaving}
-                onCheckedChange={(checked) => void handleEnabledChange(checked)}
-              />
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium leading-none" htmlFor="assistant-name">
+                    {t("settings.assistant.name", "Name")}
+                  </label>
+                  <span className="text-xs text-muted-foreground/90">
+                    {t(
+                      "settings.assistant.nameDesc",
+                      "Shown in the sidebar and on the assistant page. Leave empty to use the default name.",
+                    )}
+                  </span>
+                </div>
+                <Input
+                  id="assistant-name"
+                  className="w-32 shrink-0 h-7 text-xs!"
+                  value={nameDraft ?? assistant.name}
+                  placeholder={t("assistant.title", "Personal Assistant")}
+                  disabled={isSaving}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                  onBlur={commitNameDraft}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                />
+              </div>
             </div>
           </div>
 
