@@ -10,10 +10,10 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
-import type { ProjectInfo, SessionInfo, Feature } from "../../../shared/schema";
+import type { ProjectInfo, SessionInfo, Feature, AssistantStatus } from "../../../shared/schema";
 import { ALL_FEATURES, EDITOR_LABELS } from "../../../shared/constants";
-import { ASSISTANT_SESSION_ID } from "../../../assistant/constants";
-import { request, isWebUI } from "../../backend";
+import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../../assistant/constants";
+import { request, isWebUI, subscribe } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,7 @@ import {
 } from "../../lib/session-lifecycle";
 import { extractErrorMessage } from "@/lib/utils";
 import {
+  Activity,
   CalendarDays,
   Check,
   Clock,
@@ -81,6 +82,7 @@ import {
   Power,
   RefreshCw,
   Settings,
+  Settings2,
   Trash2,
   TriangleAlert,
   ClockCheck,
@@ -111,6 +113,9 @@ function projectHoverId(id: string): string {
 function sessionHoverId(id: string): string {
   return `s:${id}`;
 }
+function assistantHoverId(): string {
+  return "a:assistant";
+}
 
 /**
  * fello 文件树（file-panel）拖拽的私有 MIME 类型。
@@ -119,10 +124,12 @@ function sessionHoverId(id: string): string {
 const TREE_NODES_TYPE = "application/x-fello-tree-nodes";
 
 type SidebarNavigationItem =
+  | { type: "assistant" }
   | { type: "project"; id: string }
   | { type: "session"; id: string; projectId: string };
 
 function sidebarNavigationItemKey(item: SidebarNavigationItem): string {
+  if (item.type === "assistant") return "assistant";
   return item.type === "project" ? `project:${item.id}` : `session:${item.id}`;
 }
 
@@ -148,6 +155,104 @@ function SessionRowStatus({ sessionId, isStreaming }: { sessionId: string; isStr
   if (kind === "success") return <Check className="size-3 shrink-0 text-green-500" />;
   if (kind === "error") return <TriangleAlert className="size-3 shrink-0 text-yellow-500" />;
   return <div className="size-3 shrink-0" />;
+}
+
+/**
+ * 个人助理行图标：默认是 HatGlasses（区别于会话行的空图标占位），
+ * 有 pending 的 ask-user 请求时换成问号，与会话行的提示语义一致。
+ * 助理的流式 / 完成状态没有进入全局 store，因此这里不展示加载与完成图标。
+ */
+function AssistantRowStatus() {
+  const hasAskUserRequest = useAppStore(
+    (s) => (s.sessionStates.get(ASSISTANT_SESSION_ID)?.askUserRequests?.length ?? 0) > 0,
+  );
+
+  if (hasAskUserRequest) return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+  return <HatGlasses className="size-3.5 shrink-0" />;
+}
+
+/**
+ * 个人助理 hover 卡片的详情区。
+ *
+ * 助理状态不在全局 store（只存在于助理页面的局部 state），所以这里直接订阅
+ * assistant-status-changed 并按需拉取一次。订阅隔离在这个小组件内，避免侧边栏
+ * 跟随助理的每次状态广播（例如 usage 更新）整体重渲染。
+ */
+function AssistantHoverDetails() {
+  const { t } = useTranslation();
+  const { toast } = useMessage();
+  const [status, setStatus] = useState<AssistantStatus | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const onStatus = (detail: { status: AssistantStatus }) => {
+      if (active) setStatus(detail.status);
+    };
+    subscribe.on("assistant-status-changed", onStatus);
+    void request
+      .getAssistantStatus()
+      .then((next) => {
+        if (active) setStatus(next);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      subscribe.off("assistant-status-changed", onStatus);
+    };
+  }, []);
+
+  const agentLabel = status?.sourceAgentId ?? ASSISTANT_AGENT_ID;
+  const statusLabel = status?.dreaming
+    ? t("assistant.dreaming", "Dreaming…")
+    : status?.isStreaming
+      ? t("sidebar.assistantReplying", "Replying…")
+      : status?.connectionStatus === "connected"
+        ? t("assistant.ready", "Ready")
+        : status?.connectionStatus === "connecting"
+          ? t("assistant.connecting", "Connecting…")
+          : (status?.error ?? t("assistant.unavailable", "Unavailable"));
+
+  const revealWorkspace = async () => {
+    const workspace = status?.workspace;
+    if (!workspace) return;
+    try {
+      await electron.revealInFinder(workspace);
+    } catch (err) {
+      toast.error(
+        getErrorMessage(err, t("sidebar.revealInFinderFailed", "Failed to reveal in Finder.")),
+      );
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+        <Bot className="size-3 shrink-0" />
+        <span className="truncate">{agentLabel}</span>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+        <Folder className="size-3 shrink-0" />
+        {status?.workspace && !isWebUI ? (
+          <button
+            type="button"
+            onClick={() => void revealWorkspace()}
+            title={status.workspace}
+            className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+          >
+            {status.workspace}
+          </button>
+        ) : (
+          <span className="truncate" title={status?.workspace}>
+            {status?.workspace || t("assistant.workspace", "Workspace")}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+        <Activity className="size-3 shrink-0" />
+        <span className="truncate">{statusLabel}</span>
+      </div>
+    </>
+  );
 }
 
 export function Sidebar() {
@@ -208,6 +313,9 @@ export function Sidebar() {
   const webUIStatus = useAppStore((s) => s.webUIStatus);
   const ilinkStatus = useAppStore((s) => s.ilinkStatus);
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
+  // 只订阅名称字符串（原始值），避免跟随整个 assistant 配置重渲染
+  const assistantName = useAppStore((s) => s.assistant.name);
+  const displayAssistantName = assistantName?.trim() || t("sidebar.assistant");
   // 只订阅当前会话的 completedAt（原始值），不订阅整个 sessionStates
   const activeCompletedAt = useAppStore((s) =>
     activeSessionId ? (s.sessionStates.get(activeSessionId)?.completedAt ?? null) : null,
@@ -726,6 +834,45 @@ export function Sidebar() {
     await copyText(project.cwd);
   };
 
+  /** 复制个人助理工作目录：伪会话没有 ProjectInfo，路径来自运行状态。 */
+  const handleCopyAssistantWorkspace = async () => {
+    try {
+      const status = await request.getAssistantStatus();
+      if (!status.workspace) return;
+      await copyText(status.workspace);
+    } catch (err) {
+      console.error("Failed to copy assistant workspace:", err);
+    }
+  };
+
+  /**
+   * 重命名个人助理：名称保存在 settings.assistant.name，空字符串表示沿用默认的本地化名称。
+   * 先乐观更新 store，失败再回滚，与项目 / 会话的重命名体验保持一致。
+   */
+  const handleRenameAssistant = async () => {
+    const newName = await prompt({
+      title: t("sidebar.renameAssistant", "Rename Assistant"),
+      content: t("sidebar.enterNewAssistantName", "Enter a new name for your personal assistant."),
+      defaultValue: displayAssistantName,
+      validate: (val) =>
+        val.trim() ? undefined : t("sidebar.assistantNameEmpty", "Name cannot be empty"),
+    });
+    if (!newName) return;
+    const trimmed = newName.trim();
+    if (trimmed === assistantName.trim()) return;
+
+    const previous = useAppStore.getState().assistant;
+    useAppStore.getState().setAssistant({ ...previous, name: trimmed });
+    try {
+      await request.updateSettings({ assistant: { ...previous, name: trimmed } });
+    } catch (err) {
+      useAppStore.getState().setAssistant(previous);
+      toast.error(
+        getErrorMessage(err, t("sidebar.renameAssistantFailed", "Failed to rename the assistant.")),
+      );
+    }
+  };
+
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects],
@@ -788,7 +935,8 @@ export function Sidebar() {
   const addProjectButtonRef = useRef<HTMLButtonElement>(null);
   const sessionListRef = useRef<HTMLDivElement>(null);
   const navigationItems = useMemo(() => {
-    const items: SidebarNavigationItem[] = [];
+    // 个人助理固定在项目区上方，始终是导航中的第一项。
+    const items: SidebarNavigationItem[] = [{ type: "assistant" }];
     for (const project of sortedProjects) {
       items.push({ type: "project", id: project.id });
       if (isProjectExpanded(project.id)) {
@@ -806,10 +954,13 @@ export function Sidebar() {
         sidebarNavigationItemKey(item),
       );
       if (!element) {
-        const itemIndex = navigationItems.findIndex(
-          (navigationItem) =>
-            sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
-        );
+        // 兜底查询只覆盖项目树里的行（不含上方的个人助理），索引也要排除它
+        const itemIndex = navigationItems
+          .filter((navigationItem) => navigationItem.type !== "assistant")
+          .findIndex(
+            (navigationItem) =>
+              sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
+          );
         // 收起项目的会话虽然仍挂载（为了保留收起动画），但被包在 inert 容器里，
         // 不能参与索引，否则焦点会落到错误的行上。
         element = Array.from(
@@ -873,7 +1024,9 @@ export function Sidebar() {
           sidebarNavigationItemKey(navigationItem) === sidebarNavigationItemKey(item),
       );
       if (navigationItems.length === 0) return;
-      if (key === "ArrowUp" && currentIndex === 0) {
+      // 个人助理占据第 0 项；它下面的「添加项目」按钮位于第一个项目行上方，
+      // 因此从第一个项目按 ArrowUp 仍回到该按钮，保持按钮的键盘可达性。
+      if (key === "ArrowUp" && currentIndex === 1 && item.type === "project") {
         addProjectButtonRef.current?.focus({ preventScroll: true });
         return;
       }
@@ -896,6 +1049,9 @@ export function Sidebar() {
     if (key === "ArrowLeft" || key === "ArrowRight") {
       event.preventDefault();
       event.stopPropagation();
+
+      // 个人助理没有子项，也没有上级项目，左右键不处理
+      if (item.type === "assistant") return;
 
       if (item.type === "project") {
         if (key === "ArrowLeft") {
@@ -920,7 +1076,9 @@ export function Sidebar() {
     if (key === "Enter" || key === " " || key === "Spacebar") {
       event.preventDefault();
       event.stopPropagation();
-      if (item.type === "project") {
+      if (item.type === "assistant") {
+        handleNavigate("/assistant");
+      } else if (item.type === "project") {
         toggleProject(item.id);
       } else {
         const session = sessions.find((candidate) => candidate.id === item.id);
@@ -938,10 +1096,19 @@ export function Sidebar() {
       return;
     }
 
+    // 按钮上方是个人助理分区，ArrowUp 回到它，形成完整的上/下移动链路
+    if (key === "ArrowUp") {
+      event.preventDefault();
+      event.stopPropagation();
+      focusNavigationItem({ type: "assistant" });
+      return;
+    }
+
     if (key === "ArrowDown") {
       event.preventDefault();
       event.stopPropagation();
-      const firstItem = navigationItems[0];
+      // 跳过上方的个人助理，落到它下面的第一个项目 / 会话
+      const firstItem = navigationItems.find((item) => item.type !== "assistant");
       if (firstItem) focusNavigationItem(firstItem);
       return;
     }
@@ -952,6 +1119,8 @@ export function Sidebar() {
       void handleAddProject();
     }
   };
+
+  const assistantRowHoverId = assistantHoverId();
 
   return (
     <aside
@@ -986,22 +1155,6 @@ export function Sidebar() {
           </span>
         </div>
         <div
-          onClick={() => handleNavigate("/assistant")}
-          className={`mt-0.5 group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
-            currentPath === "/assistant"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95"
-          }`}
-        >
-          <HatGlasses className="size-3.5" />
-          <span className="flex-1 truncate leading-normal select-none uppercase">
-            {t("sidebar.assistant")}
-          </span>
-          {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
-            <MessageCircle className="size-3 shrink-0 text-green-500" />
-          )}
-        </div>
-        <div
           onClick={() => handleNavigate("/skills/installed")}
           className={`mt-0.5 group flex h-8 cursor-default items-center gap-2 rounded-md px-1.5 text-xs font-normal transition-colors ${
             currentPath.startsWith("/skills")
@@ -1027,6 +1180,163 @@ export function Sidebar() {
             {t("sidebar.automation", "Automation")}
           </span>
         </div>
+      </div>
+      {/* 个人助理区：固定在「项目」上方，只有一行，行样式与会话行一致（默认图标为 HatGlasses） */}
+      <div className="flex items-center px-3 pt-2">
+        <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
+          {t("sidebar.assistant")}
+        </span>
+      </div>
+      <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-3">
+        <HoverCard
+          open={hoverId === assistantRowHoverId}
+          onOpenChange={(open) => {
+            // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
+            if (open) {
+              if (contextMenuId === null) setHoverId(assistantRowHoverId);
+            } else if (
+              hoverId === assistantRowHoverId &&
+              hoveredTriggerIdRef.current !== assistantRowHoverId
+            ) {
+              setHoverId(null);
+            }
+          }}
+        >
+          <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
+            <ContextMenu
+              onOpenChange={(open) => {
+                // 右键菜单打开时隐藏 hoverCard，并保持条目高亮；
+                // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
+                setContextMenuId(open ? assistantRowHoverId : null);
+                if (open) {
+                  setHoverId(null);
+                } else if (hoveredTriggerIdRef.current === assistantRowHoverId) {
+                  setHoverId(assistantRowHoverId);
+                }
+              }}
+            >
+              <ContextMenuTrigger
+                render={
+                  <div
+                    ref={(element) => {
+                      if (element) navigationItemRefs.current.set("assistant", element);
+                      else navigationItemRefs.current.delete("assistant");
+                    }}
+                    tabIndex={-1}
+                    role="treeitem"
+                    aria-level={1}
+                    aria-current={currentPath === "/assistant" ? "page" : undefined}
+                    onClick={() => handleNavigate("/assistant")}
+                    onKeyDown={(event) => handleNavigationKeyDown(event, { type: "assistant" })}
+                    onPointerEnter={() => {
+                      hoveredTriggerIdRef.current = assistantRowHoverId;
+                    }}
+                    onPointerLeave={() => {
+                      hoveredTriggerIdRef.current = null;
+                    }}
+                    className={cn(
+                      "flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
+                      currentPath === "/assistant"
+                        ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95",
+                      hoverId === assistantRowHoverId || contextMenuId === assistantRowHoverId
+                        ? "bg-sidebar-accent"
+                        : "",
+                    )}
+                  />
+                }
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <AssistantRowStatus />
+                  <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                    {displayAssistantName}
+                  </span>
+                  {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
+                    <MessageCircle className="size-3 shrink-0 text-green-500" />
+                  )}
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48">
+                <ContextMenuItem
+                  onClick={() => handleNavigate("/assistant")}
+                  className="font-medium text-foreground"
+                >
+                  <Eye className="size-3" />
+                  {t("sidebar.openAssistant", "Open Assistant")}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleNavigate("/settings/assistant")}>
+                  <Settings2 className="size-3" />
+                  {t("sidebar.assistantSettings", "Assistant Settings")}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => void handleRenameAssistant()}>
+                  <Pencil className="size-3" />
+                  {t("sidebar.rename", "Rename")}
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => void handleCopyAssistantWorkspace()}>
+                  <Copy className="size-3" />
+                  {t("sidebar.copyAssistantWorkspace", "Copy workspace path")}
+                </ContextMenuItem>
+                {ilinkStatus.connected && activeIlinkSessionId !== ASSISTANT_SESSION_ID && (
+                  <ContextMenuItem
+                    onClick={() => void handleSetActiveIlinkSession(ASSISTANT_SESSION_ID)}
+                  >
+                    <MessageCircle className="size-3" />
+                    {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                  </ContextMenuItem>
+                )}
+                {ilinkStatus.connected && activeIlinkSessionId === ASSISTANT_SESSION_ID && (
+                  <ContextMenuItem onClick={() => void handleSetActiveIlinkSession("")}>
+                    <MessageCircle className="size-3 text-green-500" />
+                    {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                  </ContextMenuItem>
+                )}
+              </ContextMenuContent>
+            </ContextMenu>
+          </HoverCardTrigger>
+          <HoverCardContent
+            side="right"
+            align="start"
+            sideOffset={12}
+            alignOffset={0}
+            className="w-54 p-3"
+          >
+            <div className="flex flex-col gap-2">
+              <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
+                <span>{displayAssistantName}</span>
+              </div>
+              <AssistantHoverDetails />
+              {ilinkStatus.connected && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                  <MessageCircle
+                    className={cn(
+                      "size-3 shrink-0",
+                      activeIlinkSessionId === ASSISTANT_SESSION_ID && "text-green-500",
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleSetActiveIlinkSession(
+                        activeIlinkSessionId === ASSISTANT_SESSION_ID ? "" : ASSISTANT_SESSION_ID,
+                      )
+                    }
+                    className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                  >
+                    {t(
+                      activeIlinkSessionId === ASSISTANT_SESSION_ID
+                        ? "sidebar.ilinkActiveStatus"
+                        : "sidebar.ilinkInactiveStatus",
+                      activeIlinkSessionId === ASSISTANT_SESSION_ID
+                        ? "WeChat Active"
+                        : "Not WeChat Active",
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </HoverCardContent>
+        </HoverCard>
       </div>
       {/* 项目区（标题 + 列表）整体作为「拖入文件夹添加项目」的落点，行为与点「添加项目」按钮一致 */}
       <div
