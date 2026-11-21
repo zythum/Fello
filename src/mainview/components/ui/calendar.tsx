@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { useDayPickerLocale } from "@/lib/use-day-picker-locale"
 import {
   DayPicker,
   getDefaultClassNames,
@@ -24,6 +25,8 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const defaultLocale = useDayPickerLocale()
+  const activeLocale = locale ?? defaultLocale
 
   return (
     <DayPicker
@@ -35,10 +38,10 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
-      locale={locale}
+      locale={activeLocale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          date.toLocaleString(activeLocale.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -160,7 +163,7 @@ function Calendar({
           )
         },
         DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
+          <CalendarDayButton locale={activeLocale} {...props} />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (
