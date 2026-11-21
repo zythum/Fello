@@ -72,6 +72,13 @@ const MODEL_CONFIG_ID = "model";
 const THOUGHT_LEVEL_CONFIG_ID = "thought_level";
 const DEFAULT_THOUGHT_LEVEL = "auto";
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
+const DREAM_TIMER_MAX_DELAY_MS = 15 * 60_000;
+/**
+ * New history token count that makes a Dream worth running at the preferred time. The
+ * trigger is an absolute amount of material, not a ratio of maxContextTokens: a percentage
+ * band shrinks with the budget and leaves too little room to absorb a fresh conversation.
+ */
+const DREAM_SCHEDULED_MIN_HISTORY_TOKENS = 8_000;
 const AGENT_DESCRIPTION = "Fello Personal Assistant";
 const THOUGHT_LEVEL_OPTIONS = [
   { value: "auto", name: "Auto" },
@@ -475,12 +482,14 @@ export class AssistantAgent {
       historyTokens: persisted?.historyTokens ?? 0,
       needsDream: persisted?.needsDream ?? false,
       dreamUrgency: persisted?.dreamUrgency ?? "none",
+      dreamScheduledFor: persisted?.dreamScheduledFor ?? null,
       history,
       abortController: null,
     };
     await this.refreshDreamState(this.session);
-    await this.persistSession(this.session);
+    this.dreamIfOverLimit(this.session);
     this.scheduleDream(this.session);
+    await this.persistSession(this.session);
     return this.session;
   }
 
@@ -489,9 +498,11 @@ export class AssistantAgent {
     const systemPrompt = buildSystemPrompt(this.options.workspace, memory);
     session.historyTokens = await countTokens(serializeHistoryForCounting(session.history));
     const contextTokens = session.historyTokens + (await countTokens(systemPrompt));
+    // The hard limit is what the model actually receives (history plus system prompt); the
+    // nightly schedule only depends on how much new conversation there is to consolidate.
     if (contextTokens >= this.options.getDream().maxContextTokens) {
       session.dreamUrgency = "required";
-    } else if (contextTokens >= Math.floor(this.options.getDream().maxContextTokens * 0.8)) {
+    } else if (session.historyTokens >= DREAM_SCHEDULED_MIN_HISTORY_TOKENS) {
       session.dreamUrgency = "scheduled";
     } else {
       session.dreamUrgency = "none";
@@ -499,23 +510,67 @@ export class AssistantAgent {
     session.needsDream = session.dreamUrgency !== "none";
   }
 
+  /** Next occurrence of the preferred time: today's if still ahead, otherwise tomorrow's. */
+  private nextDreamTarget(hours: number, minutes: number): Date {
+    const target = new Date();
+    target.setHours(hours, minutes, 0, 0);
+    if (target.getTime() <= Date.now()) target.setDate(target.getDate() + 1);
+    return target;
+  }
+
   private scheduleDream(session: AssistantSession): void {
     if (this.dreamTimer) clearTimeout(this.dreamTimer);
     this.dreamTimer = null;
-    if (!session.needsDream || session.dreamUrgency === "required" || !session.history.length)
-      return;
+    const armedFor = session.dreamScheduledFor;
+    session.dreamScheduledFor = null;
+    if (!session.needsDream || !session.history.length) return;
     const match = /^(\d{2}):(\d{2})$/.exec(this.options.getDream().preferredTime);
     if (!match) return;
-    const now = new Date();
-    const target = new Date(now);
-    target.setHours(Number(match[1]), Number(match[2]), 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 1);
+    // While the app runs, the target is always persisted ahead of time. A target that is
+    // already past means the app was closed or asleep through it: catch up right away
+    // instead of silently waiting for the next occurrence.
+    const armedAt = armedFor ? Date.parse(armedFor) : Number.NaN;
+    if (Number.isFinite(armedAt) && armedAt <= Date.now()) {
+      // Keep the target until the dream finishes, so a crash mid-dream still catches up.
+      session.dreamScheduledFor = armedFor;
+      void this.runDream(session).catch(() => {});
+      return;
+    }
+    const target = this.nextDreamTarget(Number(match[1]), Number(match[2]));
+    session.dreamScheduledFor = target.toISOString();
+    this.armDreamTimer(session, target);
+  }
+
+  /**
+   * A context that is already over the limit is compacted as soon as the turn that pushed it
+   * over ends (or the session loads), so the user never pays for it before their next
+   * message. The preferred time is only for the "there is enough material" case.
+   */
+  private dreamIfOverLimit(session: AssistantSession): void {
+    if (session.dreamUrgency !== "required" || !session.history.length || this.dreamPending)
+      return;
+    void this.runDream(session).catch(() => {});
+  }
+
+  /**
+   * Arms the timer in bounded steps. A suspended machine freezes the process, and the
+   * monotonic clock does not advance while it sleeps, so one multi-hour timeout would fire
+   * late; re-checking every few minutes catches the target shortly after the machine wakes.
+   */
+  private armDreamTimer(session: AssistantSession, target: Date): void {
+    const delay = Math.max(0, Math.min(target.getTime() - Date.now(), DREAM_TIMER_MAX_DELAY_MS));
     this.dreamTimer = setTimeout(() => {
       this.dreamTimer = null;
-      if (this.session === session && !session.abortController && session.needsDream) {
-        void this.runDream(session).catch(() => {});
+      if (this.session !== session || !session.needsDream) return;
+      if (Date.now() < target.getTime()) {
+        this.armDreamTimer(session, target);
+        return;
       }
-    }, target.getTime() - now.getTime());
+      // Leave dreamScheduledFor on the past target: when a turn is streaming the run is
+      // skipped here, and the next refresh catches up as soon as the turn ends.
+      if (session.abortController) return;
+      void this.runDream(session).catch(() => {});
+    }, delay);
   }
 
   private async runDream(session: AssistantSession): Promise<void> {
@@ -546,6 +601,11 @@ export class AssistantAgent {
       throw error;
     } finally {
       this.dreamPending = null;
+      // The attempt is over, successful or not: drop the target and arm the next one, so a
+      // failure cannot retry in a loop.
+      session.dreamScheduledFor = null;
+      this.scheduleDream(session);
+      await this.persistSession(session);
     }
   }
 
@@ -568,6 +628,7 @@ export class AssistantAgent {
       historyTokens: session.historyTokens,
       needsDream: session.needsDream,
       dreamUrgency: session.dreamUrgency,
+      dreamScheduledFor: session.dreamScheduledFor,
     });
   }
 
@@ -590,8 +651,9 @@ export class AssistantAgent {
       session.historyStartedAt = startedAt;
     }
     await this.refreshDreamState(session);
-    await this.persistSession(session);
+    this.dreamIfOverLimit(session);
     this.scheduleDream(session);
+    await this.persistSession(session);
   }
 
   async newSession(_params: NewSessionRequest): Promise<NewSessionResponse> {

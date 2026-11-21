@@ -295,6 +295,7 @@ export async function runDream(input: DreamInput): Promise<DreamOutput> {
     historyTokens: 0,
     needsDream: false,
     dreamUrgency: "none",
+    dreamScheduledFor: null,
   };
 
   await mkdir(DIARY_DIR, { recursive: true });

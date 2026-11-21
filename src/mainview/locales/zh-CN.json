@@ -286,7 +286,7 @@
       "updateFailed": "更新个人助理 Agent 失败。",
       "groupDream": "上下文整理",
       "dreamMaxContext": "最大上下文 Token",
-      "dreamMaxContextDesc": "当助理上下文接近该上限时安排上下文整理。",
+      "dreamMaxContextDesc": "上下文达到该上限时立即整理；未达上限时按偏好时间整理。",
       "dreamPreferredTime": "偏好时间",
       "dreamPreferredTimeDesc": "未来上下文整理运行的本地偏好时间。",
       "groupWorker": "子代理类型",

@@ -186,7 +186,7 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     sourceAgentId: null,
     mcpServers: ["exa"],
     dream: {
-      maxContextTokens: 96_000,
+      maxContextTokens: 64_000,
       preferredTime: "02:00",
     },
     workerTypes: [],

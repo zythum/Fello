@@ -277,7 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     enabled: true,
     sourceAgentId: null,
     mcpServers: ["exa"],
-    dream: { maxContextTokens: 96_000, preferredTime: "02:00" },
+    dream: { maxContextTokens: 64_000, preferredTime: "02:00" },
     workerTypes: [],
   },
   editor: { name: "code" },

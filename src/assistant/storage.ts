@@ -31,6 +31,11 @@ export type PersistedAssistantSession = {
   historyTokens: number;
   needsDream: boolean;
   dreamUrgency: "none" | "scheduled" | "required";
+  /**
+   * Target time of the dream that is currently armed. Persisted so a target the app was
+   * closed or asleep through can be caught up instead of silently skipped.
+   */
+  dreamScheduledFor: string | null;
 };
 
 function isModelMessage(value: unknown): value is ModelMessage {
@@ -197,6 +202,11 @@ function parseAssistantSession(raw: string): PersistedAssistantSession | null {
           : 0,
       needsDream: typeof parsed.needsDream === "boolean" ? parsed.needsDream : false,
       dreamUrgency: urgency === "scheduled" || urgency === "required" ? urgency : "none",
+      dreamScheduledFor:
+        typeof parsed.dreamScheduledFor === "string" &&
+        Number.isFinite(Date.parse(parsed.dreamScheduledFor))
+          ? parsed.dreamScheduledFor
+          : null,
     };
   } catch {
     return null;

@@ -287,7 +287,7 @@
       "updateFailed": "Failed to update Personal Assistant agent.",
       "groupDream": "Dream",
       "dreamMaxContext": "Max context tokens",
-      "dreamMaxContextDesc": "Schedule Dream before assistant context reaches this limit.",
+      "dreamMaxContextDesc": "Compact as soon as context reaches this limit; otherwise Dream runs at the preferred time.",
       "dreamPreferredTime": "Preferred time",
       "dreamPreferredTimeDesc": "Preferred local time for a future Dream run.",
       "groupWorker": "Worker types",
