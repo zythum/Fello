@@ -3,7 +3,6 @@ import type { ComponentProps } from "react";
 import type { DayButton } from "react-day-picker";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import {
-  countsOnCalendar,
   occurrencesBetween,
   zonedDayBounds,
   type Reminder,
@@ -30,7 +29,6 @@ function countOnDay(reminders: Reminder[], date: Date, timeZone: string): number
   const { start, end } = zonedDayBounds(date.getFullYear(), date.getMonth() + 1, date.getDate(), timeZone);
   let total = 0;
   for (const reminder of reminders) {
-    if (!countsOnCalendar(reminder.status)) continue;
     total += occurrencesBetween(reminder, start, end, timeZone, MAX_DOTS).length;
     if (total >= MAX_DOTS) break;
   }

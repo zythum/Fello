@@ -15,6 +15,7 @@ import type {
 } from "../../shared/schema";
 import type { AssistantReminderList } from "../../shared/schema";
 import { serverTimeZone } from "../../assistant/reminders/service";
+import { wasFired } from "../../shared/reminder";
 import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
 import {
   appendAssistantMessage,
@@ -197,7 +198,6 @@ export function createAssistantModule(
     expireMs?: number;
     isValid?: () => boolean;
     onDelivered?: () => Promise<void> | void;
-    onExpired?: () => Promise<void> | void;
   };
   const pendingWakes: Wake[] = [];
   let draining = false;
@@ -235,7 +235,7 @@ export function createAssistantModule(
       // The native notification is shown when a reminder is due, even if the chat message
       // waits for the assistant to be idle.
       const reminder = reminders.get(due.id);
-      if (reminder?.status === "scheduled") {
+      if (reminder && !reminder.disabled && !wasFired(reminder, due.dueAt)) {
         ctx.sendEvent("assistant-reminder-due", {
           id: reminder.id,
           text: reminder.text,
@@ -249,13 +249,9 @@ export function createAssistantModule(
         expireMs: CATCH_UP_WINDOW_MS,
         isValid: () => {
           const current = reminders.get(due.id);
-          return !!current && current.status === "scheduled";
+          return !!current && !current.disabled && !wasFired(current, due.dueAt);
         },
-        onDelivered: () => reminders.markDelivered(due.id, Date.now()),
-        onExpired: async () => {
-          const current = reminders.get(due.id);
-          if (current?.trigger.type === "once") await reminders.markMissed(due.id);
-        },
+        onDelivered: () => reminders.markDelivered(due.id, due.dueAt),
       });
     },
     onChange: () => {
@@ -289,7 +285,6 @@ export function createAssistantModule(
         // still expires or drops outdated items.
         if (wake.expireMs !== undefined && Date.now() - wake.at > wake.expireMs) {
           pendingWakes.shift();
-          await wake.onExpired?.();
           continue;
         }
         if (wake.isValid && !wake.isValid()) {

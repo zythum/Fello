@@ -28,13 +28,15 @@ function describeTrigger(trigger: ReminderTrigger): string {
 
 /** The shape the model sees. Times are ISO strings so the model can read them unambiguously. */
 function toToolResult(reminder: ReminderView) {
+  const lastFiredAt = reminder.firedAt.at(-1) ?? null;
   return {
     id: reminder.id,
     text: reminder.text,
-    status: reminder.status,
+    disabled: reminder.disabled,
     trigger: reminder.trigger,
     nextRunAt: reminder.nextRunAt === null ? null : new Date(reminder.nextRunAt).toISOString(),
-    lastFiredAt: reminder.lastFiredAt === null ? null : new Date(reminder.lastFiredAt).toISOString(),
+    lastFiredAt: lastFiredAt === null ? null : new Date(lastFiredAt).toISOString(),
+    firedAt: reminder.firedAt.map((ms) => new Date(ms).toISOString()),
   };
 }
 
@@ -44,8 +46,8 @@ function parseIsoTime(value: string): number {
   return ms;
 }
 
-function summarize(reminder: Pick<ReminderView, "text" | "status" | "trigger">): string {
-  return `${reminder.text} (${reminder.status}, ${describeTrigger(reminder.trigger)})`;
+function summarize(reminder: Pick<ReminderView, "text" | "disabled" | "trigger">): string {
+  return `${reminder.text} (${reminder.disabled ? "disabled" : "active"}, ${describeTrigger(reminder.trigger)})`;
 }
 
 const timeInputs = {
@@ -92,12 +94,14 @@ export function createReminderTools({
 
     reminder_list: tool({
       description:
-        "List reminders. By default this returns only active reminders (status scheduled). Use status past for fired or missed reminders, or all for everything. Call this before update or delete to get the exact id.",
+        "List reminders. By default this returns active reminders (not disabled and still able to fire). Use status past for one-time reminders whose time has passed, or all for everything. Call this before update or delete to get the exact id.",
       inputSchema: z.object({
         status: z
           .enum(["upcoming", "past", "all"])
           .optional()
-          .describe("upcoming (default): active reminders. past: fired or missed. all: every reminder."),
+          .describe(
+            "upcoming (default): active reminders. past: one-time reminders that fired or are overdue. all: every reminder.",
+          ),
         from: z
           .string()
           .optional()
@@ -173,7 +177,7 @@ export function createReminderTools({
           { toolCallId, title: `Trigger times of reminder ${input.id}`, kind: "read", rawInput: input },
           async () => {
             const reminder = service.get(input.id);
-            if (!reminder || reminder.status === "deleted") {
+            if (!reminder) {
               throw new Error(`Reminder ${input.id} does not exist.`);
             }
             const start = parseIsoTime(input.from);
@@ -193,7 +197,7 @@ export function createReminderTools({
 
     reminder_delete: tool({
       description:
-        "Delete a reminder. Use reminder_list first to find the id. Only delete when the user explicitly asks. Deletion is recorded and can be reviewed with status all.",
+        "Delete a reminder permanently. Use reminder_list first to find the id. Only delete when the user explicitly asks.",
       inputSchema: z.object({
         id: z.string().min(1).describe("Reminder id from reminder_list."),
       }),

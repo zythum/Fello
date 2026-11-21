@@ -8,7 +8,12 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { request, subscribe } from "../../../../backend";
-import { occurrencesBetween, zonedDayBounds, type Reminder, type ReminderStatus } from "../../../../../shared/reminder";
+import {
+  occurrencesBetween,
+  wasFired,
+  zonedDayBounds,
+  type Reminder,
+} from "../../../../../shared/reminder";
 import { ReminderCalendar } from "./reminder-calendar";
 import type { AssistantReminderList } from "../../../../../shared/schema";
 
@@ -18,7 +23,7 @@ type ReminderOccurrence = {
   reminder: Reminder;
 };
 
-/** Every trigger time that falls on the selected day, sorted by time. Disabled and deleted ones included. */
+/** Every trigger time that falls on the selected day, sorted by time. Disabled ones included. */
 function occurrencesOnDay(reminders: Reminder[], date: Date, timeZone: string): ReminderOccurrence[] {
   const { start, end } = zonedDayBounds(date.getFullYear(), date.getMonth() + 1, date.getDate(), timeZone);
   const items: ReminderOccurrence[] = [];
@@ -39,22 +44,54 @@ function formatTime(ms: number, timeZone: string): string {
   }).format(new Date(ms));
 }
 
-function StatusLabel({ status }: { status: ReminderStatus }) {
+type TFunction = ReturnType<typeof useTranslation>["t"];
+
+/** Coarse countdown in the same style as the automation list: the panel refreshes every 30s. */
+function formatDuration(ms: number, t: TFunction): string {
+  if (ms < 60 * 60 * 1000)
+    return t("assistant.reminders.duration.minutes", "{{minutes}} min", {
+      minutes: Math.max(1, Math.floor(ms / 60000)),
+    });
+  if (ms < 24 * 60 * 60 * 1000)
+    return t("assistant.reminders.duration.hoursMinutes", "{{hours}}h {{minutes}}m", {
+      hours: Math.floor(ms / 3600000),
+      minutes: Math.floor((ms % 3600000) / 60000),
+    });
+  return t("assistant.reminders.duration.daysHours", "{{days}}d {{hours}}h", {
+    days: Math.floor(ms / 86400000),
+    hours: Math.floor((ms % 86400000) / 3600000),
+  });
+}
+
+/**
+ * Cards show a countdown for upcoming occurrences. A past occurrence reads "Triggered" when it
+ * is in `firedAt`; otherwise it is "Past" (missed or skipped). The state is derived, because a
+ * recurring reminder never stops.
+ */
+function TriggerLabel({ reminder, at, now }: { reminder: Reminder; at: number; now: number }) {
   const { t } = useTranslation();
-  const labels: Record<ReminderStatus, string> = {
-    scheduled: t("assistant.reminders.status.scheduled", "Scheduled"),
-    fired: t("assistant.reminders.status.fired", "Triggered"),
-    missed: t("assistant.reminders.status.missed", "Missed"),
-    disabled: t("assistant.reminders.status.disabled", "Disabled"),
-    deleted: t("assistant.reminders.status.deleted", "Deleted"),
-  };
-  const tone =
-    status === "missed"
-      ? "text-destructive"
-      : status === "scheduled"
-        ? "text-primary"
-        : "text-muted-foreground";
-  return <span className={`shrink-0 text-[10px] ${tone}`}>{labels[status]}</span>;
+  const fired = wasFired(reminder, at);
+  let tone: string;
+  let label: string;
+  if (reminder.disabled) {
+    tone = "text-muted-foreground";
+    label = t("assistant.reminders.status.disabled", "Disabled");
+  } else if (fired) {
+    tone = "text-emerald-600 dark:text-emerald-400";
+    label = t("assistant.reminders.status.fired", "Triggered");
+  } else if (at <= now) {
+    tone = "text-amber-600 dark:text-amber-400";
+    label = t("assistant.reminders.status.overdue", "Past");
+  } else {
+    tone = "text-primary";
+    label =
+      at - now < 60000
+        ? t("assistant.reminders.status.anyMoment", "Any moment now")
+        : t("assistant.reminders.status.countdown", "in {{duration}}", {
+            duration: formatDuration(at - now, t),
+          });
+  }
+  return <span className={`shrink-0 text-[10px] ${tone}`}>{label}</span>;
 }
 
 const NO_REMINDERS: Reminder[] = [];
@@ -64,6 +101,13 @@ export function ReminderPanel() {
   // Reminders and the server's time zone come together, so the UI never mixes browser and server time.
   const [listing, setListing] = useState<AssistantReminderList | null>(null);
   const [selected, setSelected] = useState<Date>(() => new Date());
+  // Keeps the countdown text current without refetching anything.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -104,13 +148,13 @@ export function ReminderPanel() {
         ) : (
           <ItemGroup className="gap-2">
             {items.map((item) => (
-              <Item key={item.key} variant="outline" size="sm">
+              <Item key={item.key} variant="outline" size="sm" className="shadow-sm rounded-md">
                 <ItemContent>
                   <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
                     <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
                       {formatTime(item.at, timeZone)}
                     </span>
-                    <StatusLabel status={item.reminder.status} />
+                    <TriggerLabel reminder={item.reminder} at={item.at} now={now} />
                   </ItemTitle>
                   <ItemDescription className="whitespace-pre-wrap wrap-break-word text-xs leading-relaxed text-sidebar-foreground/85">
                     {item.reminder.text}

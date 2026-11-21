@@ -1,8 +1,19 @@
 import { Cron } from "croner";
-import { isValidCronExpression, nextCronRun, type Reminder, type ReminderTrigger } from "../../shared/reminder";
+import {
+  isValidCronExpression,
+  MAX_FIRED_HISTORY,
+  nextCronRun,
+  previousCronRun,
+  serverTimeZone,
+  wasFired,
+  type Reminder,
+  type ReminderTrigger,
+} from "../../shared/reminder";
 import { ReminderStore } from "./store";
 
-/** A reminder delivered up to this long after it was due is still sent. Later ones are missed. */
+export { serverTimeZone };
+
+/** A reminder delivered up to this long after it was due is still sent. Later ones are dropped. */
 export const CATCH_UP_WINDOW_MS = 60 * 60 * 1000;
 
 /** setTimeout cannot wait longer than about 24.8 days, so long waits are re-armed in steps. */
@@ -23,21 +34,24 @@ export type ReminderServiceOptions = {
   now?: () => number;
 };
 
-/** Time zone of the server process. Cron times and calendar days are evaluated in it. */
-export function serverTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-function matchesFilter(reminder: Reminder, filter: ReminderListFilter): boolean {
+function matchesFilter(reminder: Reminder, filter: ReminderListFilter, now: number): boolean {
   if (filter === "all") return true;
-  if (filter === "past") return reminder.status === "fired" || reminder.status === "missed";
-  return reminder.status === "scheduled";
+  const fired = reminder.trigger.type === "once" && wasFired(reminder, reminder.trigger.at);
+  if (fired) return filter === "past";
+  if (filter === "past") return reminder.trigger.type === "once" && reminder.trigger.at <= now;
+  // upcoming: active reminders that can still fire.
+  if (reminder.disabled) return false;
+  return reminder.trigger.type === "cron" || reminder.trigger.at > now;
 }
 
-function nextRunAt(reminder: Reminder): number | null {
-  if (reminder.status !== "scheduled") return null;
-  if (reminder.trigger.type === "once") return reminder.trigger.at;
-  return nextCronRun(reminder.trigger.expr, Date.now(), serverTimeZone());
+function nextRunAt(reminder: Reminder, now: number): number | null {
+  if (reminder.disabled) return null;
+  if (reminder.trigger.type === "once") {
+    if (wasFired(reminder, reminder.trigger.at)) return null;
+    // A one-time reminder that is already due has no next run.
+    return reminder.trigger.at > now ? reminder.trigger.at : null;
+  }
+  return nextCronRun(reminder.trigger.expr, now, serverTimeZone());
 }
 
 /** Builds a trigger from the caller's input and rejects anything that cannot fire. */
@@ -73,7 +87,7 @@ export class ReminderService {
     this.options.onChange?.();
   }
 
-  /** Every stored reminder, including disabled and deleted ones. */
+  /** Every stored reminder, including disabled ones. */
   listAll(): Reminder[] {
     return this.options.store.list();
   }
@@ -89,15 +103,16 @@ export class ReminderService {
   }
 
   list(filter: ReminderListFilter = "upcoming"): ReminderView[] {
+    const now = this.now();
     return this.options.store
       .list()
-      .filter((reminder) => matchesFilter(reminder, filter))
-      .map((reminder) => ({ ...reminder, nextRunAt: nextRunAt(reminder) }));
+      .filter((reminder) => matchesFilter(reminder, filter, now))
+      .map((reminder) => ({ ...reminder, nextRunAt: nextRunAt(reminder, now) }));
   }
 
   get(id: string): ReminderView | undefined {
     const reminder = this.options.store.get(id);
-    return reminder ? { ...reminder, nextRunAt: nextRunAt(reminder) } : undefined;
+    return reminder ? { ...reminder, nextRunAt: nextRunAt(reminder, this.now()) } : undefined;
   }
 
   async create(input: { text: string; at?: number; cron?: string }): Promise<ReminderView> {
@@ -106,17 +121,17 @@ export class ReminderService {
       id: this.options.store.newId(),
       text: input.text,
       trigger: toTrigger(input, now),
-      status: "scheduled",
+      disabled: false,
+      firedAt: [],
       createdAt: now,
       updatedAt: now,
-      lastFiredAt: null,
     };
     await this.options.store.mutate((items) => {
       items.push(reminder);
     });
     this.schedule(reminder);
     this.changed();
-    return { ...reminder, nextRunAt: nextRunAt(reminder) };
+    return { ...reminder, nextRunAt: nextRunAt(reminder, now) };
   }
 
   async update(
@@ -124,78 +139,66 @@ export class ReminderService {
     patch: { text?: string; at?: number; cron?: string; enabled?: boolean },
   ): Promise<ReminderView> {
     const current = this.options.store.get(id);
-    if (!current || current.status === "deleted") throw new Error(`Reminder ${id} does not exist.`);
+    if (!current) throw new Error(`Reminder ${id} does not exist.`);
 
     const now = this.now();
     const hasNewTime = patch.at !== undefined || patch.cron !== undefined;
     const trigger = hasNewTime ? toTrigger(patch, now) : current.trigger;
-    let status = current.status;
-    if (hasNewTime) status = "scheduled";
-    if (patch.enabled === false) {
-      status = "disabled";
-    } else if (patch.enabled === true && status === "disabled") {
-      status = "scheduled";
-    } else if (patch.enabled === true && (status === "fired" || status === "missed")) {
-      throw new Error("Give a new time to reschedule a reminder that already ran or was missed.");
-    }
+    const disabled = patch.enabled === undefined ? current.disabled : !patch.enabled;
 
     await this.options.store.mutate((items) => {
       const target = items.find((item) => item.id === id);
       if (!target) throw new Error(`Reminder ${id} does not exist.`);
       target.text = patch.text ?? target.text;
       target.trigger = trigger;
-      target.status = status;
+      target.disabled = disabled;
       target.updatedAt = now;
     });
     const updated = this.options.store.get(id)!;
     this.schedule(updated);
     this.changed();
-    return { ...updated, nextRunAt: nextRunAt(updated) };
+    return { ...updated, nextRunAt: nextRunAt(updated, now) };
   }
 
+  /** Removes the reminder permanently. */
   async delete(id: string): Promise<void> {
-    const current = this.options.store.get(id);
-    if (!current || current.status === "deleted") throw new Error(`Reminder ${id} does not exist.`);
-    const now = this.now();
+    if (!this.options.store.get(id)) throw new Error(`Reminder ${id} does not exist.`);
     await this.options.store.mutate((items) => {
-      const target = items.find((item) => item.id === id);
-      if (target) {
-        target.status = "deleted";
-        target.updatedAt = now;
-      }
+      const index = items.findIndex((item) => item.id === id);
+      if (index >= 0) items.splice(index, 1);
     });
     this.unschedule(id);
     this.changed();
   }
 
-  /** Records a successful delivery. A one-time reminder is finished after it fires. */
-  async markDelivered(id: string, firedAt: number): Promise<void> {
+  /** Records a successful delivery of one occurrence. A one-time reminder is finished after it fires. */
+  async markDelivered(id: string, occurrenceAt: number): Promise<void> {
+    const now = this.now();
     await this.options.store.mutate((items) => {
       const target = items.find((item) => item.id === id);
       if (!target) return;
-      target.lastFiredAt = firedAt;
-      target.updatedAt = firedAt;
-      if (target.trigger.type === "once") target.status = "fired";
+      if (!wasFired(target, occurrenceAt)) {
+        // Keep ascending even when deliveries arrive out of order, and keep the newest ones.
+        target.firedAt = [...target.firedAt, occurrenceAt]
+          .sort((a, b) => a - b)
+          .slice(-MAX_FIRED_HISTORY);
+      }
+      target.updatedAt = now;
     });
     const updated = this.options.store.get(id);
     if (updated?.trigger.type === "once") this.unschedule(id);
     this.changed();
   }
 
-  /** A one-time reminder that could not be delivered in time is missed. Cron occurrences are only skipped. */
-  async markMissed(id: string): Promise<void> {
-    await this.options.store.mutate((items) => {
-      const target = items.find((item) => item.id === id);
-      if (target && target.trigger.type === "once") target.status = "missed";
-    });
-    this.unschedule(id);
-    this.changed();
-  }
-
   private schedule(reminder: Reminder): void {
     this.unschedule(reminder.id);
-    if (reminder.status !== "scheduled") return;
+    if (reminder.disabled) return;
     if (reminder.trigger.type === "once") {
+      // A one-time reminder that was already delivered stays done, including across restarts.
+      if (wasFired(reminder, reminder.trigger.at)) return;
+      // Past the catch-up window a missed one-time reminder is not delivered and must not
+      // notify again on every start, since "missed" is no longer persisted.
+      if (reminder.trigger.at <= this.now() - CATCH_UP_WINDOW_MS) return;
       this.armOnce(reminder.id, reminder.trigger.at);
     } else {
       this.armCron(reminder.id, reminder.trigger.expr);
@@ -221,7 +224,11 @@ export class ReminderService {
   }
 
   private armCron(id: string, expr: string): void {
-    const job = new Cron(expr, { mode: "5-part" }, () => this.options.onDue({ id, dueAt: this.now() }));
+    const job = new Cron(expr, { mode: "5-part", timezone: serverTimeZone() }, () => {
+      // The callback only knows the actual (possibly delayed) time. Report the planned occurrence
+      // it belongs to, so delivered times line up with the occurrence cards.
+      this.options.onDue({ id, dueAt: previousCronRun(expr, this.now(), serverTimeZone()) ?? this.now() });
+    });
     this.timers.set(id, () => job.stop());
   }
 

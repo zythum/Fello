@@ -951,7 +951,7 @@ export type FelloIPCRequests = {
   getAssistantStatus: { params: void; response: AssistantStatus };
   /** 获取助理当前的所有 worker 及其状态。 */
   listAssistantWorkers: { params: void; response: AssistantWorkerInfo[] };
-  /** 获取个人助理的全部提醒（含已停用和已删除）。 */
+  /** 获取个人助理的全部提醒（含已停用）。 */
   listAssistantReminders: { params: void; response: AssistantReminderList };
   getAssistantHistorySegment: {
     params: { segmentId?: number };

@@ -5,21 +5,23 @@ import { dirname, join } from "path";
 import { z } from "zod";
 import type { Reminder } from "../../shared/reminder";
 
-export type { Reminder, ReminderStatus, ReminderTrigger } from "../../shared/reminder";
+export type { Reminder, ReminderTrigger } from "../../shared/reminder";
 
 export const REMINDERS_PATH = join(homedir(), ".fello", "assistant", "agent", "reminders.json");
+
+const triggerSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("once"), at: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("cron"), expr: z.string().min(1).max(100) }),
+]);
 
 const reminderSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1).max(500),
-  trigger: z.discriminatedUnion("type", [
-    z.object({ type: z.literal("once"), at: z.number().int().nonnegative() }),
-    z.object({ type: z.literal("cron"), expr: z.string().min(1).max(100) }),
-  ]),
-  status: z.enum(["scheduled", "fired", "missed", "disabled", "deleted"]),
+  trigger: triggerSchema,
+  disabled: z.boolean(),
+  firedAt: z.array(z.number().int().nonnegative()),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
-  lastFiredAt: z.number().int().nonnegative().nullable(),
 });
 
 const fileSchema = z.object({
@@ -28,7 +30,7 @@ const fileSchema = z.object({
 });
 
 function cloneReminder(item: Reminder): Reminder {
-  return { ...item, trigger: { ...item.trigger } };
+  return { ...item, trigger: { ...item.trigger }, firedAt: [...item.firedAt] };
 }
 
 /**

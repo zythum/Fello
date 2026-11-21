@@ -129,11 +129,16 @@
       "title": "提醒",
       "empty": "当天没有提醒",
       "status": {
-        "scheduled": "待触发",
-        "fired": "已触发",
-        "missed": "错过",
         "disabled": "已停用",
-        "deleted": "已删除"
+        "fired": "已触发",
+        "countdown": "还有 {{duration}}",
+        "anyMoment": "即将触发",
+        "overdue": "已过时"
+      },
+      "duration": {
+        "minutes": "{{minutes}} 分钟",
+        "hoursMinutes": "{{hours}} 小时 {{minutes}} 分",
+        "daysHours": "{{days}} 天 {{hours}} 小时"
       }
     },
     "workers": {

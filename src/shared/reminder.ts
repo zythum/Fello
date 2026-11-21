@@ -2,21 +2,35 @@ import { Cron } from "croner";
 
 export type ReminderTrigger = { type: "once"; at: number } | { type: "cron"; expr: string };
 
-export type ReminderStatus = "scheduled" | "fired" | "missed" | "disabled" | "deleted";
-
 export type Reminder = {
   id: string;
   text: string;
   trigger: ReminderTrigger;
-  status: ReminderStatus;
+  /** Paused by the user. Still listed, but never scheduled. */
+  disabled: boolean;
+  /** Delivered trigger times, ascending. Oldest entries are dropped past MAX_FIRED_HISTORY. */
+  firedAt: number[];
   createdAt: number;
   updatedAt: number;
-  lastFiredAt: number | null;
 };
 
-/** Reminders with these statuses count toward calendar dots. Disabled and deleted ones do not. */
-export function countsOnCalendar(status: ReminderStatus): boolean {
-  return status === "scheduled" || status === "fired" || status === "missed";
+/** How many delivered trigger times are kept per reminder. */
+export const MAX_FIRED_HISTORY = 100;
+
+/**
+ * True when `at` is one of the delivered trigger times. Croner can resolve an ambiguous local
+ * time (DST fall-back) differently when searching forward and backward, so allow one second.
+ * Cron occurrences are at least a minute apart, so this can never match a different occurrence.
+ *
+ * `firedAt` is optional so a stale or hand-edited record cannot crash rendering.
+ */
+export function wasFired(reminder: { firedAt?: number[] }, at: number): boolean {
+  return (reminder.firedAt ?? []).some((fired) => Math.abs(fired - at) <= 1000);
+}
+
+/** Time zone of the server process. Cron times and calendar days are evaluated in it. */
+export function serverTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 /** Expanding one day is capped, so a per-minute cron cannot stall the UI. */
@@ -41,6 +55,21 @@ export function isValidCronExpression(expr: string, timeZone: string): boolean {
 export function nextCronRun(expr: string, fromMs: number, timeZone: string): number | null {
   const next = new Cron(expr, cronOptions(timeZone)).nextRun(new Date(fromMs));
   return next ? next.getTime() : null;
+}
+
+/**
+ * Last trigger time at or before `atMs`, or null when there is none or the expression is invalid.
+ * Used to map a fire callback to the occurrence it belongs to: croner only reports the actual
+ * (possibly delayed) time, while `firedAt` stores planned occurrence times.
+ */
+export function previousCronRun(expr: string, atMs: number, timeZone: string): number | null {
+  try {
+    // previousRuns is strictly before its reference, so step past the instant to include it.
+    const [previous] = new Cron(expr, cronOptions(timeZone)).previousRuns(1, new Date(atMs + 1));
+    return previous ? previous.getTime() : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

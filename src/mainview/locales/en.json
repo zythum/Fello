@@ -130,11 +130,16 @@
       "title": "Reminders",
       "empty": "No reminders on this day",
       "status": {
-        "scheduled": "Scheduled",
-        "fired": "Triggered",
-        "missed": "Missed",
         "disabled": "Disabled",
-        "deleted": "Deleted"
+        "fired": "Triggered",
+        "countdown": "in {{duration}}",
+        "anyMoment": "Any moment now",
+        "overdue": "Past"
+      },
+      "duration": {
+        "minutes": "{{minutes}} min",
+        "hoursMinutes": "{{hours}}h {{minutes}}m",
+        "daysHours": "{{days}}d {{hours}}h"
       }
     },
     "workers": {
