@@ -25,6 +25,19 @@ const text = z.string().min(1).max(2_000);
 const items = z.array(text).max(200);
 
 const diarySchema = z.object({
+  title: z
+    .string()
+    .min(1)
+    .max(80)
+    .describe(
+      "Short title for the whole period: the main thing you and the user worked on. No date (the period is already in the header) and no quotation marks.",
+    ),
+  tags: z
+    .array(z.string().min(1).max(40))
+    .max(10)
+    .describe(
+      "3 to 8 short labels for the people, projects, tools, places and topics of this period, used for searching. Prefer the words the user used.",
+    ),
   summary: z
     .string()
     .min(1)
@@ -39,7 +52,7 @@ const diarySchema = z.object({
           .string()
           .max(100)
           .describe(
-            "Absolute date and time of the event, for example 2025-06-03 14:20. Never use relative words like today.",
+            "Time only when the exchange itself states it, for example 2025-06-03 14:20. Otherwise leave empty: the period is known from the header, and a guessed time is worse than none. Never use relative words like today.",
           ),
         topic: text.describe("Short label for the exchange or event."),
         detail: z
@@ -135,6 +148,16 @@ ${DREAM_JSON_SCHEMA}
 ## Event messages
 - Messages that start with [Reminder ...] or [Worker ...] were injected by the application, not written by the user. Never record them as things the user said, asked for, or decided.
 
+## Diary voice
+- The diary is the assistant's own note addressed to the user: call the user "you" and refer to yourself as "I" (in Chinese 你 and 我). Never write "the user", "the assistant", or a name in third person.
+- "I" always means the assistant (the writer), never the user, even where the quoted conversation had the user saying "I".
+- This voice applies to every diary field: summary, timeline (topic and detail), facts, decisions, commitments, preferences and openQuestions.
+
+## Diary format
+- title: a short title for the whole period, without the date and without quotation marks.
+- tags: 3 to 8 short labels for the people, projects, tools, places and topics in this period, using the words the user used.
+- timeline time: fill it only when the exchange itself states a time. Otherwise leave it empty; the period is already in the header, and a guessed time is worse than none.
+
 ## Diary recap rules
 - summary: a few sentences covering what the user worked on, asked about, and decided during the period.
 - timeline: one entry per meaningful exchange or event, in order. Include concrete details: names, numbers, places, dates, tools, results, and what the user said about their situation.
@@ -143,6 +166,7 @@ ${DREAM_JSON_SCHEMA}
 
 ## Memory rules
 - memory is a complete replacement for the current memory. Start from the current memory and carry every item forward unless this period clearly updates or resolves it. Do not drop an item only because it was not discussed in this period.
+- Memory keeps neutral third-person wording ("the user ..."); the diary voice does not apply to memory.
 - Add every important durable fact from this period to facts, including facts that are now resolved or outdated, marked as such.
 - preferences and commitments: keep those that still apply.
 - ongoingContext: active projects and situations that will matter in later sessions.
@@ -160,44 +184,47 @@ function list(values: string[]): string {
   return values.length ? values.map((value) => `- ${value}`).join("\n") : "- None recorded.";
 }
 
-function renderDiary(diary: DiaryRecap): string {
-  const timeline = diary.timeline.length
-    ? diary.timeline
-        .map(
-          (entry) => `- ${entry.time ? `**${entry.time}** ` : ""}${entry.topic}: ${entry.detail}`,
-        )
-        .join("\n")
-    : "- None recorded.";
+function bullets(values: string[]): string[] {
+  return values.map((value) => `- ${value}`);
+}
 
-  return `# Diary recap
+function periodLabel(start: Date, end: Date): string {
+  const pad = (number: number) => String(number).padStart(2, "0");
+  const date = (value: Date) =>
+    `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  const clock = (value: Date) => `${pad(value.getHours())}:${pad(value.getMinutes())}`;
+  return date(start) === date(end)
+    ? `${date(start)} ${clock(start)}–${clock(end)}`
+    : `${date(start)} ${clock(start)} – ${date(end)} ${clock(end)}`;
+}
 
-## Summary
+/** Title and tag line carry the searchable summary; empty sections are left out entirely. */
+function renderDiary(start: Date, end: Date, diary: DiaryRecap): string {
+  const sections: string[] = [];
+  const section = (heading: string, lines: string[]) => {
+    if (lines.length) sections.push(`## ${heading}\n\n${lines.join("\n")}`);
+  };
+  section("Summary", [diary.summary]);
+  section(
+    "Timeline",
+    diary.timeline.map(
+      (entry) => `- ${entry.time ? `**${entry.time}** ` : ""}${entry.topic}: ${entry.detail}`,
+    ),
+  );
+  section("Facts", bullets(diary.facts));
+  section("Decisions", bullets(diary.decisions));
+  section("Commitments", bullets(diary.commitments));
+  section("Preferences", bullets(diary.preferences));
+  section("Open questions", bullets(diary.openQuestions));
 
-${diary.summary}
+  const tags = diary.tags.length ? `tags: ${diary.tags.join(", ")}` : "";
+  const meta = [periodLabel(start, end), tags].filter(Boolean).join(" · ");
 
-## Timeline
+  return `# ${diary.title}
 
-${timeline}
+${meta}
 
-## Facts
-
-${list(diary.facts)}
-
-## Decisions
-
-${list(diary.decisions)}
-
-## Commitments
-
-${list(diary.commitments)}
-
-## Preferences
-
-${list(diary.preferences)}
-
-## Open questions
-
-${list(diary.openQuestions)}
+${sections.join("\n\n")}
 `;
 }
 
@@ -285,7 +312,11 @@ export async function runDream(input: DreamInput): Promise<DreamOutput> {
   }
 
   const digest = sha256(JSON.stringify(input.history));
-  const diary = `${frontmatter(start, input.end, digest, input.modelId)}${renderDiary(parsed.diary)}`;
+  const diary = `${frontmatter(start, input.end, digest, input.modelId)}${renderDiary(
+    start,
+    input.end,
+    parsed.diary,
+  )}`;
   const memory = renderMemory(parsed.memory);
   const diaryFileName = `${timestamp(start)}--${timestamp(input.end)}.md`;
   const nextSession: PersistedAssistantSession = {
