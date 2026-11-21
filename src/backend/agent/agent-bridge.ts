@@ -140,6 +140,7 @@ export type AssistantAgentInfo = {
   sourceAgent: ApiAgentInfo;
   getMcpServers: () => McpServer[];
   getDream: () => SettingAssistantInfo["dream"];
+  getName: () => SettingAssistantInfo["name"];
   reminders: ReminderService;
   worker: WorkerService;
   askUser: AskUserFn;
@@ -372,6 +373,7 @@ export class ACPBridge {
             workspace: this.options.cwd,
             getMcpServers: this.options.agentInfo.getMcpServers,
             getDream: this.options.agentInfo.getDream,
+            getName: this.options.agentInfo.getName,
             reminders: this.options.agentInfo.reminders,
             worker: this.options.agentInfo.worker,
             askUser: this.options.agentInfo.askUser,

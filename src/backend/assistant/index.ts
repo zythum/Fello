@@ -446,6 +446,7 @@ export function createAssistantModule(
           sourceAgent: agentInfo,
           getMcpServers: () => buildAssistantMcpServers(ctx),
           getDream: () => ctx.storage.getSettings().assistant.dream,
+          getName: () => ctx.storage.getSettings().assistant.name,
           reminders,
           worker: workerManager,
           askUser: (options) =>
