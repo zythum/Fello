@@ -27,7 +27,7 @@ import {
   readAssistantMessageSegment,
 } from "../../assistant/storage";
 import { ACPBridge, type PromptResult } from "../agent/agent-bridge";
-import { CATCH_UP_WINDOW_MS, ReminderService } from "../../assistant/reminders/service";
+import { ReminderService } from "../../assistant/reminders/service";
 import { ReminderStore } from "../../assistant/reminders/store";
 import { adapters, agentEnv, extNotificationSpecs } from "../acp-adapters/adapters";
 import { ASSISTANT_WORKSPACE } from "../storage/constant";
@@ -194,8 +194,9 @@ export function createAssistantModule(
   };
 
   // Wakes are messages injected into the assistant's chat: reminder deliveries and worker
-  // events. They wait until the assistant is connected and idle. Reminder wakes expire after
-  // CATCH_UP_WINDOW_MS; worker wakes stay queued until delivered.
+  // events. They wait until the assistant is connected and idle. A reminder wake that cannot be
+  // delivered within REMINDER_WAKE_EXPIRY_MS is dropped; worker wakes stay queued until delivered.
+  const REMINDER_WAKE_EXPIRY_MS = 60 * 60 * 1000;
   type Wake = {
     key: string;
     text: string;
@@ -251,7 +252,7 @@ export function createAssistantModule(
         key: `reminder:${due.id}:${due.dueAt}`,
         text: `[Reminder id="${reminder?.id ?? due.id}"] ${reminder?.text ?? ""}`,
         at: due.dueAt,
-        expireMs: CATCH_UP_WINDOW_MS,
+        expireMs: REMINDER_WAKE_EXPIRY_MS,
         isValid: () => {
           const current = reminders.get(due.id);
           return !!current && !current.disabled && !wasFired(current, due.dueAt);

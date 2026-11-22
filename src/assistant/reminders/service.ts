@@ -13,9 +13,6 @@ import { ReminderStore } from "./store";
 
 export { serverTimeZone };
 
-/** A reminder delivered up to this long after it was due is still sent. Later ones are dropped. */
-export const CATCH_UP_WINDOW_MS = 60 * 60 * 1000;
-
 /** setTimeout cannot wait longer than about 24.8 days, so long waits are re-armed in steps. */
 const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
 
@@ -196,9 +193,10 @@ export class ReminderService {
     if (reminder.trigger.type === "once") {
       // A one-time reminder that was already delivered stays done, including across restarts.
       if (wasFired(reminder, reminder.trigger.at)) return;
-      // Past the catch-up window a missed one-time reminder is not delivered and must not
-      // notify again on every start, since "missed" is no longer persisted.
-      if (reminder.trigger.at <= this.now() - CATCH_UP_WINDOW_MS) return;
+      // Only a reminder armed before its time can fire. Anything already due when it is armed
+      // (the app was closed, or the reminder was disabled meanwhile) stays missed, and a
+      // reminder armed while running still fires late when the machine was asleep.
+      if (reminder.trigger.at <= this.now()) return;
       this.armOnce(reminder.id, reminder.trigger.at);
     } else {
       this.armCron(reminder.id, reminder.trigger.expr);
