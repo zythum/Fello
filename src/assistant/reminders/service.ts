@@ -89,8 +89,13 @@ export class ReminderService {
     return this.options.store.list();
   }
 
-  async start(): Promise<void> {
+  /** Reads reminders.json without arming timers, so listing works even while the assistant is stopped. */
+  async load(): Promise<void> {
     await this.options.store.load();
+  }
+
+  async start(): Promise<void> {
+    await this.load();
     for (const reminder of this.options.store.list()) this.schedule(reminder);
   }
 

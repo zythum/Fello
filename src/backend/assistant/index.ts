@@ -49,7 +49,7 @@ export interface AssistantModule {
   /** Stops the assistant bridge, workers and reminder timers. Called on app shutdown. */
   shutdown: () => Promise<void>;
   getStatus: () => AssistantStatus;
-  listReminders: () => AssistantReminderList;
+  listReminders: () => Promise<AssistantReminderList>;
   listDiaries: () => Promise<AssistantDiary[]>;
   readDiary: (file: string) => ReturnType<typeof readDiary>;
   readMemory: () => Promise<{ content: string }>;
@@ -438,6 +438,11 @@ export function createAssistantModule(
 
       await mkdir(ASSISTANT_WORKSPACE, { recursive: true });
       if (generation !== currentGeneration) return;
+      // Reminders belong to the assistant lifecycle: their timers only run while it is started,
+      // so a disabled assistant never pops notifications it cannot deliver.
+      await reminders.start().catch((error) => {
+        console.error("[assistant] Failed to load reminders:", error);
+      });
       updateStatus({
         connectionStatus: "connecting",
         error: undefined,
@@ -624,6 +629,7 @@ export function createAssistantModule(
     const activeBridge = bridge;
     bridge = null;
     starting = null;
+    reminders.stop();
     updateStatus({ connectionStatus: "disconnected", isStreaming: false });
     await activeBridge?.kill().catch(() => {});
   }
@@ -633,7 +639,6 @@ export function createAssistantModule(
    * abortAll runs when the bridge closes), then cancel every worker.
    */
   async function shutdown(): Promise<void> {
-    reminders.stop();
     if (drainRetry) {
       clearTimeout(drainRetry);
       drainRetry = null;
@@ -643,16 +648,18 @@ export function createAssistantModule(
     await workerManager.shutdown();
   }
 
-  void reminders.start().catch((error) => {
-    console.error("[assistant] Failed to load reminders:", error);
-  });
-
   return {
     start,
     stop,
     shutdown,
     getStatus: () => status,
-    listReminders: () => ({ reminders: reminders.listAll(), timeZone: serverTimeZone() }),
+    listReminders: async () => {
+      // Loads reminders even before the assistant starts, so the calendar never shows an empty list.
+      await reminders.load().catch((error) => {
+        console.error("[assistant] Failed to load reminders:", error);
+      });
+      return { reminders: reminders.listAll(), timeZone: serverTimeZone() };
+    },
     listDiaries: () => listDiarySummaries(),
     readDiary,
     readMemory: readAssistantMemory,
