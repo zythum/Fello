@@ -233,9 +233,11 @@ export function CalendarPanel({
                   render={<button type="button" onClick={() => onOpenDiary(diary, timeZone)} />}
                 >
                   <ItemContent>
-                    <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
-                      <span className="truncate text-xs">{diary.title ?? diary.file}</span>
-                      <ChevronRight className="size-3 shrink-0 text-muted-foreground/50" />
+                    <ItemTitle className="flex w-full items-start justify-between gap-2 font-normal">
+                      <span className="line-clamp-3 min-w-0 whitespace-pre-line wrap-break-word text-xs leading-snug">
+                        {diary.title ?? diary.file}
+                      </span>
+                      <ChevronRight className="mt-0.5 size-3 shrink-0 text-muted-foreground/50" />
                     </ItemTitle>
                     <ItemDescription className="text-[10px] text-muted-foreground/70">
                       {formatDiaryPeriod(diary, timeZone, i18n.language)}
