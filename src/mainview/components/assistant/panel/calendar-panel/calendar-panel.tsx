@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemTitle,
-} from "@/components/ui/item";
+import { ChevronRight } from "lucide-react";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { formatDiaryPeriod } from "@/lib/diary-format";
 import { request, subscribe } from "../../../../backend";
 import {
   occurrencesBetween,
@@ -14,8 +10,8 @@ import {
   zonedDayBounds,
   type Reminder,
 } from "../../../../../shared/reminder";
-import { ReminderCalendar } from "./reminder-calendar";
-import type { AssistantReminderList } from "../../../../../shared/schema";
+import type { AssistantDiary, AssistantReminderList } from "../../../../../shared/schema";
+import { CalendarDayPicker } from "./calendar-day-picker";
 
 type ReminderOccurrence = {
   key: string;
@@ -24,8 +20,17 @@ type ReminderOccurrence = {
 };
 
 /** Every trigger time that falls on the selected day, sorted by time. Disabled ones included. */
-function occurrencesOnDay(reminders: Reminder[], date: Date, timeZone: string): ReminderOccurrence[] {
-  const { start, end } = zonedDayBounds(date.getFullYear(), date.getMonth() + 1, date.getDate(), timeZone);
+function occurrencesOnDay(
+  reminders: Reminder[],
+  date: Date,
+  timeZone: string,
+): ReminderOccurrence[] {
+  const { start, end } = zonedDayBounds(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    date.getDate(),
+    timeZone,
+  );
   const items: ReminderOccurrence[] = [];
   for (const reminder of reminders) {
     for (const at of occurrencesBetween(reminder, start, end, timeZone)) {
@@ -95,14 +100,22 @@ function TriggerLabel({ reminder, at, now }: { reminder: Reminder; at: number; n
 }
 
 const NO_REMINDERS: Reminder[] = [];
+const NO_DIARIES: AssistantDiary[] = [];
 
-export function ReminderPanel() {
-  const { t } = useTranslation();
+export function CalendarPanel({
+  onOpenDiary,
+}: {
+  onOpenDiary: (diary: AssistantDiary, timeZone: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
   // Reminders and the server's time zone come together, so the UI never mixes browser and server time.
   const [listing, setListing] = useState<AssistantReminderList | null>(null);
+  const [diaries, setDiaries] = useState<AssistantDiary[]>(NO_DIARIES);
   const [selected, setSelected] = useState<Date>(() => new Date());
   // Keeps the countdown text current without refetching anything.
   const [now, setNow] = useState(() => Date.now());
+  // Starts true so the first idle status refetches: a Dream may have already been running at mount.
+  const wasDreaming = useRef(true);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000);
@@ -127,22 +140,62 @@ export function ReminderPanel() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    // Dream writes diary files, so the list is refetched when a Dream run finishes.
+    const refresh = () => {
+      void request
+        .listAssistantDiaries()
+        .then((list) => {
+          if (active) setDiaries(list);
+        })
+        .catch(() => {});
+    };
+    refresh();
+    const onStatus = ({ status }: { status: { dreaming: boolean } }) => {
+      if (wasDreaming.current && !status.dreaming) refresh();
+      wasDreaming.current = status.dreaming;
+    };
+    subscribe.on("assistant-status-changed", onStatus);
+    return () => {
+      active = false;
+      subscribe.off("assistant-status-changed", onStatus);
+    };
+  }, []);
+
   const reminders = listing?.reminders ?? NO_REMINDERS;
   const timeZone = listing?.timeZone ?? "UTC";
   const items = useMemo(
     () => occurrencesOnDay(reminders, selected, timeZone),
     [reminders, selected, timeZone],
   );
+  const diariesOnDay = useMemo(() => {
+    const { start, end } = zonedDayBounds(
+      selected.getFullYear(),
+      selected.getMonth() + 1,
+      selected.getDate(),
+      timeZone,
+    );
+    return diaries.filter((diary) => diary.startAt < end && diary.endAt > start);
+  }, [diaries, selected, timeZone]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
-        <ReminderCalendar reminders={reminders} timeZone={timeZone} selected={selected} onSelect={setSelected} />
+        <CalendarDayPicker
+          reminders={reminders}
+          timeZone={timeZone}
+          selected={selected}
+          onSelect={setSelected}
+        />
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2">
+        <h3 className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+          {t("assistant.reminders.title", "Reminders")}
+        </h3>
         {items.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
             {t("assistant.reminders.empty", "No reminders on this day")}
           </p>
         ) : (
@@ -163,6 +216,35 @@ export function ReminderPanel() {
               </Item>
             ))}
           </ItemGroup>
+        )}
+
+        {diariesOnDay.length > 0 && (
+          <section className="mt-3">
+            <h3 className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+              {t("assistant.calendar.diary", "Diary")}
+            </h3>
+            <ItemGroup className="gap-2">
+              {diariesOnDay.map((diary) => (
+                <Item
+                  key={diary.file}
+                  variant="outline"
+                  size="sm"
+                  className="shadow-sm rounded-md text-left pr-2"
+                  render={<button type="button" onClick={() => onOpenDiary(diary, timeZone)} />}
+                >
+                  <ItemContent>
+                    <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
+                      <span className="truncate text-xs">{diary.title ?? diary.file}</span>
+                      <ChevronRight className="size-3 shrink-0 text-muted-foreground/50" />
+                    </ItemTitle>
+                    <ItemDescription className="text-[10px] text-muted-foreground/70">
+                      {formatDiaryPeriod(diary, timeZone, i18n.language)}
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              ))}
+            </ItemGroup>
+          </section>
         )}
       </div>
     </div>

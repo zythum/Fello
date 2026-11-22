@@ -15,6 +15,17 @@ export interface AssistantReminderList {
   timeZone: string;
 }
 
+/**
+ * One diary entry written by Dream.
+ * `startAt` / `endAt` are the period bounds in epoch milliseconds, in the server's local time zone.
+ */
+export interface AssistantDiary {
+  file: string;
+  title: string | null;
+  startAt: number;
+  endAt: number;
+}
+
 export type { PeripheralSettingInfo, PeripheralStatus };
 
 export type SubagentStatus = "pending" | "in_progress" | "completed" | "failed";
@@ -958,6 +969,15 @@ export type FelloIPCRequests = {
   listAssistantWorkers: { params: void; response: AssistantWorkerInfo[] };
   /** 获取个人助理的全部提醒（含已停用）。 */
   listAssistantReminders: { params: void; response: AssistantReminderList };
+  /** 获取个人助理的全部日记条目（新的在前）。 */
+  listAssistantDiaries: { params: void; response: AssistantDiary[] };
+  /** 读取一篇日记的原始 Markdown。 */
+  readAssistantDiary: {
+    params: { file: string };
+    response: { file: string; content: string; truncated: boolean };
+  };
+  /** 读取助理长期记忆 memory.md 的原始 Markdown；文件不存在时返回空字符串。 */
+  readAssistantMemory: { params: void; response: { content: string } };
   getAssistantHistorySegment: {
     params: { segmentId?: number };
     response: {

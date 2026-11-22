@@ -326,6 +326,15 @@ export function initBackend(
     async listAssistantReminders() {
       return assistant.listReminders();
     },
+    async listAssistantDiaries() {
+      return assistant.listDiaries();
+    },
+    async readAssistantDiary({ file }: { file: string }) {
+      return assistant.readDiary(file);
+    },
+    async readAssistantMemory() {
+      return assistant.readMemory();
+    },
     async listAssistantWorkers() {
       return assistant.listWorkers();
     },

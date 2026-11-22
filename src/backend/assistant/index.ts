@@ -13,7 +13,9 @@ import type {
   AssistantWorkerInfo,
   SessionNotificationFelloExt,
 } from "../../shared/schema";
-import type { AssistantReminderList } from "../../shared/schema";
+import type { AssistantDiary, AssistantReminderList } from "../../shared/schema";
+import { listDiarySummaries, readDiary } from "../../assistant/diary-query";
+import { readAssistantMemory } from "../../assistant/dream";
 import { serverTimeZone } from "../../assistant/reminders/service";
 import { wasFired } from "../../shared/reminder";
 import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
@@ -48,6 +50,9 @@ export interface AssistantModule {
   shutdown: () => Promise<void>;
   getStatus: () => AssistantStatus;
   listReminders: () => AssistantReminderList;
+  listDiaries: () => Promise<AssistantDiary[]>;
+  readDiary: (file: string) => ReturnType<typeof readDiary>;
+  readMemory: () => Promise<{ content: string }>;
   listWorkers: () => Promise<AssistantWorkerInfo[]>;
   getHistorySegment: (params: {
     segmentId?: number;
@@ -647,6 +652,9 @@ export function createAssistantModule(
     shutdown,
     getStatus: () => status,
     listReminders: () => ({ reminders: reminders.listAll(), timeZone: serverTimeZone() }),
+    listDiaries: () => listDiarySummaries(),
+    readDiary,
+    readMemory: readAssistantMemory,
     listWorkers: () => workerManager.list(),
     getHistorySegment,
     sendPrompt,

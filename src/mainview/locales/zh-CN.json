@@ -133,6 +133,16 @@
     "failed": "个人助理执行失败。",
     "selectModel": "选择模型",
     "selectThinking": "选择思考等级",
+    "calendar": {
+      "title": "日历",
+      "diary": "日记",
+      "diaryTruncated": "条目内容已截断"
+    },
+    "memory": {
+      "title": "记忆",
+      "view": "查看记忆",
+      "empty": "还没有记忆"
+    },
     "reminders": {
       "title": "提醒",
       "empty": "当天没有提醒",

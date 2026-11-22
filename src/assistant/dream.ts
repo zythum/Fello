@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { mkdir, rename, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
 import {
@@ -124,8 +124,15 @@ function timestamp(value: Date): string {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}_${pad(value.getHours())}-${pad(value.getMinutes())}`;
 }
 
-function frontmatter(start: Date, end: Date, sourceDigest: string, modelId: string): string {
-  return `---\nstartTime: ${start.toISOString()}\nendTime: ${end.toISOString()}\nsourceDigest: sha256:${sourceDigest}\nmodel: ${JSON.stringify(modelId)}\n---\n\n`;
+function frontmatter(
+  start: Date,
+  end: Date,
+  tags: string[],
+  modelId: string,
+  sourceDigest: string,
+): string {
+  const tagLine = tags.length ? `tags: ${tags.join(", ")}\n` : "";
+  return `---\nstartTime: ${start.toISOString()}\nendTime: ${end.toISOString()}\n${tagLine}model: ${JSON.stringify(modelId)}\nsourceDigest: sha256:${sourceDigest}\n---\n\n`;
 }
 
 function dreamPrompt(
@@ -188,18 +195,8 @@ function bullets(values: string[]): string[] {
   return values.map((value) => `- ${value}`);
 }
 
-function periodLabel(start: Date, end: Date): string {
-  const pad = (number: number) => String(number).padStart(2, "0");
-  const date = (value: Date) =>
-    `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
-  const clock = (value: Date) => `${pad(value.getHours())}:${pad(value.getMinutes())}`;
-  return date(start) === date(end)
-    ? `${date(start)} ${clock(start)}–${clock(end)}`
-    : `${date(start)} ${clock(start)} – ${date(end)} ${clock(end)}`;
-}
-
-/** Title and tag line carry the searchable summary; empty sections are left out entirely. */
-function renderDiary(start: Date, end: Date, diary: DiaryRecap): string {
+/** Title and tags carry the searchable summary; empty sections are left out entirely. */
+function renderDiary(diary: DiaryRecap): string {
   const sections: string[] = [];
   const section = (heading: string, lines: string[]) => {
     if (lines.length) sections.push(`## ${heading}\n\n${lines.join("\n")}`);
@@ -217,12 +214,7 @@ function renderDiary(start: Date, end: Date, diary: DiaryRecap): string {
   section("Preferences", bullets(diary.preferences));
   section("Open questions", bullets(diary.openQuestions));
 
-  const tags = diary.tags.length ? `tags: ${diary.tags.join(", ")}` : "";
-  const meta = [periodLabel(start, end), tags].filter(Boolean).join(" · ");
-
   return `# ${diary.title}
-
-${meta}
 
 ${sections.join("\n\n")}
 `;
@@ -253,6 +245,16 @@ async function writeAtomically(path: string, content: string): Promise<void> {
   const temporaryPath = `${path}.dream-tmp`;
   await writeFile(temporaryPath, content, "utf8");
   await rename(temporaryPath, path);
+}
+
+/** The long-term memory Dream maintains. Missing file means the assistant has not dreamed yet. */
+export async function readAssistantMemory(): Promise<{ content: string }> {
+  try {
+    return { content: await readFile(MEMORY_PATH, "utf8") };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { content: "" };
+    throw error;
+  }
 }
 
 type ZodIssueLike = { path?: PropertyKey[]; message?: string };
@@ -312,11 +314,13 @@ export async function runDream(input: DreamInput): Promise<DreamOutput> {
   }
 
   const digest = sha256(JSON.stringify(input.history));
-  const diary = `${frontmatter(start, input.end, digest, input.modelId)}${renderDiary(
+  const diary = `${frontmatter(
     start,
     input.end,
-    parsed.diary,
-  )}`;
+    parsed.diary.tags,
+    input.modelId,
+    digest,
+  )}${renderDiary(parsed.diary)}`;
   const memory = renderMemory(parsed.memory);
   const diaryFileName = `${timestamp(start)}--${timestamp(input.end)}.md`;
   const nextSession: PersistedAssistantSession = {

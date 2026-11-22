@@ -134,6 +134,16 @@
     "failed": "Personal Assistant failed.",
     "selectModel": "Select model",
     "selectThinking": "Select thinking level",
+    "calendar": {
+      "title": "Calendar",
+      "diary": "Diary",
+      "diaryTruncated": "Entry truncated"
+    },
+    "memory": {
+      "title": "Memory",
+      "view": "View Memory",
+      "empty": "No memory yet"
+    },
     "reminders": {
       "title": "Reminders",
       "empty": "No reminders on this day",

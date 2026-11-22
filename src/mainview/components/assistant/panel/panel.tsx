@@ -1,15 +1,16 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, Folders, PanelRightClose, SquareChevronRight } from "lucide-react";
+import { CalendarDays, Folders, PanelRightClose, SquareChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { FilePanel } from "../../session/panel/file-panel/file-panel";
 import { ASSISTANT_PROJECT_ID } from "../../../../shared/constants";
+import type { AssistantDiary } from "../../../../shared/schema";
 import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
-import { ReminderPanel } from "./reminder-panel/reminder-panel";
+import { CalendarPanel } from "./calendar-panel/calendar-panel";
 import { WorkerPanel } from "./worker-panel/worker-panel";
 
-export type PanelTab = "files" | "reminders" | "workers";
+export type PanelTab = "files" | "calendar" | "workers";
 
 interface PanelProps {
   tab: PanelTab;
@@ -20,6 +21,8 @@ interface PanelProps {
   workspace: string;
   previewFileId: string | null;
   onPreviewFile: (file: string) => void;
+  /** Opens a diary entry in the detail column, with the server time zone used by the calendar. */
+  onOpenDiary: (diary: AssistantDiary, timeZone: string) => void;
 }
 
 export function Panel({
@@ -29,6 +32,7 @@ export function Panel({
   workspace,
   previewFileId,
   onPreviewFile,
+  onOpenDiary,
 }: PanelProps) {
   const { t } = useTranslation();
   const { focus } = useFocusTargetRegistry();
@@ -49,10 +53,10 @@ export function Panel({
       >
         <div className="shrink-0 border-b border-border pl-2 pr-1 h-12 flex items-center gap-1">
           <TabsList className="flex-1 gap-0" variant="default">
-            <TabsTrigger value="reminders" className="flex-1 min-w-0 text-xs gap-1.5">
-              <Bell className="size-3.5 shrink-0" />
+            <TabsTrigger value="calendar" className="flex-1 min-w-0 text-xs gap-1.5">
+              <CalendarDays className="size-3.5 shrink-0" />
               <span className="min-w-0 truncate">
-                {t("assistant.reminders.title", "Reminders")}
+                {t("assistant.calendar.title", "Calendar")}
               </span>
             </TabsTrigger>
             <TabsTrigger value="files" className="flex-1 min-w-0 text-xs gap-1.5">
@@ -76,8 +80,8 @@ export function Panel({
           </Button>
         </div>
 
-        <TabsContent value="reminders" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
-          <ReminderPanel />
+        <TabsContent value="calendar" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
+          <CalendarPanel onOpenDiary={onOpenDiary} />
         </TabsContent>
         <TabsContent value="files" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
           <FilePanel

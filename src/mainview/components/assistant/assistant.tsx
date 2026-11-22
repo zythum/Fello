@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
+  AssistantDiary,
   AssistantStatus,
   SessionInfo,
   SessionNotificationFelloExt,
@@ -39,6 +40,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Panel, type PanelTab } from "./panel/panel";
+import { DiaryDetail } from "./diary-detail";
+import { MemoryDetail } from "./memory-detail";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,8 +104,13 @@ export function Assistant() {
   const setAssistant = useAppStore((state) => state.setAssistant);
   const assistantName =
     assistantSettings.name?.trim() || t("assistant.title", "Personal Assistant");
-  const [panelTab, setPanelTab] = useState<PanelTab>("reminders");
+  const [panelTab, setPanelTab] = useState<PanelTab>("calendar");
   const [detailFile, setDetailFile] = useState<string | null>(null);
+  const [detailDiary, setDetailDiary] = useState<{
+    diary: AssistantDiary;
+    timeZone: string;
+  } | null>(null);
+  const [detailMemory, setDetailMemory] = useState(false);
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
   const isHistoryLoading = useAppStore(
@@ -192,6 +200,8 @@ export function Assistant() {
       const relativePath = detail?.relativePath ?? null;
       if (!relativePath) return;
       if (detail?.projectId && detail.projectId !== ASSISTANT_PROJECT_ID) return;
+      setDetailMemory(false);
+      setDetailDiary(null);
       setDetailFile(relativePath);
     };
     document.addEventListener("fello-preview-file", handlePreviewFile);
@@ -386,6 +396,26 @@ export function Assistant() {
     }
   };
 
+  const hasDetail = detailFile !== null || detailDiary !== null || detailMemory;
+
+  const openFile = useCallback((file: string) => {
+    setDetailMemory(false);
+    setDetailDiary(null);
+    setDetailFile(file);
+  }, []);
+
+  const openDiary = useCallback((diary: AssistantDiary, timeZone: string) => {
+    setDetailMemory(false);
+    setDetailFile(null);
+    setDetailDiary({ diary, timeZone });
+  }, []);
+
+  const openMemory = useCallback(() => {
+    setDetailFile(null);
+    setDetailDiary(null);
+    setDetailMemory(true);
+  }, []);
+
   return (
     <main
       ref={setMainEl}
@@ -399,13 +429,16 @@ export function Assistant() {
           isInitializing && "pointer-events-none opacity-0",
         )}
       >
-        <ResizablePanel
-          id="chat"
-          minSize={400}
-          disabled={compact && detailFile !== null}
-          collapsedSize={0}
-          maxSize={compact && detailFile ? 0 : undefined}
-        >
+        {/* 与 Session 一致：外层永远两个 panel，detail 只影响左侧内层 group，右侧 panel 宽度稳定。 */}
+        <ResizablePanel id="left" defaultSize={600} minSize={600}>
+          <ResizablePanelGroup className="flex h-full min-h-0">
+            <ResizablePanel
+              id="chat"
+              minSize={400}
+              disabled={compact && hasDetail}
+              collapsedSize={0}
+              maxSize={compact && hasDetail ? 0 : undefined}
+            >
           <div className="relative flex h-full min-h-0 flex-col">
         <header
           className={cn(
@@ -440,7 +473,7 @@ export function Assistant() {
           <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
             <TtsReadoutButton />
             <TtsMenuButton />
-            <UsageButton session={session} />
+            <UsageButton session={session} onOpenMemory={openMemory} />
             <PopoverPrimitive.Root
               onOpenChange={(open) => {
                 if (open) setLocalMcpServers(assistantMcpServers);
@@ -675,23 +708,37 @@ export function Assistant() {
           <AskUserDialog sessionId={ASSISTANT_SESSION_ID} />
         </div>
           </div>
-        </ResizablePanel>
+            </ResizablePanel>
 
-        {detailFile && (
+            {hasDetail && (
           <>
             {!compact && (
               <ResizableHandle className="bg-border/70 data-[separator=hover]:bg-ring/50 data-[separator=focus]:bg-ring/50 data-[separator=active]:bg-ring/80 duration-250" />
             )}
             <ResizablePanel id="detail" defaultSize={500} minSize={300}>
-              <FileDetail
-                compact={compact}
-                projectId={ASSISTANT_PROJECT_ID}
-                file={detailFile}
-                onClose={() => setDetailFile(null)}
-              />
+              {detailFile ? (
+                <FileDetail
+                  compact={compact}
+                  projectId={ASSISTANT_PROJECT_ID}
+                  file={detailFile}
+                  onClose={() => setDetailFile(null)}
+                />
+              ) : detailDiary ? (
+                <DiaryDetail
+                  key={detailDiary.diary.file}
+                  diary={detailDiary.diary}
+                  timeZone={detailDiary.timeZone}
+                  compact={compact}
+                  onClose={() => setDetailDiary(null)}
+                />
+              ) : detailMemory ? (
+                <MemoryDetail compact={compact} onClose={() => setDetailMemory(false)} />
+              ) : null}
             </ResizablePanel>
           </>
         )}
+          </ResizablePanelGroup>
+        </ResizablePanel>
 
         {/* Collapsed: no handle, and the panel cannot be dragged open. Same pattern as Session. */}
         <ResizableHandle
@@ -716,7 +763,8 @@ export function Assistant() {
             onOpenChange={setPanelOpen}
             workspace={status?.workspace ?? ""}
             previewFileId={detailFile}
-            onPreviewFile={setDetailFile}
+            onPreviewFile={openFile}
+            onOpenDiary={openDiary}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

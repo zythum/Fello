@@ -1,11 +1,18 @@
 import { useTranslation } from "react-i18next";
-import { ReceiptTurkishLira } from "lucide-react";
+import { Brain, ReceiptTurkishLira } from "lucide-react";
 import { useAppStore } from "../../store";
 import { buttonVariants } from "@/components/ui/button";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import type { SessionInfo } from "../../../shared/schema";
 
-export function UsageButton({ session }: { session: SessionInfo }) {
+export function UsageButton({
+  session,
+  onOpenMemory,
+}: {
+  session: SessionInfo;
+  /** Personal Assistant only: opens memory.md from the usage panel. */
+  onOpenMemory?: () => void;
+}) {
   const { t } = useTranslation();
   const configuredAgents = useAppStore((s) => s.configuredAgents);
   const { lastTurnUsage, usage } = session;
@@ -15,7 +22,8 @@ export function UsageButton({ session }: { session: SessionInfo }) {
 
   const hasData = usage || lastTurnUsage;
 
-  if (!hasData) return null;
+  // The assistant always exposes memory from this panel, even before the first usage arrives.
+  if (!hasData && !onOpenMemory) return null;
 
   const pct = usage?.size ? (usage.used / usage.size) * 100 : 0;
   const pctColor = pct > 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-primary";
@@ -111,6 +119,19 @@ export function UsageButton({ session }: { session: SessionInfo }) {
                   }}
                 >
                   {t("chatHeader.viewBreakdown", "View Breakdown")}
+                </PopoverPrimitive.Close>
+              )}
+              {onOpenMemory && (
+                <PopoverPrimitive.Close
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "xs",
+                    className: "w-full py-3 font-normal border-border! gap-1.5",
+                  })}
+                  onClick={onOpenMemory}
+                >
+                  <Brain className="size-3.5" />
+                  {t("assistant.memory.view", "View Memory")}
                 </PopoverPrimitive.Close>
               )}
             </div>

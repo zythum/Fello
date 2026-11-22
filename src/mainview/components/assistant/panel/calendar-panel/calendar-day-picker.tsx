@@ -2,31 +2,36 @@ import { createContext, useContext, useMemo } from "react";
 import type { ComponentProps } from "react";
 import type { DayButton } from "react-day-picker";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
-import {
-  occurrencesBetween,
-  zonedDayBounds,
-  type Reminder,
-} from "../../../../../shared/reminder";
+import { occurrencesBetween, zonedDayBounds, type Reminder } from "../../../../../shared/reminder";
 
 /** Dots show the number of reminders that day, up to this many. Larger counts are not expanded. */
 const MAX_DOTS = 3;
 
-type RemindersContextValue = {
+type CalendarContextValue = {
   reminders: Reminder[];
   timeZone: string;
   /** Dot count per calendar date. Reset whenever the reminders or the time zone change. */
   dotCounts: Map<string, number>;
 };
 
-const RemindersContext = createContext<RemindersContextValue>({
+const CalendarContext = createContext<CalendarContextValue>({
   reminders: [],
   timeZone: "UTC",
   dotCounts: new Map(),
 });
 
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
 function countOnDay(reminders: Reminder[], date: Date, timeZone: string): number {
   // The calendar date is a label (year, month, day), so the same day is picked in the server's zone.
-  const { start, end } = zonedDayBounds(date.getFullYear(), date.getMonth() + 1, date.getDate(), timeZone);
+  const { start, end } = zonedDayBounds(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    date.getDate(),
+    timeZone,
+  );
   let total = 0;
   for (const reminder of reminders) {
     total += occurrencesBetween(reminder, start, end, timeZone, MAX_DOTS).length;
@@ -36,10 +41,10 @@ function countOnDay(reminders: Reminder[], date: Date, timeZone: string): number
 }
 
 /** Calendar day cell: the default button plus one dot per reminder on that day. */
-function ReminderDayButton(props: ComponentProps<typeof DayButton>) {
-  const { reminders, timeZone, dotCounts } = useContext(RemindersContext);
+function CalendarDayButtonCell(props: ComponentProps<typeof DayButton>) {
+  const { reminders, timeZone, dotCounts } = useContext(CalendarContext);
   const date = props.day.date;
-  const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  const key = dayKey(date);
   let count = dotCounts.get(key);
   if (count === undefined) {
     count = countOnDay(reminders, date, timeZone);
@@ -60,7 +65,7 @@ function ReminderDayButton(props: ComponentProps<typeof DayButton>) {
   );
 }
 
-export function ReminderCalendar({
+export function CalendarDayPicker({
   reminders,
   timeZone,
   selected,
@@ -71,12 +76,12 @@ export function ReminderCalendar({
   selected: Date;
   onSelect: (date: Date) => void;
 }) {
-  const value = useMemo<RemindersContextValue>(
+  const value = useMemo<CalendarContextValue>(
     () => ({ reminders, timeZone, dotCounts: new Map() }),
     [reminders, timeZone],
   );
   return (
-    <RemindersContext.Provider value={value}>
+    <CalendarContext.Provider value={value}>
       <Calendar
         mode="single"
         selected={selected}
@@ -84,9 +89,9 @@ export function ReminderCalendar({
           // Clicking the selected day deselects it (undefined). Keep the current day selected.
           if (date) onSelect(date);
         }}
-        components={{ DayButton: ReminderDayButton }}
+        components={{ DayButton: CalendarDayButtonCell }}
         className="w-full text-xs [&_button]:text-xs"
       />
-    </RemindersContext.Provider>
+    </CalendarContext.Provider>
   );
 }
