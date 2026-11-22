@@ -202,7 +202,7 @@ export function createWorkerTools({
 
     worker_terminate: tool({
       description:
-        "Delete a worker for good: stop its agent and remove its record and transcript. The workspace is never deleted; clean up files you created with fs_move into .trash. Use worker_close if you may want to read the transcript later. Terminate workers once their result is reported so they do not accumulate.",
+        "Delete a worker for good: stop its agent and remove its record and transcript. The workspace is never deleted; delete the files you created with fs_delete when they are inside your own workspace, and ask the user to clean up anything outside it. Use worker_close if you may want to read the transcript later. Terminate workers once their result is reported so they do not accumulate.",
       inputSchema: z.object({
         workerId: z.string().min(1).describe("Worker id."),
       }),

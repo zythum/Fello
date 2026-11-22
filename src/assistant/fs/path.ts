@@ -45,3 +45,18 @@ export function assertWritablePath(path: string): void {
 export function isProtectedWritePath(path: string): boolean {
   return PROTECTED_WRITE_PREFIXES.some((prefix) => isInside(path, prefix));
 }
+
+/**
+ * Deletes are limited to the assistant workspace. On a headless server the deletion is
+ * permanent, so anything outside the workspace (or the workspace root itself) must be left
+ * to the user instead of being removed by the assistant.
+ */
+export function assertDeletablePath(path: string, workspace: string): void {
+  const root = resolve(workspace);
+  if (path === root) throw new Error(`Refusing to delete the workspace root: ${path}`);
+  if (!isInside(path, root))
+    throw new Error(
+      `Refusing to delete ${path}: only paths inside the assistant workspace (${root}) can be deleted. Ask the user to delete it.`,
+    );
+  assertWritablePath(path);
+}

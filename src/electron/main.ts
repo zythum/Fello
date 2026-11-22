@@ -322,7 +322,9 @@ applyProxy(
     : settingProxyInfoToProxyConfig(proxySettings),
 );
 
-const { backendHandlers, closeBackend } = initBackend(safeSend);
+const { backendHandlers, closeBackend } = initBackend(safeSend, {
+  trashItem: (path) => shell.trashItem(path),
+});
 
 for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema["requests"]>) {
   ipcMain.handle(

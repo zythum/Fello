@@ -38,6 +38,8 @@ export function initBackend(
     channel: K,
     payload: FelloIPCSchema["events"][K],
   ) => boolean,
+  /** Host capabilities that only the desktop app can provide. */
+  native?: { trashItem?: (path: string) => Promise<void> },
 ) {
   // ── Event bus ──
   const listeners: EventListener[] = [];
@@ -83,7 +85,7 @@ export function initBackend(
   // The assistant is a pseudo session; session I/O dispatches to it by id, so it must exist first.
   const assistant = createAssistantModule(ctx, {
     askUser,
-    filesystem: { grep, glob },
+    filesystem: { grep, glob, trashItem: native?.trashItem },
     mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
     ilink: ilink.state,
   });

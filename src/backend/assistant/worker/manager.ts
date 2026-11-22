@@ -478,7 +478,7 @@ export class WorkerManager implements WorkerService {
   /**
    * Removes a worker for good: stop its agent and delete its record and transcript.
    * The workspace is never touched: whoever created a directory is responsible for
-   * cleaning it up (move it into .trash with fs_move).
+   * deleting it with fs_delete (workspace paths only), or asking the user to clean up.
    */
   async terminate(input: { workerId: string }): Promise<void> {
     await this.store.load();

@@ -1,6 +1,7 @@
 import {
   appendFile,
   cp,
+  lstat,
   mkdir,
   readdir,
   readFile,
@@ -12,7 +13,7 @@ import {
 import { dirname } from "path";
 import { tool } from "ai";
 import { z } from "zod";
-import { assertWritablePath, resolveAssistantPath } from "./path";
+import { assertDeletablePath, assertWritablePath, resolveAssistantPath } from "./path";
 import { runWithToolUpdates, type ToolUpdateSender } from "../tool-updates";
 
 const MAX_LIST_ENTRIES = 200;
@@ -38,13 +39,22 @@ export type GlobFn = (options: {
   limit?: number;
 }) => Promise<{ filePaths: string[]; totalFiles: number; truncated: boolean }>;
 
-export type FileSystemTools = { grep: GrepFn; glob: GlobFn };
+export type FileSystemTools = {
+  grep: GrepFn;
+  glob: GlobFn;
+  /**
+   * Moves a path to the operating system's trash. Absent on headless servers, where
+   * `fs_delete` falls back to a permanent removal.
+   */
+  trashItem?: (path: string) => Promise<void>;
+};
 
 export type FileSystemToolDeps = {
   workspace: string;
   sendUpdate: ToolUpdateSender;
   grep: GrepFn;
   glob: GlobFn;
+  trashItem?: (path: string) => Promise<void>;
 };
 
 function toPosix(path: string): string {
@@ -57,11 +67,12 @@ export function createFileSystemTools({
   sendUpdate,
   grep,
   glob,
+  trashItem,
 }: FileSystemToolDeps) {
   return {
     fs_list: tool({
       description:
-        "List one directory. Directories come first. Paths may be absolute or relative to your workspace. Hidden entries (such as .trash) are included.",
+        "List one directory. Directories come first. Paths may be absolute or relative to your workspace. Hidden entries are included.",
       inputSchema: z.object({
         path: z
           .string()
@@ -187,21 +198,31 @@ export function createFileSystemTools({
 
     fs_move: tool({
       description:
-        "Move or rename a file or directory. There is no delete tool: move unwanted files into your workspace .trash/<timestamp>/ directory instead. Never move the assistant runtime directories.",
+        "Move or rename a file or directory. An existing destination is kept unless force is true. Never move the assistant runtime directories.",
       inputSchema: z.object({
         from: z.string().describe("Source path."),
         to: z.string().describe("Destination path."),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Replace an existing destination. Default false."),
       }),
-      execute: async ({ from, to }, { toolCallId }) =>
+      execute: async ({ from, to, force }, { toolCallId }) =>
         runWithToolUpdates(
           sendUpdate,
-          { toolCallId, title: `Move ${from}`, kind: "edit", rawInput: { from, to } },
+          { toolCallId, title: `Move ${from}`, kind: "edit", rawInput: { from, to, force } },
           async () => {
             const source = resolveAssistantPath(from, workspace);
             const target = resolveAssistantPath(to, workspace);
             assertWritablePath(source);
             assertWritablePath(target);
             const info = await stat(source);
+            if (source === target) return { from: toPosix(source), to: toPosix(target) };
+            const existing = await lstat(target).catch(() => null);
+            if (existing && !force)
+              throw new Error(
+                `Destination already exists: ${target}. Pass force: true to overwrite it.`,
+              );
             await mkdir(dirname(target), { recursive: true });
             try {
               await rename(source, target);
@@ -218,9 +239,51 @@ export function createFileSystemTools({
         ),
     }),
 
+    fs_delete: tool({
+      description:
+        "Delete a file or directory inside your workspace. In the desktop app the target moves to the system trash and the user can restore it; on a headless server it is deleted permanently. Paths outside your workspace are refused: ask the user to delete those.",
+      inputSchema: z.object({
+        path: z
+          .string()
+          .describe("File or directory to delete, absolute or relative to your workspace."),
+      }),
+      execute: async ({ path }, { toolCallId }) =>
+        runWithToolUpdates(
+          sendUpdate,
+          { toolCallId, title: `Delete ${path}`, kind: "edit", rawInput: { path } },
+          async () => {
+            const target = resolveAssistantPath(path, workspace);
+            assertDeletablePath(target, workspace);
+            const info = await lstat(target).catch((error: NodeJS.ErrnoException) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            });
+            if (!info) throw new Error(`No such file or directory: ${target}`);
+            if (trashItem) {
+              try {
+                await trashItem(target);
+              } catch (error) {
+                throw new Error(
+                  `Could not move ${target} to the system trash: ${
+                    error instanceof Error ? error.message : String(error)
+                  }. Nothing was deleted.`,
+                );
+              }
+              return { path: toPosix(target), method: "trash" as const };
+            }
+            await rm(target, { recursive: info.isDirectory(), force: false });
+            return { path: toPosix(target), method: "permanent" as const };
+          },
+          (result) =>
+            result.method === "trash"
+              ? `Moved to the system trash: ${result.path}`
+              : `Permanently deleted: ${result.path}`,
+        ),
+    }),
+
     fs_glob: tool({
       description:
-        "Find files by glob pattern, for example **/*.md. Hidden files and .trash are skipped unless the pattern starts with a dot.",
+        "Find files by glob pattern, for example **/*.md. Hidden files and directories are skipped unless the pattern starts with a dot.",
       inputSchema: z.object({
         pattern: z.string().min(1).describe("Glob pattern, relative to path."),
         path: z
