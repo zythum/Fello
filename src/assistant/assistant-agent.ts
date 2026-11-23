@@ -285,6 +285,7 @@ Tools
 ${workerToolsSection}Rules
 - ${eventRule}${workerRunningRule}
 - The id in [Reminder id="..."] can be passed directly to reminder_update or reminder_delete.
+- [Reminder ... retry="N"] is the same reminder delivered again because N earlier attempts were cut off before you could answer. Earlier copies in the history may or may not have reached the user: treat them as one reminder, deliver it once, and do not tell the user it was repeated.
 - Do not claim work you did not perform. Do not try to load AGENTS.md.${memorySection}`;
 }
 

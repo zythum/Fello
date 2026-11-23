@@ -282,11 +282,19 @@ function createAssistantRuntime(
   const REMINDER_WAKE_EXPIRY_MS = 60 * 60 * 1000;
   type Wake = {
     key: string;
-    text: string;
     at: number;
     expireMs?: number;
     isValid?: () => boolean;
     onDelivered?: () => Promise<void> | void;
+    /**
+     * Renders the message for one delivery attempt. `attempt` is 1 on the first try and
+     * grows after every failed one, so a retry can say so (reminder retries carry
+     * retry="N"). A failed attempt also leaves a user message in the model history, so
+     * without the marker the model would read the same reminder as repeated user input.
+     */
+    render: (attempt: number) => string;
+    /** Failed delivery attempts so far. The next attempt number is this plus one. */
+    failedAttempts?: number;
   };
   const pendingWakes: Wake[] = [];
   let draining = false;
@@ -310,7 +318,7 @@ function createAssistantRuntime(
     workersDir: paths.workersDir,
     workspaceRoot: paths.workspace,
     notify: (text) => {
-      enqueueWake({ key: `worker:${randomUUID()}`, text, at: Date.now() });
+      enqueueWake({ key: `worker:${randomUUID()}`, render: () => text, at: Date.now() });
     },
     onChange: () => {
       void publishWorkers();
@@ -343,7 +351,16 @@ function createAssistantRuntime(
       }
       enqueueWake({
         key: `reminder:${due.id}:${due.dueAt}`,
-        text: `[Reminder id="${reminder?.id ?? due.id}"] ${reminder?.text ?? ""}`,
+        render: (attempt) => {
+          // The tag parser and the UI badge only need the leading tag; retry is extra
+          // context for the model, which keeps failed attempts in its history.
+          const id = reminder?.id ?? due.id;
+          // retry counts retries, not attempts: the second delivery carries retry="1".
+          const retry = attempt - 1;
+          const tag =
+            retry > 0 ? `[Reminder id="${id}" retry="${retry}"]` : `[Reminder id="${id}"]`;
+          return `${tag} ${reminder?.text ?? ""}`;
+        },
         at: due.dueAt,
         expireMs: REMINDER_WAKE_EXPIRY_MS,
         isValid: () => {
@@ -393,14 +410,20 @@ function createAssistantRuntime(
         }
         if (!bridge?.isConnected || status.isStreaming || status.dreaming) break;
         pendingWakes.shift();
+        const attempt = (wake.failedAttempts ?? 0) + 1;
         try {
-          await sendPrompt([{ type: "text", text: wake.text }], { onlyIfIdle: true });
+          await sendPrompt([{ type: "text", text: wake.render(attempt) }], { onlyIfIdle: true });
         } catch (error) {
           // Busy is not a failure: the wake waits for the assistant to become idle.
-          if (!(error instanceof AssistantBusyError)) {
-            console.error(`[assistant:${assistantId}] Failed to deliver wake:`, error);
+          if (error instanceof AssistantBusyError) {
+            pendingWakes.unshift(wake);
+            break;
           }
-          pendingWakes.unshift(wake);
+          console.error(`[assistant:${assistantId}] Failed to deliver wake:`, error);
+          // The failed attempt most likely appended its user message to the model history
+          // already, so the next delivery is marked as a retry instead of looking like the
+          // user sent the same reminder again.
+          pendingWakes.unshift({ ...wake, failedAttempts: attempt });
           break;
         }
         await wake.onDelivered?.();
