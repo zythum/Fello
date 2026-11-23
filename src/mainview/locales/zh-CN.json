@@ -172,6 +172,7 @@
     "reminders": {
       "title": "提醒",
       "empty": "当天没有提醒",
+      "now": "现在",
       "status": {
         "disabled": "已停用",
         "fired": "已触发",

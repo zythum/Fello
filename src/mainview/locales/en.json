@@ -173,6 +173,7 @@
     "reminders": {
       "title": "Reminders",
       "empty": "No reminders on this day",
+      "now": "Now",
       "status": {
         "disabled": "Disabled",
         "fired": "Triggered",

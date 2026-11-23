@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDiaryPeriod } from "@/lib/diary-format";
 import { request, subscribe } from "../../../../backend";
 import {
@@ -88,7 +89,7 @@ function TriggerLabel({ reminder, at, now }: { reminder: Reminder; at: number; n
     tone = "text-amber-600 dark:text-amber-400";
     label = t("assistant.reminders.status.overdue", "Past");
   } else {
-    tone = "text-primary";
+    tone = "text-teal-600 dark:text-teal-400";
     label =
       at - now < 60000
         ? t("assistant.reminders.status.anyMoment", "Any moment now")
@@ -96,7 +97,65 @@ function TriggerLabel({ reminder, at, now }: { reminder: Reminder; at: number; n
             duration: formatDuration(at - now, t),
           });
   }
-  return <span className={`shrink-0 text-[10px] ${tone}`}>{label}</span>;
+  return <span className={`shrink-0 text-[10px] font-medium ${tone}`}>{label}</span>;
+}
+
+/**
+ * Anchor for "now" inside the day's list. Without it the cards only show their own status, so it is
+ * hard to tell which side of the current moment an entry falls on.
+ */
+function NowLine({ at, timeZone }: { at: number; timeZone: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-2 px-0.5">
+      <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-teal-600 dark:text-teal-400">
+        <span className="size-1.5 rounded-full bg-current" aria-hidden />
+        <span className="tabular-nums">
+          {t("assistant.reminders.now", "Now")} {formatTime(at, timeZone)}
+        </span>
+      </span>
+      <span className="h-px flex-1 bg-teal-600/30 dark:bg-teal-400/30" aria-hidden />
+    </div>
+  );
+}
+
+/**
+ * One row of the day list. Adjacent trigger times of the same reminder share one card, so a
+ * per-hour reminder does not fill the panel; occurrences separated by another reminder stay apart.
+ */
+type ReminderCardRow = {
+  kind: "card";
+  key: string;
+  reminder: Reminder;
+  /** The card's representative time: its last occurrence in the past, its first one ahead. */
+  at: number;
+  /** How many occurrences the card covers. */
+  total: number;
+};
+
+type ListRow = ReminderCardRow | { kind: "now" };
+
+/** Runs of consecutive occurrences of the same reminder. The input is already time-sorted. */
+function groupRuns(list: ReminderOccurrence[]): ReminderOccurrence[][] {
+  const runs: ReminderOccurrence[][] = [];
+  for (const item of list) {
+    const run = runs[runs.length - 1];
+    if (run && run[0].reminder.id === item.reminder.id) run.push(item);
+    else runs.push([item]);
+  }
+  return runs;
+}
+
+function reminderCard(run: ReminderOccurrence[], past: boolean): ReminderCardRow {
+  const first = run[0];
+  const last = run[run.length - 1];
+  return {
+    kind: "card",
+    key: `${first.reminder.id}:${first.at}`,
+    reminder: first.reminder,
+    at: past ? last.at : first.at,
+    total: run.length,
+  };
 }
 
 const NO_REMINDERS: Reminder[] = [];
@@ -178,6 +237,25 @@ export function CalendarPanel({
     () => occurrencesOnDay(reminders, selected, timeZone),
     [reminders, selected, timeZone],
   );
+  // The list itself: runs of adjacent occurrences of the same reminder become one card. The "now"
+  // marker only separates the delivered part from the upcoming part, so a run that contains the
+  // current moment is shown as two cards with the marker in between.
+  const rows = useMemo<ListRow[]>(() => {
+    const { start, end } = zonedDayBounds(
+      selected.getFullYear(),
+      selected.getMonth() + 1,
+      selected.getDate(),
+      timeZone,
+    );
+    const firstAhead = items.findIndex((item) => item.at > now);
+    const split = firstAhead === -1 ? items.length : firstAhead;
+
+    const past = groupRuns(items.slice(0, split)).map((run) => reminderCard(run, true));
+    const future = groupRuns(items.slice(split)).map((run) => reminderCard(run, false));
+    // The marker only means something while the selected day actually contains the current time.
+    const between: ListRow[] = now >= start && now < end ? [{ kind: "now" }] : [];
+    return [...past, ...between, ...future];
+  }, [items, now, selected, timeZone]);
   const diariesOnDay = useMemo(() => {
     const { start, end } = zonedDayBounds(
       selected.getFullYear(),
@@ -190,7 +268,7 @@ export function CalendarPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0">
+      <div className="shrink-0 p-1">
         <CalendarDayPicker
           reminders={reminders}
           timeZone={timeZone}
@@ -199,8 +277,8 @@ export function CalendarPanel({
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-2">
-        <h3 className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+      <ScrollArea className="flex-1 min-h-0 border-t" viewportClassName="px-3 py-2">
+        <h3 className="px-0.5 pb-2 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
           {t("assistant.reminders.title", "Reminders")}
         </h3>
         {items.length === 0 ? (
@@ -209,36 +287,51 @@ export function CalendarPanel({
           </p>
         ) : (
           <ItemGroup className="gap-2">
-            {items.map((item) => (
-              <Item key={item.key} variant="outline" size="sm" className="shadow-sm rounded-md">
-                <ItemContent>
-                  <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
-                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
-                      {formatTime(item.at, timeZone)}
-                    </span>
-                    <TriggerLabel reminder={item.reminder} at={item.at} now={now} />
-                  </ItemTitle>
-                  <ItemDescription className="whitespace-pre-wrap wrap-break-word text-xs leading-relaxed text-sidebar-foreground/85">
-                    {item.reminder.text}
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
-            ))}
+            {rows.map((row) => {
+              if (row.kind === "now") return <NowLine key="now" at={now} timeZone={timeZone} />;
+              return (
+                <Item
+                  key={row.key}
+                  variant="muted"
+                  size="sm"
+                  className="rounded-md border-foreground/15 p-2 shadow-2xs"
+                >
+                  <ItemContent>
+                    <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
+                          {formatTime(row.at, timeZone)}
+                        </span>
+                        {row.total > 1 && (
+                          <span className="text-[9px] tabular-nums text-muted-foreground/60">
+                            ×{row.total}
+                          </span>
+                        )}
+                      </span>
+                      <TriggerLabel reminder={row.reminder} at={row.at} now={now} />
+                    </ItemTitle>
+                    <ItemDescription className="whitespace-pre-wrap wrap-break-word text-xs leading-snug text-sidebar-foreground/85">
+                      {row.reminder.text}
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              );
+            })}
           </ItemGroup>
         )}
 
         {diariesOnDay.length > 0 && (
           <section className="mt-3">
-            <h3 className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+            <h3 className="px-0.5 pb-2 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
               {t("assistant.calendar.diary", "Diary")}
             </h3>
             <ItemGroup className="gap-2">
               {diariesOnDay.map((diary) => (
                 <Item
                   key={diary.file}
-                  variant="outline"
+                  variant="muted"
                   size="sm"
-                  className="shadow-sm rounded-md text-left pr-2"
+                  className="rounded-md border-foreground/15 p-2 shadow-2xs text-left"
                   render={<button type="button" onClick={() => onOpenDiary(diary, timeZone)} />}
                 >
                   <ItemContent>
@@ -248,7 +341,7 @@ export function CalendarPanel({
                       </span>
                       <ChevronRight className="mt-0.5 size-3 shrink-0 text-muted-foreground/50" />
                     </ItemTitle>
-                    <ItemDescription className="text-[10px] text-muted-foreground/70">
+                    <ItemDescription className="text-[11px] text-muted-foreground/70">
                       {formatDiaryPeriod(diary, timeZone, i18n.language)}
                     </ItemDescription>
                   </ItemContent>
@@ -257,7 +350,7 @@ export function CalendarPanel({
             </ItemGroup>
           </section>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
