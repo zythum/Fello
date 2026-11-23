@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Brain, ReceiptTurkishLira } from "lucide-react";
+import { ReceiptTurkishLira } from "lucide-react";
 import { useAppStore } from "../../store";
 import { buttonVariants } from "@/components/ui/button";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
@@ -126,11 +126,10 @@ export function UsageButton({
                   className={buttonVariants({
                     variant: "outline",
                     size: "xs",
-                    className: "w-full py-3 font-normal border-border! gap-1.5",
+                    className: "w-full py-3 font-normal border-border!",
                   })}
                   onClick={onOpenMemory}
                 >
-                  <Brain className="size-3.5" />
                   {t("assistant.memory.view", "View Memory")}
                 </PopoverPrimitive.Close>
               )}
