@@ -34,6 +34,8 @@ export type WorkerRecord = {
   lastActiveAt: number;
   lastStopReason: string | null;
   lastError: string | null;
+  /** Number of turns started for this worker; old records may lack it. */
+  turnCount?: number;
 };
 
 export type WorkerTurn = {

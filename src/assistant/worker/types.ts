@@ -51,6 +51,8 @@ export type WorkerSendResult = {
 
 export type WorkerListItem = {
   id: string;
+  /** Absolute directory holding this worker's record and transcript. */
+  dataDir: string;
   name: string;
   status: WorkerLifecycleStatus;
   /**
@@ -70,6 +72,8 @@ export type WorkerListItem = {
   lastActiveAt: number;
   currentTurnId: string | null;
   lastTurnId: string | null;
+  /** Number of turns started for this worker. */
+  turnCount: number;
   lastStopReason: string | null;
   lastError: string | null;
 };

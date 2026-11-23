@@ -189,8 +189,16 @@
     "workers": {
       "title": "子代理",
       "empty": "暂无子代理",
-      "turn": "轮次",
+      "id": "ID",
+      "openDataDir": "打开子代理目录",
+      "type": "类型",
+      "agent": "Agent",
       "model": "模型",
+      "workspace": "工作区",
+      "revealWorkspace": "在访达中显示",
+      "turn": "轮次",
+      "turnCount": "第 {{count}} 轮",
+      "error": "错误",
       "agentDefault": "Agent 默认",
       "status": {
         "running": "运行中",

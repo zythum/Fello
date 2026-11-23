@@ -173,10 +173,18 @@ export class WorkerManager implements WorkerService {
   async init(): Promise<void> {
     await this.store.load();
     for (const record of this.store.list()) {
-      if (record.status !== "running" && record.status !== "awaiting_permission") continue;
-      record.status = "interrupted";
-      record.lastActiveAt = Date.now();
-      await this.store.upsert(record);
+      let changed = false;
+      // Old records predate turnCount; backfill once from the authoritative turns log.
+      if (record.turnCount == null) {
+        record.turnCount = (await this.store.readTurns(record.id)).length;
+        changed = true;
+      }
+      if (record.status === "running" || record.status === "awaiting_permission") {
+        record.status = "interrupted";
+        record.lastActiveAt = Date.now();
+        changed = true;
+      }
+      if (changed) await this.store.upsert(record);
     }
     this.notifyChange();
   }
@@ -244,6 +252,7 @@ export class WorkerManager implements WorkerService {
       status: "idle",
       createdAt: now,
       lastActiveAt: now,
+      turnCount: 0,
       lastStopReason: null,
       lastError: null,
     };
@@ -297,6 +306,7 @@ export class WorkerManager implements WorkerService {
 
     handle.running = { turnId, startedAt, text: "" };
     handle.record.status = "running";
+    handle.record.turnCount = (handle.record.turnCount ?? 0) + 1;
     handle.record.lastActiveAt = startedAt;
     await this.store.upsert(handle.record);
     handle.suppressNotifications = false;
@@ -579,6 +589,7 @@ export class WorkerManager implements WorkerService {
   ): WorkerListItem {
     return {
       id: record.id,
+      dataDir: join(this.options.workersDir, record.id),
       name: record.name,
       status: record.status as WorkerLifecycleStatus,
       connectionStatus: this.connectionStatusOf(this.handles.get(record.id)),
@@ -592,6 +603,7 @@ export class WorkerManager implements WorkerService {
       lastActiveAt: record.lastActiveAt,
       currentTurnId,
       lastTurnId,
+      turnCount: record.turnCount ?? 0,
       lastStopReason: record.lastStopReason,
       lastError: record.lastError,
     };

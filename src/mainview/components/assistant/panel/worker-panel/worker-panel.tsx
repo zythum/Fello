@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, SquareChevronRight } from "lucide-react";
+import { FolderOpen, Loader2 } from "lucide-react";
 import type { AssistantWorkerInfo } from "../../../../../shared/schema";
 import { request, subscribe } from "../../../../backend";
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { electron } from "../../../../electron";
+import { Item, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<AssistantWorkerInfo["status"], string> = {
@@ -70,94 +72,169 @@ export function WorkerPanel({ assistantId }: { assistantId: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex-1 min-h-0 overflow-y-auto p-2">
+      <ScrollArea className="flex-1 min-h-0" viewportClassName="p-3">
         {workers.length === 0 ? (
           <p className="px-2 py-6 text-center text-xs text-muted-foreground">
             {t("assistant.workers.empty", "No workers yet")}
           </p>
         ) : (
           <ItemGroup className="gap-2">
-            {workers.map((worker) => (
-              <Item key={worker.id} variant="outline" size="sm" className="overflow-hidden">
-                <ItemContent className="min-w-0">
-                  <ItemTitle className="flex w-full items-center justify-between gap-2 font-normal">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <SquareChevronRight className="size-3.5 shrink-0 text-muted-foreground/70" />
-                      <span className="min-w-0 truncate">{worker.name || worker.id}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        "shrink-0 text-[10px] font-medium",
-                        STATUS_STYLES[worker.status],
-                      )}
-                    >
-                      {t(
-                        `assistant.workers.status.${worker.status}`,
-                        STATUS_FALLBACKS[worker.status],
-                      )}
-                    </span>
-                  </ItemTitle>
-                  <ItemDescription className="line-clamp-none flex min-w-0 flex-col gap-1 text-xs">
-                    <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/70">
+            {workers.map((worker) => {
+              const turnId = worker.currentTurnId ?? worker.lastTurnId;
+              const statusLabel = t(
+                `assistant.workers.status.${worker.status}`,
+                STATUS_FALLBACKS[worker.status],
+              );
+              const connectionLabel = t(
+                `assistant.workers.connection.${worker.connectionStatus}`,
+                CONNECTION_FALLBACKS[worker.connectionStatus],
+              );
+              const modelLabel =
+                worker.modelId ?? t("assistant.workers.agentDefault", "Agent default");
+              const typeLabel = worker.typeName ?? worker.typeId ?? "—";
+              return (
+                <Item
+                  key={worker.id}
+                  variant="muted"
+                  size="sm"
+                  className="rounded-md border-foreground/15 p-2 shadow-2xs"
+                >
+                  <ItemContent className="min-w-0 gap-1.5">
+                    <ItemTitle className="flex w-full items-center justify-between gap-2 border-b border-border/60 pb-1.5 text-sm font-medium">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span
+                          className="min-w-0 truncate"
+                          title={worker.name ? `${worker.name} (${worker.id})` : worker.id}
+                        >
+                          {worker.name || worker.id}
+                        </span>
+                        <span
+                          className="flex shrink-0 items-center gap-1 text-[10px] font-normal text-muted-foreground/60"
+                          title={connectionLabel}
+                        >
+                          <span
+                            className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              CONNECTION_DOTS[worker.connectionStatus],
+                            )}
+                          />
+                          <span>{connectionLabel}</span>
+                        </span>
+                      </span>
                       <span
                         className={cn(
-                          "size-1.5 shrink-0 rounded-full",
-                          CONNECTION_DOTS[worker.connectionStatus],
+                          "shrink-0 text-[11px] font-medium",
+                          STATUS_STYLES[worker.status],
                         )}
-                      />
-                      <span className="shrink-0">
-                        {t(
-                          `assistant.workers.connection.${worker.connectionStatus}`,
-                          CONNECTION_FALLBACKS[worker.connectionStatus],
-                        )}
+                      >
+                        {statusLabel}
                       </span>
-                      {worker.typeName && (
+                    </ItemTitle>
+
+                    <dl className="grid grid-cols-[minmax(3rem,auto)_minmax(0,1fr)] gap-x-2 gap-y-1 text-[11px] leading-snug">
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.id", "ID")}
+                      </dt>
+                      <dd className="min-w-0 text-foreground/80">
+                        <button
+                          type="button"
+                          className="group/id flex w-full min-w-0 items-center gap-1 rounded-sm text-left font-mono hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
+                          title={`${t("assistant.workers.openDataDir", "Open worker folder")}: ${worker.dataDir}`}
+                          onClick={() => void electron.revealInFinder(worker.dataDir).catch(() => {})}
+                        >
+                          <span className="min-w-0 truncate">{worker.id}</span>
+                          <FolderOpen className="size-3 shrink-0 text-muted-foreground/50 transition-colors group-hover/id:text-foreground/70" />
+                        </button>
+                      </dd>
+
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.type", "Type")}
+                      </dt>
+                      <dd
+                        className="min-w-0 truncate text-foreground/80"
+                        title={worker.typeId ?? undefined}
+                      >
+                        {typeLabel}
+                      </dd>
+
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.agent", "Agent")}
+                      </dt>
+                      <dd
+                        className="min-w-0 truncate font-mono text-foreground/80"
+                        title={worker.agentId}
+                      >
+                        {worker.agentId}
+                      </dd>
+
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.model", "Model")}
+                      </dt>
+                      <dd
+                        className="min-w-0 truncate font-mono text-foreground/80"
+                        title={modelLabel}
+                      >
+                        {modelLabel}
+                      </dd>
+
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.workspace", "Workspace")}
+                      </dt>
+                      <dd className="min-w-0 text-foreground/80">
+                        <button
+                          type="button"
+                          className="group/workspace flex w-full min-w-0 items-center gap-1 rounded-sm text-left font-mono hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
+                          title={`${t("assistant.workers.revealWorkspace", "Reveal in Finder")}: ${worker.cwd}`}
+                          onClick={() => void electron.revealInFinder(worker.cwd).catch(() => {})}
+                        >
+                          <span className="min-w-0 truncate">{worker.cwd}</span>
+                          <FolderOpen className="size-3 shrink-0 text-muted-foreground/50 transition-colors group-hover/workspace:text-foreground/70" />
+                        </button>
+                      </dd>
+
+                      <dt className="text-[10px] text-muted-foreground/60">
+                        {t("assistant.workers.turn", "Turn")}
+                      </dt>
+                      <dd
+                        className="flex min-w-0 items-center gap-1 text-foreground/80"
+                        title={turnId ?? undefined}
+                      >
+                        <span className="shrink-0">
+                          {t("assistant.workers.turnCount", "Turn {{count}}", {
+                            count: worker.turnCount ?? 0,
+                          })}
+                        </span>
+                        {turnId && (
+                          <>
+                            <span className="text-muted-foreground/30">·</span>
+                            <span className="min-w-0 truncate font-mono">
+                              {turnId.slice(0, 8)}
+                            </span>
+                          </>
+                        )}
+                      </dd>
+
+                      {worker.lastError && (
                         <>
-                          <span className="text-muted-foreground/30">·</span>
-                          <span
-                            className="max-w-20 shrink-0 truncate rounded bg-muted px-1 text-[9px] text-muted-foreground/70"
-                            title={worker.typeId ?? undefined}
+                          <dt className="text-[10px] text-destructive/80">
+                            {t("assistant.workers.error", "Error")}
+                          </dt>
+                          <dd
+                            className="min-w-0 whitespace-pre-wrap wrap-break-word text-destructive/80 line-clamp-3"
+                            title={worker.lastError}
                           >
-                            {worker.typeName}
-                          </span>
+                            {worker.lastError}
+                          </dd>
                         </>
                       )}
-                      <span className="text-muted-foreground/30">·</span>
-                      <span className="min-w-0 truncate font-mono">{worker.agentId}</span>
-                    </span>
-                    <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/70">
-                      <span className="shrink-0">{t("assistant.workers.model", "Model")}:</span>
-                      <span
-                        className="min-w-0 truncate font-mono"
-                        title={worker.modelId ?? undefined}
-                      >
-                        {worker.modelId ?? t("assistant.workers.agentDefault", "Agent default")}
-                      </span>
-                    </span>
-                    <span
-                      className="min-w-0 max-w-full truncate font-mono text-[10px] text-muted-foreground/50"
-                      title={worker.cwd}
-                    >
-                      {worker.cwd}
-                    </span>
-                    {(worker.currentTurnId || worker.lastTurnId) && (
-                      <span className="min-w-0 truncate text-[10px] text-muted-foreground/60">
-                        {t("assistant.workers.turn", "Turn")}{" "}
-                        {worker.currentTurnId ?? worker.lastTurnId}
-                      </span>
-                    )}
-                    {worker.lastError && (
-                      <span className="min-w-0 whitespace-pre-wrap wrap-break-word text-[10px] text-destructive/80 line-clamp-2">
-                        {worker.lastError}
-                      </span>
-                    )}
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
-            ))}
+                    </dl>
+                  </ItemContent>
+                </Item>
+              );
+            })}
           </ItemGroup>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

@@ -259,6 +259,8 @@ export type AssistantWorkerConnectionStatus = "connected" | "connecting" | "disc
 
 export interface AssistantWorkerInfo {
   id: string;
+  /** Absolute directory holding this worker's record and transcript. */
+  dataDir: string;
   name: string;
   status: AssistantWorkerStatus;
   /** Whether the worker's agent process is currently loaded. */
@@ -276,6 +278,8 @@ export interface AssistantWorkerInfo {
   lastActiveAt: number;
   currentTurnId: string | null;
   lastTurnId: string | null;
+  /** Number of turns started for this worker. */
+  turnCount: number;
   lastStopReason: string | null;
   lastError: string | null;
 }

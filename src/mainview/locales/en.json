@@ -190,8 +190,16 @@
     "workers": {
       "title": "Workers",
       "empty": "No workers yet",
-      "turn": "Turn",
+      "id": "ID",
+      "openDataDir": "Open worker folder",
+      "type": "Type",
+      "agent": "Agent",
       "model": "Model",
+      "workspace": "Workspace",
+      "revealWorkspace": "Reveal in Finder",
+      "turn": "Turn",
+      "turnCount": "Turn {{count}}",
+      "error": "Error",
       "agentDefault": "Agent default",
       "status": {
         "running": "Running",
