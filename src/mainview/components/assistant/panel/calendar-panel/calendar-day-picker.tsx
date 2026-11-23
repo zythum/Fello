@@ -4,7 +4,10 @@ import type { DayButton } from "react-day-picker";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { occurrencesBetween, zonedDayBounds, type Reminder } from "../../../../../shared/reminder";
 
-/** Dots show the number of reminders that day, up to this many. Larger counts are not expanded. */
+/**
+ * Dots show how many reminders fall on that day (not how many times they trigger), up to this many.
+ * Larger counts are not expanded.
+ */
 const MAX_DOTS = 3;
 
 type CalendarContextValue = {
@@ -34,10 +37,12 @@ function countOnDay(reminders: Reminder[], date: Date, timeZone: string): number
   );
   let total = 0;
   for (const reminder of reminders) {
-    total += occurrencesBetween(reminder, start, end, timeZone, MAX_DOTS).length;
+    // One dot per reminder, so an hourly reminder still counts as a single reminder that day.
+    if (occurrencesBetween(reminder, start, end, timeZone, 1).length === 0) continue;
+    total += 1;
     if (total >= MAX_DOTS) break;
   }
-  return Math.min(total, MAX_DOTS);
+  return total;
 }
 
 /** Calendar day cell: the default button plus one dot per reminder on that day. */
