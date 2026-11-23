@@ -263,7 +263,10 @@ export function CalendarPanel({
       selected.getDate(),
       timeZone,
     );
-    return diaries.filter((diary) => diary.startAt < end && diary.endAt > start);
+    // The backend lists diaries newest first; the day list reads top-down like the reminders above.
+    return diaries
+      .filter((diary) => diary.startAt < end && diary.endAt > start)
+      .sort((a, b) => a.startAt - b.startAt);
   }, [diaries, selected, timeZone]);
 
   return (
