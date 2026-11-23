@@ -67,9 +67,6 @@ export function getMediaKind(mimeType?: string, filename?: string): MediaKind | 
   return null;
 }
 
-/** Pseudo project id for the assistant's own workspace (file panel, file routes). */
-export const ASSISTANT_PROJECT_ID = "__assistant__";
-
 /**
  * 历史消息每页展示的 user message 组数；后端复用同一值作为消息分段阈值，
  * 使一次「加载更早」恰好展开一个完整分段。

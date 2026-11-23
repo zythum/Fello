@@ -26,7 +26,7 @@ export function CopyableRow({
 
   return (
     <div className="flex items-center gap-2 text-[11px]">
-      <span className="shrink-0 text-muted-foreground w-12">{label}:</span>
+      <span className="shrink-0 text-muted-foreground min-w-12">{label}:</span>
       <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground/70 select-all">
         {value}
       </span>

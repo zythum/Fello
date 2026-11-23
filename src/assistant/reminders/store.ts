@@ -1,13 +1,10 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
-import { homedir } from "os";
-import { dirname, join } from "path";
+import { dirname } from "path";
 import { z } from "zod";
 import type { Reminder } from "../../shared/reminder";
 
 export type { Reminder, ReminderTrigger } from "../../shared/reminder";
-
-export const REMINDERS_PATH = join(homedir(), ".fello", "assistant", "agent", "reminders.json");
 
 const triggerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("once"), at: z.number().int().nonnegative() }),
@@ -43,7 +40,7 @@ export class ReminderStore {
   private writeQueue: Promise<unknown> = Promise.resolve();
   private loadPromise: Promise<void> | null = null;
 
-  constructor(private readonly path: string = REMINDERS_PATH) {}
+  constructor(private readonly path: string) {}
 
   /**
    * Reads reminders.json once. If the file exists but cannot be read or parsed, the load fails

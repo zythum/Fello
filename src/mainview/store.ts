@@ -2,6 +2,8 @@ import { enableArrayMethods, enableMapSet, enablePatches } from "immer";
 import { create } from "zustand";
 import { useState } from "react";
 import type {
+  AssistantConfig,
+  AssistantStatus,
   SessionInfo,
   ProjectInfo,
   SettingsInfo,
@@ -147,6 +149,12 @@ export interface AppState {
   proxy: SettingsInfo["proxy"];
   ilink: SettingsInfo["ilink"];
   assistant: SettingsInfo["assistant"];
+  /** All personal assistants (configs), oldest first. */
+  assistants: AssistantConfig[];
+  /** False until the first listAssistants() response has been applied. */
+  assistantsReady: boolean;
+  /** Runtime status per assistant, for sidebar row indicators. */
+  assistantStatuses: Map<string, AssistantStatus>;
   editor: SettingEditorInfo;
   sound: SettingSoundInfo;
   voiceInput: SettingsInfo["voiceInput"];
@@ -221,6 +229,8 @@ export interface AppState {
   setProxy: (proxy: SettingsInfo["proxy"]) => void;
   setIlink: (ilink: SettingsInfo["ilink"]) => void;
   setAssistant: (assistant: SettingsInfo["assistant"]) => void;
+  setAssistants: (assistants: AssistantConfig[]) => void;
+  setAssistantStatus: (assistantId: string, status: AssistantStatus) => void;
   setEditor: (editor: SettingEditorInfo) => void;
   setSound: (sound: SettingSoundInfo) => void;
   setVoiceInput: (voiceInput: SettingsInfo["voiceInput"]) => void;
@@ -273,14 +283,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   fileWatcher: { enabled: true },
   proxy: { mode: "off" },
   ilink: { useOriginalImage: false },
-  assistant: {
-    name: "",
-    enabled: false,
-    sourceAgentId: null,
-    mcpServers: ["exa"],
-    dream: { maxContextTokens: 64_000, preferredTime: "02:00" },
-    workerTypes: [],
-  },
+  assistant: { enabled: false, workerTypes: [] },
+  assistants: [],
+  assistantsReady: false,
+  assistantStatuses: new Map(),
   editor: { name: "code" },
   sound: { volume: 50, muted: false, theme: "soft" },
   voiceInput: { altDoublePress: true },
@@ -441,13 +447,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFileWatcher: (fileWatcher) => set({ fileWatcher }),
   setProxy: (proxy) => set({ proxy }),
   setIlink: (ilink) => set({ ilink }),
-  // 兼容旧版后端/旧设置缓存：老进程的 assistant 可能没有这些新字段。
   setAssistant: (assistant) =>
     set({
       assistant: {
-        ...assistant,
-        name: assistant.name ?? "",
-        mcpServers: assistant.mcpServers ?? [],
+        enabled: assistant.enabled ?? false,
         workerTypes: (assistant.workerTypes ?? []).map((type) => ({
           ...type,
           features: type.features ?? [],
@@ -457,6 +460,13 @@ export const useAppStore = create<AppState>((set, get) => ({
           permissionMode: type.permissionMode ?? "ask",
         })),
       },
+    }),
+  setAssistants: (assistants) => set({ assistants, assistantsReady: true }),
+  setAssistantStatus: (assistantId, status) =>
+    set((state) => {
+      const map = new Map(state.assistantStatuses);
+      map.set(assistantId, status);
+      return { assistantStatuses: map };
     }),
   setEditor: (editor) => set({ editor }),
   setSound: (sound) => set({ sound }),

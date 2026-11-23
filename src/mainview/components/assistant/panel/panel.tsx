@@ -4,7 +4,6 @@ import { CalendarDays, Folders, PanelRightClose, SquareChevronRight } from "luci
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { FilePanel } from "../../session/panel/file-panel/file-panel";
-import { ASSISTANT_PROJECT_ID } from "../../../../shared/constants";
 import type { AssistantDiary } from "../../../../shared/schema";
 import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
 import { CalendarPanel } from "./calendar-panel/calendar-panel";
@@ -17,6 +16,9 @@ interface PanelProps {
   onTabChange: (tab: PanelTab) => void;
   /** 收起按钮的入口，和 Session 的面板一致。 */
   onOpenChange: (open: boolean) => void;
+  assistantId: string;
+  /** Virtual project id of this assistant's workspace. */
+  projectId: string;
   /** Assistant workspace (the virtual project's cwd). */
   workspace: string;
   previewFileId: string | null;
@@ -29,6 +31,8 @@ export function Panel({
   tab,
   onTabChange,
   onOpenChange,
+  assistantId,
+  projectId,
   workspace,
   previewFileId,
   onPreviewFile,
@@ -81,18 +85,18 @@ export function Panel({
         </div>
 
         <TabsContent value="calendar" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
-          <CalendarPanel onOpenDiary={onOpenDiary} />
+          <CalendarPanel assistantId={assistantId} onOpenDiary={onOpenDiary} />
         </TabsContent>
         <TabsContent value="files" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
           <FilePanel
-            projectId={ASSISTANT_PROJECT_ID}
+            projectId={projectId}
             cwd={workspace}
             previewFileId={previewFileId}
             onPreviewFile={onPreviewFile}
           />
         </TabsContent>
         <TabsContent value="workers" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
-          <WorkerPanel />
+          <WorkerPanel assistantId={assistantId} />
         </TabsContent>
       </Tabs>
     </div>

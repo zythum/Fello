@@ -2,11 +2,8 @@ import { appendFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } fro
 import { join } from "path";
 import type { Feature, SessionNotificationFelloExt } from "../../../shared/schema";
 import { HISTORY_PAGE_SIZE } from "../../../shared/constants";
-import { ASSISTANT_AGENT_DIR } from "../../../assistant/storage";
 import type { WorkerLifecycleStatus } from "../../../assistant/worker/types";
 
-/** Worker conversations are stored exactly like project sessions: raw ACP notifications. */
-export const WORKERS_DIR = join(ASSISTANT_AGENT_DIR, "workers");
 /** One directory per worker; `session.json` holds its record. */
 const WORKER_SESSION_FILE = "session.json";
 /** Per-turn facts that ACP notifications do not carry (stopReason/error/segment). */
@@ -98,7 +95,7 @@ export class WorkerStore {
   private readonly writeQueues = new Map<string, Promise<void>>();
   private readonly activeSegments = new Map<string, number>();
 
-  constructor(private readonly workersDir: string = WORKERS_DIR) {}
+  constructor(private readonly workersDir: string) {}
 
   load(): Promise<void> {
     this.loadPromise ??= this.readAllRecords();

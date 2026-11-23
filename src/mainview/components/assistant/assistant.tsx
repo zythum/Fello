@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import {
   ArrowUp,
   Astroid,
@@ -21,8 +20,8 @@ import type {
   SessionInfo,
   SessionNotificationFelloExt,
 } from "../../../shared/schema";
-import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../../assistant/constants";
-import { ASSISTANT_PROJECT_ID } from "../../../shared/constants";
+import { ASSISTANT_AGENT_ID } from "../../../assistant/constants";
+import { assistantProjectId } from "../../../shared/assistant";
 import { request, subscribe } from "../../backend";
 import { useAppStore } from "../../store";
 import {
@@ -36,8 +35,18 @@ import { FileDetail } from "../session/detail/file/file-detail";
 import { nodesToMentionText, resolveMentions } from "../../lib/mention-utils";
 import { AskUserDialog } from "../session/chat/chat-ask-user-dialog";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
+import { CopyableRow } from "../common/copyable-row";
+import { electron } from "../../electron";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Panel, type PanelTab } from "./panel/panel";
 import { DiaryDetail } from "./diary-detail";
@@ -62,15 +71,19 @@ import { useMessage } from "../providers/message";
 
 const EMPTY_MODELS: NonNullable<AssistantStatus["models"]>["availableModels"] = [];
 
-function assistantSession(status: AssistantStatus | null): SessionInfo {
+function assistantSession(
+  assistantId: string,
+  name: string,
+  status: AssistantStatus | null,
+): SessionInfo {
   const now = Date.now();
   return {
-    id: ASSISTANT_SESSION_ID,
-    resumeId: ASSISTANT_SESSION_ID,
-    projectId: ASSISTANT_PROJECT_ID,
-    projectTitle: "Personal Assistant",
+    id: assistantId,
+    resumeId: assistantId,
+    projectId: assistantProjectId(assistantId),
+    projectTitle: name,
     agentId: ASSISTANT_AGENT_ID,
-    title: "Personal Assistant",
+    title: name,
     cwd: status?.workspace ?? "",
     createdAt: now,
     updatedAt: now,
@@ -94,16 +107,26 @@ function assistantSession(status: AssistantStatus | null): SessionInfo {
   };
 }
 
-export function Assistant() {
+export function Assistant({ assistantId }: { assistantId: string }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { toast } = useMessage();
   const resetSessionState = useAppStore((state) => state.resetSessionState);
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
-  const assistantSettings = useAppStore((state) => state.assistant);
-  const setAssistant = useAppStore((state) => state.setAssistant);
+  const assistantConfig = useAppStore((state) =>
+    state.assistants.find((item) => item.id === assistantId),
+  );
+  const configuredAgents = useAppStore((state) => state.configuredAgents);
   const assistantName =
-    assistantSettings.name?.trim() || t("assistant.title", "Personal Assistant");
+    assistantConfig?.name?.trim() || t("assistant.title", "Personal Assistant");
+  const projectId = assistantProjectId(assistantId);
+  const availableAgents = useMemo(
+    () =>
+      configuredAgents.filter(
+        (agent) =>
+          agent.type === "api" && agent.provider === "openai-compatible" && !agent.disabled,
+      ),
+    [configuredAgents],
+  );
   const [panelTab, setPanelTab] = useState<PanelTab>("calendar");
   const [detailFile, setDetailFile] = useState<string | null>(null);
   const [detailDiary, setDetailDiary] = useState<{
@@ -114,7 +137,7 @@ export function Assistant() {
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
   const isHistoryLoading = useAppStore(
-    (state) => state.sessionStates.get(ASSISTANT_SESSION_ID)?.isLoading ?? true,
+    (state) => state.sessionStates.get(assistantId)?.isLoading ?? true,
   );
   const panelOpen = useAppStore((state) => state.panelOpen);
   const setPanelOpen = useAppStore((state) => state.setPanelOpen);
@@ -123,37 +146,54 @@ export function Assistant() {
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [input, setInput] = useState("");
   const [isRestarting, setIsRestarting] = useState(false);
-  const [localMcpServers, setLocalMcpServers] = useState<string[]>(
-    () => assistantSettings.mcpServers ?? [],
+  const [configOpen, setConfigOpen] = useState(false);
+  const [localSourceAgentId, setLocalSourceAgentId] = useState<string | null>(
+    assistantConfig?.sourceAgentId ?? null,
   );
-  const assistantMcpServers = assistantSettings.mcpServers ?? [];
+  const [localMcpServers, setLocalMcpServers] = useState<string[]>(
+    () => assistantConfig?.mcpServers ?? [],
+  );
+  const [localDream, setLocalDream] = useState(
+    () => assistantConfig?.dream ?? { maxContextTokens: 96_000, preferredTime: "02:00" },
+  );
+  // Null means no pending edit: the input shows the committed value. This keeps
+  // intermediate strings (empty, "12") editable without validating on every keystroke.
+  const [dreamMaxContextDraft, setDreamMaxContextDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
-  useTtsAutoRead(ASSISTANT_SESSION_ID);
+  useTtsAutoRead(assistantId);
 
   useEffect(() => {
     let active = true;
-    resetSessionState(ASSISTANT_SESSION_ID);
+    resetSessionState(assistantId);
     // reset 会清空 askUser 队列：把后端仍然挂着的请求补回来（离开页面期间可能产生）。
     void request
-      .getPendingAskUserRequests({ sessionId: ASSISTANT_SESSION_ID })
+      .getPendingAskUserRequests({ sessionId: assistantId })
       .then((pending) => {
         for (const req of pending) {
-          useAppStore.getState().addAskUserRequest(ASSISTANT_SESSION_ID, req);
+          useAppStore.getState().addAskUserRequest(assistantId, req);
         }
       })
       .catch(() => {});
 
-    const onStatus = (detail: { status: AssistantStatus }) => {
-      if (active) setStatus(detail.status);
+    const onStatus = (detail: { assistantId: string; status: AssistantStatus }) => {
+      if (active && detail.assistantId === assistantId) setStatus(detail.status);
     };
-    const onUpdate = (detail: { notification: SessionNotificationFelloExt }) => {
-      if (active) queueAssistantNotification(detail.notification);
+    const onUpdate = (detail: {
+      assistantId: string;
+      notification: SessionNotificationFelloExt;
+    }) => {
+      if (active && detail.assistantId === assistantId) {
+        queueAssistantNotification(assistantId, detail.notification);
+      }
     };
 
     subscribe.on("assistant-status-changed", onStatus);
     subscribe.on("assistant-update", onUpdate);
-    void Promise.all([request.getAssistantStatus(), loadAssistantHistory()])
+    void Promise.all([
+      request.getAssistantStatus({ assistantId }),
+      loadAssistantHistory(assistantId),
+    ])
       .then(([nextStatus]) => {
         if (active) setStatus(nextStatus);
       })
@@ -177,7 +217,7 @@ export function Assistant() {
       subscribe.off("assistant-status-changed", onStatus);
       subscribe.off("assistant-update", onUpdate);
     };
-  }, [resetSessionState]);
+  }, [assistantId, resetSessionState]);
 
   useEffect(() => {
     const handleAddToChat = (event: Event) => {
@@ -199,14 +239,14 @@ export function Assistant() {
       ).detail;
       const relativePath = detail?.relativePath ?? null;
       if (!relativePath) return;
-      if (detail?.projectId && detail.projectId !== ASSISTANT_PROJECT_ID) return;
+      if (detail?.projectId && detail.projectId !== projectId) return;
       setDetailMemory(false);
       setDetailDiary(null);
       setDetailFile(relativePath);
     };
     document.addEventListener("fello-preview-file", handlePreviewFile);
     return () => document.removeEventListener("fello-preview-file", handlePreviewFile);
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     if (!mainEl) return;
@@ -217,7 +257,10 @@ export function Assistant() {
     return () => observer.disconnect();
   }, [mainEl]);
 
-  const session = useMemo(() => assistantSession(status), [status]);
+  const session = useMemo(
+    () => assistantSession(assistantId, assistantName, status),
+    [assistantId, assistantName, status],
+  );
   const isInitializing =
     status === null || status.connectionStatus === "connecting" || isHistoryLoading;
   const isConnected = status?.connectionStatus === "connected";
@@ -271,7 +314,7 @@ export function Assistant() {
           _meta: { display_id: displayId, optimistic_id: generateUUID() },
         },
       ];
-      useAppStore.getState().addMessage(ASSISTANT_SESSION_ID, {
+      useAppStore.getState().addMessage(assistantId, {
         role: "user_message",
         contents,
         displayId,
@@ -281,7 +324,7 @@ export function Assistant() {
         new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }),
       );
       try {
-        const result = await request.sendAssistantPrompt({ contents });
+        const result = await request.sendAssistantPrompt({ assistantId, contents });
         const finishedNormally =
           result.stopReason === "end_turn" || result.stopReason === "cancelled";
         if (result.error || !finishedNormally) {
@@ -296,7 +339,7 @@ export function Assistant() {
         }
       } catch (error) {
         // The message never reached the backend, so drop the optimistic copy (matched by its displayId).
-        useAppStore.getState().updateSessionState(ASSISTANT_SESSION_ID, (state) => ({
+        useAppStore.getState().updateSessionState(assistantId, (state) => ({
           messages: state.messages.filter((message) => message.displayId !== displayId),
         }));
         setStatus((current) => ({
@@ -315,14 +358,14 @@ export function Assistant() {
         }));
       }
     },
-    [isConnected, isStreaming, isDreaming, t, toast],
+    [assistantId, isConnected, isStreaming, isDreaming, t, toast],
   );
 
   const changeModel = useCallback(
     async (modelId: string | null) => {
       if (!modelId || modelId === currentModelId) return;
       try {
-        await request.setAssistantModel({ modelId });
+        await request.setAssistantModel({ assistantId, modelId });
       } catch (error) {
         setStatus((current) => ({
           ...(current ?? {
@@ -339,14 +382,14 @@ export function Assistant() {
         }));
       }
     },
-    [currentModelId],
+    [assistantId, currentModelId],
   );
 
   const changeThoughtLevel = useCallback(
     async (thoughtLevelId: string | null) => {
       if (!thoughtLevelId || thoughtLevelId === currentThoughtLevelId) return;
       try {
-        await request.setAssistantThoughtLevel({ thoughtLevelId });
+        await request.setAssistantThoughtLevel({ assistantId, thoughtLevelId });
       } catch (error) {
         setStatus((current) => ({
           ...(current ?? {
@@ -363,29 +406,26 @@ export function Assistant() {
         }));
       }
     },
-    [currentThoughtLevelId],
+    [assistantId, currentThoughtLevelId],
   );
 
   const handleRestartAssistant = async () => {
     if (isRestarting) return;
     setIsRestarting(true);
     try {
-      const mcpChanged =
-        localMcpServers.length !== assistantMcpServers.length ||
-        localMcpServers.some((id) => !assistantMcpServers.includes(id));
-      if (mcpChanged) {
-        const previous = assistantSettings;
-        const next = { ...assistantSettings, mcpServers: localMcpServers };
-        setAssistant(next);
-        try {
-          await request.updateSettings({ assistant: next });
-        } catch (error) {
-          setAssistant(previous);
-          throw error;
-        }
-      } else {
-        await request.restartAssistant();
-      }
+      const next = await request.restartAssistant({
+        assistantId,
+        config: {
+          sourceAgentId: localSourceAgentId,
+          mcpServers: localMcpServers,
+          dream: localDream,
+        },
+      });
+      setLocalSourceAgentId(next.sourceAgentId);
+      setLocalMcpServers(next.mcpServers);
+      setLocalDream(next.dream);
+      setDreamMaxContextDraft(null);
+      setConfigOpen(false);
     } catch (error) {
       toast.error(
         extractErrorMessage(error) ||
@@ -393,6 +433,18 @@ export function Assistant() {
       );
     } finally {
       setIsRestarting(false);
+    }
+  };
+
+  const commitDreamMaxContextDraft = () => {
+    const draft = dreamMaxContextDraft;
+    setDreamMaxContextDraft(null);
+    if (draft === null) return;
+    const value = Number(draft);
+    if (Number.isSafeInteger(value) && value > 0) {
+      setLocalDream((current) =>
+        current.maxContextTokens === value ? current : { ...current, maxContextTokens: value },
+      );
     }
   };
 
@@ -475,8 +527,20 @@ export function Assistant() {
             <TtsMenuButton />
             <UsageButton session={session} onOpenMemory={openMemory} />
             <PopoverPrimitive.Root
+              open={configOpen}
               onOpenChange={(open) => {
-                if (open) setLocalMcpServers(assistantMcpServers);
+                setConfigOpen(open);
+                if (open) {
+                  setLocalSourceAgentId(assistantConfig?.sourceAgentId ?? null);
+                  setLocalMcpServers(assistantConfig?.mcpServers ?? []);
+                  setLocalDream(
+                    assistantConfig?.dream ?? {
+                      maxContextTokens: 96_000,
+                      preferredTime: "02:00",
+                    },
+                  );
+                  setDreamMaxContextDraft(null);
+                }
               }}
             >
               <PopoverPrimitive.Trigger className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70 outline-none transition-colors data-pressed:bg-sidebar-accent/40">
@@ -484,7 +548,113 @@ export function Assistant() {
               </PopoverPrimitive.Trigger>
               <PopoverPrimitive.Portal>
                 <PopoverPrimitive.Positioner side="bottom" align="end" sideOffset={4}>
-                  <PopoverPrimitive.Popup className="z-10 max-h-[70vh] w-110 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-1.5 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+                  <PopoverPrimitive.Popup className="z-10 max-h-[70vh] w-110 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none p-2 origin-(--transform-origin) data-ending-style:scale-90 data-starting-style:scale-90 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-[transform,opacity] duration-100">
+                    <div className="space-y-px py-1">
+                      <div className="px-2">
+                        <CopyableRow
+                          label={t("assistant.config.id", "ID")}
+                          value={assistantId}
+                          openFolderTitle={t(
+                            "assistant.config.openDataFolder",
+                            "Open Assistant Folder",
+                          )}
+                          onOpenFolder={() => {
+                            void request
+                              .getAssistantDataSystemPath({ assistantId })
+                              .then((dirPath) => electron.revealInFinder(dirPath))
+                              .catch(() => {});
+                          }}
+                        />
+                      </div>
+                      <div className="px-2">
+                        <CopyableRow
+                          label={t("assistant.config.workspace", "Workspace")}
+                          value={status?.workspace ?? ""}
+                          openFolderTitle={t(
+                            "assistant.config.openWorkspaceFolder",
+                            "Open Workspace Folder",
+                          )}
+                          onOpenFolder={() => {
+                            if (status?.workspace) {
+                              void electron.revealInFinder(status.workspace).catch(() => {});
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="my-1 border-t border-border/50" />
+                    <div className="flex flex-col gap-2 px-2 pt-0.5 pb-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {t("assistant.config.sourceAgent", "Source agent")}
+                        </span>
+                        <Select
+                          value={localSourceAgentId ?? ""}
+                          onValueChange={(value) => {
+                            if (typeof value === "string") {
+                              setLocalSourceAgentId(value || null);
+                            }
+                          }}
+                        >
+                          <SelectTrigger size="sm" className="h-7 w-44 text-xs">
+                            <SelectValue
+                              placeholder={t(
+                                "assistant.config.selectAgent",
+                                "Select an agent",
+                              )}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableAgents.map((agent) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mt-0.5 px-2 py-1 text-xs font-semibold text-foreground/80">
+                        {t("assistant.config.groupDream", "Dream")}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 px-2 py-2">
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <span className="text-[11px] font-normal text-muted-foreground">
+                            {t("assistant.config.dreamMaxContext", "Max tokens")}
+                          </span>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className="h-7 w-full text-xs!"
+                            value={dreamMaxContextDraft ?? String(localDream.maxContextTokens)}
+                            onChange={(event) => setDreamMaxContextDraft(event.target.value)}
+                            onBlur={commitDreamMaxContextDraft}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") event.currentTarget.blur();
+                            }}
+                          />
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <span className="text-[11px] font-normal text-muted-foreground">
+                            {t("assistant.config.dreamPreferredTime", "Preferred time")}
+                          </span>
+                          <Input
+                            type="time"
+                            step={60}
+                            className="h-7 w-full text-xs! appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                            value={localDream.preferredTime}
+                            onChange={(event) =>
+                              setLocalDream((current) => ({
+                                ...current,
+                                preferredTime: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
                     <SessionConfigFields
                       variant="popover"
                       showFeatures={false}
@@ -494,7 +664,7 @@ export function Assistant() {
                       onMcpServersChange={setLocalMcpServers}
                     />
 
-                    <div className="mt-1 px-1">
+                    <div className="mt-2 px-1">
                       <Button
                         size="xs"
                         className="h-7 w-full gap-1.5 text-xs font-normal"
@@ -521,7 +691,7 @@ export function Assistant() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => navigate("/settings/assistant")}
+                onClick={() => setConfigOpen(true)}
               >
                 {t("assistant.configure", "Configure assistant")}
               </Button>
@@ -543,7 +713,7 @@ export function Assistant() {
         <ChatArea
           session={session}
           showTimeline={false}
-          loadPreviousHistory={loadPreviousAssistantHistory}
+          loadPreviousHistory={() => loadPreviousAssistantHistory(assistantId)}
           avatar={HatGlasses}
           name={assistantName}
         />
@@ -551,8 +721,8 @@ export function Assistant() {
         <div className="-mt-6 relative p-6 transition-opacity duration-300">
           <div className="mx-auto max-w-5xl">
             <ChatTextarea
-              sessionId={ASSISTANT_SESSION_ID}
-              projectId={ASSISTANT_PROJECT_ID}
+              sessionId={assistantId}
+              projectId={projectId}
               projectCwd={status?.workspace ?? ""}
               className="shadow-[0_0_20px] shadow-primary/10 dark:shadow-primary/20"
               textValue={input}
@@ -684,7 +854,7 @@ export function Assistant() {
                     variant="destructive"
                     size="icon"
                     className="size-7 cursor-default rounded-lg"
-                    onClick={() => void request.cancelAssistantPrompt()}
+                    onClick={() => void request.cancelAssistantPrompt({ assistantId })}
                   >
                     <Square className="size-3.5" />
                   </Button>
@@ -705,7 +875,7 @@ export function Assistant() {
 
         {/* 与 session 的挂法一致：弹层只覆盖 chat 列，不盖住右侧 panel。 */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <AskUserDialog sessionId={ASSISTANT_SESSION_ID} />
+          <AskUserDialog sessionId={assistantId} />
         </div>
           </div>
             </ResizablePanel>
@@ -719,20 +889,25 @@ export function Assistant() {
               {detailFile ? (
                 <FileDetail
                   compact={compact}
-                  projectId={ASSISTANT_PROJECT_ID}
+                  projectId={projectId}
                   file={detailFile}
                   onClose={() => setDetailFile(null)}
                 />
               ) : detailDiary ? (
                 <DiaryDetail
                   key={detailDiary.diary.file}
+                  assistantId={assistantId}
                   diary={detailDiary.diary}
                   timeZone={detailDiary.timeZone}
                   compact={compact}
                   onClose={() => setDetailDiary(null)}
                 />
               ) : detailMemory ? (
-                <MemoryDetail compact={compact} onClose={() => setDetailMemory(false)} />
+                <MemoryDetail
+                  assistantId={assistantId}
+                  compact={compact}
+                  onClose={() => setDetailMemory(false)}
+                />
               ) : null}
             </ResizablePanel>
           </>
@@ -761,6 +936,8 @@ export function Assistant() {
             tab={panelTab}
             onTabChange={setPanelTab}
             onOpenChange={setPanelOpen}
+            assistantId={assistantId}
+            projectId={projectId}
             workspace={status?.workspace ?? ""}
             previewFileId={detailFile}
             onPreviewFile={openFile}

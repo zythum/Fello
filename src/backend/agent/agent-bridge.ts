@@ -32,7 +32,6 @@ import type {
 import type {
   AgentInfo,
   ApiAgentInfo,
-  SettingAssistantInfo,
   SessionModelState,
   SessionModeState,
   SessionThoughtLevelState,
@@ -137,10 +136,13 @@ export interface ExtNotificationSpec {
 export type AssistantAgentInfo = {
   id: string;
   type: "assistant";
+  /** Pseudo session id of this assistant (also the assistant id). */
+  sessionId: string;
+  storage: import("../../assistant/storage").AssistantStorage;
   sourceAgent: ApiAgentInfo;
   getMcpServers: () => McpServer[];
-  getDream: () => SettingAssistantInfo["dream"];
-  getName: () => SettingAssistantInfo["name"];
+  getDream: () => { maxContextTokens: number; preferredTime: string };
+  getName: () => string;
   reminders: ReminderService;
   worker: WorkerService;
   askUser: AskUserFn;
@@ -369,6 +371,8 @@ export class ACPBridge {
     const proc =
       this.options.agentInfo.type === "assistant"
         ? spawnAssistantAgent({
+            sessionId: this.options.agentInfo.sessionId,
+            storage: this.options.agentInfo.storage,
             agentInfo: this.options.agentInfo.sourceAgent,
             workspace: this.options.cwd,
             getMcpServers: this.options.agentInfo.getMcpServers,

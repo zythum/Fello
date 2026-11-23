@@ -126,15 +126,7 @@ interface SettingsMeta {
     useOriginalImage: boolean;
   };
   assistant: {
-    /** 空字符串 = 使用默认的本地化名称 */
-    name: string;
     enabled: boolean;
-    sourceAgentId: string | null;
-    mcpServers: string[];
-    dream: {
-      maxContextTokens: number;
-      preferredTime: string;
-    };
     workerTypes: SettingAssistantWorkerType[];
   };
   editor: {
@@ -184,15 +176,8 @@ const DEFAULT_SETTINGS: SettingsMeta = {
     useOriginalImage: false,
   },
   assistant: {
-    name: "",
-    // 个人助理默认关闭；开启后才会连接助理并在侧边栏显示入口。
+    // 个人助理默认关闭；开启后才会启动各助理并在侧边栏显示入口。
     enabled: false,
-    sourceAgentId: null,
-    mcpServers: ["exa"],
-    dream: {
-      maxContextTokens: 64_000,
-      preferredTime: "02:00",
-    },
     workerTypes: [],
   },
   editor: {
@@ -445,9 +430,6 @@ function readSettings(): SettingsMeta {
 
     const assistant: SettingsMeta["assistant"] = (() => {
       const raw = rawObj && isObject(rawObj.assistant) ? rawObj.assistant : null;
-      const rawDream = isObject(raw?.dream) ? raw.dream : null;
-      const maxContextTokens = rawDream?.maxContextTokens;
-      const preferredTime = rawDream?.preferredTime;
       const rawWorkerTypes = raw?.workerTypes;
       const workerTypes = Array.isArray(rawWorkerTypes)
         ? (() => {
@@ -464,28 +446,8 @@ function readSettings(): SettingsMeta {
           })()
         : [];
       return {
-        name: typeof raw?.name === "string" ? raw.name.trim() : DEFAULT_SETTINGS.assistant.name,
         enabled:
           typeof raw?.enabled === "boolean" ? raw.enabled : DEFAULT_SETTINGS.assistant.enabled,
-        sourceAgentId:
-          typeof raw?.sourceAgentId === "string" || raw?.sourceAgentId === null
-            ? raw.sourceAgentId
-            : DEFAULT_SETTINGS.assistant.sourceAgentId,
-        mcpServers: Array.isArray(raw?.mcpServers)
-          ? raw.mcpServers.filter((id): id is string => typeof id === "string")
-          : DEFAULT_SETTINGS.assistant.mcpServers,
-        dream: {
-          maxContextTokens:
-            typeof maxContextTokens === "number" &&
-            Number.isSafeInteger(maxContextTokens) &&
-            maxContextTokens > 0
-              ? maxContextTokens
-              : DEFAULT_SETTINGS.assistant.dream.maxContextTokens,
-          preferredTime:
-            typeof preferredTime === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(preferredTime)
-              ? preferredTime
-              : DEFAULT_SETTINGS.assistant.dream.preferredTime,
-        },
         workerTypes,
       };
     })();
@@ -787,11 +749,7 @@ export function getSettings(): SettingsInfo {
       useOriginalImage: meta.ilink.useOriginalImage,
     },
     assistant: {
-      name: meta.assistant.name,
       enabled: meta.assistant.enabled,
-      sourceAgentId: meta.assistant.sourceAgentId,
-      mcpServers: meta.assistant.mcpServers.slice(),
-      dream: { ...meta.assistant.dream },
       workerTypes: meta.assistant.workerTypes.map((type) => ({
         ...type,
         features: type.features.slice(),
@@ -878,34 +836,10 @@ export function updateSettings(settings: Partial<SettingsInfo>): void {
           })()
         : prevMeta.assistant.workerTypes;
       return {
-        name:
-          typeof settings.assistant.name === "string"
-            ? settings.assistant.name.trim()
-            : prevMeta.assistant.name,
         enabled:
           typeof settings.assistant.enabled === "boolean"
             ? settings.assistant.enabled
             : prevMeta.assistant.enabled,
-        sourceAgentId:
-          typeof settings.assistant.sourceAgentId === "string" ||
-          settings.assistant.sourceAgentId === null
-            ? settings.assistant.sourceAgentId
-            : prevMeta.assistant.sourceAgentId,
-        mcpServers: Array.isArray(settings.assistant.mcpServers)
-          ? settings.assistant.mcpServers.filter((id): id is string => typeof id === "string")
-          : prevMeta.assistant.mcpServers,
-        dream: {
-          maxContextTokens:
-            Number.isSafeInteger(settings.assistant.dream?.maxContextTokens) &&
-            settings.assistant.dream.maxContextTokens > 0
-              ? settings.assistant.dream.maxContextTokens
-              : prevMeta.assistant.dream.maxContextTokens,
-          preferredTime:
-            typeof settings.assistant.dream?.preferredTime === "string" &&
-            /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.assistant.dream.preferredTime)
-              ? settings.assistant.dream.preferredTime
-              : prevMeta.assistant.dream.preferredTime,
-        },
         workerTypes,
       };
     })(),

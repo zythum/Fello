@@ -10,13 +10,20 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store";
-import type { ProjectInfo, SessionInfo, Feature, AssistantStatus } from "../../../shared/schema";
+import type {
+  AssistantConfig,
+  ProjectInfo,
+  SessionInfo,
+  Feature,
+  AssistantStatus,
+} from "../../../shared/schema";
 import { ALL_FEATURES, EDITOR_LABELS } from "../../../shared/constants";
-import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../../assistant/constants";
+import { ASSISTANT_AGENT_ID } from "../../../assistant/constants";
 import { request, isWebUI, subscribe } from "../../backend";
 import { electron } from "../../electron";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -82,10 +89,10 @@ import {
   Power,
   RefreshCw,
   Settings,
-  Settings2,
   Trash2,
   TriangleAlert,
   ClockCheck,
+  UserRoundPlus,
 } from "lucide-react";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -113,8 +120,8 @@ function projectHoverId(id: string): string {
 function sessionHoverId(id: string): string {
   return `s:${id}`;
 }
-function assistantHoverId(): string {
-  return "a:assistant";
+function assistantHoverId(assistantId: string): string {
+  return `a:${assistantId}`;
 }
 
 /**
@@ -124,12 +131,12 @@ function assistantHoverId(): string {
 const TREE_NODES_TYPE = "application/x-fello-tree-nodes";
 
 type SidebarNavigationItem =
-  | { type: "assistant" }
+  | { type: "assistant"; id: string }
   | { type: "project"; id: string }
   | { type: "session"; id: string; projectId: string };
 
 function sidebarNavigationItemKey(item: SidebarNavigationItem): string {
-  if (item.type === "assistant") return "assistant";
+  if (item.type === "assistant") return `assistant:${item.id}`;
   return item.type === "project" ? `project:${item.id}` : `session:${item.id}`;
 }
 
@@ -162,13 +169,34 @@ function SessionRowStatus({ sessionId, isStreaming }: { sessionId: string; isStr
  * 有 pending 的 ask-user 请求时换成问号，与会话行的提示语义一致。
  * 助理的流式 / 完成状态没有进入全局 store，因此这里不展示加载与完成图标。
  */
-function AssistantRowStatus() {
-  const hasAskUserRequest = useAppStore(
-    (s) => (s.sessionStates.get(ASSISTANT_SESSION_ID)?.askUserRequests?.length ?? 0) > 0,
-  );
+function AssistantRowStatus({
+  assistantId,
+  disabled,
+  isActive,
+}: {
+  assistantId: string;
+  disabled: boolean;
+  isActive: boolean;
+}) {
+  const kind = useAppStore((s) => {
+    const state = s.sessionStates.get(assistantId);
+    if ((state?.askUserRequests?.length ?? 0) > 0) return "ask";
+    if (state?.completedStatus === "error") return "error";
+    if (state?.completedStatus === "success") return "success";
+    return "none";
+  });
+  const status = useAppStore((s) => s.assistantStatuses.get(assistantId));
 
-  if (hasAskUserRequest) return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
-  return <HatGlasses className="size-3.5 shrink-0" />;
+  if (disabled) return <HatGlasses className="size-3 shrink-0" />;
+  if (kind === "ask") return <HelpCircle className="size-3 shrink-0 text-sky-500" />;
+  if (status?.isStreaming || status?.dreaming) {
+    return <LoaderCircle className="size-3 animate-spin shrink-0" />;
+  }
+  // 当前正在看的助理不显示完成状态，与 session 的侧边栏语义一致。
+  if (isActive) return <HatGlasses className="size-3 shrink-0" />;
+  if (kind === "success") return <Check className="size-3 shrink-0 text-green-500" />;
+  if (kind === "error") return <TriangleAlert className="size-3 shrink-0 text-yellow-500" />;
+  return <HatGlasses className="size-3 shrink-0" />;
 }
 
 /**
@@ -178,19 +206,23 @@ function AssistantRowStatus() {
  * assistant-status-changed 并按需拉取一次。订阅隔离在这个小组件内，避免侧边栏
  * 跟随助理的每次状态广播（例如 usage 更新）整体重渲染。
  */
-function AssistantHoverDetails() {
+function AssistantHoverDetails({
+  assistant,
+}: {
+  assistant: AssistantConfig;
+}) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const [status, setStatus] = useState<AssistantStatus | null>(null);
 
   useEffect(() => {
     let active = true;
-    const onStatus = (detail: { status: AssistantStatus }) => {
-      if (active) setStatus(detail.status);
+    const onStatus = (detail: { assistantId: string; status: AssistantStatus }) => {
+      if (active && detail.assistantId === assistant.id) setStatus(detail.status);
     };
     subscribe.on("assistant-status-changed", onStatus);
     void request
-      .getAssistantStatus()
+      .getAssistantStatus({ assistantId: assistant.id })
       .then((next) => {
         if (active) setStatus(next);
       })
@@ -199,18 +231,20 @@ function AssistantHoverDetails() {
       active = false;
       subscribe.off("assistant-status-changed", onStatus);
     };
-  }, []);
+  }, [assistant.id]);
 
-  const agentLabel = status?.sourceAgentId ?? ASSISTANT_AGENT_ID;
-  const statusLabel = status?.dreaming
-    ? t("assistant.dreaming", "Dreaming…")
-    : status?.isStreaming
-      ? t("sidebar.assistantReplying", "Replying…")
-      : status?.connectionStatus === "connected"
-        ? t("assistant.ready", "Ready")
-        : status?.connectionStatus === "connecting"
-          ? t("assistant.connecting", "Connecting…")
-          : (status?.error ?? t("assistant.unavailable", "Unavailable"));
+  const agentLabel = status?.sourceAgentId ?? assistant.sourceAgentId ?? ASSISTANT_AGENT_ID;
+  const statusLabel = assistant.disabled
+    ? t("assistant.disabled", "Disabled")
+    : status?.dreaming
+      ? t("assistant.dreaming", "Dreaming…")
+      : status?.isStreaming
+        ? t("sidebar.assistantReplying", "Replying…")
+        : status?.connectionStatus === "connected"
+          ? t("assistant.ready", "Ready")
+          : status?.connectionStatus === "connecting"
+            ? t("assistant.connecting", "Connecting…")
+            : (status?.error ?? t("assistant.unavailable", "Unavailable"));
 
   const revealWorkspace = async () => {
     const workspace = status?.workspace;
@@ -296,6 +330,8 @@ export function Sidebar() {
   const currentPath = optimisticPath ?? location.pathname;
   const matchSession = currentPath.match(/^\/session-view\/(.+)$/);
   const activeSessionId = matchSession ? matchSession[1] : null;
+  const matchAssistant = currentPath.match(/^\/assistant\/([^/?#]+)/);
+  const activeAssistantId = matchAssistant ? decodeURIComponent(matchAssistant[1]) : null;
 
   // 逐项按需订阅，避免用无 selector 的 useAppStore() 全量订阅整个 store：
   // 流式期间每个 token 都会写入 sessionStates，全量订阅会让整个侧边栏每帧重渲染。
@@ -313,11 +349,11 @@ export function Sidebar() {
   const webUIStatus = useAppStore((s) => s.webUIStatus);
   const ilinkStatus = useAppStore((s) => s.ilinkStatus);
   const activeIlinkSessionId = useAppStore((s) => s.activeIlinkSessionId);
-  // 只订阅名称字符串（原始值），避免跟随整个 assistant 配置重渲染
-  const assistantName = useAppStore((s) => s.assistant.name);
+  // 只订阅列表本身；设置页只在全局开关 / workerTypes 变更时更新 assistant。
+  const assistants = useAppStore((s) => s.assistants);
+  const setAssistants = useAppStore((s) => s.setAssistants);
   // 关闭个人助理时整个分区隐藏（设置在设置页切换后立即生效）
   const assistantEnabled = useAppStore((s) => s.assistant.enabled);
-  const displayAssistantName = assistantName?.trim() || t("sidebar.assistant");
   // 只订阅当前会话的 completedAt（原始值），不订阅整个 sessionStates
   const activeCompletedAt = useAppStore((s) =>
     activeSessionId ? (s.sessionStates.get(activeSessionId)?.completedAt ?? null) : null,
@@ -348,6 +384,35 @@ export function Sidebar() {
       }
     };
   }, [activeSessionId, activeCompletedAt, sessions]);
+
+  // Same as sessions: clear a finished state after 3s while its page is open.
+  const activeAssistantCompletedAt = useAppStore((s) =>
+    activeAssistantId
+      ? (s.sessionStates.get(activeAssistantId)?.completedAt ?? null)
+      : null,
+  );
+  const assistantCompletedAtTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!activeAssistantId || !activeAssistantCompletedAt) return;
+
+    if (assistantCompletedAtTimerRef.current) {
+      clearTimeout(assistantCompletedAtTimerRef.current);
+    }
+    assistantCompletedAtTimerRef.current = setTimeout(() => {
+      useAppStore.getState().updateSessionState(activeAssistantId, () => ({
+        completedAt: null,
+        completedStatus: null,
+      }));
+      assistantCompletedAtTimerRef.current = null;
+    }, 3000);
+
+    return () => {
+      if (assistantCompletedAtTimerRef.current) {
+        clearTimeout(assistantCompletedAtTimerRef.current);
+        assistantCompletedAtTimerRef.current = null;
+      }
+    };
+  }, [activeAssistantId, activeAssistantCompletedAt]);
 
   const enabledAgents = useMemo(
     () => configuredAgents.filter((a) => !a.disabled),
@@ -598,6 +663,58 @@ export function Sidebar() {
     if (ok) setNewSessionDialogOpen(false);
   };
 
+  const assistantSourceAgents = useMemo(
+    () =>
+      enabledAgents.filter(
+        (agent) =>
+          agent.type === "api" && agent.provider === "openai-compatible" && !agent.disabled,
+      ),
+    [enabledAgents],
+  );
+  const [newAssistantDialogOpen, setNewAssistantDialogOpen] = useState(false);
+  const [newAssistantName, setNewAssistantName] = useState("");
+  const [newAssistantAgentId, setNewAssistantAgentId] = useState("");
+  const [newAssistantMcpIds, setNewAssistantMcpIds] = useState<Set<string>>(new Set());
+  const [creatingAssistant, setCreatingAssistant] = useState(false);
+
+  function openNewAssistantDialog() {
+    if (assistantSourceAgents.length === 0) {
+      handleNavigate("/settings/agents");
+      return;
+    }
+    setNewAssistantName("");
+    setNewAssistantAgentId(assistantSourceAgents[0]?.id ?? "");
+    setNewAssistantMcpIds(
+      new Set(configuredMcpServers.filter((server) => !server.disabled).map((server) => server.id)),
+    );
+    setNewAssistantDialogOpen(true);
+  }
+
+  const handleCreateAssistant = async () => {
+    if (!newAssistantAgentId || creatingAssistant) return;
+    setCreatingAssistant(true);
+    try {
+      const assistant = await request.createAssistant({
+        name: newAssistantName.trim() || undefined,
+        sourceAgentId: newAssistantAgentId,
+        mcpServers: Array.from(newAssistantMcpIds),
+      });
+      const next = await request.listAssistants();
+      setAssistants(next ?? []);
+      setNewAssistantDialogOpen(false);
+      handleNavigate(`/assistant/${assistant.id}`);
+    } catch (err) {
+      toast.error(
+        getErrorMessage(
+          err,
+          t("sidebar.createAssistantFailed", "Failed to create the assistant."),
+        ),
+      );
+    } finally {
+      setCreatingAssistant(false);
+    }
+  };
+
   const handleSelectSession = async (session: SessionInfo) => {
     // Clear completed state when user navigates to a completed session
     const state = useAppStore.getState().sessionStates.get(session.id);
@@ -608,6 +725,19 @@ export function Sidebar() {
       }));
     }
     handleNavigate(`/session-view/${session.id}`);
+  };
+
+  const handleSelectAssistant = (assistant: AssistantConfig) => {
+    if (assistant.disabled) return;
+    // Same as sessions: opening a finished conversation clears its indicator.
+    const state = useAppStore.getState().sessionStates.get(assistant.id);
+    if (state?.completedAt) {
+      useAppStore.getState().updateSessionState(assistant.id, () => ({
+        completedAt: null,
+        completedStatus: null,
+      }));
+    }
+    handleNavigate(`/assistant/${assistant.id}`);
   };
 
   const handleRestartSession = async (session: SessionInfo) => {
@@ -836,43 +966,86 @@ export function Sidebar() {
     await copyText(project.cwd);
   };
 
-  /** 复制个人助理工作目录：伪会话没有 ProjectInfo，路径来自运行状态。 */
-  const handleCopyAssistantWorkspace = async () => {
-    try {
-      const status = await request.getAssistantStatus();
-      if (!status.workspace) return;
-      await copyText(status.workspace);
-    } catch (err) {
-      console.error("Failed to copy assistant workspace:", err);
-    }
-  };
-
   /**
-   * 重命名个人助理：名称保存在 settings.assistant.name，空字符串表示沿用默认的本地化名称。
-   * 先乐观更新 store，失败再回滚，与项目 / 会话的重命名体验保持一致。
+   * 重命名个人助理：名称保存在该助理的 config.json，立即生效（类似 session title）。
+   * 先乐观更新 store，失败再回滚。
    */
-  const handleRenameAssistant = async () => {
+  const handleRenameAssistant = async (assistant: AssistantConfig) => {
     const newName = await prompt({
       title: t("sidebar.renameAssistant", "Rename Assistant"),
       content: t("sidebar.enterNewAssistantName", "Enter a new name for your personal assistant."),
-      defaultValue: displayAssistantName,
+      defaultValue: assistant.name,
       validate: (val) =>
         val.trim() ? undefined : t("sidebar.assistantNameEmpty", "Name cannot be empty"),
     });
     if (!newName) return;
     const trimmed = newName.trim();
-    if (trimmed === assistantName.trim()) return;
+    if (trimmed === assistant.name) return;
 
-    const previous = useAppStore.getState().assistant;
-    useAppStore.getState().setAssistant({ ...previous, name: trimmed });
+    const previous = useAppStore.getState().assistants;
+    setAssistants(
+      previous.map((item) => (item.id === assistant.id ? { ...item, name: trimmed } : item)),
+    );
     try {
-      await request.updateSettings({ assistant: { ...previous, name: trimmed } });
+      await request.updateAssistantConfig({
+        assistantId: assistant.id,
+        patch: { name: trimmed },
+      });
     } catch (err) {
-      useAppStore.getState().setAssistant(previous);
+      setAssistants(previous);
       toast.error(
         getErrorMessage(err, t("sidebar.renameAssistantFailed", "Failed to rename the assistant.")),
       );
     }
+  };
+
+  const handleToggleAssistantDisabled = async (assistant: AssistantConfig) => {
+    try {
+      await request.updateAssistantConfig({
+        assistantId: assistant.id,
+        patch: { disabled: !assistant.disabled },
+      });
+    } catch (err) {
+      toast.error(
+        getErrorMessage(
+          err,
+          t("sidebar.updateAssistantFailed", "Failed to update the assistant."),
+        ),
+      );
+    }
+  };
+
+  const handleDeleteAssistant = async (assistant: AssistantConfig) => {
+    await confirm({
+      title: t("sidebar.deleteAssistant", "Delete Assistant"),
+      content: t(
+        "sidebar.deleteAssistantConfirm",
+        'Delete "{{name}}"? This also removes its reminders, diary, memory, history and workers.',
+        { name: assistant.name },
+      ),
+      buttons: [
+        { text: t("sidebar.cancel"), value: null, variant: "outline" },
+        {
+          text: t("sidebar.delete"),
+          variant: "destructive",
+          value: async () => {
+            try {
+              await request.deleteAssistant({ assistantId: assistant.id });
+              if (currentPath === `/assistant/${assistant.id}`) handleNavigate("/");
+              return "deleted";
+            } catch (err) {
+              toast.error(
+                getErrorMessage(
+                  err,
+                  t("sidebar.deleteAssistantFailed", "Failed to delete the assistant."),
+                ),
+              );
+              return null;
+            }
+          },
+        },
+      ],
+    });
   };
 
   const sortedProjects = useMemo(
@@ -937,8 +1110,12 @@ export function Sidebar() {
   const addProjectButtonRef = useRef<HTMLButtonElement>(null);
   const sessionListRef = useRef<HTMLDivElement>(null);
   const navigationItems = useMemo(() => {
-    // 个人助理固定在项目区上方，是导航中的第一项；关闭时整段不参与键盘导航。
-    const items: SidebarNavigationItem[] = assistantEnabled ? [{ type: "assistant" }] : [];
+    // 个人助理固定在项目区上方；全局关闭或单个 disabled 时不参与键盘导航。
+    const items: SidebarNavigationItem[] = assistantEnabled
+      ? assistants
+          .filter((assistant) => !assistant.disabled)
+          .map((assistant) => ({ type: "assistant" as const, id: assistant.id }))
+      : [];
     for (const project of sortedProjects) {
       items.push({ type: "project", id: project.id });
       if (isProjectExpanded(project.id)) {
@@ -948,7 +1125,7 @@ export function Sidebar() {
       }
     }
     return items;
-  }, [assistantEnabled, isProjectExpanded, sessionsByProject, sortedProjects]);
+  }, [assistantEnabled, assistants, isProjectExpanded, sessionsByProject, sortedProjects]);
 
   const focusNavigationItem = useCallback(
     (item: SidebarNavigationItem) => {
@@ -1082,7 +1259,8 @@ export function Sidebar() {
       event.preventDefault();
       event.stopPropagation();
       if (item.type === "assistant") {
-        handleNavigate("/assistant");
+        const target = assistants.find((assistant) => assistant.id === item.id);
+        if (target) handleSelectAssistant(target);
       } else if (item.type === "project") {
         toggleProject(item.id);
       } else {
@@ -1105,7 +1283,10 @@ export function Sidebar() {
     if (key === "ArrowUp") {
       event.preventDefault();
       event.stopPropagation();
-      if (assistantEnabled) focusNavigationItem({ type: "assistant" });
+      const lastAssistant = [...navigationItems]
+        .reverse()
+        .find((item) => item.type === "assistant");
+      if (lastAssistant) focusNavigationItem(lastAssistant);
       return;
     }
 
@@ -1125,7 +1306,6 @@ export function Sidebar() {
     }
   };
 
-  const assistantRowHoverId = assistantHoverId();
 
   return (
     <aside
@@ -1186,167 +1366,213 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-      {/* 个人助理区：固定在「项目」上方，只有一行，行样式与会话行一致（默认图标为 HatGlasses）；
-          关闭个人助理时整段隐藏 */}
+      {/* 个人助理区：固定在「项目」上方，每个助理一行；全局关闭时整段隐藏。 */}
       {assistantEnabled && (
         <>
-          <div className="flex items-center px-3 pt-2">
+          <div className="flex items-center justify-between px-3 pt-2">
             <span className="text-xs font-normal tracking-wide text-sidebar-foreground/40 uppercase select-none">
               {t("sidebar.assistant")}
             </span>
-          </div>
-          <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-3">
-            <HoverCard
-              open={hoverId === assistantRowHoverId}
-              onOpenChange={(open) => {
-                // hover 立即触发展开并跟随切换；右键菜单打开时不响应 hover；移出时关闭
-                if (open) {
-                  if (contextMenuId === null) setHoverId(assistantRowHoverId);
-                } else if (
-                  hoverId === assistantRowHoverId &&
-                  hoveredTriggerIdRef.current !== assistantRowHoverId
-                ) {
-                  setHoverId(null);
-                }
-              }}
+            <Button
+              variant="ghost"
+              size="icon"
+              tabIndex={-1}
+              className="size-6 -mr-1 text-sidebar-foreground/45 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/70"
+              onClick={openNewAssistantDialog}
+              aria-label={t("sidebar.addAssistant", "Add assistant")}
             >
-              <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
-                <ContextMenu
-                  onOpenChange={(open) => {
-                    // 右键菜单打开时隐藏 hoverCard，并保持条目高亮；
-                    // 关闭时若鼠标仍悬停在条目上，恢复 hover 卡片
-                    setContextMenuId(open ? assistantRowHoverId : null);
-                    if (open) {
-                      setHoverId(null);
-                    } else if (hoveredTriggerIdRef.current === assistantRowHoverId) {
-                      setHoverId(assistantRowHoverId);
-                    }
-                  }}
-                >
-                  <ContextMenuTrigger
-                    render={
-                      <div
-                        ref={(element) => {
-                          if (element) navigationItemRefs.current.set("assistant", element);
-                          else navigationItemRefs.current.delete("assistant");
-                        }}
-                        tabIndex={-1}
-                        role="treeitem"
-                        aria-level={1}
-                        aria-current={currentPath === "/assistant" ? "page" : undefined}
-                        onClick={() => handleNavigate("/assistant")}
-                        onKeyDown={(event) => handleNavigationKeyDown(event, { type: "assistant" })}
-                        onPointerEnter={() => {
-                          hoveredTriggerIdRef.current = assistantRowHoverId;
-                        }}
-                        onPointerLeave={() => {
-                          hoveredTriggerIdRef.current = null;
-                        }}
-                        className={cn(
-                          "flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
-                          currentPath === "/assistant"
-                            ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95",
-                          hoverId === assistantRowHoverId || contextMenuId === assistantRowHoverId
-                            ? "bg-sidebar-accent"
-                            : "",
-                        )}
-                      />
-                    }
+              <UserRoundPlus className="size-3.5" />
+            </Button>
+          </div>
+          <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-2">
+            <div className="space-y-0.5">
+              {assistants.map((assistant) => {
+                const currentHoverId = assistantHoverId(assistant.id);
+                const active = currentPath === `/assistant/${assistant.id}`;
+                const disabled = assistant.disabled;
+                return (
+                  <HoverCard
+                    key={assistant.id}
+                    open={hoverId === currentHoverId}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        if (contextMenuId === null) setHoverId(currentHoverId);
+                      } else if (
+                        hoverId === currentHoverId &&
+                        hoveredTriggerIdRef.current !== currentHoverId
+                      ) {
+                        setHoverId(null);
+                      }
+                    }}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <AssistantRowStatus />
-                      <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                        {displayAssistantName}
-                      </span>
-                      {activeIlinkSessionId === ASSISTANT_SESSION_ID && (
-                        <MessageCircle className="size-3 shrink-0 text-green-500" />
-                      )}
-                    </div>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-48">
-                    <ContextMenuItem
-                      onClick={() => handleNavigate("/assistant")}
-                      className="font-medium text-foreground"
+                    <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
+                      <ContextMenu
+                        onOpenChange={(open) => {
+                          setContextMenuId(open ? currentHoverId : null);
+                          if (open) {
+                            setHoverId(null);
+                          } else if (hoveredTriggerIdRef.current === currentHoverId) {
+                            setHoverId(currentHoverId);
+                          }
+                        }}
+                      >
+                        <ContextMenuTrigger
+                          render={
+                            <div
+                              ref={(element) => {
+                                const key = sidebarNavigationItemKey({
+                                  type: "assistant",
+                                  id: assistant.id,
+                                });
+                                if (element) navigationItemRefs.current.set(key, element);
+                                else navigationItemRefs.current.delete(key);
+                              }}
+                              tabIndex={-1}
+                              role="treeitem"
+                              aria-level={1}
+                              aria-disabled={disabled || undefined}
+                              aria-current={active ? "page" : undefined}
+                              onClick={() => {
+                                if (!disabled) handleSelectAssistant(assistant);
+                              }}
+                              onKeyDown={(event) =>
+                                handleNavigationKeyDown(event, {
+                                  type: "assistant",
+                                  id: assistant.id,
+                                })
+                              }
+                              onPointerEnter={() => {
+                                hoveredTriggerIdRef.current = currentHoverId;
+                              }}
+                              onPointerLeave={() => {
+                                hoveredTriggerIdRef.current = null;
+                              }}
+                              className={cn(
+                                "flex h-7 cursor-default items-center justify-between rounded-md pl-1.5 pr-2 text-xs transition-colors outline-none focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
+                                disabled && "opacity-45",
+                                active
+                                  ? "font-medium bg-sidebar-accent text-sidebar-accent-foreground"
+                                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground/95",
+                                hoverId === currentHoverId || contextMenuId === currentHoverId
+                                  ? "bg-sidebar-accent"
+                                  : "",
+                              )}
+                            />
+                          }
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                            <AssistantRowStatus
+                              assistantId={assistant.id}
+                              disabled={disabled}
+                              isActive={activeAssistantId === assistant.id}
+                            />
+                            <span className="min-w-0 flex-1 truncate leading-normal select-none">
+                              {assistant.name}
+                            </span>
+                            {activeIlinkSessionId === assistant.id && (
+                              <MessageCircle className="size-3 shrink-0 text-green-500" />
+                            )}
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-48">
+                          {!disabled && (
+                            <ContextMenuItem
+                              onClick={() => handleSelectAssistant(assistant)}
+                              className="font-medium text-foreground"
+                            >
+                              <Eye className="size-3" />
+                              {t("sidebar.openAssistant", "Open Assistant")}
+                            </ContextMenuItem>
+                          )}
+                          <ContextMenuItem onClick={() => void handleRenameAssistant(assistant)}>
+                            <Pencil className="size-3" />
+                            {t("sidebar.rename", "Rename")}
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => void handleToggleAssistantDisabled(assistant)}
+                          >
+                            <Power className="size-3" />
+                            {disabled
+                              ? t("sidebar.enableAssistant", "Enable Assistant")
+                              : t("sidebar.disableAssistant", "Disable Assistant")}
+                          </ContextMenuItem>
+                          {!disabled &&
+                            ilinkStatus.connected &&
+                            activeIlinkSessionId !== assistant.id && (
+                              <ContextMenuItem
+                                onClick={() =>
+                                  void handleSetActiveIlinkSession(assistant.id)
+                                }
+                              >
+                                <MessageCircle className="size-3" />
+                                {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
+                              </ContextMenuItem>
+                            )}
+                          {!disabled &&
+                            ilinkStatus.connected &&
+                            activeIlinkSessionId === assistant.id && (
+                              <ContextMenuItem onClick={() => void handleSetActiveIlinkSession("")}>
+                                <MessageCircle className="size-3 text-green-500" />
+                                {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
+                              </ContextMenuItem>
+                            )}
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            variant="destructive"
+                            onClick={() => void handleDeleteAssistant(assistant)}
+                          >
+                            <Trash2 className="size-3" />
+                            {t("sidebar.deleteAssistant", "Delete Assistant")}
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    </HoverCardTrigger>
+                    <HoverCardContent
+                      side="right"
+                      align="start"
+                      sideOffset={12}
+                      alignOffset={0}
+                      className="w-54 p-3"
                     >
-                      <Eye className="size-3" />
-                      {t("sidebar.openAssistant", "Open Assistant")}
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => handleNavigate("/settings/assistant")}>
-                      <Settings2 className="size-3" />
-                      {t("sidebar.assistantSettings", "Assistant Settings")}
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => void handleRenameAssistant()}>
-                      <Pencil className="size-3" />
-                      {t("sidebar.rename", "Rename")}
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => void handleCopyAssistantWorkspace()}>
-                      <Copy className="size-3" />
-                      {t("sidebar.copyAssistantWorkspace", "Copy workspace path")}
-                    </ContextMenuItem>
-                    {ilinkStatus.connected && activeIlinkSessionId !== ASSISTANT_SESSION_ID && (
-                      <ContextMenuItem
-                        onClick={() => void handleSetActiveIlinkSession(ASSISTANT_SESSION_ID)}
-                      >
-                        <MessageCircle className="size-3" />
-                        {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
-                      </ContextMenuItem>
-                    )}
-                    {ilinkStatus.connected && activeIlinkSessionId === ASSISTANT_SESSION_ID && (
-                      <ContextMenuItem onClick={() => void handleSetActiveIlinkSession("")}>
-                        <MessageCircle className="size-3 text-green-500" />
-                        {t("sidebar.ilinkUnsetActive", "Unset WeChat Active")}
-                      </ContextMenuItem>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
-              </HoverCardTrigger>
-              <HoverCardContent
-                side="right"
-                align="start"
-                sideOffset={12}
-                alignOffset={0}
-                className="w-54 p-3"
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
-                    <span>{displayAssistantName}</span>
-                  </div>
-                  <AssistantHoverDetails />
-                  {ilinkStatus.connected && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
-                      <MessageCircle
-                        className={cn(
-                          "size-3 shrink-0",
-                          activeIlinkSessionId === ASSISTANT_SESSION_ID && "text-green-500",
+                      <div className="flex flex-col gap-2">
+                        <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
+                          <span>{assistant.name}</span>
+                        </div>
+                        <AssistantHoverDetails assistant={assistant} />
+                        {!disabled && ilinkStatus.connected && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
+                            <MessageCircle
+                              className={cn(
+                                "size-3 shrink-0",
+                                activeIlinkSessionId === assistant.id && "text-green-500",
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleSetActiveIlinkSession(
+                                  activeIlinkSessionId === assistant.id ? "" : assistant.id,
+                                )
+                              }
+                              className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
+                            >
+                              {t(
+                                activeIlinkSessionId === assistant.id
+                                  ? "sidebar.ilinkActiveStatus"
+                                  : "sidebar.ilinkInactiveStatus",
+                                activeIlinkSessionId === assistant.id
+                                  ? "WeChat Active"
+                                  : "Not WeChat Active",
+                              )}
+                            </button>
+                          </div>
                         )}
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleSetActiveIlinkSession(
-                            activeIlinkSessionId === ASSISTANT_SESSION_ID
-                              ? ""
-                              : ASSISTANT_SESSION_ID,
-                          )
-                        }
-                        className="min-w-0 flex-1 truncate text-left transition-colors hover:text-foreground"
-                      >
-                        {t(
-                          activeIlinkSessionId === ASSISTANT_SESSION_ID
-                            ? "sidebar.ilinkActiveStatus"
-                            : "sidebar.ilinkInactiveStatus",
-                          activeIlinkSessionId === ASSISTANT_SESSION_ID
-                            ? "WeChat Active"
-                            : "Not WeChat Active",
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </HoverCardContent>
-            </HoverCard>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
@@ -2060,6 +2286,90 @@ export function Sidebar() {
             >
               {creating && <LoaderCircle className="size-3 animate-spin" />}
               {t("sidebar.newSessionDialog.create", { defaultValue: "Create" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newAssistantDialogOpen} onOpenChange={setNewAssistantDialogOpen}>
+        <DialogContent className="max-w-lg!">
+          <DialogHeader>
+            <DialogTitle>
+              {t("sidebar.newAssistantDialog.title", "Create assistant")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-muted-foreground">
+                {t("sidebar.newAssistantDialog.name", "Name")}
+              </div>
+              <Input
+                autoFocus
+                className="h-8 text-xs!"
+                value={newAssistantName}
+                placeholder={t("sidebar.newAssistantDialog.namePlaceholder", {
+                  defaultValue: "Personal Assistant {{n}}",
+                  n: assistants.length + 1,
+                })}
+                onChange={(event) => setNewAssistantName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    void handleCreateAssistant();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-muted-foreground">
+                {t("sidebar.newAssistantDialog.agent", "Agent")}
+              </div>
+              <Select
+                value={newAssistantAgentId}
+                onValueChange={(value) => {
+                  if (typeof value === "string") setNewAssistantAgentId(value);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-full">
+                  <SelectValue
+                    placeholder={t("sidebar.newAssistantDialog.selectAgent", "Select an agent")}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {assistantSourceAgents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <SessionConfigFields
+              variant="card"
+              showFeatures={false}
+              features={[]}
+              onFeaturesChange={() => {}}
+              mcpServers={Array.from(newAssistantMcpIds)}
+              onMcpServersChange={(next) => setNewAssistantMcpIds(new Set(next))}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              variant="outline"
+              onClick={() => setNewAssistantDialogOpen(false)}
+            >
+              {t("sidebar.cancel")}
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs focus:border-ring focus:ring-1 focus:ring-ring/50"
+              variant="default"
+              disabled={creatingAssistant || !newAssistantAgentId}
+              onClick={() => void handleCreateAssistant()}
+            >
+              {creatingAssistant && <LoaderCircle className="size-3 animate-spin" />}
+              {t("sidebar.newAssistantDialog.create", "Create")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,24 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-import type {
-  ApiAgentInfo,
-  McpServerInfo,
-  SettingAssistantWorkerType,
-} from "../../../../shared/schema";
+import type { SettingAssistantWorkerType } from "../../../../shared/schema";
 import { request } from "../../../backend";
 import { useAppStore } from "../../../store";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -38,22 +25,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { extractErrorMessage, generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
-import { McpToggleGrid } from "../../common/mcp-toggle-grid";
 import { SettingsAssistantWorkerDialog } from "./settings-assistant-worker-dialog";
-
-function isAssistantSourceAgent(agent: unknown): agent is ApiAgentInfo {
-  if (!agent || typeof agent !== "object") return false;
-  const candidate = agent as {
-    type?: unknown;
-    provider?: unknown;
-    disabled?: unknown;
-  };
-  return (
-    candidate.type === "api" &&
-    candidate.provider === "openai-compatible" &&
-    candidate.disabled !== true
-  );
-}
 
 /** Auto-generate a stable, unique worker type id from its display name. */
 function generateWorkerTypeId(
@@ -119,25 +91,17 @@ function WorkerTypeSortableItem({
 
 export function SettingsAssistant() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const configuredAgents = useAppStore((state) => state.configuredAgents);
   const configuredMcpServers = useAppStore((state) => state.configuredMcpServers);
-  const setConfiguredMcpServers = useAppStore((state) => state.setConfiguredMcpServers);
   const defaultFeatures = useAppStore((state) => state.features);
   const assistant = useAppStore((state) => state.assistant);
   const setAssistant = useAppStore((state) => state.setAssistant);
-  // 旧版后端/热更新缓存可能没有这些字段，读取时统一兜底。
-  const assistantMcpServers = assistant.mcpServers ?? [];
   const workerTypes = assistant.workerTypes ?? [];
   const defaultWorkerMcpServers = configuredMcpServers
     .filter((server) => !server.disabled)
     .map((server) => server.id);
   const { toast, confirm } = useMessage();
   const [isSaving, setIsSaving] = useState(false);
-  // Null means "no pending edit": the input shows the saved value.
-  const [maxContextDraft, setMaxContextDraft] = useState<string | null>(null);
-  /** 名称草稿；null 表示没有未保存的编辑，输入框直接显示已保存名称。 */
-  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [workerDialogType, setWorkerDialogType] = useState<SettingAssistantWorkerType | null>(null);
   const workerTypeSensors = useSensors(
@@ -145,10 +109,6 @@ export function SettingsAssistant() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const availableAgents = useMemo(
-    () => configuredAgents.filter(isAssistantSourceAgent),
-    [configuredAgents],
-  );
   const workerAgents = useMemo(
     () => configuredAgents.filter((agent) => !agent.disabled),
     [configuredAgents],
@@ -163,7 +123,6 @@ export function SettingsAssistant() {
     const normalized = {
       ...previous,
       ...patch,
-      mcpServers: patch.mcpServers ?? previous.mcpServers ?? [],
       workerTypes: patch.workerTypes ?? previous.workerTypes ?? [],
     };
     setAssistant(normalized);
@@ -184,39 +143,6 @@ export function SettingsAssistant() {
   };
 
   const handleEnabledChange = (enabled: boolean) => updateAssistant({ enabled });
-
-  const handleChange = (sourceAgentId: string | null) => {
-    if (!sourceAgentId || sourceAgentId === assistant.sourceAgentId) return;
-    return updateAssistant({ sourceAgentId });
-  };
-
-  const handleDreamChange = (
-    field: "maxContextTokens" | "preferredTime",
-    value: number | string,
-  ) => {
-    const dream = { ...useAppStore.getState().assistant.dream, [field]: value };
-    return updateAssistant({ dream });
-  };
-
-  /** 提交名称编辑：留空表示恢复默认名称（由显示层做本地化兜底）。 */
-  const commitNameDraft = () => {
-    const draft = nameDraft;
-    setNameDraft(null);
-    if (draft === null) return;
-    const name = draft.trim();
-    if (name === assistant.name) return;
-    void updateAssistant({ name });
-  };
-
-  const commitMaxContextDraft = () => {
-    const draft = maxContextDraft;
-    setMaxContextDraft(null);
-    if (draft === null) return;
-    const value = Number(draft);
-    if (Number.isSafeInteger(value) && value > 0 && value !== assistant.dream.maxContextTokens) {
-      void handleDreamChange("maxContextTokens", value);
-    }
-  };
 
   const saveWorkerTypes = (nextTypes: SettingAssistantWorkerType[]) =>
     updateAssistant({ workerTypes: nextTypes });
@@ -300,46 +226,6 @@ export function SettingsAssistant() {
     void saveWorkerTypes(nextTypes);
   };
 
-  const toggleAssistantMcp = (id: string, enabled: boolean) => {
-    const mcpServers = enabled
-      ? [...new Set([...assistantMcpServers, id])]
-      : assistantMcpServers.filter((candidate) => candidate !== id);
-    void updateAssistant({ mcpServers });
-  };
-
-  const handleAddExa = async () => {
-    if (configuredMcpServers.some((server) => server.id === "exa")) return;
-    const exa: McpServerInfo = {
-      id: "exa",
-      type: "http",
-      url: "https://mcp.exa.ai/mcp",
-      headers: {},
-      disabled: false,
-    };
-    const previousAssistant = useAppStore.getState().assistant;
-    const previousMcpServers = configuredMcpServers;
-    const nextMcpServers = [...configuredMcpServers, exa];
-    const nextAssistant = {
-      ...previousAssistant,
-      mcpServers: [...new Set([...(previousAssistant.mcpServers ?? []), exa.id])],
-    };
-    setConfiguredMcpServers(nextMcpServers);
-    setAssistant(nextAssistant);
-    setIsSaving(true);
-    try {
-      await request.updateSettings({ mcpServers: nextMcpServers, assistant: nextAssistant });
-    } catch (error) {
-      setConfiguredMcpServers(previousMcpServers);
-      setAssistant(previousAssistant);
-      toast.error(
-        extractErrorMessage(error) ||
-          t("settings.assistant.updateFailed", "Failed to update Personal Assistant agent."),
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
     <div className="flex h-full flex-1 flex-col">
       <ScrollArea className="flex-1 overflow-hidden">
@@ -351,7 +237,7 @@ export function SettingsAssistant() {
             <p className="text-sm text-muted-foreground">
               {t(
                 "settings.assistant.desc",
-                "Choose the enabled OpenAI-compatible API agent used by your Personal Assistant.",
+                "Manage assistants from the sidebar: create them, edit their agent / MCP / Dream settings in the chat header, or disable and delete them. Worker types are shared by all assistants.",
               )}
             </p>
           </div>
@@ -378,225 +264,6 @@ export function SettingsAssistant() {
                   checked={assistant.enabled}
                   disabled={isSaving}
                   onCheckedChange={(checked) => void handleEnabledChange(checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium leading-none" htmlFor="assistant-name">
-                    {t("settings.assistant.name", "Name")}
-                  </label>
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.nameDesc",
-                      "Shown in the sidebar and on the assistant page. Leave empty to use the default name.",
-                    )}
-                  </span>
-                </div>
-                <Input
-                  id="assistant-name"
-                  className="w-32 shrink-0 h-7 text-xs!"
-                  value={nameDraft ?? assistant.name}
-                  placeholder={t("assistant.title", "Personal Assistant")}
-                  disabled={isSaving}
-                  onChange={(event) => setNameDraft(event.target.value)}
-                  onBlur={commitNameDraft}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-              {t("settings.assistant.groupModel", "Model")}
-            </h4>
-            {availableAgents.length === 0 ? (
-              <div className="flex items-center justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium leading-none">
-                    {t("settings.assistant.sourceAgent", "Source agent")}
-                  </span>
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.empty",
-                      "No enabled OpenAI-compatible API agents are available.",
-                    )}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => navigate("/settings/agents")}
-                >
-                  {t("settings.assistant.configureAgents", "Configure agents")}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    className="text-sm font-medium leading-none"
-                    htmlFor="assistant-source-agent"
-                  >
-                    {t("settings.assistant.sourceAgent", "Source agent")}
-                  </label>
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.sourceAgentDesc",
-                      "Its API key and model catalog are reused. Changing it restarts the assistant.",
-                    )}
-                  </span>
-                </div>
-                <Select
-                  value={assistant.sourceAgentId ?? ""}
-                  onValueChange={handleChange}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger id="assistant-source-agent" size="sm" className="w-44 shrink-0">
-                    <SelectValue
-                      placeholder={t("settings.assistant.selectAgent", "Select an agent")}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-              {t("settings.assistant.groupMcp", "MCP")}
-            </h4>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium leading-none">
-                  {t("settings.assistant.mcpServers", "MCP servers")}
-                </span>
-                <span className="text-xs text-muted-foreground/90">
-                  {t(
-                    "settings.assistant.mcpServersDesc",
-                    "Tools from the selected MCP servers are available to the Personal Assistant.",
-                  )}
-                </span>
-              </div>
-              {configuredMcpServers.length === 0 ? (
-                <div className="flex items-center justify-between gap-6">
-                  <span className="text-xs text-muted-foreground/70">
-                    {t("settings.assistant.mcpEmpty", "No MCP servers configured.")}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => navigate("/settings/mcp")}
-                  >
-                    {t("settings.assistant.configureMcp", "Configure MCP servers")}
-                  </Button>
-                </div>
-              ) : (
-                <McpToggleGrid
-                  servers={configuredMcpServers}
-                  selected={assistantMcpServers}
-                  disabled={isSaving}
-                  onToggle={toggleAssistantMcp}
-                />
-              )}
-              {!configuredMcpServers.some((server) => server.id === "exa") && (
-                <div className="flex items-center justify-between gap-6">
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.addExaDesc",
-                      "Exa provides web search and page fetching. The free tier needs no API key.",
-                    )}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 shrink-0 gap-1 text-xs text-muted-foreground hover:text-foreground"
-                    disabled={isSaving}
-                    onClick={() => void handleAddExa()}
-                  >
-                    <Plus className="size-3" />
-                    {t("settings.assistant.addExa", "Add Exa web search")}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-              {t("settings.assistant.groupDream", "Dream")}
-            </h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    className="text-sm font-medium leading-none"
-                    htmlFor="assistant-dream-max-context"
-                  >
-                    {t("settings.assistant.dreamMaxContext", "Max context tokens")}
-                  </label>
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.dreamMaxContextDesc",
-                      "Schedule Dream before assistant context reaches this limit.",
-                    )}
-                  </span>
-                </div>
-                <Input
-                  id="assistant-dream-max-context"
-                  type="number"
-                  min={1}
-                  step={1}
-                  className="w-32 shrink-0 h-7 text-xs!"
-                  value={maxContextDraft ?? String(assistant.dream.maxContextTokens)}
-                  onChange={(event) => setMaxContextDraft(event.target.value)}
-                  onBlur={commitMaxContextDraft}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    className="text-sm font-medium leading-none"
-                    htmlFor="assistant-dream-preferred-time"
-                  >
-                    {t("settings.assistant.dreamPreferredTime", "Preferred time")}
-                  </label>
-                  <span className="text-xs text-muted-foreground/90">
-                    {t(
-                      "settings.assistant.dreamPreferredTimeDesc",
-                      "Preferred local time for a future Dream run.",
-                    )}
-                  </span>
-                </div>
-                <Input
-                  id="assistant-dream-preferred-time"
-                  type="time"
-                  // 与 shadcn Time Picker 的 time-picker-optional 一致：原生 time 输入 + 隐藏浏览器自带的时钟图标。
-                  // 后端只接受 HH:mm，因此保持默认步长（60s），不能用示例里的 step=1。
-                  step={60}
-                  className="w-32 shrink-0 h-7 text-xs! appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                  value={assistant.dream.preferredTime}
-                  onChange={(event) => void handleDreamChange("preferredTime", event.target.value)}
                 />
               </div>
             </div>

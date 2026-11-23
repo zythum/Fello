@@ -1,6 +1,12 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { AssistantStatus, Feature, SessionInfo, SessionModelState } from "../../shared/schema";
-import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
+import type {
+  AssistantConfig,
+  AssistantStatus,
+  Feature,
+  SessionInfo,
+  SessionModelState,
+} from "../../shared/schema";
+import { ASSISTANT_AGENT_ID } from "../../assistant/constants";
 import type { WeixinMessage } from "./ilink-client";
 import {
   ILinkBridge,
@@ -66,8 +72,12 @@ export interface IlinkHandlerDeps {
   isSessionStreaming: SessionModule["isSessionStreaming"];
   respondAskUser: AskUserModule["respondAskUser"];
   getPendingAskUserRequests: AskUserModule["getPendingAskUserRequests"];
-  /** The assistant is a pseudo session, so its status comes from its own module. */
-  getAssistantStatus: () => AssistantStatus;
+  /** Whether a session id belongs to one of the personal assistants. */
+  isAssistantSession: (sessionId: string) => boolean;
+  /** All assistant configs (including disabled ones). */
+  listAssistants: () => AssistantConfig[];
+  /** Runtime state for one assistant pseudo session. */
+  getAssistantStatus: (assistantId: string) => AssistantStatus;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────
@@ -94,19 +104,28 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     return handlers;
   }
 
-  /** The assistant is a pseudo session: selectable only while enabled in settings. */
-  function isAssistantAvailable(): boolean {
-    return storage.getSettings().assistant.enabled;
+  /** Assistants are pseudo sessions: selectable only while globally enabled and not disabled. */
+  function listSelectableAssistants(): AssistantConfig[] {
+    if (!storage.getSettings().assistant.enabled) return [];
+    return getHandlers()
+      .listAssistants()
+      .filter((assistant) => !assistant.disabled);
   }
 
-  /** 个人助理的展示名：设置里没填就沿用本地化的默认名称。 */
-  function getAssistantLabel(): string {
-    return storage.getSettings().assistant.name || t("ilink.personalAssistant");
+  function getAssistantConfig(assistantId: string): AssistantConfig | null {
+    return getHandlers().listAssistants().find((assistant) => assistant.id === assistantId) ?? null;
+  }
+
+  /** 个人助理的展示名：名称在创建时已生成，缺失时回退本地化默认名称。 */
+  function getAssistantLabel(assistantId: string): string {
+    return getAssistantConfig(assistantId)?.name || t("ilink.personalAssistant");
   }
 
   function isKnownIlinkSessionId(sessionId: string | null): sessionId is string {
     if (!sessionId) return false;
-    if (sessionId === ASSISTANT_SESSION_ID) return isAssistantAvailable();
+    if (getHandlers().isAssistantSession(sessionId)) {
+      return getHandlers().getAssistantStatus(sessionId).enabled;
+    }
     return !!storage.getSession(sessionId);
   }
 
@@ -336,8 +355,8 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
 
   async function handleCommandSwitchSession(msg: WeixinMessage) {
     const allSessions = storage.listSessions();
-    const assistantAvailable = isAssistantAvailable();
-    if (allSessions.length === 0 && !assistantAvailable) {
+    const assistants = listSelectableAssistants();
+    if (allSessions.length === 0 && assistants.length === 0) {
       if (msg.from_user_id) await bridge?.sendTextReply(msg.from_user_id, t("ilink.noSessions"));
       return;
     }
@@ -348,18 +367,18 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
     lines.push("", t("ilink.sessionListDesc"));
     let index = 1;
     const sessionEntries: Array<{ sessionId: string; label: string }> = [];
-    if (assistantAvailable) {
-      const marker = activeSessionId === ASSISTANT_SESSION_ID ? " 👈" : "";
-      const assistantLabel = getAssistantLabel();
-      lines.push(`\n**${assistantLabel}**`, "");
-      lines.push(`  ${index}. [${ASSISTANT_AGENT_ID}] ${assistantLabel}${marker}`);
-      sessionEntries.push({
-        sessionId: ASSISTANT_SESSION_ID,
-        label: assistantLabel,
-      });
-      index++;
+    if (assistants.length > 0) {
+      lines.push(`\n**${t("ilink.personalAssistant")}**`, "");
+      for (const assistant of assistants) {
+        const marker = activeSessionId === assistant.id ? " 👈" : "";
+        lines.push(
+          `  ${index}. [${assistant.sourceAgentId ?? ASSISTANT_AGENT_ID}] ${assistant.name}${marker}`,
+        );
+        sessionEntries.push({ sessionId: assistant.id, label: assistant.name });
+        index++;
+      }
     }
-    let isFirstGroup = !assistantAvailable;
+    let isFirstGroup = assistants.length === 0;
     const grouped = new Map<string, typeof allSessions>();
     for (const s of allSessions) {
       const project = projectMap.get(s.projectId);
@@ -572,7 +591,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandPermission(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
-    if (sessionId === ASSISTANT_SESSION_ID) {
+    if (getHandlers().isAssistantSession(sessionId)) {
       await replyAssistantUnsupported(msg);
       return;
     }
@@ -629,7 +648,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandFeatures(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
-    if (sessionId === ASSISTANT_SESSION_ID) {
+    if (getHandlers().isAssistantSession(sessionId)) {
       await replyAssistantUnsupported(msg);
       return;
     }
@@ -727,7 +746,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
    */
   async function handleCommandMcpServers(msg: WeixinMessage) {
     const sessionId = activeSessionId ?? "";
-    if (sessionId === ASSISTANT_SESSION_ID) {
+    if (getHandlers().isAssistantSession(sessionId)) {
       await replyAssistantUnsupported(msg);
       return;
     }
@@ -875,14 +894,14 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   // ── Session status ─────────────────────────────────────────────────
 
   async function handleCommandInfo(msg: WeixinMessage) {
-    if (activeSessionId === ASSISTANT_SESSION_ID) {
-      const status = getHandlers().getAssistantStatus();
+    if (activeSessionId && getHandlers().isAssistantSession(activeSessionId)) {
+      const status = getHandlers().getAssistantStatus(activeSessionId);
       const modelState = status.models;
       const currentModel = modelState?.availableModels.find(
         (model) => model.modelId === modelState.currentModelId,
       );
       const lines = [
-        `📋 **${getAssistantLabel()}**\n`,
+        `📋 **${getAssistantLabel(activeSessionId)}**\n`,
         `**${t("ilink.workspace")}**: \`${status.workspace}\``,
         `**${t("ilink.agent")}**: \`${status.sourceAgentId ?? "—"}\``,
         `**${t("ilink.model")}**: \`${currentModel?.name || modelState?.currentModelId || "—"}\``,

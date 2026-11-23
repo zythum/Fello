@@ -29,7 +29,8 @@ import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
 import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
-import { createAssistantModule } from "./assistant";
+import { createAssistantManager } from "./assistant";
+import { assistantPaths } from "../assistant/config";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -82,8 +83,8 @@ export function initBackend(
   const tts = createTtsManager(ctx);
 
   // ── Layer 4: assistant + session, project, terminal ──
-  // The assistant is a pseudo session; session I/O dispatches to it by id, so it must exist first.
-  const assistant = createAssistantModule(ctx, {
+  // Assistants are pseudo sessions; session I/O dispatches to them by id, so they must exist first.
+  const assistant = createAssistantManager(ctx, {
     askUser,
     filesystem: { grep, glob, trashItem: native?.trashItem },
     mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
@@ -116,12 +117,14 @@ export function initBackend(
     isSessionStreaming: session.isSessionStreaming,
     respondAskUser: askUser.respondAskUser,
     getPendingAskUserRequests: askUser.getPendingAskUserRequests,
+    isAssistantSession: assistant.isAssistantSession,
+    listAssistants: assistant.listConfigs,
     getAssistantStatus: assistant.getStatus,
   });
 
   // ── Layer 5: automation + personal assistant lifecycle ──
   const automation = createAutomationModule(ctx, { inference: _inference });
-  assistant.start().catch((err) => {
+  assistant.startAll().catch((err) => {
     console.warn("[assistant] Failed to start:", err);
   });
 
@@ -206,64 +209,14 @@ export function initBackend(
           }
         }
       }
-      const requestedDream = settings.assistant?.dream ?? previousSettings.assistant.dream;
-      const selectedSourceAgentId =
-        settings.assistant?.sourceAgentId ?? previousSettings.assistant.sourceAgentId;
-      const selectedSourceAgent = selectedSourceAgentId
-        ? (settings.agents ?? previousSettings.agents).find(
-            (agent) => agent.id === selectedSourceAgentId,
-          )
-        : undefined;
-      const contextWindowTokens =
-        selectedSourceAgent?.type === "api"
-          ? (selectedSourceAgent.contextWindowTokens ?? 128_000)
-          : 128_000;
-      if (
-        !Number.isSafeInteger(requestedDream.maxContextTokens) ||
-        requestedDream.maxContextTokens <= 0 ||
-        requestedDream.maxContextTokens > contextWindowTokens
-      ) {
-        throw new Error(
-          `Dream max context tokens must be a positive integer up to ${contextWindowTokens}.`,
-        );
-      }
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(requestedDream.preferredTime)) {
-        throw new Error("Dream preferred time must use HH:mm format.");
-      }
       storageOps.updateSettings(settings);
       const currentSettings = storageOps.getSettings();
-      const referencedSourceAgentChanged = (() => {
-        if (!newAgents) return false;
-        const sourceAgentIds = [
-          previousSettings.assistant.sourceAgentId,
-          currentSettings.assistant.sourceAgentId,
-        ].filter((id): id is string => id !== null);
-        return sourceAgentIds.some((id) => changedOrRemoved.has(id));
-      })();
-      const assistantMcpSelectionChanged =
-        previousSettings.assistant.mcpServers.length !==
-          currentSettings.assistant.mcpServers.length ||
-        previousSettings.assistant.mcpServers.some(
-          (id) => !currentSettings.assistant.mcpServers.includes(id),
-        );
-      const assistantMcpConfigChanged = (() => {
-        const ids = new Set([
-          ...previousSettings.assistant.mcpServers,
-          ...currentSettings.assistant.mcpServers,
-        ]);
-        return [...ids].some((id) => {
-          const before = previousSettings.mcpServers.find((server) => server.id === id);
-          const after = currentSettings.mcpServers.find((server) => server.id === id);
-          return JSON.stringify(before) !== JSON.stringify(after);
-        });
-      })();
-      const assistantConfigurationChanged =
-        previousSettings.assistant.enabled !== currentSettings.assistant.enabled ||
-        previousSettings.assistant.sourceAgentId !== currentSettings.assistant.sourceAgentId ||
-        assistantMcpSelectionChanged ||
-        assistantMcpConfigChanged;
-      if (assistantConfigurationChanged || referencedSourceAgentChanged) {
-        await assistant.refreshConfiguration();
+      await assistant.applySettingsChange(previousSettings, currentSettings);
+      if (!currentSettings.assistant.enabled) {
+        const active = ilink.state.getActiveSessionId();
+        if (active && assistant.isAssistantSession(active)) {
+          await ilink.setActiveIlinkSession({ sessionId: null });
+        }
       }
       if (settings.i18n?.language) setLanguage(settings.i18n.language);
       await watcher.syncWatchers();
@@ -322,41 +275,69 @@ export function initBackend(
     },
 
     // Personal Assistant
-    async getAssistantStatus() {
-      return assistant.getStatus();
+    async listAssistants() {
+      return assistant.listConfigs();
     },
-    async listAssistantReminders() {
-      return assistant.listReminders();
+    async createAssistant(params) {
+      const created = await assistant.create(params);
+      await watcher.syncWatchers();
+      return created;
     },
-    async listAssistantDiaries() {
-      return assistant.listDiaries();
+    async updateAssistantConfig({ assistantId, patch }) {
+      const next = await assistant.updateConfig(assistantId, patch);
+      if (patch.disabled === true && ilink.state.getActiveSessionId() === assistantId) {
+        await ilink.setActiveIlinkSession({ sessionId: null });
+      }
+      return next;
     },
-    async readAssistantDiary({ file }: { file: string }) {
-      return assistant.readDiary(file);
+    async deleteAssistant({ assistantId }) {
+      await assistant.delete(assistantId);
+      await watcher.syncWatchers();
+      if (ilink.state.getActiveSessionId() === assistantId) {
+        await ilink.setActiveIlinkSession({ sessionId: null });
+      }
     },
-    async readAssistantMemory() {
-      return assistant.readMemory();
+    async getAssistantStatus({ assistantId }) {
+      return assistant.getStatus(assistantId);
     },
-    async listAssistantWorkers() {
-      return assistant.listWorkers();
+    async getAssistantDataSystemPath({ assistantId }) {
+      if (!assistant.isAssistantSession(assistantId)) {
+        throw new Error(`Assistant ${assistantId} does not exist.`);
+      }
+      return assistantPaths(assistantId).root;
     },
-    async getAssistantHistorySegment({ segmentId }) {
-      return assistant.getHistorySegment({ segmentId });
+    async listAssistantReminders({ assistantId }) {
+      return assistant.listReminders(assistantId);
     },
-    async sendAssistantPrompt({ contents }) {
-      return assistant.sendPrompt(contents);
+    async listAssistantDiaries({ assistantId }) {
+      return assistant.listDiaries(assistantId);
     },
-    async cancelAssistantPrompt() {
-      return assistant.cancelPrompt();
+    async readAssistantDiary({ assistantId, file }) {
+      return assistant.readDiary(assistantId, file);
     },
-    async setAssistantModel({ modelId }) {
-      return assistant.setModel(modelId);
+    async readAssistantMemory({ assistantId }) {
+      return assistant.readMemory(assistantId);
     },
-    async setAssistantThoughtLevel({ thoughtLevelId }) {
-      return assistant.setThoughtLevel(thoughtLevelId);
+    async listAssistantWorkers({ assistantId }) {
+      return assistant.listWorkers(assistantId);
     },
-    async restartAssistant() {
-      await assistant.refreshConfiguration();
+    async getAssistantHistorySegment({ assistantId, segmentId }) {
+      return assistant.getHistorySegment(assistantId, { segmentId });
+    },
+    async sendAssistantPrompt({ assistantId, contents }) {
+      return assistant.sendPrompt(assistantId, contents);
+    },
+    async cancelAssistantPrompt({ assistantId }) {
+      return assistant.cancelPrompt(assistantId);
+    },
+    async setAssistantModel({ assistantId, modelId }) {
+      return assistant.setModel(assistantId, modelId);
+    },
+    async setAssistantThoughtLevel({ assistantId, thoughtLevelId }) {
+      return assistant.setThoughtLevel(assistantId, thoughtLevelId);
+    },
+    async restartAssistant({ assistantId, config }) {
+      return assistant.restart(assistantId, config);
     },
 
     // Sessions
@@ -675,5 +656,11 @@ export function initBackend(
     }
   }
 
-  return { backendHandlers, closeBackend };
+  return {
+    backendHandlers,
+    closeBackend,
+    isAssistantSession: assistant.isAssistantSession,
+    isAssistantAvailable: (assistantId: string) =>
+      assistant.isAssistantSession(assistantId) && assistant.getStatus(assistantId).enabled,
+  };
 }

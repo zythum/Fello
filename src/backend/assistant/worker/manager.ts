@@ -13,7 +13,6 @@ import { adapters, agentEnv, extNotificationSpecs } from "../../acp-adapters/ada
 import type { BackendContext } from "../../types";
 import type { Feature, ProjectInfo, SessionNotificationFelloExt } from "../../../shared/schema";
 import { WORKER_FEATURES } from "../../../shared/constants";
-import { ASSISTANT_SESSION_ID } from "../../../assistant/constants";
 import { assertWritablePath, resolveAssistantPath } from "../../../assistant/fs/path";
 import { generateSocketPath, startSocketServer, type SocketServer } from "../../socket-server";
 import { buildMcpServersConfig, type McpConfigDeps } from "../../session/mcp-config";
@@ -90,6 +89,10 @@ export type WorkerManagerOptions = {
   ctx: BackendContext;
   /** Feature MCP builders shared with the session layer. */
   mcpDeps: McpConfigDeps;
+  /** Pseudo session id of the owning assistant (used by ask_user / share routes). */
+  assistantSessionId: string;
+  /** Directory holding all worker records for this assistant. */
+  workersDir: string;
   /** Default root for relative workspaces, i.e. the assistant's own workspace. */
   workspaceRoot: string;
   /** Queues a message for the assistant's next turn. */
@@ -129,13 +132,15 @@ function messageText(notification: SessionNotification): string | null {
 }
 
 export class WorkerManager implements WorkerService {
-  private readonly store = new WorkerStore();
+  private readonly store: WorkerStore;
   private readonly handles = new Map<string, WorkerHandle>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private readonly segmentCache = new Map<string, SegmentCacheEntry>();
   private shuttingDown = false;
 
-  constructor(private readonly options: WorkerManagerOptions) {}
+  constructor(private readonly options: WorkerManagerOptions) {
+    this.store = new WorkerStore(options.workersDir);
+  }
 
   private notifyChange(): void {
     this.options.onChange?.();
@@ -729,20 +734,28 @@ export class WorkerManager implements WorkerService {
         this.options.mcpDeps.search.registerSearchRoute(server, handle.record.cwd);
       }
       if (features.includes("ask_user")) {
-        this.options.mcpDeps.askUser.registerAskUserRoute(server, ASSISTANT_SESSION_ID, {
-          titlePrefix: `[${handle.record.name}] `,
-        });
+        this.options.mcpDeps.askUser.registerAskUserRoute(
+          server,
+          this.options.assistantSessionId,
+          {
+            titlePrefix: `[${handle.record.name}] `,
+          },
+        );
       }
       if (features.includes("share_to_user")) {
-        this.options.mcpDeps.shareToUser.registerShareToUserRoute(server, ASSISTANT_SESSION_ID, {
-          cwd: handle.record.cwd,
-          shareDir,
-        });
+        this.options.mcpDeps.shareToUser.registerShareToUserRoute(
+          server,
+          this.options.assistantSessionId,
+          {
+            cwd: handle.record.cwd,
+            shareDir,
+          },
+        );
       }
       if (features.includes("image_generation")) {
         this.options.mcpDeps.imageGeneration.registerImageGenerationRoute(
           server,
-          ASSISTANT_SESSION_ID,
+          this.options.assistantSessionId,
           { shareDir },
         );
       }

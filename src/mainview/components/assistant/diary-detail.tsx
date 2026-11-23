@@ -94,11 +94,13 @@ function DiaryMeta({
 
 /** Diary entry preview in the assistant's detail column, next to the chat. */
 export function DiaryDetail({
+  assistantId,
   diary,
   timeZone,
   compact,
   onClose,
 }: {
+  assistantId: string;
   diary: AssistantDiary;
   /** Server time zone, the same one the calendar uses for day labels. */
   timeZone: string;
@@ -116,7 +118,7 @@ export function DiaryDetail({
   useEffect(() => {
     let active = true;
     void request
-      .readAssistantDiary({ file: diary.file })
+      .readAssistantDiary({ assistantId, file: diary.file })
       .then((next) => {
         if (active) setEntry(next);
       })
@@ -126,7 +128,7 @@ export function DiaryDetail({
     return () => {
       active = false;
     };
-  }, [diary.file]);
+  }, [assistantId, diary.file]);
 
   const parsed = entry ? parseDiary(entry.content) : null;
   const period = formatDiaryPeriod(diary, timeZone, i18n.language);

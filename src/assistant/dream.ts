@@ -1,6 +1,5 @@
 import { createHash } from "crypto";
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
-import { homedir } from "os";
+import { mkdir, rename, writeFile } from "fs/promises";
 import { join } from "path";
 import {
   generateText,
@@ -13,13 +12,14 @@ import {
 import { z } from "zod";
 import type { PersistedAssistantSession } from "./storage";
 
-const ASSISTANT_DIR = join(homedir(), ".fello", "assistant");
-const AGENT_DIR = join(ASSISTANT_DIR, "agent");
-export const DIARY_DIR = join(ASSISTANT_DIR, "diary");
-const MEMORY_PATH = join(AGENT_DIR, "memory.md");
-const HISTORY_PATH = join(AGENT_DIR, "history.jsonl");
-const SESSION_PATH = join(AGENT_DIR, "session.json");
 const DREAM_MAX_OUTPUT_TOKENS = 16_000;
+
+export type DreamPaths = {
+  diaryDir: string;
+  memoryPath: string;
+  historyPath: string;
+  sessionPath: string;
+};
 
 const text = z.string().min(1).max(2_000);
 const items = z.array(text).max(200);
@@ -108,6 +108,7 @@ export type DreamInput = {
   currentMemory: string;
   session: PersistedAssistantSession;
   end: Date;
+  paths: DreamPaths;
 };
 
 export type DreamOutput = {
@@ -247,16 +248,6 @@ async function writeAtomically(path: string, content: string): Promise<void> {
   await rename(temporaryPath, path);
 }
 
-/** The long-term memory Dream maintains. Missing file means the assistant has not dreamed yet. */
-export async function readAssistantMemory(): Promise<{ content: string }> {
-  try {
-    return { content: await readFile(MEMORY_PATH, "utf8") };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { content: "" };
-    throw error;
-  }
-}
-
 type ZodIssueLike = { path?: PropertyKey[]; message?: string };
 
 /** Collects zod issues from the error chain. Only paths and messages are kept, never values. */
@@ -333,11 +324,11 @@ export async function runDream(input: DreamInput): Promise<DreamOutput> {
     dreamScheduledFor: null,
   };
 
-  await mkdir(DIARY_DIR, { recursive: true });
-  await writeAtomically(join(DIARY_DIR, diaryFileName), diary);
-  await writeAtomically(MEMORY_PATH, memory);
-  await writeAtomically(HISTORY_PATH, "");
-  await writeAtomically(SESSION_PATH, `${JSON.stringify(nextSession, null, 2)}\n`);
+  await mkdir(input.paths.diaryDir, { recursive: true });
+  await writeAtomically(join(input.paths.diaryDir, diaryFileName), diary);
+  await writeAtomically(input.paths.memoryPath, memory);
+  await writeAtomically(input.paths.historyPath, "");
+  await writeAtomically(input.paths.sessionPath, `${JSON.stringify(nextSession, null, 2)}\n`);
 
   return { session: nextSession, history: [] };
 }

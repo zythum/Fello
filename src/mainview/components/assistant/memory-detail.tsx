@@ -9,7 +9,15 @@ import { StreamMarkdown } from "../common/stream-markdown";
 import { ErrorState, LoadingState } from "../session/detail/file/common/loading-state";
 
 /** The assistant's long-term memory (memory.md), maintained by Dream. */
-export function MemoryDetail({ compact, onClose }: { compact: boolean; onClose: () => void }) {
+export function MemoryDetail({
+  assistantId,
+  compact,
+  onClose,
+}: {
+  assistantId: string;
+  compact: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const isMacApp = useAppStore((s) => s.isMacApp);
@@ -21,7 +29,7 @@ export function MemoryDetail({ compact, onClose }: { compact: boolean; onClose: 
   useEffect(() => {
     let active = true;
     void request
-      .readAssistantMemory()
+      .readAssistantMemory({ assistantId })
       .then((result) => {
         if (active) setContent(result.content);
       })
@@ -31,7 +39,7 @@ export function MemoryDetail({ compact, onClose }: { compact: boolean; onClose: 
     return () => {
       active = false;
     };
-  }, []);
+  }, [assistantId]);
 
   const hasContent = content !== null && content.trim().length > 0;
 

@@ -24,7 +24,6 @@ import { createRequire } from "module";
 const nodeRequire = createRequire(import.meta.url);
 const launchEditor = nodeRequire("launch-editor");
 
-import { ASSISTANT_SESSION_ID } from "../assistant/constants";
 import { extractErrorMessage } from "../backend/utils";
 import { t } from "../backend/i18n";
 import { storageOps } from "../backend/storage";
@@ -69,6 +68,9 @@ let mainWindow: BrowserWindow | null = null;
 const askUserNotifications = new Map<string, Notification>();
 let pendingSessionNavigation: string | null = null;
 let rendererReadyWindow: BrowserWindow | null = null;
+/** Filled in after initBackend(); safe to call from notification handlers after startup. */
+let isAssistantSessionId = (_sessionId: string): boolean => false;
+let isAssistantAvailable = (_sessionId: string): boolean => false;
 
 function getActiveSessionIdFromWindow(win: BrowserWindow): string | null {
   if (win.isDestroyed()) return null;
@@ -90,9 +92,9 @@ function shouldShowAskUserNotification(sessionId: string): boolean {
   if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized() || !win.isFocused()) {
     return true;
   }
-  // The assistant is a pseudo session: it is "active" whenever its page is showing.
-  if (sessionId === ASSISTANT_SESSION_ID) {
-    return !currentRouteOfWindow(win).startsWith("/assistant");
+  // Assistant pseudo sessions are "active" whenever their own page is showing.
+  if (isAssistantSessionId(sessionId)) {
+    return !currentRouteOfWindow(win).startsWith(`/assistant/${sessionId}`);
   }
   return getActiveSessionIdFromWindow(win) !== sessionId;
 }
@@ -162,8 +164,13 @@ function showAskUserNotification(request: AskUserRequest) {
   });
   notification.on("click", () => {
     closeAskUserNotification(request.askUserId);
-    if (request.sessionId === ASSISTANT_SESSION_ID) openAssistantFromNotification();
-    else openSessionFromNotification(request.sessionId);
+    if (isAssistantSessionId(request.sessionId)) {
+      if (isAssistantAvailable(request.sessionId)) {
+        openAssistantFromNotification(request.sessionId);
+      }
+    } else {
+      openSessionFromNotification(request.sessionId);
+    }
   });
   notification.on("close", () => {
     if (askUserNotifications.get(request.askUserId) === notification) {
@@ -223,7 +230,7 @@ function currentRouteOfWindow(win: BrowserWindow): string {
   }
 }
 
-function shouldShowReminderNotification(): boolean {
+function shouldShowReminderNotification(assistantId: string): boolean {
   const win = mainWindow;
   return (
     !win ||
@@ -231,11 +238,11 @@ function shouldShowReminderNotification(): boolean {
     !win.isVisible() ||
     win.isMinimized() ||
     !win.isFocused() ||
-    !currentRouteOfWindow(win).startsWith("/assistant")
+    !currentRouteOfWindow(win).startsWith(`/assistant/${assistantId}`)
   );
 }
 
-function openAssistantFromNotification() {
+function openAssistantFromNotification(assistantId: string) {
   let win = mainWindow;
   if (!win || win.isDestroyed()) {
     if (!app.isReady()) return;
@@ -248,7 +255,9 @@ function openAssistantFromNotification() {
 
   const target = win;
   const send = () => {
-    if (!target.isDestroyed()) target.webContents.send("open-assistant-requested", undefined);
+    if (!target.isDestroyed()) {
+      target.webContents.send("open-assistant-requested", { assistantId });
+    }
   };
   if (target.webContents.isLoading()) {
     target.webContents.once("did-finish-load", send);
@@ -263,14 +272,14 @@ function showReminderNotification(reminder: FelloIPCSchema["events"]["assistant-
     console.warn("[reminder] Native notifications are not supported on this system");
     return;
   }
-  if (!shouldShowReminderNotification()) return;
+  if (!shouldShowReminderNotification(reminder.assistantId)) return;
 
   let notification: Notification;
   try {
     notification = new Notification({
-      id: `reminder:${reminder.id}:${reminder.dueAt}`,
+      id: `reminder:${reminder.assistantId}:${reminder.id}:${reminder.dueAt}`,
       groupId: "reminder",
-      title: t("reminder.notificationTitle"),
+      title: reminder.name || t("reminder.notificationTitle"),
       body: reminder.text,
     });
   } catch (error) {
@@ -282,7 +291,9 @@ function showReminderNotification(reminder: FelloIPCSchema["events"]["assistant-
     console.error(`[reminder] Native notification failed for ${reminder.id}:`, error);
   });
   notification.on("click", () => {
-    openAssistantFromNotification();
+    if (isAssistantAvailable(reminder.assistantId)) {
+      openAssistantFromNotification(reminder.assistantId);
+    }
   });
   try {
     notification.show();
@@ -322,9 +333,16 @@ applyProxy(
     : settingProxyInfoToProxyConfig(proxySettings),
 );
 
-const { backendHandlers, closeBackend } = initBackend(safeSend, {
+const {
+  backendHandlers,
+  closeBackend,
+  isAssistantSession,
+  isAssistantAvailable: isAssistantAvailableSync,
+} = initBackend(safeSend, {
   trashItem: (path) => shell.trashItem(path),
 });
+isAssistantSessionId = isAssistantSession;
+isAssistantAvailable = isAssistantAvailableSync;
 
 for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema["requests"]>) {
   ipcMain.handle(

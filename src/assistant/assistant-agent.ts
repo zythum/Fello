@@ -35,19 +35,10 @@ import {
   type UsageUpdate,
 } from "@agentclientprotocol/sdk";
 import type { McpServer, PromptResponse, Usage } from "@agentclientprotocol/sdk/unstable";
-import type {
-  ApiAgentInfo,
-  ModelInfo,
-  SessionModelState,
-  SettingAssistantInfo,
-} from "../shared/schema";
-import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "./constants";
+import type { ApiAgentInfo, ModelInfo, SessionModelState } from "../shared/schema";
+import { ASSISTANT_AGENT_ID } from "./constants";
 import {
-  appendAssistantHistory,
-  loadAssistantHistory,
-  loadAssistantMemory,
-  loadAssistantSession,
-  saveAssistantSession,
+  AssistantStorage,
   type PersistedAssistantSession,
 } from "./storage";
 import { runDream } from "./dream";
@@ -94,13 +85,16 @@ type AssistantSession = PersistedAssistantSession & {
 };
 
 export type AssistantAgentOptions = {
+  /** Stable assistant id, also used as the pseudo session id. */
+  sessionId: string;
   agentInfo: ApiAgentInfo;
   workspace: string;
+  storage: AssistantStorage;
   getMcpServers: () => McpServer[];
   shareToUser: ShareToUserModule;
-  getDream: () => SettingAssistantInfo["dream"];
-  /** 用户在设置里填写的名称；空字符串表示使用默认身份。每轮实时读取，改名无需重启。 */
-  getName: () => SettingAssistantInfo["name"];
+  getDream: () => { maxContextTokens: number; preferredTime: string };
+  /** 用户在 sidebar 里填写的名称；空字符串表示使用默认身份。每轮实时读取，改名无需重启。 */
+  getName: () => string;
   reminders: ReminderService;
   worker: WorkerService;
   askUser: AskUserFn;
@@ -293,7 +287,7 @@ export class AssistantAgent {
   private modelsCache: SessionModelState | null = null;
   private modelsPending: Promise<SessionModelState> | null = null;
   private readonly sendToolUpdate: ToolUpdateSender = (update) =>
-    this.connection?.sessionUpdate({ sessionId: ASSISTANT_SESSION_ID, update }) ??
+    this.connection?.sessionUpdate({ sessionId: this.options.sessionId, update }) ??
     Promise.resolve();
   private dreamPending: Promise<void> | null = null;
   private dreamTimer: ReturnType<typeof setTimeout> | null = null;
@@ -380,7 +374,7 @@ export class AssistantAgent {
       const socketPath = generateSocketPath(`assistant-share-${randomUUID()}`);
       const server = await startSocketServer(socketPath);
       try {
-        this.options.shareToUser.registerShareToUserRoute(server, ASSISTANT_SESSION_ID, {
+        this.options.shareToUser.registerShareToUserRoute(server, this.options.sessionId, {
           cwd: this.options.workspace,
           projectOnly: true,
         });
@@ -426,8 +420,8 @@ export class AssistantAgent {
   async authenticate(): Promise<void> {}
 
   private assertSessionId(sessionId: string): void {
-    if (sessionId !== ASSISTANT_SESSION_ID)
-      throw new Error(`Assistant only supports session ${ASSISTANT_SESSION_ID}.`);
+    if (sessionId !== this.options.sessionId)
+      throw new Error(`This assistant only supports session ${this.options.sessionId}.`);
   }
 
   private async fetchModels(): Promise<SessionModelState> {
@@ -500,8 +494,8 @@ export class AssistantAgent {
     if (this.session) return this.session;
     const models = await this.getModels();
     const [persisted, history] = await Promise.all([
-      loadAssistantSession(),
-      loadAssistantHistory(),
+      this.options.storage.loadSession(),
+      this.options.storage.loadHistory(),
     ]);
     const persistedModelAvailable =
       !!persisted?.modelId &&
@@ -529,7 +523,7 @@ export class AssistantAgent {
   }
 
   private async refreshDreamState(session: AssistantSession): Promise<void> {
-    const memory = await loadAssistantMemory();
+    const memory = await this.options.storage.loadMemory();
     const systemPrompt = buildSystemPrompt(this.options.workspace, memory, this.options.getName());
     session.historyTokens = await countTokens(serializeHistoryForCounting(session.history));
     const contextTokens = session.historyTokens + (await countTokens(systemPrompt));
@@ -619,9 +613,10 @@ export class AssistantAgent {
         modelId,
         thoughtLevel: session.thoughtLevel,
         history: session.history,
-        currentMemory: await loadAssistantMemory(),
+        currentMemory: await this.options.storage.loadMemory(),
         session,
         end: new Date(),
+        paths: this.options.storage.dreamPaths,
       });
       Object.assign(session, output.session, { history: output.history });
     })();
@@ -654,7 +649,7 @@ export class AssistantAgent {
   }
 
   private async persistSession(session: AssistantSession): Promise<void> {
-    await saveAssistantSession({
+    await this.options.storage.saveSession({
       modelId: session.modelId,
       thoughtLevel: session.thoughtLevel,
       contextUsedTokens: session.contextUsedTokens,
@@ -669,7 +664,7 @@ export class AssistantAgent {
 
   private async usageUpdate(usage: UsageUpdate): Promise<void> {
     await this.connection?.sessionUpdate({
-      sessionId: ASSISTANT_SESSION_ID,
+      sessionId: this.options.sessionId,
       update: { sessionUpdate: "usage_update", ...usage },
     });
   }
@@ -680,7 +675,7 @@ export class AssistantAgent {
     messages: ModelMessage[],
   ): Promise<void> {
     const wasEmpty = session.history.length === 0;
-    await appendAssistantHistory(messages);
+    await this.options.storage.appendHistory(messages);
     session.history.push(...messages);
     if (wasEmpty && messages.length > 0) {
       session.historyStartedAt = startedAt;
@@ -693,7 +688,7 @@ export class AssistantAgent {
 
   async newSession(_params: NewSessionRequest): Promise<NewSessionResponse> {
     const session = await this.ensureSession();
-    return { sessionId: ASSISTANT_SESSION_ID, configOptions: await this.configOptions(session) };
+    return { sessionId: this.options.sessionId, configOptions: await this.configOptions(session) };
   }
 
   async resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
@@ -744,7 +739,7 @@ export class AssistantAgent {
 
     try {
       const mcpTools = await this.ensureMcpTools();
-      const memory = await loadAssistantMemory();
+      const memory = await this.options.storage.loadMemory();
       const result = streamText({
         model: this.provider.chatModel(modelId),
         system: buildSystemPrompt(this.options.workspace, memory, this.options.getName()),
@@ -755,6 +750,7 @@ export class AssistantAgent {
           diary_query: createDiaryQueryTool({
             getModel: () => this.provider.chatModel(modelId),
             sendUpdate: this.sendToolUpdate,
+            diaryDir: this.options.storage.paths.diaryDir,
           }),
           ...createReminderTools({
             service: this.options.reminders,
@@ -785,7 +781,7 @@ export class AssistantAgent {
         if (part.type === "text-delta") {
           text += part.text;
           await this.connection?.sessionUpdate({
-            sessionId: ASSISTANT_SESSION_ID,
+            sessionId: this.options.sessionId,
             update: {
               sessionUpdate: "agent_message_chunk",
               content: { type: "text", text: part.text },
@@ -793,7 +789,7 @@ export class AssistantAgent {
           });
         } else if (part.type === "reasoning-delta") {
           await this.connection?.sessionUpdate({
-            sessionId: ASSISTANT_SESSION_ID,
+            sessionId: this.options.sessionId,
             update: {
               sessionUpdate: "agent_thought_chunk",
               content: { type: "text", text: part.text },
@@ -871,4 +867,4 @@ export class AssistantAgent {
   }
 }
 
-export { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID };
+export { ASSISTANT_AGENT_ID };

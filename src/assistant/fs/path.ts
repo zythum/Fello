@@ -7,6 +7,9 @@ import { isAbsolute, join, resolve, sep } from "path";
  * history.jsonl, reminders.json or a diary would break the assistant.
  */
 const PROTECTED_WRITE_PREFIXES = [
+  // All per-assistant runtime data (config.json, agent/, session/, diary/, workers/).
+  join(homedir(), ".fello", "assistants"),
+  // Legacy single-assistant directories, kept protected until the old data is removed.
   join(homedir(), ".fello", "assistant", "agent"),
   join(homedir(), ".fello", "assistant", "session"),
   join(homedir(), ".fello", "assistant", "diary"),

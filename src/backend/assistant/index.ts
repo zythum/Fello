@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
+import { join } from "path";
 import type {
   ContentBlock,
   SessionNotification,
@@ -9,28 +10,31 @@ import type {
 import type { McpServer, Usage } from "@agentclientprotocol/sdk/unstable";
 import type {
   ApiAgentInfo,
+  AssistantConfig,
   AssistantStatus,
   AssistantWorkerInfo,
   SessionNotificationFelloExt,
+  SettingsInfo,
 } from "../../shared/schema";
 import type { AssistantDiary, AssistantReminderList } from "../../shared/schema";
 import { listDiarySummaries, readDiary } from "../../assistant/diary-query";
-import { readAssistantMemory } from "../../assistant/dream";
 import { serverTimeZone } from "../../assistant/reminders/service";
 import { wasFired } from "../../shared/reminder";
-import { ASSISTANT_AGENT_ID, ASSISTANT_SESSION_ID } from "../../assistant/constants";
+import { ASSISTANT_AGENT_ID } from "../../assistant/constants";
+import { AssistantStorage } from "../../assistant/storage";
 import {
-  appendAssistantMessage,
-  type AssistantMessageSegment,
-  beginAssistantMessageTurn,
-  endAssistantMessageTurn,
-  readAssistantMessageSegment,
-} from "../../assistant/storage";
+  assistantPaths,
+  createAssistantConfig,
+  deleteAssistantData,
+  ensureAssistantDirectories,
+  listAssistantConfigs,
+  loadAssistantConfig,
+  updateAssistantConfig,
+} from "../../assistant/config";
 import { ACPBridge, type PromptResult } from "../agent/agent-bridge";
 import { ReminderService } from "../../assistant/reminders/service";
 import { ReminderStore } from "../../assistant/reminders/store";
 import { adapters, agentEnv, extNotificationSpecs } from "../acp-adapters/adapters";
-import { ASSISTANT_WORKSPACE } from "../storage/constant";
 import type { BackendContext } from "../types";
 import type { AskUserModule } from "../ask-user";
 import type { FileSystemTools } from "../../assistant/fs/tools";
@@ -42,11 +46,14 @@ import {
   flushIlinkReply,
 } from "../session/notifications";
 import { WorkerManager } from "./worker/manager";
+import { t } from "../i18n";
 
 export interface AssistantModule {
   start: () => Promise<void>;
-  stop: () => Promise<void>;
-  /** Stops the assistant bridge, workers and reminder timers. Called on app shutdown. */
+  stop: (options?: { shutdownWorkers?: boolean }) => Promise<void>;
+  /** Re-read config and restart bridge + reminders, keeping workers alive. */
+  restart: () => Promise<void>;
+  /** Stops everything, including workers and reminder timers. Called on app shutdown. */
   shutdown: () => Promise<void>;
   getStatus: () => AssistantStatus;
   listReminders: () => Promise<AssistantReminderList>;
@@ -56,13 +63,65 @@ export interface AssistantModule {
   listWorkers: () => Promise<AssistantWorkerInfo[]>;
   getHistorySegment: (params: {
     segmentId?: number;
-  }) => ReturnType<typeof readAssistantMessageSegment>;
+  }) => ReturnType<AssistantStorage["readMessageSegment"]>;
   sendPrompt: (contents: ContentBlock[], options?: { onlyIfIdle?: boolean }) => Promise<PromptResult>;
   cancelPrompt: () => Promise<void>;
   setModel: (modelId: string) => Promise<void>;
   setThoughtLevel: (thoughtLevelId: string) => Promise<void>;
-  refreshConfiguration: () => Promise<void>;
 }
+
+export interface AssistantManager {
+  startAll: () => Promise<void>;
+  shutdown: () => Promise<void>;
+  isAssistantSession: (assistantId: string) => boolean;
+  listConfigs: () => AssistantConfig[];
+  getConfig: (assistantId: string) => AssistantConfig | null;
+  getStatus: (assistantId: string) => AssistantStatus;
+  start: (assistantId: string) => Promise<void>;
+  create: (input: {
+    name?: string;
+    sourceAgentId: string;
+    mcpServers: string[];
+  }) => Promise<AssistantConfig>;
+  updateConfig: (
+    assistantId: string,
+    patch: { name?: string; disabled?: boolean },
+  ) => Promise<AssistantConfig>;
+  restart: (
+    assistantId: string,
+    patch?: Partial<Pick<AssistantConfig, "sourceAgentId" | "mcpServers" | "dream">>,
+  ) => Promise<AssistantConfig>;
+  delete: (assistantId: string) => Promise<void>;
+  applySettingsChange: (
+    previous: SettingsInfo,
+    current: SettingsInfo,
+  ) => Promise<void>;
+  // Per-assistant passthroughs
+  listReminders: (assistantId: string) => Promise<AssistantReminderList>;
+  listDiaries: (assistantId: string) => Promise<AssistantDiary[]>;
+  readDiary: (assistantId: string, file: string) => ReturnType<typeof readDiary>;
+  readMemory: (assistantId: string) => Promise<{ content: string }>;
+  listWorkers: (assistantId: string) => Promise<AssistantWorkerInfo[]>;
+  getHistorySegment: (
+    assistantId: string,
+    params: { segmentId?: number },
+  ) => ReturnType<AssistantStorage["readMessageSegment"]>;
+  sendPrompt: (
+    assistantId: string,
+    contents: ContentBlock[],
+    options?: { onlyIfIdle?: boolean },
+  ) => Promise<PromptResult>;
+  cancelPrompt: (assistantId: string) => Promise<void>;
+  setModel: (assistantId: string, modelId: string) => Promise<void>;
+  setThoughtLevel: (assistantId: string, thoughtLevelId: string) => Promise<void>;
+}
+
+export type AssistantModuleDeps = {
+  askUser: AskUserModule;
+  filesystem: FileSystemTools;
+  mcpDeps: McpConfigDeps;
+  ilink: IlinkState;
+};
 
 function mergeToolCallUpdate(base: ToolCallUpdate, update: ToolCallUpdate): ToolCallUpdate {
   const merged: ToolCallUpdate = { ...base };
@@ -112,10 +171,10 @@ function getAssistantApiAgent(ctx: BackendContext, agentId: string): ApiAgentInf
 }
 
 /** The assistant's own MCP servers (separate from the worker's selection). */
-function buildAssistantMcpServers(ctx: BackendContext): McpServer[] {
+function buildAssistantMcpServers(ctx: BackendContext, ids: string[]): McpServer[] {
   const settings = ctx.storage.getSettings();
   const servers: McpServer[] = [];
-  for (const id of settings.assistant.mcpServers) {
+  for (const id of ids) {
     const config = settings.mcpServers.find((candidate) => candidate.id === id);
     if (!config) continue;
     if (config.type === "stdio") {
@@ -168,23 +227,13 @@ class AssistantBusyError extends Error {
   }
 }
 
-export function createAssistantModule(
-  ctx: BackendContext,
-  deps: {
-    askUser: AskUserModule;
-    filesystem: FileSystemTools;
-    mcpDeps: McpConfigDeps;
-    ilink: IlinkState;
-  },
-): AssistantModule {
-  let bridge: ACPBridge | null = null;
-  let starting: Promise<void> | null = null;
-  let generation = 0;
-  let status: AssistantStatus = {
+function emptyStatus(config: AssistantConfig | null, assistantId: string): AssistantStatus {
+  const paths = assistantPaths(assistantId);
+  return {
     connectionStatus: "disconnected",
-    sourceAgentId: null,
+    sourceAgentId: config?.sourceAgentId ?? null,
     enabled: false,
-    workspace: ASSISTANT_WORKSPACE,
+    workspace: paths.workspace,
     isStreaming: false,
     dreaming: false,
     models: null,
@@ -192,6 +241,32 @@ export function createAssistantModule(
     usage: null,
     lastTurnUsage: null,
   };
+}
+
+function createAssistantRuntime(
+  ctx: BackendContext,
+  deps: AssistantModuleDeps,
+  manager: { getConfig: (assistantId: string) => AssistantConfig | null },
+  initialConfig: AssistantConfig,
+): AssistantModule {
+  const assistantId = initialConfig.id;
+  const paths = ensureAssistantDirectories(assistantId);
+  const storage = new AssistantStorage(paths);
+  let runtimeConfig: Pick<AssistantConfig, "sourceAgentId" | "mcpServers" | "dream"> = {
+    sourceAgentId: initialConfig.sourceAgentId,
+    mcpServers: [...initialConfig.mcpServers],
+    dream: { ...initialConfig.dream },
+  };
+  const getName = () => manager.getConfig(assistantId)?.name ?? "";
+  const isEnabled = () => {
+    const settings = ctx.storage.getSettings();
+    return settings.assistant.enabled && manager.getConfig(assistantId)?.disabled !== true;
+  };
+
+  let bridge: ACPBridge | null = null;
+  let starting: Promise<void> | null = null;
+  let generation = 0;
+  let status: AssistantStatus = { ...emptyStatus(initialConfig, assistantId), enabled: isEnabled() };
 
   // Wakes are messages injected into the assistant's chat: reminder deliveries and worker
   // events. They wait until the assistant is connected and idle. A reminder wake that cannot be
@@ -211,16 +286,21 @@ export function createAssistantModule(
 
   async function publishWorkers(): Promise<void> {
     try {
-      ctx.sendEvent("assistant-workers-changed", await workerManager.list());
+      ctx.sendEvent("assistant-workers-changed", {
+        assistantId,
+        workers: await workerManager.list(),
+      });
     } catch (error) {
-      console.error("[assistant] Failed to publish workers:", error);
+      console.error(`[assistant:${assistantId}] Failed to publish workers:`, error);
     }
   }
 
   const workerManager = new WorkerManager({
     ctx,
     mcpDeps: deps.mcpDeps,
-    workspaceRoot: ASSISTANT_WORKSPACE,
+    assistantSessionId: assistantId,
+    workersDir: join(paths.agentDir, "workers"),
+    workspaceRoot: paths.workspace,
     notify: (text) => {
       enqueueWake({ key: `worker:${randomUUID()}`, text, at: Date.now() });
     },
@@ -232,17 +312,19 @@ export function createAssistantModule(
     .init()
     .then(() => publishWorkers())
     .catch((error) => {
-      console.error("[assistant] Failed to load workers:", error);
+      console.error(`[assistant:${assistantId}] Failed to load workers:`, error);
     });
 
   const reminders = new ReminderService({
-    store: new ReminderStore(),
+    store: new ReminderStore(join(paths.agentDir, "reminders.json")),
     onDue: (due) => {
       // The native notification is shown when a reminder is due, even if the chat message
       // waits for the assistant to be idle.
       const reminder = reminders.get(due.id);
       if (reminder && !reminder.disabled && !wasFired(reminder, due.dueAt)) {
         ctx.sendEvent("assistant-reminder-due", {
+          assistantId,
+          name: getName(),
           id: reminder.id,
           text: reminder.text,
           dueAt: due.dueAt,
@@ -262,6 +344,7 @@ export function createAssistantModule(
     },
     onChange: () => {
       ctx.sendEvent("assistant-reminders-changed", {
+        assistantId,
         reminders: reminders.listAll(),
         timeZone: serverTimeZone(),
       });
@@ -304,7 +387,7 @@ export function createAssistantModule(
         } catch (error) {
           // Busy is not a failure: the wake waits for the assistant to become idle.
           if (!(error instanceof AssistantBusyError)) {
-            console.error("[assistant] Failed to deliver wake:", error);
+            console.error(`[assistant:${assistantId}] Failed to deliver wake:`, error);
           }
           pendingWakes.unshift(wake);
           break;
@@ -318,17 +401,22 @@ export function createAssistantModule(
   }
 
   function publishStatus() {
-    ctx.sendEvent("assistant-status-changed", { status });
+    ctx.sendEvent("assistant-status-changed", { assistantId, status });
   }
 
   function updateStatus(next: Partial<AssistantStatus>) {
-    const { enabled, sourceAgentId } = ctx.storage.getSettings().assistant;
-    status = { ...status, ...next, enabled, sourceAgentId };
+    status = {
+      ...status,
+      ...next,
+      enabled: isEnabled(),
+      sourceAgentId: runtimeConfig.sourceAgentId,
+      workspace: paths.workspace,
+    };
     publishStatus();
   }
 
   const pendingToolCalls = new Map<string, ToolCallUpdate>();
-  let activeMessageSegment: AssistantMessageSegment | null = null;
+  let activeMessageSegment: import("../../assistant/storage").AssistantMessageSegment | null = null;
   let notificationTail = Promise.resolve();
 
   function queuePersistAndPublish(
@@ -342,14 +430,14 @@ export function createAssistantModule(
 
   async function persistAndPublish(
     notification: SessionNotification,
-    segment: AssistantMessageSegment | null,
+    segment: import("../../assistant/storage").AssistantMessageSegment | null,
   ): Promise<void> {
     const enriched = enrichNotification(notification);
     const type = enriched.update.sessionUpdate;
 
     // Same iLink forwarding as regular sessions: the assistant can drive WeChat when selected.
-    bufferAgentChunkForIlink(deps.ilink, ASSISTANT_SESSION_ID, enriched);
-    const ilinkActive = deps.ilink.getActiveSessionId() === ASSISTANT_SESSION_ID;
+    bufferAgentChunkForIlink(deps.ilink, assistantId, enriched);
+    const ilinkActive = deps.ilink.getActiveSessionId() === assistantId;
     if (type === "tool_call" && ilinkActive) {
       void flushIlinkReply(deps.ilink);
       flushIlinkMedia(deps.ilink);
@@ -362,7 +450,7 @@ export function createAssistantModule(
           usage: { used: usage.used, size: usage.size, cost: usage.cost },
         });
       }
-      ctx.sendEvent("assistant-update", { notification: enriched });
+      ctx.sendEvent("assistant-update", { assistantId, notification: enriched });
       return;
     }
     if (type === "tool_call_update") {
@@ -387,40 +475,39 @@ export function createAssistantModule(
           rawOutput: _rawOutput,
           ...safeUpdate
         } = enriched.update as ToolCallUpdate;
-        await appendAssistantMessage(
+        await storage.appendMessage(
           { ...enriched, update: safeUpdate as SessionNotificationFelloExt["update"] },
           segment ?? undefined,
         );
         if (ilinkActive) flushIlinkMedia(deps.ilink);
       }
     } else {
-      await appendAssistantMessage(enriched, segment ?? undefined);
+      await storage.appendMessage(enriched, segment ?? undefined);
     }
-    ctx.sendEvent("assistant-update", { notification: enriched });
+    ctx.sendEvent("assistant-update", { assistantId, notification: enriched });
   }
 
   async function getHistorySegment({ segmentId }: { segmentId?: number }) {
-    return readAssistantMessageSegment(segmentId);
+    return storage.readMessageSegment(segmentId);
   }
 
   async function start(): Promise<void> {
     if (bridge?.isConnected) return;
     if (starting) return starting;
 
-    starting = (async () => {
+    const current = (async () => {
       const currentGeneration = ++generation;
-      const { enabled, sourceAgentId } = ctx.storage.getSettings().assistant;
-      if (!enabled) {
+      if (!isEnabled()) {
         updateStatus({
           connectionStatus: "disconnected",
           error: undefined,
-          enabled: false,
           isStreaming: false,
           models: null,
           thoughtLevels: null,
         });
         return;
       }
+      const sourceAgentId = runtimeConfig.sourceAgentId;
       const agentInfo = sourceAgentId ? getAssistantApiAgent(ctx, sourceAgentId) : null;
       if (!agentInfo) {
         updateStatus({
@@ -428,7 +515,6 @@ export function createAssistantModule(
           error: sourceAgentId
             ? "The selected Personal Assistant agent is no longer enabled or compatible."
             : "Select an enabled OpenAI-compatible API agent to use Personal Assistant.",
-          sourceAgentId,
           isStreaming: false,
           models: null,
           thoughtLevels: null,
@@ -436,17 +522,16 @@ export function createAssistantModule(
         return;
       }
 
-      await mkdir(ASSISTANT_WORKSPACE, { recursive: true });
+      await mkdir(paths.workspace, { recursive: true });
       if (generation !== currentGeneration) return;
       // Reminders belong to the assistant lifecycle: their timers only run while it is started,
       // so a disabled assistant never pops notifications it cannot deliver.
       await reminders.start().catch((error) => {
-        console.error("[assistant] Failed to load reminders:", error);
+        console.error(`[assistant:${assistantId}] Failed to load reminders:`, error);
       });
       updateStatus({
         connectionStatus: "connecting",
         error: undefined,
-        sourceAgentId,
         enabled: true,
       });
 
@@ -454,14 +539,16 @@ export function createAssistantModule(
         agentInfo: {
           id: ASSISTANT_AGENT_ID,
           type: "assistant",
+          sessionId: assistantId,
+          storage,
           sourceAgent: agentInfo,
-          getMcpServers: () => buildAssistantMcpServers(ctx),
-          getDream: () => ctx.storage.getSettings().assistant.dream,
-          getName: () => ctx.storage.getSettings().assistant.name,
+          getMcpServers: () => buildAssistantMcpServers(ctx, runtimeConfig.mcpServers),
+          getDream: () => runtimeConfig.dream,
+          getName,
           reminders,
           worker: workerManager,
           askUser: (options) =>
-            deps.askUser.askUser({ sessionId: ASSISTANT_SESSION_ID, ...options }),
+            deps.askUser.askUser({ sessionId: assistantId, ...options }),
           shareToUser: deps.mcpDeps.shareToUser,
           filesystem: deps.filesystem,
           onDreamStatus: ({ dreaming, error }) => {
@@ -469,13 +556,13 @@ export function createAssistantModule(
             if (!dreaming) void drainWakes();
           },
         },
-        cwd: ASSISTANT_WORKSPACE,
+        cwd: paths.workspace,
         extNotificationSpecs,
         agentEnv,
         onSessionConnect: () => {},
         onSessionUpdate: (notification) => {
           void queuePersistAndPublish(notification).catch((error) => {
-            console.error("[assistant] Failed to persist notification:", error);
+            console.error(`[assistant:${assistantId}] Failed to persist notification:`, error);
           });
         },
         onExtNotification: (method, params) => {
@@ -483,13 +570,16 @@ export function createAssistantModule(
             const notifications = adapter.handleExtNotification(
               nextBridge,
               method,
-              ASSISTANT_SESSION_ID,
+              assistantId,
               params,
             );
             if (notifications.length > 0) {
               for (const notification of notifications) {
                 void queuePersistAndPublish(notification).catch((error) => {
-                  console.error("[assistant] Failed to persist notification:", error);
+                  console.error(
+                    `[assistant:${assistantId}] Failed to persist notification:`,
+                    error,
+                  );
                 });
               }
               return;
@@ -510,8 +600,8 @@ export function createAssistantModule(
           return;
         }
         const load = await nextBridge.loadSession({
-          sessionId: ASSISTANT_SESSION_ID,
-          cwd: ASSISTANT_WORKSPACE,
+          sessionId: assistantId,
+          cwd: paths.workspace,
           mcpServers: [],
         });
         if (generation !== currentGeneration || bridge !== nextBridge) {
@@ -520,9 +610,9 @@ export function createAssistantModule(
         }
         updateStatus({
           connectionStatus: "connected",
-          models: load.models ?? nextBridge.getModelState(ASSISTANT_SESSION_ID) ?? null,
+          models: load.models ?? nextBridge.getModelState(assistantId) ?? null,
           thoughtLevels:
-            load.thoughtLevels ?? nextBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? null,
+            load.thoughtLevels ?? nextBridge.getThoughtLevelState(assistantId) ?? null,
         });
         void drainWakes();
       } catch (error) {
@@ -534,11 +624,13 @@ export function createAssistantModule(
           error: error instanceof Error ? error.message : String(error),
         });
       }
-    })().finally(() => {
-      starting = null;
+    })();
+    starting = current;
+    void current.finally(() => {
+      if (starting === current) starting = null;
     });
 
-    return starting;
+    return current;
   }
 
   async function requireBridge(): Promise<ACPBridge> {
@@ -557,87 +649,114 @@ export function createAssistantModule(
     // Check and set the busy state with no await in between, so a user prompt and a reminder cannot both start.
     if (options.onlyIfIdle && (status.isStreaming || status.dreaming)) throw new AssistantBusyError();
     if (status.isStreaming) await cancelPrompt();
-    updateStatus({ isStreaming: true });
-    ctx.sendEvent("assistant-prompt-start", undefined);
+    updateStatus({ isStreaming: true, promptError: undefined });
+    ctx.sendEvent("assistant-prompt-start", { assistantId });
 
-    const messageSegment = await beginAssistantMessageTurn();
+    const messageSegment = await storage.beginMessageTurn();
     activeMessageSegment = messageSegment;
+    let stopReason: string | undefined;
+    let promptError: string | undefined;
     try {
       for (const content of contents) {
         await queuePersistAndPublish(
           {
-            sessionId: ASSISTANT_SESSION_ID,
+            sessionId: assistantId,
             update: { sessionUpdate: "user_message_chunk", content },
           },
           messageSegment,
         );
       }
       const result: PromptResult & { usage?: Usage | null } = await activeBridge.sendPrompt({
-        sessionId: ASSISTANT_SESSION_ID,
+        sessionId: assistantId,
         prompt: contents,
       });
+      stopReason = result.stopReason;
+      if (result.error) {
+        promptError = result.error;
+        updateStatus({ promptError });
+      }
       if (result.usage) updateStatus({ lastTurnUsage: result.usage });
       return result;
+    } catch (error) {
+      promptError = error instanceof Error ? error.message : String(error);
+      updateStatus({ promptError });
+      throw error;
     } finally {
       await notificationTail;
       // Flush any buffered reply even when the turn was interrupted (or started by a wake).
-      if (deps.ilink.getActiveSessionId() === ASSISTANT_SESSION_ID) {
+      if (deps.ilink.getActiveSessionId() === assistantId) {
         await flushIlinkReply(deps.ilink);
         flushIlinkMedia(deps.ilink);
       }
-      endAssistantMessageTurn(messageSegment);
-      if (activeMessageSegment?.id === messageSegment.id) {
+      storage.endMessageTurn(messageSegment);
+      if (activeMessageSegment === messageSegment) {
         activeMessageSegment = null;
       }
       updateStatus({ isStreaming: false });
-      ctx.sendEvent("assistant-prompt-end", undefined);
+      ctx.sendEvent("assistant-prompt-end", {
+        assistantId,
+        ...(stopReason ? { stopReason } : {}),
+        ...(promptError ? { error: promptError } : {}),
+      });
       void drainWakes();
     }
   }
 
   async function cancelPrompt(): Promise<void> {
     if (!bridge?.isConnected) return;
-    await bridge.cancel({ sessionId: ASSISTANT_SESSION_ID }).catch(() => {});
+    await bridge.cancel({ sessionId: assistantId }).catch(() => {});
   }
 
   async function setModel(modelId: string): Promise<void> {
     const activeBridge = await requireBridge();
-    await activeBridge.setSessionModel({ sessionId: ASSISTANT_SESSION_ID, modelId });
-    updateStatus({ models: activeBridge.getModelState(ASSISTANT_SESSION_ID) ?? status.models });
+    await activeBridge.setSessionModel({ sessionId: assistantId, modelId });
+    updateStatus({ models: activeBridge.getModelState(assistantId) ?? status.models });
   }
 
   async function setThoughtLevel(thoughtLevelId: string): Promise<void> {
     const activeBridge = await requireBridge();
     await activeBridge.setThoughtLevel({
-      sessionId: ASSISTANT_SESSION_ID,
+      sessionId: assistantId,
       thoughtLevelId,
     });
     updateStatus({
-      thoughtLevels:
-        activeBridge.getThoughtLevelState(ASSISTANT_SESSION_ID) ?? status.thoughtLevels,
+      thoughtLevels: activeBridge.getThoughtLevelState(assistantId) ?? status.thoughtLevels,
     });
   }
 
-  async function refreshConfiguration(): Promise<void> {
-    await cancelPrompt();
-    await stop();
-    await start();
-  }
-
-  async function stop(): Promise<void> {
+  async function stop(options: { shutdownWorkers?: boolean } = {}): Promise<void> {
     generation += 1;
     const activeBridge = bridge;
     bridge = null;
     starting = null;
     reminders.stop();
-    updateStatus({ connectionStatus: "disconnected", isStreaming: false });
+    if (drainRetry) {
+      clearTimeout(drainRetry);
+      drainRetry = null;
+    }
+    updateStatus({
+      connectionStatus: "disconnected",
+      isStreaming: false,
+      dreaming: false,
+      dreamError: undefined,
+      promptError: undefined,
+    });
     await activeBridge?.kill().catch(() => {});
+    if (options.shutdownWorkers) await workerManager.shutdown().catch(() => {});
   }
 
-  /**
-   * Final cleanup. Order matters: abort the assistant first (its ACP agent's
-   * abortAll runs when the bridge closes), then cancel every worker.
-   */
+  async function restart(): Promise<void> {
+    const config = manager.getConfig(assistantId);
+    runtimeConfig = {
+      sourceAgentId: config?.sourceAgentId ?? null,
+      mcpServers: [...(config?.mcpServers ?? [])],
+      dream: { ...(config?.dream ?? runtimeConfig.dream) },
+    };
+    await stop();
+    await start();
+  }
+
+  /** Final cleanup. Order matters: abort the assistant first, then cancel every worker. */
   async function shutdown(): Promise<void> {
     if (drainRetry) {
       clearTimeout(drainRetry);
@@ -651,24 +770,277 @@ export function createAssistantModule(
   return {
     start,
     stop,
+    restart,
     shutdown,
     getStatus: () => status,
     listReminders: async () => {
       // Loads reminders even before the assistant starts, so the calendar never shows an empty list.
       await reminders.load().catch((error) => {
-        console.error("[assistant] Failed to load reminders:", error);
+        console.error(`[assistant:${assistantId}] Failed to load reminders:`, error);
       });
       return { reminders: reminders.listAll(), timeZone: serverTimeZone() };
     },
-    listDiaries: () => listDiarySummaries(),
-    readDiary,
-    readMemory: readAssistantMemory,
+    listDiaries: () => listDiarySummaries(paths.diaryDir),
+    readDiary: (file: string) => readDiary(paths.diaryDir, file),
+    readMemory: async () => ({ content: await storage.loadMemory() }),
     listWorkers: () => workerManager.list(),
     getHistorySegment,
     sendPrompt,
     cancelPrompt,
     setModel,
     setThoughtLevel,
-    refreshConfiguration,
+  };
+}
+
+function nextAssistantName(existing: AssistantConfig[]): string {
+  // Same N as the create dialog placeholder. Duplicate names are allowed by design.
+  return t("assistant.defaultName", { n: existing.length + 1 });
+}
+
+export function createAssistantManager(
+  ctx: BackendContext,
+  deps: AssistantModuleDeps,
+): AssistantManager {
+  const configs = new Map<string, AssistantConfig>(
+    listAssistantConfigs().map((config) => [config.id, config]),
+  );
+  const runtimes = new Map<string, AssistantModule>();
+
+  const getConfig = (assistantId: string): AssistantConfig | null =>
+    configs.get(assistantId) ?? null;
+
+  function emitConfigs(): void {
+    ctx.sendEvent(
+      "assistants-changed",
+      [...configs.values()].sort(
+        (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+      ),
+    );
+  }
+
+  function ensureRuntime(config: AssistantConfig): AssistantModule {
+    const existing = runtimes.get(config.id);
+    if (existing) return existing;
+    const runtime = createAssistantRuntime(ctx, deps, { getConfig }, config);
+    runtimes.set(config.id, runtime);
+    return runtime;
+  }
+
+  function requireRuntime(assistantId: string): AssistantModule {
+    const config = configs.get(assistantId);
+    if (!config) throw new Error(`Assistant ${assistantId} does not exist.`);
+    return ensureRuntime(config);
+  }
+
+  function isGloballyEnabled(): boolean {
+    return ctx.storage.getSettings().assistant.enabled;
+  }
+
+  async function startAll(): Promise<void> {
+    if (!isGloballyEnabled()) return;
+    const tasks = [...configs.values()]
+      .filter((config) => !config.disabled)
+      .map(async (config) => {
+        try {
+          await ensureRuntime(config).start();
+        } catch (error) {
+          console.error(`[assistant:${config.id}] Failed to start:`, error);
+        }
+      });
+    await Promise.allSettled(tasks);
+  }
+
+  function validateDream(assistantId: string, config: AssistantConfig): void {
+    const agentId = config.sourceAgentId;
+    const agent = agentId
+      ? ctx.storage.getSettings().agents.find((candidate) => candidate.id === agentId)
+      : undefined;
+    const contextWindowTokens =
+      agent?.type === "api" ? (agent.contextWindowTokens ?? 128_000) : 128_000;
+    if (
+      !Number.isSafeInteger(config.dream.maxContextTokens) ||
+      config.dream.maxContextTokens <= 0 ||
+      config.dream.maxContextTokens > contextWindowTokens
+    ) {
+      throw new Error(
+        `Dream max context tokens must be a positive integer up to ${contextWindowTokens}.`,
+      );
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(config.dream.preferredTime)) {
+      throw new Error("Dream preferred time must use HH:mm format.");
+    }
+    void assistantId;
+  }
+
+  async function applySettingsChange(
+    previous: SettingsInfo,
+    current: SettingsInfo,
+  ): Promise<void> {
+    const enabledChanged = previous.assistant.enabled !== current.assistant.enabled;
+    if (enabledChanged) {
+      if (!current.assistant.enabled) {
+        await Promise.allSettled(
+          [...runtimes.values()].map((runtime) => runtime.shutdown()),
+        );
+        runtimes.clear();
+        return;
+      }
+      await startAll();
+    }
+    if (!current.assistant.enabled) return;
+
+    const changedAgents = new Set<string>();
+    const oldAgents = new Map(previous.agents.map((agent) => [agent.id, agent]));
+    const newAgents = new Map(current.agents.map((agent) => [agent.id, agent]));
+    for (const [id, oldAgent] of oldAgents) {
+      const newAgent = newAgents.get(id);
+      if (!newAgent || JSON.stringify(oldAgent) !== JSON.stringify(newAgent)) {
+        changedAgents.add(id);
+      }
+    }
+    for (const id of newAgents.keys()) {
+      if (!oldAgents.has(id)) changedAgents.add(id);
+    }
+
+    const changedMcp = new Set<string>();
+    const oldMcp = new Map(previous.mcpServers.map((server) => [server.id, server]));
+    const newMcp = new Map(current.mcpServers.map((server) => [server.id, server]));
+    for (const [id, oldServer] of oldMcp) {
+      const newServer = newMcp.get(id);
+      if (!newServer || JSON.stringify(oldServer) !== JSON.stringify(newServer)) {
+        changedMcp.add(id);
+      }
+    }
+    for (const id of newMcp.keys()) {
+      if (!oldMcp.has(id)) changedMcp.add(id);
+    }
+
+    for (const config of configs.values()) {
+      if (config.disabled) continue;
+      const runtime = runtimes.get(config.id);
+      if (!runtime) continue;
+      const agentChanged = config.sourceAgentId ? changedAgents.has(config.sourceAgentId) : false;
+      const mcpChanged = config.mcpServers.some((id) => changedMcp.has(id));
+      if (agentChanged || mcpChanged) {
+        await runtime.restart().catch((error) => {
+          console.error(`[assistant:${config.id}] Failed to apply settings:`, error);
+        });
+      }
+    }
+  }
+
+  return {
+    startAll,
+    shutdown: async () => {
+      await Promise.allSettled([...runtimes.values()].map((runtime) => runtime.shutdown()));
+      runtimes.clear();
+    },
+    isAssistantSession: (assistantId) => configs.has(assistantId),
+    listConfigs: () =>
+      [...configs.values()].sort(
+        (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+      ),
+    getConfig,
+    getStatus: (assistantId) => {
+      const config = configs.get(assistantId);
+      const runtime = runtimes.get(assistantId);
+      if (runtime) return runtime.getStatus();
+      return {
+        ...emptyStatus(config ?? null, assistantId),
+        enabled: !!config && !config.disabled && isGloballyEnabled(),
+      };
+    },
+    start: async (assistantId) => {
+      await requireRuntime(assistantId).start();
+    },
+    create: async (input) => {
+      const config = createAssistantConfig({
+        ...input,
+        name: input.name?.trim() || nextAssistantName([...configs.values()]),
+      });
+      configs.set(config.id, config);
+      emitConfigs();
+      if (!config.disabled && isGloballyEnabled()) {
+        await ensureRuntime(config).start().catch((error) => {
+          console.error(`[assistant:${config.id}] Failed to start:`, error);
+        });
+      }
+      return config;
+    },
+    updateConfig: async (assistantId, patch) => {
+      if (!configs.has(assistantId)) {
+        throw new Error(`Assistant ${assistantId} does not exist.`);
+      }
+      const next = updateAssistantConfig(assistantId, patch);
+      configs.set(assistantId, next);
+      emitConfigs();
+      const runtime = runtimes.get(assistantId);
+      if (patch.disabled === true) {
+        if (runtime) {
+          await runtime.shutdown().catch(() => {});
+          runtimes.delete(assistantId);
+        }
+      } else if (patch.disabled === false) {
+        await ensureRuntime(next)
+          .start()
+          .catch((error) => {
+            console.error(`[assistant:${assistantId}] Failed to start:`, error);
+          });
+      }
+      return next;
+    },
+    restart: async (assistantId, patch) => {
+      const current = configs.get(assistantId) ?? loadAssistantConfig(assistantId);
+      if (!current) throw new Error(`Assistant ${assistantId} does not exist.`);
+      let next = current;
+      if (patch) {
+        const candidate: AssistantConfig = {
+          ...current,
+          ...patch,
+          dream: { ...(patch.dream ?? current.dream) },
+        };
+        validateDream(assistantId, candidate);
+        next = updateAssistantConfig(assistantId, patch);
+        configs.set(assistantId, next);
+      }
+      emitConfigs();
+      const runtime = runtimes.get(assistantId);
+      if (runtime) {
+        await runtime.restart();
+      } else if (!next.disabled && isGloballyEnabled()) {
+        await ensureRuntime(next).start().catch((error) => {
+          console.error(`[assistant:${assistantId}] Failed to start:`, error);
+        });
+      }
+      return next;
+    },
+    delete: async (assistantId) => {
+      if (!configs.has(assistantId)) throw new Error(`Assistant ${assistantId} does not exist.`);
+      const runtime = runtimes.get(assistantId);
+      if (runtime) {
+        await runtime.shutdown().catch(() => {});
+        runtimes.delete(assistantId);
+      }
+      configs.delete(assistantId);
+      try {
+        deleteAssistantData(assistantId);
+      } finally {
+        emitConfigs();
+      }
+    },
+    applySettingsChange,
+    listReminders: (assistantId) => requireRuntime(assistantId).listReminders(),
+    listDiaries: (assistantId) => requireRuntime(assistantId).listDiaries(),
+    readDiary: (assistantId, file) => requireRuntime(assistantId).readDiary(file),
+    readMemory: (assistantId) => requireRuntime(assistantId).readMemory(),
+    listWorkers: (assistantId) => requireRuntime(assistantId).listWorkers(),
+    getHistorySegment: (assistantId, params) =>
+      requireRuntime(assistantId).getHistorySegment(params),
+    sendPrompt: (assistantId, contents, options) =>
+      requireRuntime(assistantId).sendPrompt(contents, options),
+    cancelPrompt: (assistantId) => requireRuntime(assistantId).cancelPrompt(),
+    setModel: (assistantId, modelId) => requireRuntime(assistantId).setModel(modelId),
+    setThoughtLevel: (assistantId, thoughtLevelId) =>
+      requireRuntime(assistantId).setThoughtLevel(thoughtLevelId),
   };
 }

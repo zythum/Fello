@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
-import { ASSISTANT_SESSION_ID } from "../assistant/constants";
+import type { AssistantConfig } from "../shared/schema";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
+import { disposeAssistantHistory } from "./lib/assistant-lifecycle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
@@ -49,6 +50,8 @@ function AppContent() {
   const setPeripherals = useAppStore((s) => s.setPeripherals);
   const setProxy = useAppStore((s) => s.setProxy);
   const setAssistant = useAppStore((s) => s.setAssistant);
+  const setAssistants = useAppStore((s) => s.setAssistants);
+  const setAssistantStatus = useAppStore((s) => s.setAssistantStatus);
   const setIsFullScreen = useAppStore((s) => s.setIsFullScreen);
   const setIlinkStatus = useAppStore((s) => s.setIlinkStatus);
   const setActiveIlinkSessionId = useAppStore((s) => s.setActiveIlinkSessionId);
@@ -89,17 +92,26 @@ function AppContent() {
 
   useEffect(() => {
     async function loadData() {
-      const [projects, sessions, settings, webUIStatus, ilinkStatus, ilinkActive] =
-        await Promise.all([
-          request.listProjects(),
-          request.listSessions(),
-          request.getSettings(),
-          request.getWebUIStatus(),
-          request.getIlinkStatus(),
-          request.getActiveIlinkSession(),
-        ]);
+      const [
+        projects,
+        sessions,
+        settings,
+        webUIStatus,
+        ilinkStatus,
+        ilinkActive,
+        assistants,
+      ] = await Promise.all([
+        request.listProjects(),
+        request.listSessions(),
+        request.getSettings(),
+        request.getWebUIStatus(),
+        request.getIlinkStatus(),
+        request.getActiveIlinkSession(),
+        request.listAssistants(),
+      ]);
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
+      setAssistants(assistants ?? []);
       setConfiguredAgents(settings.agents);
       setConfiguredMcpServers(settings.mcpServers);
       setFeatures(settings.features);
@@ -132,21 +144,29 @@ function AppContent() {
           // ignore
         }
       }
-      // 个人助理是伪会话，不在 sessions 列表里，单独恢复它的 pending 请求。
-      try {
-        const pending = await request.getPendingAskUserRequests({
-          sessionId: ASSISTANT_SESSION_ID,
-        });
-        if (pending.length > 0) {
-          if (!useAppStore.getState().sessionStates.has(ASSISTANT_SESSION_ID)) {
-            useAppStore.getState().resetSessionState(ASSISTANT_SESSION_ID);
-          }
-          for (const req of pending) {
-            useAppStore.getState().addAskUserRequest(ASSISTANT_SESSION_ID, req);
-          }
+      // 个人助理是伪会话，不在 sessions 列表里，逐个恢复状态与 pending 请求。
+      for (const assistant of assistants ?? []) {
+        try {
+          const status = await request.getAssistantStatus({ assistantId: assistant.id });
+          setAssistantStatus(assistant.id, status);
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
+        try {
+          const pending = await request.getPendingAskUserRequests({
+            sessionId: assistant.id,
+          });
+          if (pending.length > 0) {
+            if (!useAppStore.getState().sessionStates.has(assistant.id)) {
+              useAppStore.getState().resetSessionState(assistant.id);
+            }
+            for (const req of pending) {
+              useAppStore.getState().addAskUserRequest(assistant.id, req);
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
 
       tiks.init();
@@ -180,6 +200,8 @@ function AppContent() {
     setPeripherals,
     setProxy,
     setAssistant,
+    setAssistants,
+    setAssistantStatus,
     setIlinkStatus,
     setActiveIlinkSessionId,
   ]);
@@ -294,7 +316,10 @@ function AppContent() {
       const sid = detail.sessionId;
       if (!sid) return;
       // 助理页面关闭时它的 store 桶可能不存在，必须先建桶，否则请求会被丢弃。
-      if (sid === ASSISTANT_SESSION_ID && !useAppStore.getState().sessionStates.has(sid)) {
+      const isAssistant = useAppStore
+        .getState()
+        .assistants.some((assistant) => assistant.id === sid);
+      if (isAssistant && !useAppStore.getState().sessionStates.has(sid)) {
         useAppStore.getState().resetSessionState(sid);
       }
       useAppStore.getState().addAskUserRequest(sid, detail);
@@ -312,8 +337,12 @@ function AppContent() {
       navigate(`/session-view/${detail.sessionId}`);
     };
 
-    const handleOpenAssistantRequested = () => {
-      navigate("/assistant");
+    const handleOpenAssistantRequested = (detail: BackendEvents["open-assistant-requested"]) => {
+      if (!detail?.assistantId) return;
+      const store = useAppStore.getState();
+      const assistant = store.assistants.find((item) => item.id === detail.assistantId);
+      if (!assistant || assistant.disabled || !store.assistant.enabled) return;
+      navigate(`/assistant/${detail.assistantId}`);
     };
 
     const handleAgentTerminalOutput = (detail: BackendEvents["agent-terminal-output"]) => {
@@ -347,6 +376,33 @@ function AppContent() {
       }
     };
 
+    const handleAssistantStatusChanged = (
+      detail: BackendEvents["assistant-status-changed"],
+    ) => {
+      useAppStore.getState().setAssistantStatus(detail.assistantId, detail.status);
+    };
+
+    const handleAssistantPromptStart = (
+      detail: BackendEvents["assistant-prompt-start"],
+    ) => {
+      const store = useAppStore.getState();
+      if (!store.sessionStates.has(detail.assistantId)) return;
+      store.updateSessionState(detail.assistantId, () => ({
+        completedAt: null,
+        completedStatus: null,
+      }));
+    };
+
+    const handleAssistantPromptEnd = (detail: BackendEvents["assistant-prompt-end"]) => {
+      const store = useAppStore.getState();
+      if (!store.sessionStates.has(detail.assistantId)) return;
+      const isSuccess = !detail.error && detail.stopReason === "end_turn";
+      store.updateSessionState(detail.assistantId, () => ({
+        completedAt: detail.error ? null : Date.now(),
+        completedStatus: detail.error ? null : isSuccess ? "success" : "error",
+      }));
+    };
+
     let currentProjectsFetchId = 0;
     const handleProjectsChanged = async () => {
       const fetchId = ++currentProjectsFetchId;
@@ -367,32 +423,61 @@ function AppContent() {
       store.setSessions(nextSessions);
 
       const sessionIds = new Set(nextSessions.map((s) => s.id));
+      const liveIds = new Set(useAppStore.getState().assistants.map((a) => a.id));
+      for (const sessionId of sessionIds) liveIds.add(sessionId);
 
       // Only update sessionStates if entries were actually removed
       const currentStates = store.sessionStates;
       let hasStale = false;
       for (const sid of currentStates.keys()) {
-        if (!sessionIds.has(sid)) {
+        if (!liveIds.has(sid)) {
           hasStale = true;
           break;
         }
       }
       if (hasStale) {
         const nextStates = new Map(
-          Array.from(currentStates.entries()).filter(([sid]) => sessionIds.has(sid)),
+          Array.from(currentStates.entries()).filter(([sid]) => liveIds.has(sid)),
         );
         useAppStore.setState({ sessionStates: nextStates });
       }
 
       // 同步清理 pendingSessionUpdatesRef 中已删除的会话
       for (const sid of pendingSessionNotificationRef.current.keys()) {
-        if (!sessionIds.has(sid)) {
+        if (!liveIds.has(sid)) {
           pendingSessionNotificationRef.current.delete(sid);
         }
       }
 
       if (currentActiveSessionId && !sessionIds.has(currentActiveSessionId)) {
         navigate("/");
+      }
+    };
+
+    const handleAssistantsChanged = (list: AssistantConfig[]) => {
+      const store = useAppStore.getState();
+      const previousIds = new Set(store.assistants.map((assistant) => assistant.id));
+      store.setAssistants(list ?? []);
+      const nextIds = new Set((list ?? []).map((assistant) => assistant.id));
+      const removed = [...previousIds].filter((id) => !nextIds.has(id));
+      if (removed.length > 0) {
+        const states = new Map(useAppStore.getState().sessionStates);
+        const statuses = new Map(useAppStore.getState().assistantStatuses);
+        for (const id of removed) {
+          states.delete(id);
+          statuses.delete(id);
+          disposeAssistantHistory(id);
+        }
+        useAppStore.setState({ sessionStates: states, assistantStatuses: statuses });
+      }
+      const path = window.location.hash.replace(/^#/, "");
+      const match = path.match(/^\/assistant\/([^/?#]+)/);
+      if (match) {
+        const assistantId = decodeURIComponent(match[1]);
+        const target = (list ?? []).find((assistant) => assistant.id === assistantId);
+        if (!target || target.disabled || !useAppStore.getState().assistant.enabled) {
+          navigate("/", { replace: true });
+        }
       }
     };
 
@@ -415,6 +500,10 @@ function AppContent() {
     subscribe.on("ask-user-response", handleAskUserResponse);
     subscribe.on("open-session-requested", handleOpenSessionRequested);
     subscribe.on("open-assistant-requested", handleOpenAssistantRequested);
+    subscribe.on("assistants-changed", handleAssistantsChanged);
+    subscribe.on("assistant-status-changed", handleAssistantStatusChanged);
+    subscribe.on("assistant-prompt-start", handleAssistantPromptStart);
+    subscribe.on("assistant-prompt-end", handleAssistantPromptEnd);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -560,6 +649,10 @@ function AppContent() {
       subscribe.off("ask-user-response", handleAskUserResponse);
       subscribe.off("open-session-requested", handleOpenSessionRequested);
       subscribe.off("open-assistant-requested", handleOpenAssistantRequested);
+      subscribe.off("assistants-changed", handleAssistantsChanged);
+      subscribe.off("assistant-status-changed", handleAssistantStatusChanged);
+      subscribe.off("assistant-prompt-start", handleAssistantPromptStart);
+      subscribe.off("assistant-prompt-end", handleAssistantPromptEnd);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);

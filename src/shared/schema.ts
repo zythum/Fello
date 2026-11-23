@@ -202,7 +202,31 @@ export interface SessionThoughtLevelState {
   currentThoughtLevelId: string;
 }
 
-/** Runtime state for Fello's single built-in personal assistant. */
+/**
+ * Per-assistant persisted configuration (`~/.fello/assistants/<id>/config.json`).
+ *
+ * Runtime-only fields (model, thought level, dream progress) stay in the adjacent
+ * `agent/session.json`; this file is owned by the backend.
+ */
+export interface AssistantConfig {
+  /** Stable assistant id; doubles as the pseudo session id. Must not contain ":". */
+  id: string;
+  /** Display name; never empty when created through the app. */
+  name: string;
+  /** Disabled assistants keep their data but never start bridge/reminders/workers. */
+  disabled: boolean;
+  createdAt: number;
+  /** Enabled OpenAI-compatible API agent id; null means not configured yet. */
+  sourceAgentId: string | null;
+  /** Global MCP server ids available to this assistant. */
+  mcpServers: string[];
+  dream: {
+    maxContextTokens: number;
+    preferredTime: string;
+  };
+}
+
+/** Runtime state for one personal assistant. */
 export interface AssistantStatus {
   connectionStatus: "connecting" | "connected" | "disconnected" | "error";
   error?: string;
@@ -464,22 +488,11 @@ export interface SettingAssistantWorkerType {
   instructions: string;
 }
 
-/** Personal Assistant 的全局配置。 */
+/** Personal Assistant 的全局配置（所有助理共享）。 */
 export interface SettingAssistantInfo {
-  /**
-   * 个人助理的显示名称。
-   * 空字符串表示使用默认的本地化名称（「个人助理」/ "Personal Assistant"）。
-   */
-  name: string;
+  /** 全局开关：关闭后所有个人助理都不启动，侧边栏分区隐藏。 */
   enabled: boolean;
-  sourceAgentId: string | null;
-  /** 助理自身可使用的全局 MCP server id 列表（与 workerTypes[].mcpServers 独立）。 */
-  mcpServers: string[];
-  dream: {
-    maxContextTokens: number;
-    preferredTime: string;
-  };
-  /** 助理可创建的 worker 类型（专家模式）；数组顺序仅用于 UI 排序。 */
+  /** 所有个人助理共享的 worker 类型（专家模式）；数组顺序仅用于 UI 排序。 */
   workerTypes: SettingAssistantWorkerType[];
 }
 
@@ -963,23 +976,42 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: { filename: string; json: string };
   };
-  /** 获取内建个人助理状态。 */
-  getAssistantStatus: { params: void; response: AssistantStatus };
+  /** 获取所有个人助理的配置列表（按创建时间升序）。 */
+  listAssistants: { params: void; response: AssistantConfig[] };
+  /** 创建一个个人助理，并返回它的配置。 */
+  createAssistant: {
+    params: { name?: string; sourceAgentId: string; mcpServers: string[] };
+    response: AssistantConfig;
+  };
+  /** 立即更新名称 / disabled（仅这两个字段立即生效）。 */
+  updateAssistantConfig: {
+    params: { assistantId: string; patch: { name?: string; disabled?: boolean } };
+    response: AssistantConfig;
+  };
+  /** 删除个人助理及其全部数据目录。 */
+  deleteAssistant: { params: { assistantId: string }; response: void };
+  /** 获取指定个人助理的状态。 */
+  getAssistantStatus: { params: { assistantId: string }; response: AssistantStatus };
+  /** 获取助理数据目录（config.json / agent / diary / session）的绝对路径。 */
+  getAssistantDataSystemPath: { params: { assistantId: string }; response: string };
   /** 获取助理当前的所有 worker 及其状态。 */
-  listAssistantWorkers: { params: void; response: AssistantWorkerInfo[] };
+  listAssistantWorkers: { params: { assistantId: string }; response: AssistantWorkerInfo[] };
   /** 获取个人助理的全部提醒（含已停用）。 */
-  listAssistantReminders: { params: void; response: AssistantReminderList };
+  listAssistantReminders: { params: { assistantId: string }; response: AssistantReminderList };
   /** 获取个人助理的全部日记条目（新的在前）。 */
-  listAssistantDiaries: { params: void; response: AssistantDiary[] };
+  listAssistantDiaries: { params: { assistantId: string }; response: AssistantDiary[] };
   /** 读取一篇日记的原始 Markdown。 */
   readAssistantDiary: {
-    params: { file: string };
+    params: { assistantId: string; file: string };
     response: { file: string; content: string; truncated: boolean };
   };
   /** 读取助理长期记忆 memory.md 的原始 Markdown；文件不存在时返回空字符串。 */
-  readAssistantMemory: { params: void; response: { content: string } };
+  readAssistantMemory: {
+    params: { assistantId: string };
+    response: { content: string };
+  };
   getAssistantHistorySegment: {
-    params: { segmentId?: number };
+    params: { assistantId: string; segmentId?: number };
     response: {
       segmentId: number;
       previousSegmentId?: number;
@@ -988,17 +1020,29 @@ export type FelloIPCRequests = {
   };
   /** 向内建个人助理发送用户输入。 */
   sendAssistantPrompt: {
-    params: { contents: ContentBlock[] };
+    params: { assistantId: string; contents: ContentBlock[] };
     response: { stopReason: string; usage?: Usage | null; error?: string };
   };
   /** 取消内建个人助理正在生成的回复。 */
-  cancelAssistantPrompt: { params: void; response: void };
+  cancelAssistantPrompt: { params: { assistantId: string }; response: void };
   /** 更新内建个人助理当前模型。 */
-  setAssistantModel: { params: { modelId: string }; response: void };
+  setAssistantModel: { params: { assistantId: string; modelId: string }; response: void };
   /** 更新内建个人助理当前思考等级。 */
-  setAssistantThoughtLevel: { params: { thoughtLevelId: string }; response: void };
-  /** 重启个人助理 bridge，使配置变更生效。 */
-  restartAssistant: { params: void; response: void };
+  setAssistantThoughtLevel: {
+    params: { assistantId: string; thoughtLevelId: string };
+    response: void;
+  };
+  /**
+   * 写入新的配置并重启个人助理 bridge。
+   * 这是 header 配置（来源 Agent / MCP / Dream）唯一的生效入口；不调用则改动只存在于 UI。
+   */
+  restartAssistant: {
+    params: {
+      assistantId: string;
+      config?: Pick<AssistantConfig, "sourceAgentId" | "mcpServers" | "dream">;
+    };
+    response: AssistantConfig;
+  };
   /** 向会话发送用户 Prompt */
   sendPrompt: {
     params: {
@@ -1375,16 +1419,22 @@ export type FelloIPCRequests = {
  * 包含从后端（Main）推送到前端（Renderer/Web）的所有事件及其载荷类型
  */
 export type FelloIPCEvents = {
-  /** 内建个人助理的 ACP 流式通知。 */
-  "assistant-update": { notification: SessionNotificationFelloExt };
-  /** 内建个人助理的连接、模型和流式状态变更。 */
-  "assistant-status-changed": { status: AssistantStatus };
+  /** 个人助理列表或配置（名称 / disabled / 删除）发生变更。 */
+  "assistants-changed": AssistantConfig[];
+  /** 某个个人助理的 ACP 流式通知。 */
+  "assistant-update": { assistantId: string; notification: SessionNotificationFelloExt };
+  /** 某个个人助理的连接、模型和流式状态变更。 */
+  "assistant-status-changed": { assistantId: string; status: AssistantStatus };
   /** 个人助理提醒的任何变更后推送完整列表。 */
-  "assistant-reminders-changed": AssistantReminderList;
+  "assistant-reminders-changed": { assistantId: string } & AssistantReminderList;
   /** 个人助理 worker 列表或状态变更后推送完整列表。 */
-  "assistant-workers-changed": AssistantWorkerInfo[];
-  "assistant-prompt-start": undefined;
-  "assistant-prompt-end": undefined;
+  "assistant-workers-changed": { assistantId: string; workers: AssistantWorkerInfo[] };
+  "assistant-prompt-start": { assistantId: string };
+  "assistant-prompt-end": {
+    assistantId: string;
+    stopReason?: string;
+    error?: string;
+  };
 
   /** 单个会话配置或元数据发生变更时触发（如改名、切换模型），用于前端进行原子级 UI 更新 */
   "session-changed": { session: SessionInfo };
@@ -1396,10 +1446,17 @@ export type FelloIPCEvents = {
   "ask-user-response": AskUserResponse;
   /** Electron 原生通知点击后，请求 renderer 打开对应 session */
   "open-session-requested": { sessionId: string };
-  /** 点击提醒的系统通知后，请求前端打开个人助理页面。 */
-  "open-assistant-requested": undefined;
+  /** 点击提醒的系统通知后，请求前端打开对应的个人助理页面。 */
+  "open-assistant-requested": { assistantId: string };
   /** 个人助理提醒到点时发出，由主进程决定是否显示系统通知。 */
-  "assistant-reminder-due": { id: string; text: string; dueAt: number };
+  "assistant-reminder-due": {
+    assistantId: string;
+    /** Assistant display name, used as the native notification title. */
+    name: string;
+    id: string;
+    text: string;
+    dueAt: number;
+  };
   /** 终端输出数据的事件 */
   "terminal-output": { terminalId: string; data: string };
   /** 终端退出的事件 */

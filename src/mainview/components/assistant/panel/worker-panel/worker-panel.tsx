@@ -36,18 +36,18 @@ const CONNECTION_FALLBACKS: Record<AssistantWorkerInfo["connectionStatus"], stri
   disconnected: "Disconnected",
 };
 
-export function WorkerPanel() {
+export function WorkerPanel({ assistantId }: { assistantId: string }) {
   const { t } = useTranslation();
   const [workers, setWorkers] = useState<AssistantWorkerInfo[] | null>(null);
 
   useEffect(() => {
     let active = true;
-    const onChanged = (list: AssistantWorkerInfo[]) => {
-      if (active) setWorkers(list);
+    const onChanged = (payload: { assistantId: string; workers: AssistantWorkerInfo[] }) => {
+      if (active && payload.assistantId === assistantId) setWorkers(payload.workers);
     };
     subscribe.on("assistant-workers-changed", onChanged);
     void request
-      .listAssistantWorkers()
+      .listAssistantWorkers({ assistantId })
       .then((list) => {
         if (active) setWorkers(list);
       })
@@ -58,7 +58,7 @@ export function WorkerPanel() {
       active = false;
       subscribe.off("assistant-workers-changed", onChanged);
     };
-  }, []);
+  }, [assistantId]);
 
   if (workers === null) {
     return (

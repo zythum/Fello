@@ -2,7 +2,6 @@ import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import { generateText, isStepCount, tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
-import { DIARY_DIR } from "./dream";
 import type { ToolUpdateSender } from "./tool-updates";
 
 /** Diary files are named by their period: `<start>--<end>.md`, written by Dream. */
@@ -23,7 +22,7 @@ type DiaryEntry = {
   content: string;
 };
 
-/** Accepts only a bare diary file name, so no path can leave DIARY_DIR. */
+/** Accepts only a bare diary file name, so no path can leave the assistant's diary dir. */
 function assertDiaryFileName(file: string): string {
   if (!DIARY_FILE_PATTERN.test(file)) {
     throw new Error("Invalid diary file name. Use a name returned by list_diaries.");
@@ -44,10 +43,10 @@ function diaryTitle(content: string): string | null {
 }
 
 /** All diary entries, newest first. Missing directory means no entries yet. */
-async function loadDiaryEntries(): Promise<DiaryEntry[]> {
+async function loadDiaryEntries(diaryDir: string): Promise<DiaryEntry[]> {
   let names: string[];
   try {
-    names = await readdir(DIARY_DIR);
+    names = await readdir(diaryDir);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
@@ -58,7 +57,7 @@ async function loadDiaryEntries(): Promise<DiaryEntry[]> {
     .reverse();
   const entries: DiaryEntry[] = [];
   for (const file of files.slice(0, MAX_FILES_SCANNED)) {
-    const content = await readFile(join(DIARY_DIR, file), "utf8");
+    const content = await readFile(join(diaryDir, file), "utf8");
     entries.push({
       file,
       title: diaryTitle(content),
@@ -70,10 +69,12 @@ async function loadDiaryEntries(): Promise<DiaryEntry[]> {
   return entries;
 }
 
-export async function listDiaries(): Promise<
+export async function listDiaries(
+  diaryDir: string,
+): Promise<
   { file: string; title: string | null; startTime: string | null; endTime: string | null }[]
 > {
-  const entries = await loadDiaryEntries();
+  const entries = await loadDiaryEntries(diaryDir);
   return entries
     .slice(0, MAX_LIST_RESULTS)
     .map(({ file, title, startTime, endTime }) => ({ file, title, startTime, endTime }));
@@ -98,8 +99,8 @@ function localFileTime(match: RegExpExecArray, offset: number): number {
 }
 
 /** Diary entries with numeric period bounds, newest first, for the assistant's Calendar panel. */
-export async function listDiarySummaries(): Promise<DiarySummary[]> {
-  const entries = await loadDiaryEntries();
+export async function listDiarySummaries(diaryDir: string): Promise<DiarySummary[]> {
+  const entries = await loadDiaryEntries(diaryDir);
   const summaries: DiarySummary[] = [];
   for (const entry of entries.slice(0, MAX_LIST_RESULTS)) {
     const match = DIARY_FILE_TIME_PARTS.exec(entry.file);
@@ -115,12 +116,13 @@ export async function listDiarySummaries(): Promise<DiarySummary[]> {
 }
 
 export async function grepDiaries(
+  diaryDir: string,
   query: string,
   limit: number,
 ): Promise<{ file: string; line: number; text: string }[]> {
   const needle = query.toLowerCase();
   const matches: { file: string; line: number; text: string }[] = [];
-  for (const entry of await loadDiaryEntries()) {
+  for (const entry of await loadDiaryEntries(diaryDir)) {
     const lines = entry.content.split("\n");
     for (let index = 0; index < lines.length; index += 1) {
       if (!lines[index].toLowerCase().includes(needle)) continue;
@@ -136,10 +138,11 @@ export async function grepDiaries(
 }
 
 export async function readDiary(
+  diaryDir: string,
   file: string,
 ): Promise<{ file: string; content: string; truncated: boolean }> {
   const name = assertDiaryFileName(file);
-  const content = await readFile(join(DIARY_DIR, name), "utf8");
+  const content = await readFile(join(diaryDir, name), "utf8");
   return {
     file: name,
     content: content.slice(0, MAX_READ_CHARS),
@@ -147,14 +150,14 @@ export async function readDiary(
   };
 }
 
-/** Read-only tools for the diary sub-agent. They only reach DIARY_DIR. */
-function createDiaryTools(): ToolSet {
+/** Read-only tools for the diary sub-agent. They only reach the assistant's diary dir. */
+function createDiaryTools(diaryDir: string): ToolSet {
   return {
     list_diaries: tool({
       description:
         "List diary entries, newest first, with their title and start and end times. Use the title and tags to pick candidates before reading a full entry.",
       inputSchema: z.object({}),
-      execute: async () => listDiaries(),
+      execute: async () => listDiaries(diaryDir),
     }),
     grep_diaries: tool({
       description:
@@ -173,7 +176,7 @@ function createDiaryTools(): ToolSet {
           .optional()
           .describe("Maximum matches to return."),
       }),
-      execute: async ({ query, limit }) => grepDiaries(query, limit ?? 20),
+      execute: async ({ query, limit }) => grepDiaries(diaryDir, query, limit ?? 20),
     }),
     read_diary: tool({
       description:
@@ -183,7 +186,7 @@ function createDiaryTools(): ToolSet {
           .string()
           .describe("Diary file name, for example 2026-11-19_12-28--2026-11-19_13-58.md"),
       }),
-      execute: async ({ file }) => readDiary(file),
+      execute: async ({ file }) => readDiary(diaryDir, file),
     }),
   };
 }
@@ -205,16 +208,18 @@ export async function runDiaryQuery({
   model,
   question,
   abortSignal,
+  diaryDir,
 }: {
   model: LanguageModel;
   question: string;
   abortSignal?: AbortSignal;
+  diaryDir: string;
 }): Promise<string> {
   const result = await generateText({
     model,
     system: DIARY_SUB_AGENT_SYSTEM,
     prompt: `Question: ${question}`,
-    tools: createDiaryTools(),
+    tools: createDiaryTools(diaryDir),
     stopWhen: isStepCount(SUB_AGENT_MAX_STEPS),
     maxOutputTokens: 2_000,
     abortSignal,
@@ -226,9 +231,11 @@ export async function runDiaryQuery({
 export function createDiaryQueryTool({
   getModel,
   sendUpdate,
+  diaryDir,
 }: {
   getModel: () => LanguageModel;
   sendUpdate: ToolUpdateSender;
+  diaryDir: string;
 }) {
   return tool({
     description:
@@ -250,7 +257,7 @@ export function createDiaryQueryTool({
         rawInput: { question },
       });
       try {
-        const answer = await runDiaryQuery({ model: getModel(), question, abortSignal });
+        const answer = await runDiaryQuery({ model: getModel(), question, abortSignal, diaryDir });
         await sendUpdate({
           sessionUpdate: "tool_call_update",
           toolCallId,

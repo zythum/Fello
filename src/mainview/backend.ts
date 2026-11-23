@@ -121,6 +121,7 @@ export const subscribe = { on, off };
 
 bridge.on("session-changed", (payload) => emit("session-changed", payload));
 bridge.on("session-update", (payload) => emit("session-update", payload));
+bridge.on("assistants-changed", (payload) => emit("assistants-changed", payload));
 bridge.on("assistant-update", (payload) => emit("assistant-update", payload));
 bridge.on("assistant-status-changed", (payload) => emit("assistant-status-changed", payload));
 bridge.on("assistant-reminders-changed", (payload) => emit("assistant-reminders-changed", payload));

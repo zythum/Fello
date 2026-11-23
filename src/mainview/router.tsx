@@ -109,6 +109,28 @@ function SessionWrapper() {
   return <Session session={sessionInfo} />;
 }
 
+function AssistantWrapper() {
+  const { assistantId } = useParams<{ assistantId: string }>();
+  const assistants = useAppStore((s) => s.assistants);
+  const assistantsReady = useAppStore((s) => s.assistantsReady);
+  const assistantEnabled = useAppStore((s) => s.assistant.enabled);
+  const navigate = useNavigate();
+  const assistant = assistants.find((item) => item.id === assistantId);
+
+  useEffect(() => {
+    if (!assistantsReady) return;
+    if (!assistantId || !assistant || assistant.disabled || !assistantEnabled) {
+      navigate("/", { replace: true });
+    }
+  }, [assistant, assistantEnabled, assistantId, assistantsReady, navigate]);
+
+  if (!assistantsReady || !assistantId || !assistant || assistant.disabled || !assistantEnabled) {
+    return null;
+  }
+
+  return <Assistant key={assistant.id} assistantId={assistant.id} />;
+}
+
 export function AppRouter() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
@@ -122,7 +144,7 @@ export function AppRouter() {
       <Suspense fallback={<div className="flex-1 bg-background" />}>
         <Routes>
           <Route path="/" element={<Welcome />} />
-          <Route path="/assistant" element={<Assistant />} />
+          <Route path="/assistant/:assistantId" element={<AssistantWrapper />} />
           <Route path="/session-view/:sessionId" element={<SessionWrapper />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route path="general" element={<SettingsGeneral />} />

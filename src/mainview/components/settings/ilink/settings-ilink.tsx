@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/store";
 import { request, subscribe } from "@/backend";
-import { ASSISTANT_SESSION_ID } from "../../../../assistant/constants";
 import { electron } from "@/electron";
 import { openGuide } from "@/lib/open-guide";
 import {
@@ -36,9 +35,11 @@ export function SettingsILink() {
   const ilink = useAppStore((s) => s.ilink);
   const setIlink = useAppStore((s) => s.setIlink);
   const assistantEnabled = useAppStore((s) => s.assistant.enabled);
-  const assistantName = useAppStore((s) => s.assistant.name);
-  const assistantLabel =
-    assistantName?.trim() || t("settings.ilink.personalAssistant", "Personal Assistant");
+  const assistants = useAppStore((s) => s.assistants);
+  const selectableAssistants = assistantEnabled
+    ? assistants.filter((assistant) => !assistant.disabled)
+    : [];
+  const activeAssistant = assistants.find((assistant) => assistant.id === activeIlinkSessionId);
 
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginHint, setLoginHint] = useState<string>("");
@@ -319,19 +320,24 @@ export function SettingsILink() {
                   <SelectValue
                     placeholder={t("settings.ilink.selectSession", "-- Select a session --")}
                   >
-                    {activeIlinkSessionId === ASSISTANT_SESSION_ID
-                      ? assistantLabel
-                      : sessions.find((session) => session.id === activeIlinkSessionId)?.title}
+                    {activeAssistant?.name ??
+                      sessions.find((session) => session.id === activeIlinkSessionId)?.title}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="">{t("settings.ilink.none", "-- None --")}</SelectItem>
                   </SelectGroup>
-                  {assistantEnabled && (
+                  {selectableAssistants.length > 0 && (
                     <SelectGroup>
-                      <SelectLabel>{assistantLabel}</SelectLabel>
-                      <SelectItem value={ASSISTANT_SESSION_ID}>{assistantLabel}</SelectItem>
+                      <SelectLabel>
+                        {t("settings.ilink.personalAssistant", "Personal Assistant")}
+                      </SelectLabel>
+                      {selectableAssistants.map((assistant) => (
+                        <SelectItem key={assistant.id} value={assistant.id}>
+                          {assistant.name}
+                        </SelectItem>
+                      ))}
                     </SelectGroup>
                   )}
                   {ilinkSessionGroups.map((group) => (

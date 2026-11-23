@@ -103,8 +103,10 @@ const NO_REMINDERS: Reminder[] = [];
 const NO_DIARIES: AssistantDiary[] = [];
 
 export function CalendarPanel({
+  assistantId,
   onOpenDiary,
 }: {
+  assistantId: string;
   onOpenDiary: (diary: AssistantDiary, timeZone: string) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -124,12 +126,12 @@ export function CalendarPanel({
 
   useEffect(() => {
     let active = true;
-    const onChanged = (payload: AssistantReminderList) => {
-      if (active) setListing(payload);
+    const onChanged = (payload: { assistantId: string } & AssistantReminderList) => {
+      if (active && payload.assistantId === assistantId) setListing(payload);
     };
     subscribe.on("assistant-reminders-changed", onChanged);
     void request
-      .listAssistantReminders()
+      .listAssistantReminders({ assistantId })
       .then((list) => {
         if (active) setListing(list);
       })
@@ -138,21 +140,28 @@ export function CalendarPanel({
       active = false;
       subscribe.off("assistant-reminders-changed", onChanged);
     };
-  }, []);
+  }, [assistantId]);
 
   useEffect(() => {
     let active = true;
     // Dream writes diary files, so the list is refetched when a Dream run finishes.
     const refresh = () => {
       void request
-        .listAssistantDiaries()
+        .listAssistantDiaries({ assistantId })
         .then((list) => {
           if (active) setDiaries(list);
         })
         .catch(() => {});
     };
     refresh();
-    const onStatus = ({ status }: { status: { dreaming: boolean } }) => {
+    const onStatus = ({
+      assistantId: changedId,
+      status,
+    }: {
+      assistantId: string;
+      status: { dreaming: boolean };
+    }) => {
+      if (changedId !== assistantId) return;
       if (wasDreaming.current && !status.dreaming) refresh();
       wasDreaming.current = status.dreaming;
     };
@@ -161,7 +170,7 @@ export function CalendarPanel({
       active = false;
       subscribe.off("assistant-status-changed", onStatus);
     };
-  }, []);
+  }, [assistantId]);
 
   const reminders = listing?.reminders ?? NO_REMINDERS;
   const timeZone = listing?.timeZone ?? "UTC";

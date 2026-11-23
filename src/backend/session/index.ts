@@ -40,8 +40,7 @@ import {
 import type { IlinkState } from "../ilink";
 import type { ImageGenerationModule } from "../image-generation";
 import type { ToolboxModule } from "../toolbox";
-import type { AssistantModule } from "../assistant";
-import { ASSISTANT_SESSION_ID } from "../../assistant/constants";
+import type { AssistantManager } from "../assistant";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -108,7 +107,7 @@ export interface SessionDeps {
   imageGeneration: ImageGenerationModule;
   toolbox: ToolboxModule;
   ilink: IlinkState;
-  assistant: AssistantModule;
+  assistant: AssistantManager;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────
@@ -253,12 +252,12 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     };
   }
 
-  /** The assistant has its own bridge; a load is just "make sure it is connected". */
-  async function loadAssistantSession(): Promise<SessionResult> {
-    await assistant.start();
-    const status = assistant.getStatus();
+  /** Each assistant has its own bridge; a load is just "make sure it is connected". */
+  async function loadAssistantSession(assistantId: string): Promise<SessionResult> {
+    await assistant.start(assistantId);
+    const status = assistant.getStatus(assistantId);
     return {
-      sessionId: ASSISTANT_SESSION_ID,
+      sessionId: assistantId,
       initializeInfo: null,
       models: status.models,
       modes: null,
@@ -270,7 +269,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   const closingSessionIds = new Set<string>();
   async function loadSession({ sessionId, force }: { sessionId: string; force?: boolean }) {
     if (closingSessionIds.has(sessionId)) throw new Error("Session is closing");
-    if (sessionId === ASSISTANT_SESSION_ID) return loadAssistantSession();
+    if (assistant.isAssistantSession(sessionId)) return loadAssistantSession(sessionId);
     const last = sessionLoadPromiseMap.get(sessionId);
     if (last) {
       if (force) throw new Error("Session is already loading");
@@ -471,6 +470,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     segmentId?: number;
   }) {
+    if (assistant.isAssistantSession(sessionId)) {
+      return assistant.getHistorySegment(sessionId, { segmentId });
+    }
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
     const segment = storage.readSessionMessageSegment(sessionId, segmentId);
@@ -562,13 +564,13 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   /** iLink / external callers reach the assistant through the same session I/O surface. */
-  async function sendAssistantPrompt(contents: ContentBlock[]) {
-    const sessionId = ASSISTANT_SESSION_ID;
+  async function sendAssistantPrompt(assistantId: string, contents: ContentBlock[]) {
+    const sessionId = assistantId;
     startIlinkTyping(ilinkState, sessionId, true);
     let promptResponse: PromptTurnResult | undefined;
     let promptError: string | undefined;
     try {
-      promptResponse = await assistant.sendPrompt(contents);
+      promptResponse = await assistant.sendPrompt(assistantId, contents);
       return promptResponse;
     } catch (err) {
       promptError = err instanceof Error ? err.message : String(err);
@@ -585,7 +587,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     contents: ContentBlock[];
   }) {
-    if (sessionId === ASSISTANT_SESSION_ID) return sendAssistantPrompt(contents);
+    if (assistant.isAssistantSession(sessionId)) return sendAssistantPrompt(sessionId, contents);
 
     const session = storage.getSession(sessionId);
     if (!session) throw new Error("Session does not exist");
@@ -723,8 +725,8 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function cancelPrompt({ sessionId }: { sessionId: string }) {
-    if (sessionId === ASSISTANT_SESSION_ID) {
-      await assistant.cancelPrompt();
+    if (assistant.isAssistantSession(sessionId)) {
+      await assistant.cancelPrompt(sessionId);
       return;
     }
     const session = storage.getSession(sessionId);
@@ -764,6 +766,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     [key: string]: unknown;
   }) {
+    if (assistant.isAssistantSession(sessionId)) {
+      throw new Error("Assistant sessions cannot be updated through the session API.");
+    }
     storage.updateSession(sessionId, updates);
     const session = storage.getSession(sessionId);
     if (session) sendEvent("session-changed", { session });
@@ -818,6 +823,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function deleteSession(sessionId: string) {
+    if (assistant.isAssistantSession(sessionId)) {
+      throw new Error("Assistant sessions cannot be deleted through the session API.");
+    }
     const session = storage.getSession(sessionId);
     if (session) {
       try {
@@ -912,9 +920,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function getModels({ sessionId }: { sessionId: string }) {
-    if (sessionId === ASSISTANT_SESSION_ID) {
-      await assistant.start();
-      return assistant.getStatus().models;
+    if (assistant.isAssistantSession(sessionId)) {
+      await assistant.start(sessionId);
+      return assistant.getStatus(sessionId).models;
     }
     const session = storage.getSession(sessionId);
     if (!session) return null;
@@ -925,8 +933,8 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   async function setModel({ sessionId, modelId }: { sessionId: string; modelId: string }) {
-    if (sessionId === ASSISTANT_SESSION_ID) {
-      await assistant.setModel(modelId);
+    if (assistant.isAssistantSession(sessionId)) {
+      await assistant.setModel(sessionId, modelId);
       return;
     }
     const session = storage.getSession(sessionId);
@@ -983,8 +991,8 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     sessionId: string;
     thoughtLevelId: string;
   }) {
-    if (sessionId === ASSISTANT_SESSION_ID) {
-      await assistant.setThoughtLevel(thoughtLevelId);
+    if (assistant.isAssistantSession(sessionId)) {
+      await assistant.setThoughtLevel(sessionId, thoughtLevelId);
       return;
     }
     const session = storage.getSession(sessionId);
@@ -1002,7 +1010,9 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
   }
 
   function isSessionStreaming(sessionId: string): boolean {
-    if (sessionId === ASSISTANT_SESSION_ID) return assistant.getStatus().isStreaming;
+    if (assistant.isAssistantSession(sessionId)) {
+      return assistant.getStatus(sessionId).isStreaming;
+    }
     return storage.getSession(sessionId)?.isStreaming ?? false;
   }
 
