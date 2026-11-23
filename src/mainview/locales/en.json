@@ -190,6 +190,7 @@
     "workers": {
       "title": "Workers",
       "empty": "No workers yet",
+      "viewConversation": "View chat",
       "id": "ID",
       "openDataDir": "Open worker folder",
       "type": "Type",
@@ -201,6 +202,12 @@
       "turnCount": "Turn {{count}}",
       "error": "Error",
       "agentDefault": "Agent default",
+      "detail": {
+        "turnSummary": "Turn {{count}}",
+        "loading": "Loading transcript…",
+        "empty": "No transcript yet",
+        "missing": "This worker no longer exists"
+      },
       "status": {
         "running": "Running",
         "awaiting_permission": "Awaiting permission",

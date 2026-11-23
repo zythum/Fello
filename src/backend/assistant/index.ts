@@ -11,6 +11,7 @@ import type {
   ApiAgentInfo,
   AssistantConfig,
   AssistantStatus,
+  AssistantWorkerHistorySegment,
   AssistantWorkerInfo,
   SessionNotificationFelloExt,
   SettingsInfo,
@@ -60,6 +61,10 @@ export interface AssistantModule {
   readDiary: (file: string) => ReturnType<typeof readDiary>;
   readMemory: () => Promise<{ content: string }>;
   listWorkers: () => Promise<AssistantWorkerInfo[]>;
+  readWorkerHistorySegment: (params: {
+    workerId: string;
+    segmentId?: number;
+  }) => Promise<AssistantWorkerHistorySegment>;
   getHistorySegment: (params: {
     segmentId?: number;
   }) => ReturnType<AssistantStorage["readMessageSegment"]>;
@@ -101,6 +106,10 @@ export interface AssistantManager {
   readDiary: (assistantId: string, file: string) => ReturnType<typeof readDiary>;
   readMemory: (assistantId: string) => Promise<{ content: string }>;
   listWorkers: (assistantId: string) => Promise<AssistantWorkerInfo[]>;
+  readWorkerHistorySegment: (
+    assistantId: string,
+    params: { workerId: string; segmentId?: number },
+  ) => Promise<AssistantWorkerHistorySegment>;
   getHistorySegment: (
     assistantId: string,
     params: { segmentId?: number },
@@ -305,6 +314,9 @@ function createAssistantRuntime(
     },
     onChange: () => {
       void publishWorkers();
+    },
+    onNotification: (workerId, notification) => {
+      ctx.sendEvent("assistant-worker-update", { assistantId, workerId, notification });
     },
   });
   void workerManager
@@ -783,6 +795,7 @@ function createAssistantRuntime(
     readDiary: (file: string) => readDiary(paths.diaryDir, file),
     readMemory: async () => ({ content: await storage.loadMemory() }),
     listWorkers: () => workerManager.list(),
+    readWorkerHistorySegment: (params) => workerManager.readHistorySegment(params),
     getHistorySegment,
     sendPrompt,
     cancelPrompt,
@@ -1033,6 +1046,8 @@ export function createAssistantManager(
     readDiary: (assistantId, file) => requireRuntime(assistantId).readDiary(file),
     readMemory: (assistantId) => requireRuntime(assistantId).readMemory(),
     listWorkers: (assistantId) => requireRuntime(assistantId).listWorkers(),
+    readWorkerHistorySegment: (assistantId, params) =>
+      requireRuntime(assistantId).readWorkerHistorySegment(params),
     getHistorySegment: (assistantId, params) =>
       requireRuntime(assistantId).getHistorySegment(params),
     sendPrompt: (assistantId, contents, options) =>

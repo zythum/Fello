@@ -11,8 +11,13 @@ import { ACPBridge } from "../../agent/agent-bridge";
 import { resolveAgentInfo } from "../../agent/resolve-agent-info";
 import { adapters, agentEnv, extNotificationSpecs } from "../../acp-adapters/adapters";
 import type { BackendContext } from "../../types";
-import type { Feature, ProjectInfo, SessionNotificationFelloExt } from "../../../shared/schema";
-import { WORKER_FEATURES } from "../../../shared/constants";
+import type {
+  AssistantWorkerHistorySegment,
+  Feature,
+  ProjectInfo,
+  SessionNotificationFelloExt,
+} from "../../../shared/schema";
+import { HISTORY_PAGE_SIZE, WORKER_FEATURES } from "../../../shared/constants";
 import { assertWritablePath, resolveAssistantPath } from "../../../assistant/fs/path";
 import { generateSocketPath, startSocketServer, type SocketServer } from "../../socket-server";
 import { buildMcpServersConfig, type McpConfigDeps } from "../../session/mcp-config";
@@ -99,6 +104,8 @@ export type WorkerManagerOptions = {
   notify: (text: string) => void;
   /** Called after any worker state or connection change, for the UI panel. */
   onChange?: () => void;
+  /** Called for every persisted notification, for the read-only worker detail view. */
+  onNotification?: (workerId: string, notification: SessionNotificationFelloExt) => void;
 };
 
 function truncate(text: string, limit: number): string {
@@ -355,6 +362,64 @@ export class WorkerManager implements WorkerService {
       const handle = this.handles.get(record.id);
       return this.toListItem(record, handle?.running?.turnId ?? null, null);
     });
+  }
+
+  /**
+   * Raw transcript segment for the read-only detail view. Turns are already
+   * persisted by handleNotification; this only pages the same files the worker
+   * tools read, without model-facing truncation.
+   */
+  async readHistorySegment(input: {
+    workerId: string;
+    segmentId?: number;
+  }): Promise<AssistantWorkerHistorySegment> {
+    await this.store.load();
+    const record = this.store.get(input.workerId);
+    if (!record) throw new Error(`Worker ${input.workerId} does not exist.`);
+
+    const segments = await this.store.listSegments(record.id);
+    if (segments.length === 0) {
+      return {
+        segmentId: 0,
+        sessionId: record.resumeId ?? record.id,
+        messages: [],
+      };
+    }
+
+    const segmentId = input.segmentId ?? segments[segments.length - 1];
+    const index = segments.indexOf(segmentId);
+    if (index < 0) {
+      throw new Error(`Worker ${record.id} segment ${segmentId} does not exist.`);
+    }
+
+    const messages = await this.store.readSegment(record.id, segmentId);
+    const previous = index > 0 ? segments[index - 1] : undefined;
+    const sessionId = record.resumeId ?? messages[0]?.sessionId ?? record.id;
+
+    // Same rule as assistant history: when the latest segment is short, include
+    // the previous one so the first view is not almost empty.
+    if (input.segmentId === undefined && previous !== undefined) {
+      const userMessages = messages.filter(
+        (notification) => notification.update.sessionUpdate === "user_message_chunk",
+      ).length;
+      if (userMessages < HISTORY_PAGE_SIZE) {
+        const previousMessages = await this.store.readSegment(record.id, previous);
+        const beforePrevious = index > 1 ? segments[index - 2] : undefined;
+        return {
+          segmentId,
+          ...(beforePrevious !== undefined ? { previousSegmentId: beforePrevious } : {}),
+          sessionId: record.resumeId ?? previousMessages[0]?.sessionId ?? sessionId,
+          messages: [...previousMessages, ...messages],
+        };
+      }
+    }
+
+    return {
+      segmentId,
+      ...(previous !== undefined ? { previousSegmentId: previous } : {}),
+      sessionId,
+      messages,
+    };
   }
 
   async read(input: WorkerReadInput): Promise<WorkerReadResult> {
@@ -792,8 +857,15 @@ export class WorkerManager implements WorkerService {
         handle.running.text += text;
       }
     }
+    const enriched = enrich(notification);
+    // Publish after the append resolves so a detail view that loads history
+    // concurrently cannot miss a notification, and the renderer can dedupe the
+    // copy that history also contains.
     void this.store
-      .append(handle.record.id, enrich(notification))
+      .append(handle.record.id, enriched)
+      .then(() => {
+        if (!handle.terminated) this.options.onNotification?.(handle.record.id, enriched);
+      })
       .catch((error) => console.error("[worker] Failed to persist notification:", error));
   }
 

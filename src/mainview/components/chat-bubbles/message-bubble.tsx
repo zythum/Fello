@@ -14,10 +14,18 @@ export const MessageBubble = memo(function MessageBubble({
   session,
   message,
   isStreaming,
+  readOnly,
 }: BaseBubbleProps<ChatMessage>) {
   switch (message.role) {
     case "tool_call":
-      return <ToolBubble session={session} message={message} isStreaming={isStreaming} />;
+      return (
+        <ToolBubble
+          session={session}
+          message={message}
+          isStreaming={isStreaming}
+          readOnly={readOnly}
+        />
+      );
     case "agent_thought":
       return <ThinkingBubble session={session} message={message} isStreaming={isStreaming} />;
     case "user_message":
@@ -29,7 +37,14 @@ export const MessageBubble = memo(function MessageBubble({
     case "plan":
       return <PlanBubble session={session} message={message} isStreaming={isStreaming} />;
     case "subagent":
-      return <SubagentBubble session={session} message={message} isStreaming={isStreaming} />;
+      return (
+        <SubagentBubble
+          session={session}
+          message={message}
+          isStreaming={isStreaming}
+          readOnly={readOnly}
+        />
+      );
     case "compaction":
       return <CompactionBubble session={session} message={message} isStreaming={isStreaming} />;
     default:

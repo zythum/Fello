@@ -17,6 +17,7 @@ import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
   AssistantDiary,
   AssistantStatus,
+  AssistantWorkerInfo,
   SessionInfo,
   SessionNotificationFelloExt,
 } from "../../../shared/schema";
@@ -52,6 +53,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { Panel, type PanelTab } from "./panel/panel";
 import { DiaryDetail } from "./diary-detail";
 import { MemoryDetail } from "./memory-detail";
+import { WorkerDetail } from "./worker-detail";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,6 +137,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
     timeZone: string;
   } | null>(null);
   const [detailMemory, setDetailMemory] = useState(false);
+  const [detailWorker, setDetailWorker] = useState<AssistantWorkerInfo | null>(null);
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
   const isHistoryLoading = useAppStore(
@@ -261,6 +264,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
       if (detail?.projectId && detail.projectId !== projectId) return;
       setDetailMemory(false);
       setDetailDiary(null);
+      setDetailWorker(null);
       setDetailFile(relativePath);
     };
     document.addEventListener("fello-preview-file", handlePreviewFile);
@@ -468,24 +472,35 @@ export function Assistant({ assistantId }: { assistantId: string }) {
     }
   };
 
-  const hasDetail = detailFile !== null || detailDiary !== null || detailMemory;
+  const hasDetail =
+    detailFile !== null || detailDiary !== null || detailMemory || detailWorker !== null;
 
   const openFile = useCallback((file: string) => {
     setDetailMemory(false);
     setDetailDiary(null);
+    setDetailWorker(null);
     setDetailFile(file);
   }, []);
 
   const openDiary = useCallback((diary: AssistantDiary, timeZone: string) => {
     setDetailMemory(false);
     setDetailFile(null);
+    setDetailWorker(null);
     setDetailDiary({ diary, timeZone });
   }, []);
 
   const openMemory = useCallback(() => {
     setDetailFile(null);
     setDetailDiary(null);
+    setDetailWorker(null);
     setDetailMemory(true);
+  }, []);
+
+  const openWorker = useCallback((worker: AssistantWorkerInfo) => {
+    setDetailFile(null);
+    setDetailDiary(null);
+    setDetailMemory(false);
+    setDetailWorker(worker);
   }, []);
 
   return (
@@ -929,6 +944,14 @@ export function Assistant({ assistantId }: { assistantId: string }) {
                   compact={compact}
                   onClose={() => setDetailMemory(false)}
                 />
+              ) : detailWorker ? (
+                <WorkerDetail
+                  key={detailWorker.id}
+                  assistantId={assistantId}
+                  worker={detailWorker}
+                  compact={compact}
+                  onClose={() => setDetailWorker(null)}
+                />
               ) : null}
             </ResizablePanel>
           </>
@@ -963,6 +986,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
             previewFileId={detailFile}
             onPreviewFile={openFile}
             onOpenDiary={openDiary}
+            onOpenWorker={openWorker}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

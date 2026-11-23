@@ -94,6 +94,7 @@ const statusIcons: Record<ToolCallStatus, React.ReactNode> = {
 interface ToolItemProps {
   session: SessionInfo;
   message: ToolCallMessage;
+  readOnly?: boolean;
 }
 
 /**
@@ -259,7 +260,7 @@ function renderContentItem(content: ToolCallContent, index: number, cwd: string)
   return null;
 }
 
-export function ToolItem({ session, message }: ToolItemProps) {
+export function ToolItem({ session, message, readOnly }: ToolItemProps) {
   const { t } = useTranslation();
   const activeProjectId = session.projectId;
   const status: ToolCallStatus = message.status ?? "completed";
@@ -269,7 +270,10 @@ export function ToolItem({ session, message }: ToolItemProps) {
   const [stopping, setStopping] = useState(false);
 
   const isRunningShell =
-    message.kind === "execute" && message.status === "in_progress" && message.terminalId != null;
+    !readOnly &&
+    message.kind === "execute" &&
+    message.status === "in_progress" &&
+    message.terminalId != null;
 
   // Always use a tabbed layout whenever there is at least one panel
   // (content items + terminal) — one tab per content item + terminal.
@@ -354,7 +358,6 @@ export function ToolItem({ session, message }: ToolItemProps) {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (!activeProjectId) return;
 
                     // 这里有可能给绝对路径，也可能给相对路径
                     let filePath = loc.path;
@@ -367,6 +370,16 @@ export function ToolItem({ session, message }: ToolItemProps) {
                       }
                       return;
                     }
+
+                    // Worker detail is not a project session: reveal the file next to
+                    // the worker's cwd instead of dispatching a project preview.
+                    if (readOnly) {
+                      if (!isWebUI && session.cwd) {
+                        electron.revealInFinder(`${session.cwd}/${filePath}`);
+                      }
+                      return;
+                    }
+                    if (!activeProjectId) return;
                     document.dispatchEvent(
                       new CustomEvent("fello-preview-file", {
                         detail: { projectId: activeProjectId, relativePath: filePath },
@@ -422,7 +435,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
             </pre>
           </ScrollArea>
         )}
-        {(contentItems.length > 0 || message.terminalId) && (
+        {(contentItems.length > 0 || (!readOnly && message.terminalId)) && (
           <Tabs defaultValue={initialTab} className="w-full">
             <TabsList
               variant="line"
@@ -440,7 +453,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                     : t("toolBubble.result")}
                 </TabsTrigger>
               ))}
-              {message.terminalId && (
+              {!readOnly && message.terminalId && (
                 <TabsTrigger
                   value="terminal"
                   className="h-full flex-none px-2 text-xs font-normal opacity-70"
@@ -455,7 +468,7 @@ export function ToolItem({ session, message }: ToolItemProps) {
                 {renderContentItem(content, index, session.cwd)}
               </TabsContent>
             ))}
-            {message.terminalId && (
+            {!readOnly && message.terminalId && (
               <TabsContent value="terminal">
                 <AgentTerminalOutput sessionId={session.id} terminalId={message.terminalId!} />
               </TabsContent>
@@ -808,14 +821,16 @@ export function ToolBubble({
   session,
   message,
   isStreaming: _isStreaming,
+  readOnly,
 }: BaseBubbleProps<ToolCallMessage>) {
   const felloTool = useMemo(() => parseFelloTools(message), [message]);
 
-  if (felloTool?.type === "shareToUser") {
+  // Share/image bubbles build project/session URLs that do not exist for a worker.
+  if (!readOnly && felloTool?.type === "shareToUser") {
     return <ShareToUserBubble session={session} respond={felloTool.respond} />;
   }
 
-  if (felloTool?.type === "imageGeneration") {
+  if (!readOnly && felloTool?.type === "imageGeneration") {
     return <ImageGenerationBubble session={session} respond={felloTool.respond} />;
   }
 
@@ -827,7 +842,7 @@ export function ToolBubble({
         "[&:not(:has(+.tool-bubble))]:mb-4 [&:not(:has(+.tool-bubble))]:border-b",
       )}
     >
-      <ToolItem session={session} message={message} />
+      <ToolItem session={session} message={message} readOnly={readOnly} />
     </div>
   );
 }

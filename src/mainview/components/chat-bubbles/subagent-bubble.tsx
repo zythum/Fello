@@ -51,10 +51,18 @@ const MessageBubble = memo(function MessageBubble({
   session,
   message,
   isStreaming,
+  readOnly,
 }: BaseBubbleProps<SubchatMessage>) {
   switch (message.role) {
     case "tool_call":
-      return <ToolBubble session={session} message={message} isStreaming={isStreaming} />;
+      return (
+        <ToolBubble
+          session={session}
+          message={message}
+          isStreaming={isStreaming}
+          readOnly={readOnly}
+        />
+      );
     case "agent_thought":
       return <ThinkingBubble session={session} message={message} isStreaming={isStreaming} />;
     case "agent_message":
@@ -70,6 +78,7 @@ export const SubagentBubble = memo(function SubagentBubble({
   session,
   message,
   isStreaming: _isStreaming,
+  readOnly,
 }: BaseBubbleProps<SubagentMessage>) {
   const { t } = useTranslation();
   const status: SubagentStatus = message.status ?? "completed";
@@ -138,6 +147,7 @@ export const SubagentBubble = memo(function SubagentBubble({
                     isStreaming={
                       status !== "completed" && status !== "failed" && index === list.length - 1
                     }
+                    readOnly={readOnly}
                   />
                 );
               })}

@@ -4,7 +4,7 @@ import { CalendarDays, Folders, PanelRightClose, SquareChevronRight } from "luci
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { FilePanel } from "../../session/panel/file-panel/file-panel";
-import type { AssistantDiary } from "../../../../shared/schema";
+import type { AssistantDiary, AssistantWorkerInfo } from "../../../../shared/schema";
 import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
 import { CalendarPanel } from "./calendar-panel/calendar-panel";
 import { WorkerPanel } from "./worker-panel/worker-panel";
@@ -25,6 +25,8 @@ interface PanelProps {
   onPreviewFile: (file: string) => void;
   /** Opens a diary entry in the detail column, with the server time zone used by the calendar. */
   onOpenDiary: (diary: AssistantDiary, timeZone: string) => void;
+  /** Opens a worker's read-only transcript in the detail column. */
+  onOpenWorker: (worker: AssistantWorkerInfo) => void;
 }
 
 export function Panel({
@@ -37,6 +39,7 @@ export function Panel({
   previewFileId,
   onPreviewFile,
   onOpenDiary,
+  onOpenWorker,
 }: PanelProps) {
   const { t } = useTranslation();
   const { focus } = useFocusTargetRegistry();
@@ -96,7 +99,7 @@ export function Panel({
           />
         </TabsContent>
         <TabsContent value="workers" keepMounted className="flex-1 min-h-0 w-full overflow-hidden">
-          <WorkerPanel assistantId={assistantId} />
+          <WorkerPanel assistantId={assistantId} onOpenWorker={onOpenWorker} />
         </TabsContent>
       </Tabs>
     </div>

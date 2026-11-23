@@ -189,6 +189,7 @@
     "workers": {
       "title": "子代理",
       "empty": "暂无子代理",
+      "viewConversation": "查看会话",
       "id": "ID",
       "openDataDir": "打开子代理目录",
       "type": "类型",
@@ -200,6 +201,12 @@
       "turnCount": "第 {{count}} 轮",
       "error": "错误",
       "agentDefault": "Agent 默认",
+      "detail": {
+        "turnSummary": "第 {{count}} 轮",
+        "loading": "加载对话中…",
+        "empty": "暂无对话",
+        "missing": "该子代理已不存在"
+      },
       "status": {
         "running": "运行中",
         "awaiting_permission": "等待权限",

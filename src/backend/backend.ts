@@ -321,6 +321,9 @@ export function initBackend(
     async listAssistantWorkers({ assistantId }) {
       return assistant.listWorkers(assistantId);
     },
+    async getAssistantWorkerHistorySegment({ assistantId, workerId, segmentId }) {
+      return assistant.readWorkerHistorySegment(assistantId, { workerId, segmentId });
+    },
     async getAssistantHistorySegment({ assistantId, segmentId }) {
       return assistant.getHistorySegment(assistantId, { segmentId });
     },

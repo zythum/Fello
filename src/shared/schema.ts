@@ -284,6 +284,20 @@ export interface AssistantWorkerInfo {
   lastError: string | null;
 }
 
+/**
+ * One segment of a worker's persisted ACP notification stream, used by the
+ * read-only worker detail view. `messages` are the raw enriched notifications,
+ * so the renderer can replay them with the same reducer as a chat session.
+ */
+export interface AssistantWorkerHistorySegment {
+  segmentId: number;
+  /** Next older segment, if one exists. */
+  previousSegmentId?: number;
+  /** ACP resume (session) id of the worker, used to distinguish subagent notifications. */
+  sessionId: string;
+  messages: SessionNotificationFelloExt[];
+}
+
 export interface AssistantHistoryItem {
   id: string;
   role: "user" | "assistant";
@@ -1000,6 +1014,11 @@ export type FelloIPCRequests = {
   getAssistantDataSystemPath: { params: { assistantId: string }; response: string };
   /** 获取助理当前的所有 worker 及其状态。 */
   listAssistantWorkers: { params: { assistantId: string }; response: AssistantWorkerInfo[] };
+  /** 获取某个 worker 的只读历史分段（原始 ACP 通知，供详情页回放）。 */
+  getAssistantWorkerHistorySegment: {
+    params: { assistantId: string; workerId: string; segmentId?: number };
+    response: AssistantWorkerHistorySegment;
+  };
   /** 获取个人助理的全部提醒（含已停用）。 */
   listAssistantReminders: { params: { assistantId: string }; response: AssistantReminderList };
   /** 获取个人助理的全部日记条目（新的在前）。 */
@@ -1433,6 +1452,12 @@ export type FelloIPCEvents = {
   "assistant-reminders-changed": { assistantId: string } & AssistantReminderList;
   /** 个人助理 worker 列表或状态变更后推送完整列表。 */
   "assistant-workers-changed": { assistantId: string; workers: AssistantWorkerInfo[] };
+  /** 某个 worker 的实时 ACP 通知（只读详情页使用）。 */
+  "assistant-worker-update": {
+    assistantId: string;
+    workerId: string;
+    notification: SessionNotificationFelloExt;
+  };
   "assistant-prompt-start": { assistantId: string };
   "assistant-prompt-end": {
     assistantId: string;

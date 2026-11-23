@@ -13,7 +13,12 @@ import {
   useSessionHistoryPagination,
   useSessionMessages,
 } from "../../../lib/session-selectors";
-import { isValidMessageToDisplay, ChatMessage, UserMessage } from "../../../lib/chat-message";
+import {
+  isValidMessageToDisplay,
+  type ChatMessage,
+  type SubagentMessage,
+  type UserMessage,
+} from "../../../lib/chat-message";
 import { MessageBubble } from "../../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
@@ -31,27 +36,47 @@ import { HISTORY_PAGE_SIZE } from "../../../../shared/constants";
 
 import type { SessionInfo } from "../../../../shared/schema";
 
-function ChatAreaImpl({
-  session,
-  showTimeline = true,
-  loadPreviousHistory,
-  avatar,
-  name,
-}: {
+export interface ChatAreaViewProps {
   session: SessionInfo;
+  messages: ChatMessage[] | null;
+  activeSubagents: Map<string, SubagentMessage> | null;
+  previousSegmentId?: number;
   showTimeline?: boolean;
   loadPreviousHistory?: () => Promise<boolean>;
   /** 消息组头部的 agent 头像图标，默认 Bot（助理页可传 HatGlasses 等）。 */
   avatar?: LucideIcon;
   /** 消息组头部展示的 agent 名称，默认 session.agentId。 */
   name?: string;
-}) {
+  /** Hides actions that would write to the agent or open session-scoped resources. */
+  readOnly?: boolean;
+  /** transcript 隐藏 agent 头部、分隔线和复制/朗读等会话 chrome，只保留消息。 */
+  variant?: "session" | "transcript";
+  /** 全局 focus command 的目标；独立视图可传入不同 id 避免覆盖主聊天。 */
+  focusTargetId?: string;
+  /** 是否响应 document 级的「滚动到底部」事件；同一页面挂多个 ChatArea 时只让主聊天响应。 */
+  handleScrollToBottomEvents?: boolean;
+  /** 是否响应 document 级的「跳到指定消息」事件；默认开启。 */
+  handleScrollToMessageEvents?: boolean;
+}
+
+function ChatAreaViewImpl({
+  session,
+  messages,
+  activeSubagents,
+  previousSegmentId,
+  showTimeline = true,
+  loadPreviousHistory,
+  avatar,
+  name,
+  readOnly,
+  variant = "session",
+  focusTargetId = "chat-area",
+  handleScrollToBottomEvents = true,
+  handleScrollToMessageEvents = true,
+}: ChatAreaViewProps) {
   const { t } = useTranslation();
   const sessionId = session.id;
   const isStreaming = session.isStreaming;
-  const messages = useSessionMessages(sessionId);
-  const activeSubagents = useSessionActiveSubagents(sessionId);
-  const { previousSegmentId } = useSessionHistoryPagination(sessionId);
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
   const isLoadingEarlierRef = useRef(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -97,7 +122,7 @@ function ChatAreaImpl({
     if (!viewport) return;
     viewport.focus({ preventScroll: true });
   }, [getViewport]);
-  useFocusTarget("chat-area", focusChatArea);
+  useFocusTarget(focusTargetId, focusChatArea);
 
   const scrollToBottomManual = useCallback(() => {
     pendingScrollAnchorRef.current = null;
@@ -148,6 +173,7 @@ function ChatAreaImpl({
   useEffect(() => cancelDurationScroll, [cancelDurationScroll]);
 
   useEffect(() => {
+    if (!handleScrollToBottomEvents) return;
     const handleScrollToBottom = (event: Event) => {
       const detail = (event as CustomEvent<{ duration?: number } | null>).detail;
       const duration =
@@ -161,7 +187,7 @@ function ChatAreaImpl({
     };
     document.addEventListener("fello-scroll-to-bottom", handleScrollToBottom);
     return () => document.removeEventListener("fello-scroll-to-bottom", handleScrollToBottom);
-  }, [scrollToBottomWithDuration]);
+  }, [handleScrollToBottomEvents, scrollToBottomWithDuration]);
 
   useEffect(() => {
     const viewport = getViewport();
@@ -338,7 +364,7 @@ function ChatAreaImpl({
     isLoadingEarlierRef.current = true;
     setIsLoadingEarlier(true);
     try {
-      const loaded = await (loadPreviousHistory ?? (() => loadPreviousSessionHistory(sessionId)))();
+      const loaded = loadPreviousHistory ? await loadPreviousHistory() : false;
       if (loaded) revealNextPage();
       else clearAnchorSoon();
     } catch (error) {
@@ -354,7 +380,6 @@ function ChatAreaImpl({
     hasMore,
     loadPreviousHistory,
     messageGroups,
-    sessionId,
     shouldLoadPreviousSegment,
     stopScroll,
   ]);
@@ -416,13 +441,14 @@ function ChatAreaImpl({
   );
 
   useEffect(() => {
+    if (!handleScrollToMessageEvents) return;
     const handleScrollToMessage = (e: Event) => {
       const displayId = (e as CustomEvent<string>).detail;
       scrollToUserMessage(displayId);
     };
     document.addEventListener("fello-scroll-to-message", handleScrollToMessage);
     return () => document.removeEventListener("fello-scroll-to-message", handleScrollToMessage);
-  }, [scrollToUserMessage]);
+  }, [handleScrollToMessageEvents, scrollToUserMessage]);
 
   const getAgentText = useCallback((groupMessages: typeof renderedMessages) => {
     const parts: string[] = [];
@@ -528,7 +554,7 @@ function ChatAreaImpl({
                     // viewportClassName），所以这里的 cqh 等于滚动视口高度，而不是内容
                     // 包裹层的高度 —— 后者的高度是 auto，百分比 min-height 会算成 0。
                     // 不能用 flex-1：内容已超出视口时没有空闲空间可分，最后组会退回内容高度。
-                    "min-h-[100cqh]": isLastGroup,
+                    "min-h-[100cqh]": isLastGroup && variant === "session",
                   },
                 )}
               >
@@ -551,17 +577,20 @@ function ChatAreaImpl({
                         session={session}
                         message={group.userMessage}
                         isStreaming={false}
+                        readOnly={readOnly}
                       />
                     </div>
                   </div>
                 )}
 
                 <div className="message-content pb-4">
-                  <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
-                    <AgentAvatar className="size-5 -translate-y-px" />
-                    <span className="text-sm font-medium">{name ?? session.agentId}</span>
-                  </div>
-                  <div className="mt-6">
+                  {variant === "session" && (
+                    <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
+                      <AgentAvatar className="size-5 -translate-y-px" />
+                      <span className="text-sm font-medium">{name ?? session.agentId}</span>
+                    </div>
+                  )}
+                  <div className={cn(variant === "session" && "mt-6")}>
                     {group.contentMessages.map((msg, i, arr) => {
                       const isLastInGroup = i === arr.length - 1;
                       const isLastRendered = isLastGroup && isLastInGroup;
@@ -576,6 +605,7 @@ function ChatAreaImpl({
                           session={session}
                           message={msg}
                           isStreaming={isLastMessageStreaming}
+                          readOnly={readOnly}
                         />
                       );
                     })}
@@ -601,7 +631,7 @@ function ChatAreaImpl({
                   </div>
                 </div>
 
-                {(isLastGroup ? !isStreaming : true) && (
+                {variant === "session" && (isLastGroup ? !isStreaming : true) && (
                   <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed -mt-8 mb-4 group/separator pointer-events-auto">
                     <div className="flex-1 flex items-center">
                       {durationMs !== null && (
@@ -703,4 +733,31 @@ function ChatAreaImpl({
   );
 }
 
+/** Store-backed session chat. `ChatAreaView` receives the same data as props. */
+function ChatAreaImpl({
+  session,
+  loadPreviousHistory,
+  ...props
+}: Omit<ChatAreaViewProps, "messages" | "activeSubagents" | "previousSegmentId">) {
+  const messages = useSessionMessages(session.id);
+  const activeSubagents = useSessionActiveSubagents(session.id);
+  const { previousSegmentId } = useSessionHistoryPagination(session.id);
+  const fallbackLoadPrevious = useCallback(
+    () => loadPreviousSessionHistory(session.id),
+    [session.id],
+  );
+
+  return (
+    <ChatAreaView
+      {...props}
+      session={session}
+      messages={messages}
+      activeSubagents={activeSubagents}
+      previousSegmentId={previousSegmentId}
+      loadPreviousHistory={loadPreviousHistory ?? fallbackLoadPrevious}
+    />
+  );
+}
+
 export const ChatArea = memo(ChatAreaImpl);
+export const ChatAreaView = memo(ChatAreaViewImpl);
