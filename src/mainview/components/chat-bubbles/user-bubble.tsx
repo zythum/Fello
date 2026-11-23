@@ -129,9 +129,9 @@ export const UserBubble = memo(function UserBubble({
 
   return (
     <div className="flex flex-col">
-      <div className="flex justify-end items-end group/user-bubble">
+      <div className="flex justify-end items-start group/user-bubble">
         {hasText && (
-          <div className="pl-2 pr-5 -mr-4 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto flex items-baseline gap-0.5">
+          <div className="pl-2 pr-5 -mr-3.5 mt-2 opacity-0 transition-opacity group-hover/user-bubble:opacity-100 pointer-events-auto flex items-baseline">
             <Button
               variant="ghost"
               size="icon-xs"
