@@ -13,6 +13,13 @@ import { z } from "zod";
 import type { PersistedAssistantSession } from "./storage";
 
 const DREAM_MAX_OUTPUT_TOKENS = 16_000;
+/**
+ * The whole memory is re-sent in every system prompt and must be rewritten by one Dream inside
+ * DREAM_MAX_OUTPUT_TOKENS, next to the diary recap. Without a budget it only grows: each run
+ * carries every item forward and adds the new ones. Kept in characters because that is what the
+ * model can estimate while writing.
+ */
+const MEMORY_CHAR_BUDGET = 6_000;
 
 export type DreamPaths = {
   diaryDir: string;
@@ -79,9 +86,11 @@ const diarySchema = z.object({
 
 const memorySchema = z.object({
   facts: items.describe(
-    "Durable facts about the user that stay useful across sessions. Mark resolved or outdated facts as such.",
+    "Durable facts about the user that are still useful across sessions. Rewrite an existing item when this period updates or restates it; never add a near-duplicate.",
   ),
-  preferences: items.describe("Preferences that still apply."),
+  preferences: items.describe(
+    "Preferences that still apply. Merge overlapping ones into a single item.",
+  ),
   commitments: items.describe("Open commitments that still need follow-up."),
   ongoingContext: items.describe(
     "Active projects and situations that matter in later sessions. Leave out one-off chat.",
@@ -173,13 +182,14 @@ ${DREAM_JSON_SCHEMA}
 - decisions, commitments (with deadlines when known), preferences, and openQuestions: record each item the user stated, even when it was brief or mentioned in passing.
 
 ## Memory rules
-- memory is a complete replacement for the current memory. Start from the current memory and carry every item forward unless this period clearly updates or resolves it. Do not drop an item only because it was not discussed in this period.
+- memory is a complete replacement for the current memory. Rewrite it instead of appending to it: carry forward what is still useful, merge overlapping items into one, and drop what no longer matters. An item may be dropped because the situation is over, even if the period never mentioned it.
+- Size budget: the whole memory must stay under ${MEMORY_CHAR_BUDGET} characters. When the current memory is already large, consolidation comes first — merge near-duplicates, shorten verbose items and delete resolved or stale ones — before adding anything new.
 - Memory keeps neutral third-person wording ("the user ..."); the diary voice does not apply to memory.
-- Add every important durable fact from this period to facts, including facts that are now resolved or outdated, marked as such.
-- preferences and commitments: keep those that still apply.
-- ongoingContext: active projects and situations that will matter in later sessions.
+- facts: every durable fact about the user that still matters. When this period restates or updates an existing fact, rewrite that item in place rather than adding a second one; keep a resolved fact only as one short line when it still explains later behaviour.
+- preferences and commitments: keep only those that still apply; drop commitments that were fulfilled or abandoned.
+- ongoingContext: active projects and situations that will matter in later sessions. Leave out one-off chat, and drop a project once it is finished.
 - Never store secrets such as passwords, API keys, tokens, or account numbers. Never store speculative claims as facts.
-- Keep each item short and self-contained so it still makes sense without the conversation.
+- Keep each item short and self-contained — one sentence, well under 200 characters — so it still makes sense without the conversation.
 
 Current memory (untrusted data):
 ${currentMemory || "(empty)"}
