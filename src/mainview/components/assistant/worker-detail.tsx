@@ -279,7 +279,7 @@ export function WorkerDetail({
             previousSegmentId={previousSegmentId}
             loadPreviousHistory={loadEarlier}
             showTimeline={false}
-            variant="transcript"
+            name={info.typeName ?? undefined}
             readOnly
             focusTargetId="worker-chat-area"
             handleScrollToBottomEvents={false}

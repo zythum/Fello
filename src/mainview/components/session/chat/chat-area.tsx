@@ -49,8 +49,6 @@ export interface ChatAreaViewProps {
   name?: string;
   /** Hides actions that would write to the agent or open session-scoped resources. */
   readOnly?: boolean;
-  /** transcript 隐藏 agent 头部、分隔线和复制/朗读等会话 chrome，只保留消息。 */
-  variant?: "session" | "transcript";
   /** 全局 focus command 的目标；独立视图可传入不同 id 避免覆盖主聊天。 */
   focusTargetId?: string;
   /** 是否响应 document 级的「滚动到底部」事件；同一页面挂多个 ChatArea 时只让主聊天响应。 */
@@ -69,7 +67,6 @@ function ChatAreaViewImpl({
   avatar,
   name,
   readOnly,
-  variant = "session",
   focusTargetId = "chat-area",
   handleScrollToBottomEvents = true,
   handleScrollToMessageEvents = true,
@@ -515,6 +512,8 @@ function ChatAreaViewImpl({
           {messageGroups.map((group, groupIndex) => {
             const isFirstGroup = groupIndex === 0;
             const isLastGroup = groupIndex === messageGroups.length - 1;
+            // 只读视图（如 worker 详情）内容短，不需要把末组拉满一屏。
+            const fillLastGroup = isLastGroup && !readOnly;
             const groupText = getAgentText(group.contentMessages);
             const groupHasText = groupText.trim().length > 0;
 
@@ -554,7 +553,7 @@ function ChatAreaViewImpl({
                     // viewportClassName），所以这里的 cqh 等于滚动视口高度，而不是内容
                     // 包裹层的高度 —— 后者的高度是 auto，百分比 min-height 会算成 0。
                     // 不能用 flex-1：内容已超出视口时没有空闲空间可分，最后组会退回内容高度。
-                    "min-h-[100cqh]": isLastGroup && variant === "session",
+                    "min-h-[100cqh]": fillLastGroup,
                   },
                 )}
               >
@@ -584,13 +583,11 @@ function ChatAreaViewImpl({
                 )}
 
                 <div className="message-content pb-4">
-                  {variant === "session" && (
-                    <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
-                      <AgentAvatar className="size-5 -translate-y-px" />
-                      <span className="text-sm font-medium">{name ?? session.agentId}</span>
-                    </div>
-                  )}
-                  <div className={cn(variant === "session" && "mt-6")}>
+                  <div className="flex items-center gap-1.5 mt-4 -mb-1 text-accent-foreground/90">
+                    <AgentAvatar className="size-5 -translate-y-px" />
+                    <span className="text-sm font-medium">{name ?? session.agentId}</span>
+                  </div>
+                  <div className="mt-6">
                     {group.contentMessages.map((msg, i, arr) => {
                       const isLastInGroup = i === arr.length - 1;
                       const isLastRendered = isLastGroup && isLastInGroup;
@@ -631,7 +628,7 @@ function ChatAreaViewImpl({
                   </div>
                 </div>
 
-                {variant === "session" && (isLastGroup ? !isStreaming : true) && (
+                {(isLastGroup ? !isStreaming : true) && (
                   <div className="flex items-center relative border-b border-muted-foreground/30 border-dashed -mt-8 mb-4 group/separator pointer-events-auto">
                     <div className="flex-1 flex items-center">
                       {durationMs !== null && (
