@@ -886,7 +886,7 @@ export class OpenaiCompatibleAgent {
         system: systemPrompt,
         messages: [...session.history, userMessage],
         tools: allTools,
-        stopWhen: isStepCount(256),
+        stopWhen: isStepCount(512),
         abortSignal: abortController.signal,
         providerOptions: {
           openaiCompatible: {

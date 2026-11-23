@@ -770,7 +770,7 @@ export class AssistantAgent {
             sendUpdate: this.sendToolUpdate,
           }),
         },
-        stopWhen: isStepCount(10),
+        stopWhen: isStepCount(128),
         abortSignal: abortController.signal,
         providerOptions:
           session.thoughtLevel === DEFAULT_THOUGHT_LEVEL
