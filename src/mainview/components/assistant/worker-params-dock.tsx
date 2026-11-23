@@ -39,12 +39,11 @@ export function WorkerParamsDock({ worker }: { worker: AssistantWorkerInfo }) {
           </span>
           <button
             type="button"
-            className="group/worker-id flex shrink-0 items-center gap-0.5 rounded-sm font-mono text-[10px] whitespace-nowrap text-muted-foreground/70 hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="flex shrink-0 items-center rounded-sm font-mono text-[10px] whitespace-nowrap text-muted-foreground/70 hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
             title={`${t("assistant.workers.openDataDir", "Open worker folder")}: ${worker.dataDir}`}
             onClick={() => void electron.revealInFinder(worker.dataDir).catch(() => {})}
           >
-            <span>{worker.id}</span>
-            <FolderOpen className="size-3 shrink-0 text-muted-foreground/50 transition-colors group-hover/worker-id:text-foreground/70" />
+            {worker.id}
           </button>
           <span
             className="ml-auto shrink-0 whitespace-nowrap text-[10px] text-muted-foreground/70"
@@ -56,7 +55,7 @@ export function WorkerParamsDock({ worker }: { worker: AssistantWorkerInfo }) {
           </span>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,auto)] divide-x divide-border/60">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(38.2%,auto)] divide-x divide-border/60">
           <div className="flex min-w-0 flex-col justify-center gap-2 p-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <Award className="size-3.5 shrink-0 text-muted-foreground/70" />
