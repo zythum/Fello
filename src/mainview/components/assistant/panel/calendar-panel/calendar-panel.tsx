@@ -277,7 +277,7 @@ export function CalendarPanel({
         />
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 border-t" viewportClassName="px-3 py-2">
+      <ScrollArea className="flex-1 min-h-0 border-t" viewportClassName="p-3">
         <h3 className="px-0.5 pb-2 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
           {t("assistant.reminders.title", "Reminders")}
         </h3>
