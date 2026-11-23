@@ -29,6 +29,7 @@ import {
   loadPreviousAssistantHistory,
   queueAssistantNotification,
 } from "../../lib/assistant-lifecycle";
+import { useSessionDraftInput } from "../../lib/session-selectors";
 import { ChatArea } from "../session/chat/chat-area";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
 import { FileDetail } from "../session/detail/file/file-detail";
@@ -144,7 +145,9 @@ export function Assistant({ assistantId }: { assistantId: string }) {
   const isMacApp = useAppStore((state) => state.isMacApp);
   const isFullScreen = useAppStore((state) => state.isFullScreen);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
-  const [input, setInput] = useState("");
+  // 与 session 的 chat-input 一致：草稿挂在 store 上，挂载时恢复、失焦 / 卸载时写回。
+  const draftInput = useSessionDraftInput(assistantId);
+  const [input, setInput] = useState(draftInput);
   const [isRestarting, setIsRestarting] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [localSourceAgentId, setLocalSourceAgentId] = useState<string | null>(
@@ -162,6 +165,22 @@ export function Assistant({ assistantId }: { assistantId: string }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voiceInputRef = useRef<VoiceInputButtonRef>(null);
   useTtsAutoRead(assistantId);
+
+  // 最新输入值：卸载时就地读取，避免 cleanup 闭包捕获旧值（同 session 的 chat-input）。
+  const inputValueRef = useRef(input);
+  // eslint-disable-next-line react/refs
+  inputValueRef.current = input;
+
+  const saveDraft = useCallback(() => {
+    useAppStore
+      .getState()
+      .updateSessionState(assistantId, () => ({ draftInput: inputValueRef.current }));
+  }, [assistantId]);
+
+  // 离开页面（组件卸载）或输入框失焦时暂存草稿。
+  useEffect(() => {
+    return () => saveDraft();
+  }, [saveDraft]);
 
   useEffect(() => {
     let active = true;
@@ -301,6 +320,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
         return;
       }
       setInput("");
+      useAppStore.getState().updateSessionState(assistantId, () => ({ draftInput: "" }));
       setStatus((current) =>
         current?.promptError ? { ...current, promptError: undefined } : current,
       );
@@ -728,6 +748,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
               textValue={input}
               onTextValueChange={setInput}
               inputRef={inputRef}
+              onBlur={saveDraft}
               onSubmit={(value) => void send(value)}
               placeholder={t("assistant.placeholder", "Message your assistant")}
               voiceInputRef={voiceInputRef}
