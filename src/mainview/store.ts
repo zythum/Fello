@@ -362,7 +362,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   resetSessionState: (sessionId) =>
     set((state) => {
       const map = new Map(state.sessionStates);
-      map.set(sessionId, emptySessionState());
+      // 草稿是用户尚未提交的输入，不属于可丢弃的会话运行态：个人助理页面每次挂载都会
+      // reset（重新拉取历史），若连草稿一起清空，输入框的暂存就失效了。
+      const previous = state.sessionStates.get(sessionId);
+      map.set(sessionId, {
+        ...emptySessionState(),
+        draftInput: previous?.draftInput ?? "",
+        draftAttachments: previous?.draftAttachments ?? [],
+      });
       return { sessionStates: map };
     }),
   disposeSessionState: (sessionId) =>
