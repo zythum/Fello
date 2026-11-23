@@ -50,8 +50,19 @@ const PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
  * Appended to every worker prompt. The worker is somebody else's agent, so the reporting
  * contract has to travel with the prompt rather than live in a system prompt we don't own.
  */
-const WORKER_REPORT_FOOTER =
-  "\n\n---\n[Fello worker] When this turn is done, end your reply with a short report:\nStatus: done|blocked\nDone: ...\nFiles: ...\nBlockers: ...";
+const WORKER_REPORT_FOOTER = [
+  "",
+  "",
+  "---",
+  "**[Fello worker]** When this turn is done, end your reply with a short report in this shape:",
+  "",
+  "```text",
+  "Status: done|blocked",
+  "Done: <what you finished>",
+  "Files: <paths you created or changed>",
+  "Blockers: <what stopped you, or none>",
+  "```",
+].join("\n");
 
 const SUMMARY_ASSISTANT_CHARS = 600;
 const FULL_ASSISTANT_CHARS = 8_000;
