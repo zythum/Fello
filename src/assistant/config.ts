@@ -24,9 +24,17 @@ export const DEFAULT_ASSISTANT_DREAM = {
 export interface AssistantPaths {
   root: string;
   configPath: string;
-  agentDir: string;
+  /** The assistant's single model session: runtime state and model history. */
   sessionDir: string;
+  /** UI chat transcript segments. */
+  chatDir: string;
+  /** Long-term memory content produced by Dream. */
+  memoryDir: string;
   diaryDir: string;
+  remindersDir: string;
+  remindersPath: string;
+  /** Delegated ACP sub-agent records and transcripts. */
+  workersDir: string;
   workspace: string;
 }
 
@@ -40,21 +48,30 @@ export function assistantWorkspacePath(assistantId: string): string {
 
 export function assistantPaths(assistantId: string): AssistantPaths {
   const root = assistantRoot(assistantId);
+  const memoryDir = join(root, "memory");
+  const remindersDir = join(root, "reminders");
   return {
     root,
     configPath: join(root, "config.json"),
-    agentDir: join(root, "agent"),
     sessionDir: join(root, "session"),
-    diaryDir: join(root, "diary"),
+    chatDir: join(root, "chat"),
+    memoryDir,
+    diaryDir: join(memoryDir, "diary"),
+    remindersDir,
+    remindersPath: join(remindersDir, "reminders.json"),
+    workersDir: join(root, "workers"),
     workspace: assistantWorkspacePath(assistantId),
   };
 }
 
 export function ensureAssistantDirectories(assistantId: string): AssistantPaths {
   const paths = assistantPaths(assistantId);
-  mkdirSync(paths.agentDir, { recursive: true });
   mkdirSync(paths.sessionDir, { recursive: true });
+  mkdirSync(paths.chatDir, { recursive: true });
+  mkdirSync(paths.memoryDir, { recursive: true });
   mkdirSync(paths.diaryDir, { recursive: true });
+  mkdirSync(paths.remindersDir, { recursive: true });
+  mkdirSync(paths.workersDir, { recursive: true });
   mkdirSync(paths.workspace, { recursive: true });
   return paths;
 }

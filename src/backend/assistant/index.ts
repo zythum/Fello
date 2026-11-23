@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
-import { join } from "path";
 import type {
   ContentBlock,
   SessionNotification,
@@ -299,7 +298,7 @@ function createAssistantRuntime(
     ctx,
     mcpDeps: deps.mcpDeps,
     assistantSessionId: assistantId,
-    workersDir: join(paths.agentDir, "workers"),
+    workersDir: paths.workersDir,
     workspaceRoot: paths.workspace,
     notify: (text) => {
       enqueueWake({ key: `worker:${randomUUID()}`, text, at: Date.now() });
@@ -316,7 +315,7 @@ function createAssistantRuntime(
     });
 
   const reminders = new ReminderService({
-    store: new ReminderStore(join(paths.agentDir, "reminders.json")),
+    store: new ReminderStore(paths.remindersPath),
     onDue: (due) => {
       // The native notification is shown when a reminder is due, even if the chat message
       // waits for the assistant to be idle.

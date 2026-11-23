@@ -107,28 +107,28 @@ export class AssistantStorage {
   }
 
   private get sessionStatePath(): string {
-    return join(this.paths.agentDir, "session.json");
+    return join(this.paths.sessionDir, "state.json");
   }
 
   private get historyPath(): string {
-    return join(this.paths.agentDir, "history.jsonl");
+    return join(this.paths.sessionDir, "history.jsonl");
   }
 
   private get memoryPath(): string {
-    return join(this.paths.agentDir, "memory.md");
-  }
-
-  private async ensureAgentDirectory(): Promise<void> {
-    await mkdir(this.paths.agentDir, { recursive: true });
+    return join(this.paths.memoryDir, "memory.md");
   }
 
   private async ensureSessionDirectory(): Promise<void> {
     await mkdir(this.paths.sessionDir, { recursive: true });
   }
 
+  private async ensureChatDirectory(): Promise<void> {
+    await mkdir(this.paths.chatDir, { recursive: true });
+  }
+
   private async listMessageSegments(): Promise<MessageSegment[]> {
-    await this.ensureSessionDirectory();
-    const names = await readdir(this.paths.sessionDir);
+    await this.ensureChatDirectory();
+    const names = await readdir(this.paths.chatDir);
     return names
       .flatMap((name) => {
         const match = MESSAGE_SEGMENT_RE.exec(name);
@@ -136,7 +136,7 @@ export class AssistantStorage {
         return [
           {
             id: match[1] ? Number(match[1]) : 0,
-            filePath: join(this.paths.sessionDir, name),
+            filePath: join(this.paths.chatDir, name),
           },
         ];
       })
@@ -148,7 +148,7 @@ export class AssistantStorage {
     return (
       segments.at(-1) ?? {
         id: 0,
-        filePath: join(this.paths.sessionDir, segmentFileName(0)),
+        filePath: join(this.paths.chatDir, segmentFileName(0)),
       }
     );
   }
@@ -176,7 +176,7 @@ export class AssistantStorage {
       ) {
         segment = {
           id: segment.id + 1,
-          filePath: join(this.paths.sessionDir, segmentFileName(segment.id + 1)),
+          filePath: join(this.paths.chatDir, segmentFileName(segment.id + 1)),
         };
       }
     }
@@ -197,7 +197,7 @@ export class AssistantStorage {
   ): Promise<void> {
     const target =
       segment ?? this.activePromptSegment ?? (await this.getCurrentMessageSegment());
-    await this.ensureSessionDirectory();
+    await this.ensureChatDirectory();
     await appendFile(target.filePath, `${JSON.stringify(notification)}\n`, "utf8");
   }
 
@@ -247,8 +247,8 @@ export class AssistantStorage {
   }
 
   async saveSession(session: PersistedAssistantSession): Promise<void> {
-    await this.ensureAgentDirectory();
-    // Write to a temporary file and rename, so a crash mid-write cannot corrupt session.json.
+    await this.ensureSessionDirectory();
+    // Write to a temporary file and rename, so a crash mid-write cannot corrupt state.json.
     const temporaryPath = `${this.sessionStatePath}.tmp`;
     await writeFile(temporaryPath, `${JSON.stringify(session, null, 2)}\n`, "utf8");
     await rename(temporaryPath, this.sessionStatePath);
@@ -272,7 +272,7 @@ export class AssistantStorage {
 
   async appendHistory(messages: ModelMessage[]): Promise<void> {
     if (messages.length === 0) return;
-    await this.ensureAgentDirectory();
+    await this.ensureSessionDirectory();
     await appendFile(
       this.historyPath,
       `${messages.map((message) => JSON.stringify(message)).join("\n")}\n`,

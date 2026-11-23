@@ -27,6 +27,24 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 │           └── <session_id>/      # 每个会话独立文件夹（UUID）
 │               ├── session.json   # 会话状态（modelId, allowedToolKinds, contextUsedTokens）
 │               └── history.jsonl  # 对话历史 (NDJSON ModelMessage)
+├── assistants/                    # 个人助理数据
+│   └── <assistant_id>/
+│       ├── config.json            # 助理配置
+│       ├── session/               # 助理自身模型会话
+│       │   ├── state.json         # 运行时状态（模型、思考等级、Dream 调度）
+│       │   └── history.jsonl      # 模型可见对话历史 (NDJSON ModelMessage)
+│       ├── chat/                  # UI 聊天记录
+│       │   └── messages*.jsonl    # UI 通知流分段
+│       ├── memory/                # 长期记忆（Dream 产物）
+│       │   ├── memory.md          # 压缩后的长期记忆
+│       │   └── diary/             # 按时间段的日记
+│       ├── reminders/             # 用户提醒
+│       │   └── reminders.json
+│       └── workers/               # 委派出去的子代理
+│           └── <worker_id>/
+│               ├── session.json   # 子代理记录
+│               ├── messages*.jsonl  # 子代理通知流
+│               └── turns.jsonl    # 轮次元数据
 ├── automations/                   # 自动化任务数据
 │   └── <schedule_id>/
 │       ├── schedule.json          # 计划配置
@@ -163,7 +181,24 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `allowedToolKinds` | `string[]` | 被"始终允许"的工具权限种类列表。 |
 | `contextUsedTokens` | `number \| undefined` | 上下文窗口已用 Token 数（可选，持久化后恢复用）。 |
 
-### 6. 历史会话流事件 (`messages*.jsonl` / `history.jsonl`)
+### 6. 个人助理数据 (`assistants/<assistant_id>/`)
+
+个人助理是单会话，但数据按域拆成 `session/`、`chat/`、`memory/`、`workers/` 和 `reminders/`：
+
+| 路径 | 说明 |
+| :--- | :--- |
+| `config.json` | 助理身份与配置（来源 Agent、MCP、Dream 设置等） |
+| `session/state.json` | 助理自身运行时状态：模型、思考等级、token 用量、Dream 调度 |
+| `session/history.jsonl` | 模型可见的 `ModelMessage` 历史，用于恢复助理自己的上下文 |
+| `chat/messages*.jsonl` | UI 通知流分段，用于渲染聊天界面 |
+| `memory/memory.md` | Dream 压缩后的长期记忆，注入助理 system prompt |
+| `memory/diary/` | Dream 生成的日记条目，供日历与 `diary_query` 使用 |
+| `reminders/reminders.json` | 用户提醒配置与触发状态 |
+| `workers/<worker_id>/` | 委派出去的 ACP 子代理记录、通知流与轮次元数据 |
+
+`session/history.jsonl` 与 `chat/messages*.jsonl` 是两套不同的数据：前者给模型恢复上下文，后者给界面重放通知，不能互相替代。
+
+### 7. 历史会话流事件 (`messages*.jsonl` / `history.jsonl`)
 
 **Stdio Agent (`messages.jsonl`、`messages-000001.jsonl`...)**：存储由 ACP 协议产生的会话状态增量更新日志（Event Stream）。`messages.jsonl` 是兼容旧数据的 segment 0；后续 segment 使用 6 位递增编号。
 
@@ -182,11 +217,11 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | **持久化机制** | 每次 `prompt` 完成后追加用户消息和助手响应。 |
 | **读取与恢复** | 在 `resumeSession` 时按行解析，恢复完整的对话历史到 `session.history`。 |
 
-### 7. 终端日志 (`terminals/<terminal_id>.log`)
+### 8. 终端日志 (`terminals/<terminal_id>.log`)
 
 存储 Agent 在运行过程中通过终端输出的日志内容。终端日志被持久化到当前会话的 `terminals` 目录下，确保会话休眠后或重启应用时终端输出不丢失。
 
-### 8. iLink 数据 (`ilink/`)
+### 9. iLink 数据 (`ilink/`)
 
 | 文件 | 说明 |
 | :--- | :--- |
