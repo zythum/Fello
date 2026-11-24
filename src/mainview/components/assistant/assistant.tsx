@@ -35,7 +35,7 @@ import {
 import { useSessionDraftInput } from "../../lib/session-selectors";
 import { ChatArea } from "../chat/chat-area";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../chat/chat-textarea";
-import { FileDetail } from "../session/detail/file/file-detail";
+import { FileDetail } from "../files/detail/file-detail";
 import { nodesToMentionText, resolveMentions } from "../../lib/mention-utils";
 import { AskUserDialog } from "../chat/chat-ask-user-dialog";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";

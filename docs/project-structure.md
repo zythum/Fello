@@ -191,51 +191,61 @@ fello/
 │       │   │   ├── plan-bubble.tsx
 │       │   │   ├── message-bubble.tsx
 │       │   │   └── base-bubble.tsx
+│       │   ├── chat/                 # 会话与个人助理共用的聊天组件
+│       │   │   ├── chat-area.tsx     # 消息流渲染与滚动控制
+│       │   │   ├── chat-textarea.tsx # 输入区公共外壳 (MentionsInput、#/@ 建议面板、工具栏)
+│       │   │   ├── chat-ask-user-dialog.tsx # Ask User 弹窗
+│       │   │   └── chat-timeline.tsx # 聊天时间线导航
+│       │   ├── files/                # 文件浏览（会话 / 个人助理共用）
+│       │   │   ├── detail/            # 文件详情（会话 / 个人助理共用）
+│       │   │   │   ├── file-detail.tsx    # 文件详情入口 (根据文件类型分发到子目录)
+│       │   │   │   ├── file-types.ts      # 文件类型判断工具
+│       │   │   │   ├── common/            # 共享组件与 Hook
+│       │   │   │   │   ├── use-file.ts        # 文件加载 Hook
+│       │   │   │   │   └── file-view-tabs.tsx # 文件视图标签切换
+│       │   │   │   ├── code-detail/       # 代码文件预览
+│       │   │   │   │   ├── code-detail.tsx    # 代码高亮展示
+│       │   │   │   │   ├── search-bar.tsx     # 文件搜索条
+│       │   │   │   │   └── use-file-search.ts # 文件搜索 Hook
+│       │   │   │   ├── image-detail/      # 图片预览
+│       │   │   │   │   └── image-detail.tsx
+│       │   │   │   ├── media-detail/      # 音频 / 视频预览（内嵌播放器）
+│       │   │   │   │   └── media-detail.tsx
+│       │   │   │   ├── markdown-detail/   # Markdown 富文本预览
+│       │   │   │   │   └── markdown-detail.tsx
+│       │   │   │   ├── pdf-detail/        # PDF 文档预览
+│       │   │   │   │   └── pdf-detail.tsx
+│       │   │   │   ├── docx-detail/       # DOCX 文档预览
+│       │   │   │   │   └── docx-detail.tsx
+│       │   │   │   ├── xlsx-detail/       # Excel 文档预览
+│       │   │   │   │   └── xlsx-detail.tsx
+│       │   │   │   ├── pptx-detail/       # PPTX 演示文稿预览
+│       │   │   │   │   └── pptx-detail.tsx
+│       │   │   │   ├── html-detail/       # HTML 预览（含沙盒 iframe）
+│       │   │   │   │   └── html-detail.tsx
+│       │   │   │   └── fallback-detail/   # 不支持类型的降级展示
+│       │   │   │       └── fallback-detail.tsx
+│       │   │   ├── panel/             # 文件面板（会话 / 个人助理共用）
+│       │   │   │   └── file-panel.tsx    # 文件树状态与操作、重命名、拖拽移动、外部文件夹导入
+│       │   │   └── tree/              # 文件树展示层 (状态与操作由 file-panel 注入)
+│       │   │       ├── file-tree.tsx     # 树容器 + 根目录落点
+│       │   │       ├── tree-item.tsx     # 行组件 (内联重命名、git 标记、右键菜单)
+│       │   │       ├── tree-utils.ts     # 节点查找与路径工具
+│       │   │       ├── git-status.ts     # git 状态徽标
+│       │   │       ├── constants.ts      # 根目录落点标记
+│       │   │       └── types.ts          # TreeNode / actions 类型
 │       │   ├── session/              # 会话主工作区相关组件
 │       │   │   ├── chat/             # 聊天核心区域
 │       │   │   │   ├── chat.tsx      # 聊天主容器（含 ChatHeader）
 │       │   │   │   ├── chat-header.tsx # 会话头部 (Agent Badge, 标题, MCP菜单, 刷新)
-│       │   │   │   ├── chat-area.tsx # 消息流渲染与滚动控制
-│       │   │   │   ├── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
-│       │   │   │   ├── chat-textarea.tsx # 输入框公共外壳 (MentionsInput、#/@ 建议面板、工具栏)
-│       │   │   │   └── chat-timeline.tsx # 聊天时间线导航
+│       │   │   │   └── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
 │       │   │   ├── session.tsx       # 主工作区布局 (ResizablePanelGroup 三栏: Chat + Detail + Panel)
 │       │   │   ├── panel/            # 右侧标签面板
 │       │   │   │   ├── panel.tsx         # 带标签的面板容器 (Files / Terminal 切换)
-│       │   │   │   ├── file-panel/
-│       │   │   │   │   └── file-panel.tsx   # 文件树、重命名、拖拽移动等
 │       │   │   │   └── terminal-panel/
 │       │   │   │       └── terminal-panel.tsx # 垂直终端列表 (创建/删除/切换)
 │       │   │   └── detail/           # 详情视图 (嵌入左侧聊天区域)
 │       │   │       ├── detail.tsx         # 详情视图容器 (根据类型分发)
-│       │   │       ├── file/
-│       │   │       │   ├── file-detail.tsx    # 文件详情入口 (根据文件类型分发到子目录)
-│       │   │       │   ├── file-types.ts      # 文件类型判断工具
-│       │   │       │   ├── common/            # 共享组件与 Hook
-│       │   │       │   │   ├── use-file.ts        # 文件加载 Hook
-│       │   │       │   │   └── file-view-tabs.tsx # 文件视图标签切换
-│       │   │       │   ├── code-detail/       # 代码文件预览
-│       │   │       │   │   ├── code-detail.tsx    # 代码高亮展示
-│       │   │       │   │   ├── search-bar.tsx     # 文件搜索条
-│       │   │       │   │   └── use-file-search.ts # 文件搜索 Hook
-│       │   │       │   ├── image-detail/      # 图片预览
-│       │   │       │   │   └── image-detail.tsx
-│       │   │       │   ├── media-detail/      # 音频 / 视频预览（内嵌播放器）
-│       │   │       │   │   └── media-detail.tsx
-│       │   │       │   ├── markdown-detail/   # Markdown 富文本预览
-│       │   │       │   │   └── markdown-detail.tsx
-│       │   │       │   ├── pdf-detail/        # PDF 文档预览
-│       │   │       │   │   └── pdf-detail.tsx
-│       │   │       │   ├── docx-detail/       # DOCX 文档预览
-│       │   │       │   │   └── docx-detail.tsx
-│       │   │       │   ├── xlsx-detail/       # Excel 文档预览
-│       │   │       │   │   └── xlsx-detail.tsx
-│       │   │       │   ├── pptx-detail/       # PPTX 演示文稿预览
-│       │   │       │   │   └── pptx-detail.tsx
-│       │   │       │   ├── html-detail/       # HTML 预览（含沙盒 iframe）
-│       │   │       │   │   └── html-detail.tsx
-│       │   │       │   └── fallback-detail/   # 不支持类型的降级展示
-│       │   │       │       └── fallback-detail.tsx
 │       │   │       └── terminal/
 │       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件

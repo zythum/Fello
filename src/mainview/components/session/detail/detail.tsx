@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { FileDetail } from "./file/file-detail";
+import { FileDetail } from "../../files/detail/file-detail";
 import { TerminalDetail } from "./terminal/terminal-detail";
 import { TokenUsageDetail } from "./token-usage/token-usage-detail";
 import type { SessionInfo } from "../../../../shared/schema";

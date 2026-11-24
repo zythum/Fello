@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays, Folders, PanelRightClose, SquareChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { FilePanel } from "../../session/panel/file-panel/file-panel";
+import { FilePanel } from "../../files/panel/file-panel";
 import type { AssistantDiary, AssistantWorkerInfo } from "../../../../shared/schema";
 import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
 import { CalendarPanel } from "./calendar-panel/calendar-panel";

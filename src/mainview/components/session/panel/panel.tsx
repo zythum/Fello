@@ -4,7 +4,7 @@ import { Folders, PanelRightClose, SquareTerminal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useFocusTarget, useFocusTargetRegistry } from "../../../lib/keyboard";
-import { FilePanel } from "./file-panel/file-panel";
+import { FilePanel } from "../../files/panel/file-panel";
 import { TerminalPanel } from "./terminal-panel/terminal-panel";
 
 export type PanelTab = "files" | "terminal";

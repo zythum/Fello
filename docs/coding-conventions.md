@@ -11,7 +11,7 @@
 ## 命名与文件组织
 
 - 文件名统一 kebab-case（如 `chat-input.tsx`、`agent-bridge.ts`、`session-state-reducer.ts`）
-- React 组件文件以功能命名，按页面结构放入 `components/` 对应的模块目录下（如 `session/`、`session/chat/`、`settings/`、`skills/` 等）
+- React 组件文件以功能命名，按页面结构放入 `components/` 对应的模块目录下（如 `session/`、`chat/`、`files/`、`settings/`、`skills/` 等）；多个页面共用的组件放顶层模块（如 `chat/`、`chat-bubbles/`），只服务单一页面的组件留在该页目录内
 - 消息气泡按角色拆分到 `components/chat-bubbles/`
 - 多模态消息内容块按类型拆分到 `components/content-blocks/`
 - UI primitives 保持 `components/ui/`，避免跨目录重复实现
