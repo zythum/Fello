@@ -2,7 +2,7 @@ import { memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../../../store";
-import { Settings2, Loader2, PanelRightOpen, Download, FolderClosed } from "lucide-react";
+import { Settings2, Loader2, PanelRightOpen, Download, FolderOpen } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
 import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
@@ -164,7 +164,7 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
   // 图标与项目名一起作为可点区域（WebUI 下退化为纯文本）。
   const projectLabel = (
     <>
-      <FolderClosed aria-hidden="true" className="size-3 shrink-0 self-center" />
+      <FolderOpen aria-hidden="true" className="size-3 shrink-0 self-center" />
       <span className="truncate">{projectName}</span>
     </>
   );
