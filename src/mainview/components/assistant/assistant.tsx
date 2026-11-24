@@ -789,7 +789,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
               inputRef={inputRef}
               onBlur={saveDraft}
               onSubmit={(value) => void send(value)}
-              placeholder={t("assistant.placeholder", "Message {{name}}", {
+              placeholder={t("assistant.placeholder", "Message {{name}} (Enter to send)", {
                 name: assistantName,
               })}
               voiceInputRef={voiceInputRef}

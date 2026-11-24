@@ -152,7 +152,7 @@
     "restart": "Restart Assistant",
     "restarting": "Restarting…",
     "restartFailed": "Failed to restart assistant.",
-    "placeholder": "Message {{name}}",
+    "placeholder": "Message {{name}} (Enter to send)",
     "notConnected": "Personal Assistant is not connected.",
     "busyStreaming": "Wait for the current reply to finish.",
     "busyDreaming": "Wait for Dream to finish.",

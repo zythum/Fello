@@ -151,7 +151,7 @@
     "restart": "重启助理",
     "restarting": "重启中…",
     "restartFailed": "重启个人助理失败。",
-    "placeholder": "给 {{name}} 发送消息",
+    "placeholder": "给 {{name}} 发送消息（回车发送）",
     "notConnected": "个人助理未连接。",
     "busyStreaming": "请等待当前回复结束。",
     "busyDreaming": "请等待上下文整理完成。",
