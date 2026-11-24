@@ -182,7 +182,6 @@ export function createWebUIModule(): WebUIModule {
       // 由 file-routes.ts 统一解析，支持:
       //   /project/<projectId>/<relativePath>
       //   /share/<projectId>/<sessionId>/<sharePath>
-      //   /automation/<scheduleId>/<taskId>/<relativePath>
       {
         const route = parseFileRoute(url);
         if (route) {

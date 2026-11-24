@@ -157,7 +157,7 @@
   - `session/chat/chat-header.tsx`：会话头部（Agent Badge、标题、项目路径、MCP 服务器切换菜单、刷新、用量按钮）
   - `chat-bubbles/`：各类消息气泡（agent、subagent、user、system、tool、thinking、plan、message、base）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
-  - `files/`：文件浏览相关共享组件（会话与个人助理共用）——`panel/file-panel.tsx`（文件树状态与文件操作、重命名、拖拽移动、外部文件夹导入）、`tree/`（文件树展示层：树容器、行组件、git 标记、拖拽工具）、`detail/`（文件详情入口，按类型分发到 code / image / media / markdown / html / pdf / docx / xlsx / pptx / fallback 子目录，并监听 `fs-changed` 检测外部修改）
+  - `files/`：文件浏览相关共享组件（会话、个人助理与自动化任务共用）——`panel/file-panel.tsx`（文件树状态与文件操作、重命名、拖拽移动、外部文件夹导入）、`tree/`（文件树展示层：树容器、行组件、git 标记、拖拽工具）、`detail/`（文件详情入口，按类型分发到 code / image / media / markdown / html / pdf / docx / xlsx / pptx / fallback / conversation 子目录，并监听 `fs-changed` 检测外部修改）
   - `assistant/`：个人助理页——`assistant.tsx`（状态订阅、详情 / 面板布局、初始化遮罩）、`chat/`（header / 输入区 / 消息流与 Ask User，对应 `session/chat/`）、`detail/`（日记、记忆、worker 详情与参数面板）、`panel/`（日历与 worker 面板）
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情

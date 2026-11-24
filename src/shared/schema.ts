@@ -1391,25 +1391,15 @@ export type FelloIPCRequests = {
     params: { scheduleId: string };
     response: Task[];
   };
-  /** 获取调度某次任务生成的文件列表 */
-  getTaskFiles: {
+  /** 任务产物目录对应的虚拟 project（id + cwd），供共享文件面板使用。 */
+  getTaskProject: {
     params: { scheduleId: string; taskId: string };
-    response: string[];
-  };
-  /** 读取调度某次任务生成的文件内容 */
-  readTaskFile: {
-    params: { scheduleId: string; taskId: string; filePath: string; encoding?: "base64" };
-    response: string;
+    response: { projectId: string; cwd: string };
   };
   /** 删除调度某次任务及其文件 */
   deleteTask: {
     params: { scheduleId: string; taskId: string };
     response: void;
-  };
-  /** 获取调度某次任务文件的系统绝对路径 */
-  getTaskFileSystemPath: {
-    params: { scheduleId: string; taskId: string; filePath: string };
-    response: string;
   };
 
   /** 获取 shareToUser 文件的系统绝对路径 */

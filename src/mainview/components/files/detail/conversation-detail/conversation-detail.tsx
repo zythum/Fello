@@ -1,22 +1,22 @@
 import { useEffect, useMemo } from "react";
-import { useTaskFile } from "../common/use-task-file";
-import { LoadingState } from "../common/loading-state";
-import { MessageBubble } from "../../../../chat-bubbles/message-bubble";
-import { isValidMessageToDisplay } from "../../../../../lib/chat-message";
+import { useTranslation } from "react-i18next";
+import { useFile } from "../common/use-file";
+import { LoadingState } from "../../../common/loading-state";
+import { MessageBubble } from "../../../chat-bubbles/message-bubble";
+import { isValidMessageToDisplay } from "../../../../lib/chat-message";
 import {
   reduceSessionNotification,
   reduceFlushStreaming,
-} from "../../../../../lib/session-state-reducer";
+} from "../../../../lib/session-state-reducer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAppStore } from "../../../../../store";
+import { useAppStore } from "../../../../store";
 import { Bot, Clock, MessageSquareText } from "lucide-react";
-import type { SessionNotificationFelloExt, SessionInfo } from "../../../../../../shared/schema";
-import type { SessionState } from "../../../../../store";
+import type { SessionNotificationFelloExt, SessionInfo } from "../../../../../shared/schema";
+import type { SessionState } from "../../../../store";
 
 interface ConversationDetailProps {
-  scheduleId: string;
-  taskId: string;
-  fileName: string;
+  projectId: string;
+  file: string;
 }
 
 /** Meta information about the automation run */
@@ -99,11 +99,6 @@ function replayNotifications(notifications: SessionNotificationFelloExt[]) {
   return state.messages;
 }
 
-/** Generate a unique automation session ID scoped to this task */
-function getAutomationSessionId(scheduleId: string, taskId: string) {
-  return `automation:${scheduleId}:${taskId}`;
-}
-
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   const s = Math.round(ms / 1000);
@@ -147,18 +142,26 @@ function MetaHeader({ meta }: { meta: ConversationMeta }) {
   );
 }
 
-export function ConversationDetail({ scheduleId, taskId, fileName }: ConversationDetailProps) {
-  const { content, loading, errorMsg } = useTaskFile(scheduleId, taskId, fileName);
+export function ConversationDetail({ projectId, file }: ConversationDetailProps) {
+  // Conversation snapshots can be much larger than the normal 10MB preview limit.
+  const { t } = useTranslation();
+  const { content, loading, errorMsg, filePath } = useFile(projectId, file, {
+    maxSize: 64 * 1024 * 1024,
+  });
 
-  const automationSessionId = useMemo(
-    () => getAutomationSessionId(scheduleId, taskId),
-    [scheduleId, taskId],
+  /**
+   * Pseudo-session id used only for this viewer: MessageBubble needs a SessionInfo,
+   * and ToolBubble looks up terminal logs from sessionStates by session id.
+   */
+  const conversationSessionId = useMemo(
+    () => `conversation:${projectId}:${filePath}`,
+    [projectId, filePath],
   );
 
-  /** Stub session using the automation-scoped ID so AgentTerminalOutput can find logs */
+  /** Stub session using the conversation-scoped ID so AgentTerminalOutput can find logs */
   const stubSession: SessionInfo = useMemo(
     () => ({
-      id: automationSessionId,
+      id: conversationSessionId,
       title: "Automation",
       cwd: "",
       projectId: "",
@@ -180,7 +183,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
       isStreaming: false,
       connectionStatus: "connected",
     }),
-    [automationSessionId],
+    [conversationSessionId],
   );
 
   const data = useMemo(() => {
@@ -202,7 +205,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
     // Directly inject into sessionStates to bypass the sessions-list guard in updateSessionState
     useAppStore.setState((state) => {
       const map = new Map(state.sessionStates);
-      const current = map.get(automationSessionId);
+      const current = map.get(conversationSessionId);
       const base: SessionState = current ?? {
         messages: [],
         isLoading: false,
@@ -221,7 +224,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
         completedStatus: null,
         loadedAt: null,
       };
-      map.set(automationSessionId, {
+      map.set(conversationSessionId, {
         ...base,
         terminalLogs: { ...base.terminalLogs, ...terminalLogs },
       });
@@ -232,11 +235,11 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
     return () => {
       useAppStore.setState((state) => {
         const map = new Map(state.sessionStates);
-        map.delete(automationSessionId);
+        map.delete(conversationSessionId);
         return { sessionStates: map };
       });
     };
-  }, [data, automationSessionId]);
+  }, [data, conversationSessionId]);
 
   if (loading) return <LoadingState />;
   if (errorMsg) {
@@ -250,7 +253,7 @@ export function ConversationDetail({ scheduleId, taskId, fileName }: Conversatio
   if (messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        No conversation data
+        {t("fileDetail.noConversation", "No conversation data")}
       </div>
     );
   }

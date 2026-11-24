@@ -7,9 +7,9 @@ import {
   readdirSync,
   rmSync,
   existsSync,
-  statSync,
 } from "fs";
 import type { Schedule, Task } from "../../shared/schema";
+import { isSafeAutomationId } from "../../shared/task-project";
 
 export const AUTOMATIONS_DIR = join(homedir(), ".fello", "automations");
 mkdirSync(AUTOMATIONS_DIR, { recursive: true });
@@ -54,6 +54,7 @@ function normalizeSchedule(raw: Schedule): Schedule {
 
 export const store = {
   scheduleDir(scheduleId: string) {
+    if (!isSafeAutomationId(scheduleId)) throw new Error("Invalid schedule id.");
     return join(AUTOMATIONS_DIR, scheduleId);
   },
 
@@ -66,6 +67,7 @@ export const store = {
   },
 
   taskDir(scheduleId: string, taskId: string) {
+    if (!isSafeAutomationId(taskId)) throw new Error("Invalid task id.");
     return join(this.tasksDir(scheduleId), taskId);
   },
 
@@ -182,48 +184,6 @@ export const store = {
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
     }
-  },
-
-  listTaskFiles(scheduleId: string, taskId: string): string[] {
-    const dir = this.taskDir(scheduleId, taskId);
-    if (!existsSync(dir)) return [];
-    const entries = readdirSync(dir);
-    return entries
-      .filter((f) => f !== "task.json")
-      .map((f) => {
-        const fullPath = join(dir, f);
-        const s = statSync(fullPath);
-        if (s.isDirectory()) {
-          return this._listDirRecursive(fullPath, f);
-        }
-        return f;
-      })
-      .flat()
-      .sort();
-  },
-
-  _listDirRecursive(dir: string, prefix: string): string[] {
-    const result: string[] = [];
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const full = join(dir, entry);
-      const s = statSync(full);
-      if (s.isDirectory()) {
-        result.push(...this._listDirRecursive(full, join(prefix, entry)));
-      } else {
-        result.push(join(prefix, entry));
-      }
-    }
-    return result;
-  },
-
-  readTaskFile(scheduleId: string, taskId: string, filePath: string, encoding?: "base64"): string {
-    const base = this.taskDir(scheduleId, taskId);
-    const fullPath = join(base, filePath);
-    if (!fullPath.startsWith(base + "/") && fullPath !== base) throw new Error("Invalid file path");
-    if (!existsSync(fullPath)) throw new Error("File not found");
-    if (encoding === "base64") return readFileSync(fullPath).toString("base64");
-    return readFileSync(fullPath, "utf-8");
   },
 
   writeTaskFile(scheduleId: string, taskId: string, filePath: string, content: string) {

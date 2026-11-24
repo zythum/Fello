@@ -1055,6 +1055,7 @@
     "fileTooLarge": "文件过大 (超过 20MB)"
   },
   "detail": {
+    "noConversation": "暂无对话记录",
     "noContent": "无内容"
   },
   "fileDetail": {

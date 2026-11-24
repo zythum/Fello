@@ -1,4 +1,3 @@
-import { join } from "path";
 import { Cron } from "croner";
 import type { McpServer } from "@agentclientprotocol/sdk";
 import { store, normalizeRemainingRuns } from "./store";
@@ -24,14 +23,7 @@ export interface AutomationModule {
   deleteSchedule: (scheduleId: string) => void;
   executeTask: (scheduleId: string, source?: "cron" | "manual") => Promise<Task>;
   listTasks: (scheduleId: string) => Task[];
-  listTaskFiles: (scheduleId: string, taskId: string) => string[];
-  readTaskFile: (
-    scheduleId: string,
-    taskId: string,
-    filePath: string,
-    encoding?: "base64",
-  ) => string;
-  getTaskFileSystemPath: (scheduleId: string, taskId: string, filePath: string) => string;
+  getTaskDir: (scheduleId: string, taskId: string) => string;
   deleteTask: (scheduleId: string, taskId: string) => void;
   stopAllCrons: () => void;
 }
@@ -359,17 +351,8 @@ export function createAutomationModule(
   function listTasks(scheduleId: string) {
     return store.listTasks(scheduleId);
   }
-  function listTaskFiles(scheduleId: string, taskId: string) {
-    return store.listTaskFiles(scheduleId, taskId);
-  }
-  function readTaskFile(scheduleId: string, taskId: string, filePath: string, encoding?: "base64") {
-    return store.readTaskFile(scheduleId, taskId, filePath, encoding);
-  }
-  function getTaskFileSystemPath(scheduleId: string, taskId: string, filePath: string) {
-    const base = store.taskDir(scheduleId, taskId);
-    const fullPath = join(base, filePath);
-    if (!fullPath.startsWith(base + "/") && fullPath !== base) throw new Error("Invalid file path");
-    return fullPath;
+  function getTaskDir(scheduleId: string, taskId: string) {
+    return store.taskDir(scheduleId, taskId);
   }
   function deleteTask(scheduleId: string, taskId: string) {
     store.deleteTask(scheduleId, taskId);
@@ -385,9 +368,7 @@ export function createAutomationModule(
     deleteSchedule,
     executeTask,
     listTasks,
-    listTaskFiles,
-    readTaskFile,
-    getTaskFileSystemPath,
+    getTaskDir,
     deleteTask,
     stopAllCrons,
   };

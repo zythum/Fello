@@ -11,7 +11,8 @@ export type FileKind =
   | "xlsx"
   | "html"
   | "audio"
-  | "video";
+  | "video"
+  | "conversation";
 
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "ico"];
 
@@ -25,10 +26,15 @@ const FILE_EXT_MAP: Record<string, FileKind> = {
   htm: "html",
 };
 
+/** Conversation snapshots produced by automation tasks. */
+const CONVERSATION_FILES = [".fello-conversation.json"];
+
 /** 根据文件扩展名判断 fileKind */
 export function getFileKind(filename: string | null): FileKind | null {
   if (!filename) return null;
   const { path } = parseFileReference(filename);
+  const basename = path.split("/").pop() ?? path;
+  if (CONVERSATION_FILES.includes(basename.toLowerCase())) return "conversation";
   const ext = path.split(".").pop()?.toLowerCase() || "";
   if (IMAGE_EXTENSIONS.includes(ext)) return "image";
   if (AUDIO_EXTENSIONS.has(ext)) return "audio";

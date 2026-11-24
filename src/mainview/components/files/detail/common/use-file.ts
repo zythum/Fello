@@ -16,6 +16,8 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 interface UseFileOptions {
   encoding?: "text" | "base64";
   gitHead?: boolean;
+  /** Upper bound for text files; defaults to 10MB. */
+  maxSize?: number;
 }
 
 interface UseFileResult {
@@ -38,7 +40,7 @@ export function useFile(
   file: string,
   options: UseFileOptions = {},
 ): UseFileResult {
-  const { encoding = "text", gitHead = false } = options;
+  const { encoding = "text", gitHead = false, maxSize = 10 * 1024 * 1024 } = options;
   const { t } = useTranslation();
   const { path: filePath, search, hash } = useMemo(() => parseFileReference(file), [file]);
   const [content, setContent] = useState("");
@@ -76,7 +78,7 @@ export function useFile(
           return;
         }
         setFileSize(info.size);
-        if (info.size > 10 * 1024 * 1024) {
+        if (info.size > maxSize) {
           setErrorMsg(t("fileDetail.fileTooLarge"));
           return;
         }
@@ -115,7 +117,7 @@ export function useFile(
     return () => {
       active = false;
     };
-  }, [projectId, filePath, encoding, gitHead, t, reloadToken]);
+  }, [projectId, filePath, encoding, gitHead, maxSize, t, reloadToken]);
 
   const arrayBuffer = useMemo(
     () => (encoding === "base64" ? base64ToArrayBuffer(content) : new ArrayBuffer(0)),

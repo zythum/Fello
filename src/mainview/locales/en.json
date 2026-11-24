@@ -1056,6 +1056,7 @@
     "fileTooLarge": "File is too large (exceeds 20MB)"
   },
   "detail": {
+    "noConversation": "No conversation data",
     "noContent": "No content"
   },
   "fileDetail": {

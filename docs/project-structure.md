@@ -167,20 +167,7 @@ fello/
 │       │   │   ├── schedule/
 │       │   │   │   └── schedule.tsx          # 计划详情页（含可调整大小的任务历史面板）
 │       │   │   └── task/
-│       │   │       ├── task.tsx              # 任务详情视图
-│       │   │       ├── file-panel/
-│       │   │       │   └── file-panel.tsx    # 任务文件列表面板
-│       │   │       └── file-detail/
-│       │   │           ├── file-detail.tsx       # 任务文件详情入口（按类型分发）
-│       │   │           ├── file-types.ts         # 文件类型判断
-│       │   │           ├── code-detail/          # 代码文件预览
-│       │   │           ├── markdown-detail/      # Markdown 预览
-│       │   │           ├── html-detail/          # HTML 预览
-│       │   │           ├── image-detail/         # 图片预览
-│       │   │           ├── pdf-detail/           # PDF 预览
-│       │   │           ├── docx-detail/          # DOCX 预览
-│       │   │           ├── xlsx-detail/          # Excel 预览
-│       │   │           └── pptx-detail/          # PPTX 预览
+│       │   │       └── task.tsx              # 任务详情（产物目录作为虚拟 project，复用 components/files）
 │       │   ├── chat-bubbles/          # 各类消息气泡（独立顶级目录）
 │       │   │   ├── agent-bubble.tsx
 │       │   │   ├── subagent-bubble.tsx
@@ -211,13 +198,14 @@ fello/
 │       │   │   ├── chat-textarea.tsx # 输入区公共外壳 (MentionsInput、#/@ 建议面板、工具栏)
 │       │   │   ├── chat-ask-user-dialog.tsx # Ask User 弹窗
 │       │   │   └── chat-timeline.tsx # 聊天时间线导航
-│       │   ├── files/                # 文件浏览（会话 / 个人助理共用）
-│       │   │   ├── detail/            # 文件详情（会话 / 个人助理共用）
+│       │   ├── files/                # 文件浏览（会话 / 个人助理 / 自动化任务共用）
+│       │   │   ├── detail/            # 文件详情（会话 / 个人助理 / 自动化任务共用）
 │       │   │   │   ├── file-detail.tsx    # 文件详情入口 (根据文件类型分发到子目录)
 │       │   │   │   ├── file-types.ts      # 文件类型判断工具
 │       │   │   │   ├── common/            # 共享组件与 Hook
 │       │   │   │   │   ├── use-file.ts        # 文件加载 Hook
 │       │   │   │   │   └── file-view-tabs.tsx # 文件视图标签切换
+│       │   │   │   ├── conversation-detail/ # 自动化对话快照 (.fello-conversation.json)
 │       │   │   │   ├── code-detail/       # 代码文件预览
 │       │   │   │   │   ├── code-detail.tsx    # 代码高亮展示
 │       │   │   │   │   ├── search-bar.tsx     # 文件搜索条

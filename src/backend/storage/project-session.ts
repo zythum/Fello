@@ -12,6 +12,8 @@ import type {
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
 import { parseAssistantProjectId } from "../../shared/assistant";
+import { parseTaskProjectId } from "../../shared/task-project";
+import { store as automationStore } from "../automation/store";
 import { assistantWorkspacePath, loadAssistantConfig } from "../../assistant/config";
 import type { AvailableCommand, InitializeResponse, UsageUpdate } from "@agentclientprotocol/sdk";
 import type { Usage } from "@agentclientprotocol/sdk/unstable";
@@ -247,8 +249,18 @@ export function deleteProject(projectId: string) {
 }
 
 export function getProject(projectId: string): ProjectInfo | null {
-  // Assistant workspaces are virtual projects: they are not in the sidebar or
-  // sessions list, but every project file operation can address them by id.
+  // Virtual projects (assistant workspaces, automation task outputs) are not in
+  // the sidebar or sessions list, but every project file operation can address
+  // them by id.
+  const task = parseTaskProjectId(projectId);
+  if (task) {
+    return {
+      id: projectId,
+      title: task.taskId,
+      cwd: automationStore.taskDir(task.scheduleId, task.taskId),
+      createdAt: Number(task.taskId) || 0,
+    };
+  }
   const assistantId = parseAssistantProjectId(projectId);
   if (assistantId) {
     const config = loadAssistantConfig(assistantId);

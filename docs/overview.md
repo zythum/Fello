@@ -118,7 +118,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 任务历史：支持查看每次执行的状态、时间和产出文件
 - 文件预览：支持 Markdown、代码、HTML、PDF、图片等多格式任务产物预览
 - 实时更新：通过 `schedules-changed` 和 `task-update` 事件推送前端状态更新
-- 路径安全：readTaskFile/writeTaskFile 有路径穿越保护
+- 路径安全：任务产物写入与虚拟 project 的文件访问均有路径穿越保护
 - 优雅清理：应用退出时 `stopAllCrons` 清理所有定时任务
 
 ### 微信 iLink 集成

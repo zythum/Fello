@@ -182,10 +182,8 @@ sendPrompt: {
 | `deleteSchedule` | `{ scheduleId }` | `void` | 删除调度 |
 | `triggerSchedule` | `{ scheduleId }` | `Task` | 手动立即触发调度 |
 | `getTasks` | `{ scheduleId }` | `Task[]` | 获取调度的任务历史 |
-| `getTaskFiles` | `{ scheduleId, taskId }` | `string[]` | 获取任务生成的文件列表 |
-| `readTaskFile` | `{ scheduleId, taskId, filePath, encoding? }` | `string` | 读取任务文件内容 |
+| `getTaskProject` | `{ scheduleId, taskId }` | `{ projectId, cwd }` | 任务产物目录对应的虚拟 project |
 | `deleteTask` | `{ scheduleId, taskId }` | `void` | 删除任务及其文件 |
-| `getTaskFileSystemPath` | `{ scheduleId, taskId, filePath }` | `string` | 获取任务文件的系统绝对路径 |
 
 ### 记忆（Memory）
 

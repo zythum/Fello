@@ -90,7 +90,7 @@ src/backend/automation/
 - 每个 Schedule 一个子目录，内含 `schedule.json` 和 `tasks/` 目录
 - 每个 Task 一个子目录，内含 `task.json` 和 Agent 执行产出的文件
 - `normalizeSchedule` / `normalizeCron` 负责读取时补齐历史字段（`remainingRuns`、`cron.at`）并修正非法 `type`
-- 提供 `readTaskFile` / `writeTaskFile` 带路径穿越保护
+- 提供 `writeTaskFile` 带路径穿越保护；读取与预览统一走虚拟 project 的 `resolveSafePath`
 
 目录结构：
 
@@ -144,10 +144,10 @@ src/backend/automation/
 | `deleteSchedule` | `{ scheduleId }` | `void` |
 | `triggerSchedule` | `{ scheduleId }` | `Task` |
 | `getTasks` | `{ scheduleId }` | `Task[]` |
-| `getTaskFiles` | `{ scheduleId, taskId }` | `string[]` |
-| `readTaskFile` | `{ scheduleId, taskId, filePath, encoding? }` | `string` |
+| `getTaskProject` | `{ scheduleId, taskId }` | `{ projectId, cwd }` |
 | `deleteTask` | `{ scheduleId, taskId }` | `void` |
-| `getTaskFileSystemPath` | `{ scheduleId, taskId, filePath }` | `string` |
+
+任务产物的文件浏览复用 `components/files`：后端把任务目录暴露为虚拟 project `__task__<scheduleId>__<taskId>__`（`getTaskProject` 返回 `projectId` 与 `cwd`），因此 `readDir` / `readFile` / 重命名 / 拖拽 / 编辑与项目会话共用同一套实现；`.fello-conversation.json` 由共享的 `files/detail/conversation-detail` 渲染。 任务元数据 `task.json` 仍保留在目录中，但通过 `FilePanel.hiddenPaths` 从文件树隐藏，避免被误删或改名。
 
 ## 事件
 
@@ -168,19 +168,7 @@ src/mainview/components/automation/
 ├── schedule/
 │   └── schedule.tsx                # 计划详情（含任务历史面板）
 └── task/
-    ├── task.tsx                    # 任务详情视图
-    ├── file-panel/
-    │   └── file-panel.tsx          # 任务文件列表
-    └── file-detail/                # 多格式文件预览
-        ├── file-detail.tsx
-        ├── code-detail/
-        ├── markdown-detail/
-        ├── html-detail/
-        ├── image-detail/
-        ├── pdf-detail/
-        ├── docx-detail/
-        ├── xlsx-detail/
-        └── pptx-detail/
+    └── task.tsx                    # 任务详情（产物目录作为虚拟 project，复用 components/files）
 ```
 
 ### CronEditor 预设
@@ -217,6 +205,6 @@ CronEditor 组件提供常用预设供快速选择：
 
 ## 安全
 
-- `readTaskFile` / `writeTaskFile` / `getTaskFileSystemPath` 均有路径穿越校验，确保访问不超出任务目录
+- `writeTaskFile`（任务产出写入）与虚拟 project 的文件操作（`resolveSafePath`）均做路径穿越校验，确保访问不超出任务目录
 - 自动化任务执行时权限自动批准，`ask_user` 和 `share_to_user` feature 始终禁用（在 `store.createSchedule` 中过滤）
 - 应用退出时 `stopAllCrons()` 确保无残留定时器

@@ -31,6 +31,7 @@ import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
 import { createAssistantManager } from "./assistant";
 import { assistantPaths } from "../assistant/config";
+import { taskProjectId } from "../shared/task-project";
 
 // ── Init ─────────────────────────────────────────────────────────────
 
@@ -562,32 +563,11 @@ export function initBackend(
     async getTasks({ scheduleId }: { scheduleId: string }) {
       return automation.listTasks(scheduleId);
     },
-    async getTaskFiles({ scheduleId, taskId }: { scheduleId: string; taskId: string }) {
-      return automation.listTaskFiles(scheduleId, taskId);
-    },
-    async readTaskFile({
-      scheduleId,
-      taskId,
-      filePath,
-      encoding,
-    }: {
-      scheduleId: string;
-      taskId: string;
-      filePath: string;
-      encoding?: "base64";
-    }) {
-      return automation.readTaskFile(scheduleId, taskId, filePath, encoding);
-    },
-    async getTaskFileSystemPath({
-      scheduleId,
-      taskId,
-      filePath,
-    }: {
-      scheduleId: string;
-      taskId: string;
-      filePath: string;
-    }) {
-      return automation.getTaskFileSystemPath(scheduleId, taskId, filePath);
+    async getTaskProject({ scheduleId, taskId }: { scheduleId: string; taskId: string }) {
+      return {
+        projectId: taskProjectId(scheduleId, taskId),
+        cwd: automation.getTaskDir(scheduleId, taskId),
+      };
     },
     async getShareFileSystemPath({
       sessionId,

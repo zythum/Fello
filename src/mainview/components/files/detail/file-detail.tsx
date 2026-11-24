@@ -17,6 +17,7 @@ import { PptxDetail } from "./pptx-detail/pptx-detail";
 import { XlsxDetail } from "./xlsx-detail/xlsx-detail";
 import { HtmlDetail } from "./html-detail/html-detail";
 import { MediaDetail } from "./media-detail/media-detail";
+import { ConversationDetail } from "./conversation-detail/conversation-detail";
 import { FallbackDetail } from "./fallback-detail/fallback-detail";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,17 @@ export interface FileDetailProps {
   projectId: string | null;
   file: string | null;
   onClose?: () => void;
+  /** Hide “Add to Chat” in viewers when the host page has no chat context. */
+  showAddToChat?: boolean;
 }
 
-export function FileDetail({ compact, projectId, file, onClose }: FileDetailProps) {
+export function FileDetail({
+  compact,
+  projectId,
+  file,
+  onClose,
+  showAddToChat = true,
+}: FileDetailProps) {
   const { t } = useTranslation();
   const editorName = useAppStore((s) => s.editor.name);
   const filePath = file ? parseFileReference(file).path : "";
@@ -167,10 +176,22 @@ export function FileDetail({ compact, projectId, file, onClose }: FileDetailProp
       {/* content */}
       {projectId && filePath && file && (
         <div className="relative flex-1 min-h-0 overflow-hidden">
-          {fileKind === "text" ? (
-            <CodeDetail key={refreshKey} projectId={projectId} file={file} />
+          {fileKind === "conversation" ? (
+            <ConversationDetail key={refreshKey} projectId={projectId} file={file} />
+          ) : fileKind === "text" ? (
+            <CodeDetail
+              key={refreshKey}
+              projectId={projectId}
+              file={file}
+              showAddToChat={showAddToChat}
+            />
           ) : fileKind === "markdown" ? (
-            <MarkdownDetail key={refreshKey} projectId={projectId} file={file} />
+            <MarkdownDetail
+              key={refreshKey}
+              projectId={projectId}
+              file={file}
+              showAddToChat={showAddToChat}
+            />
           ) : fileKind === "image" ? (
             <ImageDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "pdf" ? (
@@ -182,7 +203,12 @@ export function FileDetail({ compact, projectId, file, onClose }: FileDetailProp
           ) : fileKind === "xlsx" ? (
             <XlsxDetail key={refreshKey} projectId={projectId} file={file} />
           ) : fileKind === "html" ? (
-            <HtmlDetail key={refreshKey} projectId={projectId} file={file} />
+            <HtmlDetail
+              key={refreshKey}
+              projectId={projectId}
+              file={file}
+              showAddToChat={showAddToChat}
+            />
           ) : fileKind === "audio" || fileKind === "video" ? (
             <MediaDetail key={refreshKey} projectId={projectId} file={file} kind={fileKind} />
           ) : (

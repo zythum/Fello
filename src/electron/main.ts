@@ -1115,7 +1115,6 @@ app.whenReady().then(async () => {
   // 仅响应 fello://web/...，统一由 file-routes.ts 解析:
   //   fello://web/project/<projectId>/<relativePath>
   //   fello://web/share/<projectId>/<sessionId>/<sharePath>
-  //   fello://web/automation/<scheduleId>/<taskId>/<relativePath>
   protocol.handle("fello", async (request) => {
     const url = new URL(request.url);
     // 仅响应 fello://web/... 请求
