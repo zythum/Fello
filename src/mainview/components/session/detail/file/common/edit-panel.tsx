@@ -15,7 +15,7 @@ import { extractErrorMessage } from "@/lib/utils";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { request } from "../../../../../backend";
 import { useMessage } from "../../../../providers/message";
-import { LoadingState } from "./loading-state";
+import { LoadingState } from "../../../../common/loading-state";
 import type { CodeEditorHandle } from "../code-detail/code-editor";
 
 // 懒加载 monaco 编辑器（monaco-editor-core 体积较大，独立 chunk 按需加载）

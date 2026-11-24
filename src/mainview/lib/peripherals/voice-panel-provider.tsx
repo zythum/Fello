@@ -11,7 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useRealtimeAsr } from "../../components/common/use-realtime-asr";
 import { useMessage } from "../../components/providers/message";
-import type { ChatTextareaVoicePanel } from "../../components/session/chat/chat-textarea";
+import type { ChatTextareaVoicePanel } from "../../components/chat/chat-textarea";
 
 /**
  * 外设语音面板（PTT 面板）。

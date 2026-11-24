@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { resolveFileUrl } from "@/lib/file-url";
 import { FileIcon } from "../../../../common/file-icon";
 import { parseFileReference } from "../../../../common/file-reference";
-import { ErrorState } from "../common/loading-state";
+import { ErrorState } from "../../../../common/loading-state";
 import type { MediaKind } from "../../../../../../shared/constants";
 
 interface MediaDetailProps {

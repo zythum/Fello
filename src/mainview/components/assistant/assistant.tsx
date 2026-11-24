@@ -33,11 +33,11 @@ import {
   queueAssistantNotification,
 } from "../../lib/assistant-lifecycle";
 import { useSessionDraftInput } from "../../lib/session-selectors";
-import { ChatArea } from "../session/chat/chat-area";
-import { ChatTextarea, type ChatTextareaSubmitValue } from "../session/chat/chat-textarea";
+import { ChatArea } from "../chat/chat-area";
+import { ChatTextarea, type ChatTextareaSubmitValue } from "../chat/chat-textarea";
 import { FileDetail } from "../session/detail/file/file-detail";
 import { nodesToMentionText, resolveMentions } from "../../lib/mention-utils";
-import { AskUserDialog } from "../session/chat/chat-ask-user-dialog";
+import { AskUserDialog } from "../chat/chat-ask-user-dialog";
 import type { VoiceInputButtonRef } from "../common/voice-input-button";
 import { CopyableRow } from "../common/copyable-row";
 import { electron } from "../../electron";

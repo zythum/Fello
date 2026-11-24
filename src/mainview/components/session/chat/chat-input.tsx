@@ -36,7 +36,7 @@ import {
   IMAGE_MIME_TYPES,
   type ChatTextareaMention,
   type ChatTextareaSubmitValue,
-} from "./chat-textarea";
+} from "../../chat/chat-textarea";
 
 /** `/` 命令建议面板（chat-input 独有，chat-textarea 只认 `#` / `@`） */
 function renderSlashSuggestion(

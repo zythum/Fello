@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { ChatHeader } from "./chat-header";
-import { ChatArea } from "./chat-area";
+import { ChatArea } from "../../chat/chat-area";
 import { ChatInput } from "./chat-input";
-import { AskUserDialog } from "./chat-ask-user-dialog";
+import { AskUserDialog } from "../../chat/chat-ask-user-dialog";
 import { useTtsAutoRead } from "../../../lib/tts/use-tts-auto-read";
 import type { SessionInfo } from "../../../../shared/schema";
 

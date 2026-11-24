@@ -1,5 +1,5 @@
 import { PdfView } from "../../../../common/pdf-view";
-import { LoadingState, ErrorState } from "../common/loading-state";
+import { LoadingState, ErrorState } from "../../../../common/loading-state";
 import { useFile } from "../common/use-file";
 
 interface PdfDetailProps {

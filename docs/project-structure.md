@@ -213,7 +213,6 @@ fello/
 │       │   │       │   ├── file-types.ts      # 文件类型判断工具
 │       │   │       │   ├── common/            # 共享组件与 Hook
 │       │   │       │   │   ├── use-file.ts        # 文件加载 Hook
-│       │   │       │   │   ├── loading-state.tsx  # 加载状态组件
 │       │   │       │   │   └── file-view-tabs.tsx # 文件视图标签切换
 │       │   │       │   ├── code-detail/       # 代码文件预览
 │       │   │       │   │   ├── code-detail.tsx    # 代码高亮展示
@@ -286,6 +285,7 @@ fello/
 │       │   │   ├── code-view.tsx               # 代码高亮展示（@pierre/diffs）
 │       │   │   ├── code-compare-view.tsx        # 代码 Diff 对比视图（@pierre/diffs）
 │       │   │   ├── file-icon.tsx               # 文件图标组件（按扩展名匹配图标）
+│       │   │   ├── loading-state.tsx            # 加载 / 错误状态
 │       │   │   ├── image-view.tsx              # 图片预览
 │       │   │   ├── stream-markdown.tsx         # 流式 Markdown 渲染
 │       │   │   ├── pdf-view.tsx                # PDF 文档预览

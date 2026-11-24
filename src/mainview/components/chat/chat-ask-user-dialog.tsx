@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useSessionAskUserRequests } from "../../../lib/session-selectors";
-import * as backend from "../../../backend";
+import { useSessionAskUserRequests } from "../../lib/session-selectors";
+import * as backend from "../../backend";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,11 +16,11 @@ import {
   Volume2,
 } from "lucide-react";
 import { stringify as toYaml } from "json-to-pretty-yaml";
-import { resolveMentions } from "../../../lib/mention-utils";
-import { speakOnce } from "../../../lib/tts/tts-reader";
-import type { AskUserRequest, AskUserRequestOption } from "../../../../shared/schema";
-import type { VoiceInputButtonRef } from "../../common/voice-input-button";
-import { useFocusTarget } from "../../../lib/keyboard";
+import { resolveMentions } from "../../lib/mention-utils";
+import { speakOnce } from "../../lib/tts/tts-reader";
+import type { AskUserRequest, AskUserRequestOption } from "../../../shared/schema";
+import type { VoiceInputButtonRef } from "../common/voice-input-button";
+import { useFocusTarget } from "../../lib/keyboard";
 import { ChatTextarea, IMAGE_MIME_TYPES, type ChatTextareaSubmitValue } from "./chat-textarea";
 
 interface Props {

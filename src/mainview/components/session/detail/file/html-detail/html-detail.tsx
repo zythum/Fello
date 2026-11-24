@@ -8,7 +8,7 @@ import { request, isWebUI, webUIBaseUrl } from "../../../../../backend";
 import { EDITOR_LABELS } from "../../../../../../shared/constants";
 import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
-import { ErrorState } from "../common/loading-state";
+import { ErrorState } from "../../../../common/loading-state";
 import { useFile } from "../common/use-file";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";

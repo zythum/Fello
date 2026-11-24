@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { request } from "../../backend";
 import { useAppStore } from "../../store";
 import { StreamMarkdown } from "../common/stream-markdown";
-import { ErrorState, LoadingState } from "../session/detail/file/common/loading-state";
+import { ErrorState, LoadingState } from "../common/loading-state";
 
 /** The assistant's long-term memory (memory.md), maintained by Dream. */
 export function MemoryDetail({

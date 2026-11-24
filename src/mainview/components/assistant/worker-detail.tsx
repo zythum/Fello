@@ -9,8 +9,8 @@ import type {
 import { request, subscribe } from "../../backend";
 import { useAppStore, type SessionState } from "../../store";
 import { reduceNotifications } from "../../lib/notification-history";
-import { ChatAreaView } from "../session/chat/chat-area";
-import { ErrorState } from "../session/detail/file/common/loading-state";
+import { ChatAreaView } from "../chat/chat-area";
+import { ErrorState } from "../common/loading-state";
 import { WorkerParamsDock } from "./worker-params-dock";
 import { cn } from "@/lib/utils";
 

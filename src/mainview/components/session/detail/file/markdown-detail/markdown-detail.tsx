@@ -20,7 +20,7 @@ import { electron } from "../../../../../electron";
 import { resolveFileUrl } from "../../../../../lib/file-url";
 import type { ViewMode } from "../common/file-view-tabs";
 import { FileViewTabs } from "../common/file-view-tabs";
-import { LoadingState, ErrorState } from "../common/loading-state";
+import { LoadingState, ErrorState } from "../../../../common/loading-state";
 import { useFile } from "../common/use-file";
 import { EditPanel, MAX_EDIT_SIZE, type EditPanelHandle } from "../common/edit-panel";
 

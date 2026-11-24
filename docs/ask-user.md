@@ -241,5 +241,5 @@ Zod schema 在 `src/shared/zod/mcp-ask-user-schema.ts` 中定义一次，Backend
 | `src/backend/storage/constant.ts` | Backend | `SOCKETS_DIR`、`TEMP_DIR` 常量 |
 | `src/mainview/store.ts` | Frontend | askUser 请求队列状态管理 |
 | `src/mainview/backend.ts` | Frontend | IPC 桥接 |
-| `src/mainview/components/session/chat/chat-ask-user-dialog.tsx` | Frontend | UI 对话框组件 |
+| `src/mainview/components/chat/chat-ask-user-dialog.tsx` | Frontend | UI 对话框组件 |
 | `electron.vite.config.ts` | Build | MCP server 构建入口 |

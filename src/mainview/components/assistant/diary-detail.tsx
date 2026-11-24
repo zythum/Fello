@@ -8,7 +8,7 @@ import { request } from "../../backend";
 import { useAppStore } from "../../store";
 import type { AssistantDiary } from "../../../shared/schema";
 import { StreamMarkdown } from "../common/stream-markdown";
-import { ErrorState, LoadingState } from "../session/detail/file/common/loading-state";
+import { ErrorState, LoadingState } from "../common/loading-state";
 
 /** Diary files start with Dream's YAML frontmatter: runtime metadata, never part of the content. */
 const DIARY_FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;

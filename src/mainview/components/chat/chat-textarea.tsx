@@ -47,25 +47,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn, generateUUID } from "@/lib/utils";
-import { useAppStore, type StagedAttachmentInfo } from "../../../store";
-import { isWebUI } from "../../../backend";
-import { electron } from "../../../electron";
-import { useSessionById } from "../../../lib/session-selectors";
+import { useAppStore, type StagedAttachmentInfo } from "../../store";
+import { isWebUI } from "../../backend";
+import { electron } from "../../electron";
+import { useSessionById } from "../../lib/session-selectors";
 import {
   useAtSuggestions,
   useFileSuggestions,
   type MentionFetcher,
-} from "../../../lib/mention-suggestions";
+} from "../../lib/mention-suggestions";
 import {
   MENTION_MARKUP,
   insertPathsAsMentions,
   nodesToMentionText,
   type MentionPathInput,
-} from "../../../lib/mention-utils";
-import { insertMentionTrigger, insertNewlineAtCaret } from "../../../lib/textarea";
-import type { SkillInfo } from "../../../../shared/schema";
-import { VoiceInputButton, type VoiceInputButtonRef } from "../../common/voice-input-button";
-import { useVoicePanelTarget } from "../../../lib/peripherals/voice-panel-provider";
+} from "../../lib/mention-utils";
+import { insertMentionTrigger, insertNewlineAtCaret } from "../../lib/textarea";
+import type { SkillInfo } from "../../../shared/schema";
+import { VoiceInputButton, type VoiceInputButtonRef } from "../common/voice-input-button";
+import { useVoicePanelTarget } from "../../lib/peripherals/voice-panel-provider";
 
 /**
  * chat-input 与 chat-ask-user-dialog 输入区的公共实现（`ChatTextarea` 一个组件 = 盒子 + 输入框 + 工具栏）。

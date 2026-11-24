@@ -12,29 +12,29 @@ import {
   useSessionActiveSubagents,
   useSessionHistoryPagination,
   useSessionMessages,
-} from "../../../lib/session-selectors";
+} from "../../lib/session-selectors";
 import {
   isValidMessageToDisplay,
   type ChatMessage,
   type SubagentMessage,
   type UserMessage,
-} from "../../../lib/chat-message";
-import { MessageBubble } from "../../chat-bubbles/message-bubble";
+} from "../../lib/chat-message";
+import { MessageBubble } from "../chat-bubbles/message-bubble";
 import type { ChatTimelineItem } from "./chat-timeline";
 import { ChatTimeline } from "./chat-timeline";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useStickToBottom } from "use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import { copyText as clipboardCopyText } from "@/lib/clipboard";
-import { speakOnce } from "../../../lib/tts/tts-reader";
+import { speakOnce } from "../../lib/tts/tts-reader";
 import { ArrowDown, ArrowUpToLine, Check, Copy, Bot, Volume2, type LucideIcon } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
-import { useFocusTarget } from "../../../lib/keyboard";
-import { loadPreviousSessionHistory } from "../../../lib/session-lifecycle";
+import { useFocusTarget } from "../../lib/keyboard";
+import { loadPreviousSessionHistory } from "../../lib/session-lifecycle";
 
-import { HISTORY_PAGE_SIZE } from "../../../../shared/constants";
+import { HISTORY_PAGE_SIZE } from "../../../shared/constants";
 
-import type { SessionInfo } from "../../../../shared/schema";
+import type { SessionInfo } from "../../../shared/schema";
 
 export interface ChatAreaViewProps {
   session: SessionInfo;

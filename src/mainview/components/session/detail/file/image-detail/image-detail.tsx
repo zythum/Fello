@@ -1,4 +1,4 @@
-import { LoadingState, ErrorState } from "../common/loading-state";
+import { LoadingState, ErrorState } from "../../../../common/loading-state";
 import { useFile } from "../common/use-file";
 import { ImageView } from "@/components/common/image-view";
 

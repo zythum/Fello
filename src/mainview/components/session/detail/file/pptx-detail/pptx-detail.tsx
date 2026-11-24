@@ -1,5 +1,5 @@
 import { PptxView } from "../../../../common/pptx-view";
-import { LoadingState, ErrorState } from "../common/loading-state";
+import { LoadingState, ErrorState } from "../../../../common/loading-state";
 import { useFile } from "../common/use-file";
 
 interface PptxDetailProps {
