@@ -8,10 +8,13 @@ import type { SessionInfo } from "../../../shared/schema";
 export function UsageButton({
   session,
   onOpenMemory,
+  onDreamNow,
 }: {
   session: SessionInfo;
   /** Personal Assistant only: opens memory.md from the usage panel. */
   onOpenMemory?: () => void;
+  /** Personal Assistant only: runs a Dream (memory consolidation) now. */
+  onDreamNow?: () => void;
 }) {
   const { t } = useTranslation();
   const configuredAgents = useAppStore((s) => s.configuredAgents);
@@ -22,8 +25,8 @@ export function UsageButton({
 
   const hasData = usage || lastTurnUsage;
 
-  // The assistant always exposes memory from this panel, even before the first usage arrives.
-  if (!hasData && !onOpenMemory) return null;
+  // The assistant always exposes memory actions from this panel, even before the first usage arrives.
+  if (!hasData && !onOpenMemory && !onDreamNow) return null;
 
   const pct = usage?.size ? (usage.used / usage.size) * 100 : 0;
   const pctColor = pct > 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-primary";
@@ -121,17 +124,33 @@ export function UsageButton({
                   {t("chatHeader.viewBreakdown", "View Breakdown")}
                 </PopoverPrimitive.Close>
               )}
-              {onOpenMemory && (
-                <PopoverPrimitive.Close
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "xs",
-                    className: "w-full py-3 font-normal border-border!",
-                  })}
-                  onClick={onOpenMemory}
-                >
-                  {t("assistant.memory.view", "View Memory")}
-                </PopoverPrimitive.Close>
+              {(onDreamNow || onOpenMemory) && (
+                <div className="flex gap-2">
+                  {onDreamNow && (
+                    <PopoverPrimitive.Close
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "xs",
+                        className: "flex-1 py-3 font-normal border-border!",
+                      })}
+                      onClick={onDreamNow}
+                    >
+                      {t("assistant.dreamNow", "Dream now")}
+                    </PopoverPrimitive.Close>
+                  )}
+                  {onOpenMemory && (
+                    <PopoverPrimitive.Close
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "xs",
+                        className: "flex-1 py-3 font-normal border-border!",
+                      })}
+                      onClick={onOpenMemory}
+                    >
+                      {t("assistant.memory.view", "View Memory")}
+                    </PopoverPrimitive.Close>
+                  )}
+                </div>
               )}
             </div>
           </PopoverPrimitive.Popup>

@@ -32,6 +32,7 @@ import type {
 import type {
   AgentInfo,
   ApiAgentInfo,
+  AssistantDreamStartResult,
   SessionModelState,
   SessionModeState,
   SessionThoughtLevelState,
@@ -801,6 +802,16 @@ export class ACPBridge {
     // does no protocol parsing itself.
     const error = this.options.onPromptCompleted?.(params.sessionId, res) || undefined;
     return error ? { ...res, error } : res;
+  }
+
+  /**
+   * 个人助理专用：立即触发一次 Dream（记忆沉淀）。
+   * 立即返回是否已启动；Dream 在助理进程内后台执行并通过状态事件广播进度。
+   */
+  async runDreamNow(): Promise<AssistantDreamStartResult> {
+    const process = this.process;
+    if (!process?.runDreamNow) return { started: false, reason: "not-connected" };
+    return process.runDreamNow();
   }
 
   async cancel(params: CancelNotification): Promise<void> {

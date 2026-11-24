@@ -29,6 +29,7 @@ export function spawnAssistantAgent(options: AssistantAgentOptions): AgentProces
   return {
     input: inputStream.writable,
     output: outputStream.readable,
+    runDreamNow: () => impl.dreamNow(),
     async close(): Promise<void> {
       await impl.abortAll();
       const writer = outputStream.writable.getWriter();

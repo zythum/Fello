@@ -35,7 +35,12 @@ import {
   type UsageUpdate,
 } from "@agentclientprotocol/sdk";
 import type { McpServer, PromptResponse, Usage } from "@agentclientprotocol/sdk/unstable";
-import type { ApiAgentInfo, ModelInfo, SessionModelState } from "../shared/schema";
+import type {
+  ApiAgentInfo,
+  AssistantDreamStartResult,
+  ModelInfo,
+  SessionModelState,
+} from "../shared/schema";
 import { ASSISTANT_AGENT_ID } from "./constants";
 import {
   AssistantStorage,
@@ -670,6 +675,19 @@ export class AssistantAgent {
       this.scheduleDream(session);
       await this.persistSession(session);
     }
+  }
+
+  /**
+   * 用户手动触发一次 Dream。立即返回是否已启动：Dream 本身在后台跑完，
+   * 进度与失败通过 onDreamStatus 广播，与定时/超限触发走同一条路径。
+   */
+  async dreamNow(): Promise<AssistantDreamStartResult> {
+    const session = await this.ensureSession();
+    if (this.dreamPending || session.abortController) return { started: false, reason: "busy" };
+    if (!session.modelId) return { started: false, reason: "no-model" };
+    if (!session.history.length) return { started: false, reason: "empty" };
+    void this.runDream(session).catch(() => {});
+    return { started: true };
   }
 
   private async dreamBeforePrompt(session: AssistantSession): Promise<void> {

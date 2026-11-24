@@ -245,6 +245,17 @@ export interface AssistantStatus {
   lastTurnUsage?: Usage | null;
 }
 
+/**
+ * 手动触发一次 Dream（记忆沉淀）的结果。
+ * 未启动时 `reason` 说明当前缺什么条件，界面据此提示用户。
+ */
+export type AssistantDreamStartResult =
+  | { started: true }
+  | {
+      started: false;
+      reason: "not-connected" | "busy" | "empty" | "no-model";
+    };
+
 /** Worker state shown in the Personal Assistant's Workers panel. */
 export type AssistantWorkerStatus =
   | "running"
@@ -1011,6 +1022,11 @@ export type FelloIPCRequests = {
   getAssistantStatus: { params: { assistantId: string }; response: AssistantStatus };
   /** 关闭助理当前的 Dream 失败提示（清空 status.dreamError 并广播）。 */
   dismissAssistantDreamError: { params: { assistantId: string }; response: void };
+  /** 立即手动执行一次 Dream（记忆沉淀）；返回是否已启动以及未启动的原因。 */
+  runAssistantDream: {
+    params: { assistantId: string };
+    response: AssistantDreamStartResult;
+  };
   /** 获取助理数据目录（config.json / agent / diary / session）的绝对路径。 */
   getAssistantDataSystemPath: { params: { assistantId: string }; response: string };
   /** 获取助理当前的所有 worker 及其状态。 */

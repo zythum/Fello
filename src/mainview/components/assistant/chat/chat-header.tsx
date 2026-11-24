@@ -47,7 +47,7 @@ export function AssistantChatHeader({
   onOpenPanel: () => void;
 }) {
   const { t } = useTranslation();
-  const { toast } = useMessage();
+  const { toast, confirm } = useMessage();
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
   const isMacApp = useAppStore((state) => state.isMacApp);
   const isFullScreen = useAppStore((state) => state.isFullScreen);
@@ -121,6 +121,66 @@ export function AssistantChatHeader({
     }
   };
 
+  /**
+   * 手动触发一次记忆沉淀。界面上先按已知状态提示缺什么条件，
+   * 后端仍会复核（历史为空 / 没模型 / 正在跑）并返回原因，避免状态过期时静默失败。
+   */
+  const handleDreamNow = async () => {
+    if (!status || status.connectionStatus !== "connected") {
+      toast.error(t("assistant.notConnected", "Personal Assistant is not connected."));
+      return;
+    }
+    if (status.dreaming) {
+      toast.info(t("assistant.busyDreaming", "Wait for Dream to finish."));
+      return;
+    }
+    if (status.isStreaming) {
+      toast.info(t("assistant.busyStreaming", "Wait for the current reply to finish."));
+      return;
+    }
+    // 沉淀会清空模型可见的对话历史，一次误点代价不小，先讲清后果再执行。
+    const confirmed = await confirm({
+      title: t("assistant.dreamConfirmTitle", "Run Dream now?"),
+      content: t(
+        "assistant.dreamConfirmContent",
+        "The assistant reviews this conversation, writes a diary entry, and updates its long-term memory. Afterwards it continues from that memory instead of re-reading the conversation; the chat transcript itself stays.",
+      ),
+      buttons: [
+        { text: t("message.cancel", "Cancel"), value: null, variant: "outline" },
+        {
+          text: t("assistant.dreamConfirmAction", "Start"),
+          value: "confirm",
+          variant: "default",
+        },
+      ],
+    });
+    if (!confirmed) return;
+    try {
+      const result = await request.runAssistantDream({ assistantId });
+      if (result.started) return;
+      switch (result.reason) {
+        case "empty":
+          toast.info(
+            t("assistant.dreamEmpty", "Nothing to consolidate yet — chat a little first."),
+          );
+          break;
+        case "no-model":
+          toast.error(t("assistant.dreamNoModel", "No model available, so Dream cannot run."));
+          break;
+        case "busy":
+          toast.info(t("assistant.busyDreaming", "Wait for Dream to finish."));
+          break;
+        case "not-connected":
+          toast.error(t("assistant.notConnected", "Personal Assistant is not connected."));
+          break;
+        default:
+          toast.error(t("assistant.dreamFailed", "Dream failed"));
+      }
+    } catch (error) {
+      toast.error(extractErrorMessage(error) || t("assistant.dreamFailed", "Dream failed"));
+    }
+  };
+
   return (
     <header
       className={cn(
@@ -151,7 +211,11 @@ export function AssistantChatHeader({
       <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
         <TtsReadoutButton />
         <TtsMenuButton />
-        <UsageButton session={session} onOpenMemory={onOpenMemory} />
+        <UsageButton
+          session={session}
+          onOpenMemory={onOpenMemory}
+          onDreamNow={() => void handleDreamNow()}
+        />
         <PopoverPrimitive.Root
           open={configOpen}
           onOpenChange={(open) => {

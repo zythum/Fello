@@ -10,6 +10,7 @@ import type { McpServer, Usage } from "@agentclientprotocol/sdk/unstable";
 import type {
   ApiAgentInfo,
   AssistantConfig,
+  AssistantDreamStartResult,
   AssistantStatus,
   AssistantWorkerHistorySegment,
   AssistantWorkerInfo,
@@ -58,6 +59,8 @@ export interface AssistantModule {
   getStatus: () => AssistantStatus;
   /** Clear the Dream failure shown in the UI (without touching the next Dream schedule). */
   dismissDreamError: () => void;
+  /** Run a Dream now (manual trigger); returns why it did not start when it didn't. */
+  dreamNow: () => Promise<AssistantDreamStartResult>;
   listReminders: () => Promise<AssistantReminderList>;
   listDiaries: () => Promise<AssistantDiary[]>;
   readDiary: (file: string) => ReturnType<typeof readDiary>;
@@ -85,6 +88,8 @@ export interface AssistantManager {
   getStatus: (assistantId: string) => AssistantStatus;
   /** Clear the Dream failure shown in the UI; no-op when the assistant is not running. */
   dismissDreamError: (assistantId: string) => void;
+  /** Run a Dream now (manual trigger); returns why it did not start when it didn't. */
+  dreamNow: (assistantId: string) => Promise<AssistantDreamStartResult>;
   start: (assistantId: string) => Promise<void>;
   create: (input: {
     name?: string;
@@ -809,6 +814,10 @@ function createAssistantRuntime(
     dismissDreamError: () => {
       if (status.dreamError) updateStatus({ dreamError: undefined });
     },
+    dreamNow: async () => {
+      if (!bridge?.isConnected) return { started: false, reason: "not-connected" };
+      return bridge.runDreamNow();
+    },
     listReminders: async () => {
       // Loads reminders even before the assistant starts, so the calendar never shows an empty list.
       await reminders.load().catch((error) => {
@@ -990,6 +999,7 @@ export function createAssistantManager(
     dismissDreamError: (assistantId) => {
       runtimes.get(assistantId)?.dismissDreamError();
     },
+    dreamNow: (assistantId) => requireRuntime(assistantId).dreamNow(),
     start: async (assistantId) => {
       await requireRuntime(assistantId).start();
     },

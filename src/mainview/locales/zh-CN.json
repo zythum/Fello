@@ -138,7 +138,7 @@
       "openWorkspaceFolder": "打开工作目录",
       "sourceAgent": "来源 Agent",
       "selectAgent": "选择 Agent",
-      "groupDream": "上下文整理",
+      "groupDream": "记忆沉淀",
       "dreamMaxContext": "Token 上限",
       "dreamPreferredTime": "首选时间"
     },
@@ -155,9 +155,15 @@
     "placeholder": "给 {{name}} 发送消息（回车发送）",
     "notConnected": "个人助理未连接。",
     "busyStreaming": "请等待当前回复结束。",
-    "busyDreaming": "请等待上下文整理完成。",
-    "dreaming": "正在整理上下文…",
-    "dreamFailed": "上下文整理失败",
+    "busyDreaming": "请等待记忆沉淀完成。",
+    "dreaming": "正在沉淀记忆…",
+    "dreamFailed": "记忆沉淀失败",
+    "dreamNow": "沉淀记忆",
+    "dreamEmpty": "还没有可沉淀的对话，先聊几句吧。",
+    "dreamNoModel": "还没有可用的模型，无法沉淀。",
+    "dreamConfirmTitle": "现在沉淀记忆？",
+    "dreamConfirmContent": "助理会回顾这段对话，写成一篇日记并更新长期记忆。之后它凭记忆继续聊，不再逐条重读这些对话；聊天记录本身不会删除。",
+    "dreamConfirmAction": "开始沉淀",
     "failed": "个人助理执行失败。",
     "dismiss": "关闭",
     "selectModel": "选择模型",
@@ -170,7 +176,7 @@
     "memory": {
       "title": "记忆",
       "view": "查看记忆",
-      "empty": "还没有记忆"
+      "empty": "还没有记忆，记忆沉淀后这里会自动更新"
     },
     "reminders": {
       "title": "提醒",
@@ -329,7 +335,7 @@
     },
     "assistant": {
       "title": "个人助理",
-      "desc": "在侧边栏管理个人助理：新建、在聊天头部修改来源 Agent / MCP / 上下文整理，或禁用与删除。Worker 类型由所有助理共享。",
+      "desc": "在侧边栏管理个人助理：新建、在聊天头部修改来源 Agent / MCP / 记忆沉淀，或禁用与删除。Worker 类型由所有助理共享。",
       "groupGeneral": "通用",
       "enabled": "启用个人助理",
       "enabledDesc": "Fello 运行期间连接个人助理，并在侧边栏显示入口。",

@@ -159,6 +159,12 @@
     "busyDreaming": "Wait for Dream to finish.",
     "dreaming": "Dreaming…",
     "dreamFailed": "Dream failed",
+    "dreamNow": "Dream now",
+    "dreamEmpty": "Nothing to consolidate yet — chat a little first.",
+    "dreamNoModel": "No model available, so Dream cannot run.",
+    "dreamConfirmTitle": "Run Dream now?",
+    "dreamConfirmContent": "The assistant reviews this conversation, writes a diary entry, and updates its long-term memory. Afterwards it continues from that memory instead of re-reading the conversation; the chat transcript itself stays.",
+    "dreamConfirmAction": "Start",
     "failed": "Personal Assistant failed.",
     "dismiss": "Dismiss",
     "selectModel": "Select model",
@@ -171,7 +177,7 @@
     "memory": {
       "title": "Memory",
       "view": "View Memory",
-      "empty": "No memory yet"
+      "empty": "No memory yet — it updates after each Dream"
     },
     "reminders": {
       "title": "Reminders",
