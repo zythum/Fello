@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import type { ComponentProps } from "react";
+import { useTranslation } from "react-i18next";
 import type { DayButton } from "react-day-picker";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { occurrencesBetween, zonedDayBounds, type Reminder } from "../../../../../shared/reminder";
@@ -48,6 +49,7 @@ function countOnDay(reminders: Reminder[], date: Date, timeZone: string): number
 /** Calendar day cell: the default button plus one dot per reminder on that day. */
 function CalendarDayButtonCell(props: ComponentProps<typeof DayButton>) {
   const { reminders, timeZone, dotCounts } = useContext(CalendarContext);
+  const { t } = useTranslation();
   const date = props.day.date;
   const key = dayKey(date);
   let count = dotCounts.get(key);
@@ -57,6 +59,16 @@ function CalendarDayButtonCell(props: ComponentProps<typeof DayButton>) {
   }
   return (
     <CalendarDayButton {...props}>
+      {props.modifiers.today && (
+        // A div, not a span: the day button styles its direct span children (`[&>span]:text-xs`),
+        // which would override the label's own font size.
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-1 text-center text-[7px] leading-none font-medium opacity-60"
+        >
+          {t("assistant.calendar.today", "Today")}
+        </div>
+      )}
       {props.children}
       {count > 0 && (
         // Absolutely positioned so the dots never change the layout of the day number.

@@ -171,6 +171,7 @@
     "selectThinking": "Select thinking level",
     "calendar": {
       "title": "Calendar",
+      "today": "Today",
       "diary": "Diary",
       "diaryTruncated": "Entry truncated"
     },

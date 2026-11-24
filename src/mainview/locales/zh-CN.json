@@ -170,6 +170,7 @@
     "selectThinking": "选择思考等级",
     "calendar": {
       "title": "日历",
+      "today": "今天",
       "diary": "日记",
       "diaryTruncated": "条目内容已截断"
     },
