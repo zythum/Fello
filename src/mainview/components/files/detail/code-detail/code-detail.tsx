@@ -27,9 +27,15 @@ import { SearchBar } from "./search-bar";
 interface CodeDetailProps {
   projectId: string;
   file: string;
+  /** 是否显示 “Add to Chat”（任务产物等没有聊天上下文的场景传 false）。 */
+  showAddToChat?: boolean;
 }
 
-export function CodeDetail({ projectId, file }: CodeDetailProps) {
+export function CodeDetail({
+  projectId,
+  file,
+  showAddToChat = true,
+}: CodeDetailProps) {
   const { t } = useTranslation();
   const { content, gitContent, loading, errorMsg, filePath, fileSize, reload } = useFile(
     projectId,
@@ -145,10 +151,14 @@ export function CodeDetail({ projectId, file }: CodeDetailProps) {
         <Copy /> {t("fileDetail.copyFileContent")}
       </ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onClick={handleAddFileToChat}>
-        <MessageSquarePlus /> {t("fileDetail.addFileToChat")}
-      </ContextMenuItem>
-      <ContextMenuSeparator />
+      {showAddToChat && (
+        <>
+          <ContextMenuItem onClick={handleAddFileToChat}>
+            <MessageSquarePlus /> {t("fileDetail.addFileToChat")}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       <ContextMenuItem onClick={handleCopyPath}>
         <Copy /> {t("filePanel.copyPath")}
       </ContextMenuItem>

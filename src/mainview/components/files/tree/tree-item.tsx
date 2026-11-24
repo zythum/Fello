@@ -53,6 +53,7 @@ export function TreeItem({
   onEditSubmit,
   onEditCancel,
   actions,
+  showAddToChat = true,
   onKeyDown,
   registerRef,
   onFocus,
@@ -91,6 +92,7 @@ export function TreeItem({
     onEditSubmit,
     onEditCancel,
     actions,
+    showAddToChat,
     onKeyDown,
     registerRef,
     onFocus,
@@ -256,15 +258,19 @@ export function TreeItem({
               <ContextMenuSeparator />
             </>
           )}
-          <ContextMenuItem
-            onClick={() => {
-              actions.addToChat(node.id);
-            }}
-          >
-            <MessageSquarePlus />
-            {t("filePanel.addToChat")}
-          </ContextMenuItem>
-          <ContextMenuSeparator />
+          {showAddToChat && (
+            <>
+              <ContextMenuItem
+                onClick={() => {
+                  actions.addToChat(node.id);
+                }}
+              >
+                <MessageSquarePlus />
+                {t("filePanel.addToChat")}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           <ContextMenuItem
             onClick={() => {
               actions.startRename(node);

@@ -25,9 +25,15 @@ import {
 interface HtmlDetailProps {
   projectId: string;
   file: string;
+  /** 是否显示 “Add to Chat”（任务产物等没有聊天上下文的场景传 false）。 */
+  showAddToChat?: boolean;
 }
 
-export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
+export function HtmlDetail({
+  projectId,
+  file,
+  showAddToChat = true,
+}: HtmlDetailProps) {
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -183,10 +189,14 @@ export function HtmlDetail({ projectId, file }: HtmlDetailProps) {
         <Copy /> {t("fileDetail.copyFileContent")}
       </ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onClick={handleAddFileToChat}>
-        <MessageSquarePlus /> {t("fileDetail.addFileToChat")}
-      </ContextMenuItem>
-      <ContextMenuSeparator />
+      {showAddToChat && (
+        <>
+          <ContextMenuItem onClick={handleAddFileToChat}>
+            <MessageSquarePlus /> {t("fileDetail.addFileToChat")}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       <ContextMenuItem onClick={handleCopyPath}>
         <Copy /> {t("filePanel.copyPath")}
       </ContextMenuItem>

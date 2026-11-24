@@ -51,6 +51,8 @@ export interface FileTreeRowProps {
   onEditSubmit: () => void;
   onEditCancel: () => void;
   actions: FileTreeActions;
+  /** Hide the tree row's “Add to Chat” action (no chat context on the host page). */
+  showAddToChat?: boolean;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>, node: TreeNode) => void;
   registerRef: (id: string, element: HTMLDivElement | null) => void;
   onFocus: (id: string) => void;

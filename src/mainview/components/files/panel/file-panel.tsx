@@ -70,12 +70,29 @@ function fileNavigationItemKey(item: FileNavigationItem) {
   return item.type === "action" ? `action:${item.action}` : `tree:${item.id}`;
 }
 
+/** Drop exact relative paths (and their subtrees) from a fetched tree. */
+function filterHiddenPaths(nodes: TreeNode[], hidden: Set<string>): TreeNode[] {
+  if (hidden.size === 0) return nodes;
+  return nodes
+    .filter((node) => !hidden.has(node.id))
+    .map((node) =>
+      node.children ? { ...node, children: filterHiddenPaths(node.children, hidden) } : node,
+    );
+}
+
 export interface FilePanelProps {
   projectId: string;
   previewFileId: string | null;
   onPreviewFile: (file: string) => void;
-  /** Overrides the project cwd (used by the assistant's virtual workspace). */
+  /** Overrides the project cwd (used by virtual projects: assistant workspace / task outputs). */
   cwd?: string;
+  /** Hide “Add to Chat” in the tree context menu when the host page has no chat. */
+  showAddToChat?: boolean;
+  /**
+   * Exact relative paths to omit from the tree (e.g. automation's `task.json`
+   * metadata). Hidden entries are neither rendered nor keyboard/selection targets.
+   */
+  hiddenPaths?: string[];
 }
 
 export const FilePanel = memo(function FilePanel({
@@ -83,8 +100,14 @@ export const FilePanel = memo(function FilePanel({
   previewFileId,
   onPreviewFile,
   cwd: cwdOverride,
+  showAddToChat = true,
+  hiddenPaths = [],
 }: FilePanelProps) {
   const { t } = useTranslation();
+  // Keep the latest hidden list without re-creating load/refresh callbacks.
+  const hiddenPathsRef = useRef<Set<string>>(new Set(hiddenPaths));
+  // eslint-disable-next-line react/refs
+  hiddenPathsRef.current = new Set(hiddenPaths);
   const treeRef = useRef<HTMLDivElement>(null);
   const treeItemRefs = useRef(new Map<string, HTMLDivElement>());
   const navigationActionRefs = useRef(new Map<FileNavigationAction, HTMLElement>());
@@ -218,7 +241,7 @@ export const FilePanel = memo(function FilePanel({
           });
         }
 
-        return updateNodes(nextData);
+        return filterHiddenPaths(updateNodes(nextData), hiddenPathsRef.current);
       });
     } catch (err) {
       if (refreshSeqRef.current !== seq) return;
@@ -331,7 +354,7 @@ export const FilePanel = memo(function FilePanel({
               });
             }
 
-            return updateNodes(nextData);
+            return filterHiddenPaths(updateNodes(nextData), hiddenPathsRef.current);
           });
         } catch (err) {
           console.error("Partial update failed:", extractErrorMessage(err));
@@ -553,7 +576,11 @@ export const FilePanel = memo(function FilePanel({
             setData((oldData) => {
               function updateTree(tree: TreeNode[]): TreeNode[] {
                 return tree.map((n) => {
-                  if (n.id === id) return { ...n, children: children ?? [] };
+                  if (n.id === id)
+                    return {
+                      ...n,
+                      children: filterHiddenPaths(children ?? [], hiddenPathsRef.current),
+                    };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });
@@ -776,7 +803,14 @@ export const FilePanel = memo(function FilePanel({
             setData((oldData) => {
               function updateTree(tree: TreeNode[]): TreeNode[] {
                 return tree.map((n) => {
-                  if (n.id === parentId) return { ...n, children: [tempNode, ...(children ?? [])] };
+                  if (n.id === parentId)
+                    return {
+                      ...n,
+                      children: [
+                        tempNode,
+                        ...filterHiddenPaths(children ?? [], hiddenPathsRef.current),
+                      ],
+                    };
                   if (n.children) return { ...n, children: updateTree(n.children) };
                   return n;
                 });
@@ -1512,6 +1546,7 @@ export const FilePanel = memo(function FilePanel({
     onEditSubmit: submitEdit,
     onEditCancel: () => setEditingId(null),
     actions,
+    showAddToChat,
     onKeyDown: handleTreeKeyDown,
     registerRef: registerTreeItemRef,
     onFocus: handleTreeItemFocus,
