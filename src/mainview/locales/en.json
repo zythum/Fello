@@ -925,6 +925,10 @@
     "collapseFolders": "Collapse Folders",
     "refresh": "Refresh",
     "addToChat": "Add to Chat",
+    "createFailed": "Failed to create.",
+    "renameFailed": "Failed to rename.",
+    "moveFailed": "Failed to move.",
+    "dropFailed": "Failed to import files.",
     "noProject": "No project selected"
   },
   "toolBubble": {

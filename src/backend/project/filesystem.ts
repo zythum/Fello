@@ -311,17 +311,27 @@ export function createFilesystemState(ctx: BackendContext) {
     projectId,
     relativePath,
     isFolder,
+    allowExistingFolder = false,
   }: {
     projectId: string;
     relativePath: string;
     isFolder?: boolean;
+    /** Allow merging into an existing directory (external folder import). */
+    allowExistingFolder?: boolean;
   }) {
     const project = storage.getProject(projectId);
     if (!project) throw new Error("Project not found");
     const targetPath = resolveSafePath(project.cwd, relativePath);
+    const existing = await stat(targetPath).catch(() => null);
     if (isFolder) {
+      // A folder cannot replace an existing file; merging into an existing
+      // folder is only allowed for external folder import.
+      if (existing && (!existing.isDirectory() || !allowExistingFolder)) {
+        throw new Error(`Path already exists: ${relativePath}`);
+      }
       await mkdir(targetPath, { recursive: true });
     } else {
+      if (existing) throw new Error(`Path already exists: ${relativePath}`);
       await mkdir(dirname(targetPath), { recursive: true });
       await writeFile(targetPath, "");
     }
@@ -353,10 +363,16 @@ export function createFilesystemState(ctx: BackendContext) {
   }) {
     const project = storage.getProject(projectId);
     if (!project) throw new Error("Project not found");
-    await rename(
-      resolveSafePath(project.cwd, oldRelativePath),
-      resolveSafePath(project.cwd, newRelativePath),
-    );
+    const oldPath = resolveSafePath(project.cwd, oldRelativePath);
+    const newPath = resolveSafePath(project.cwd, newRelativePath);
+    if (oldPath !== newPath) {
+      const existing = await stat(newPath).catch(() => null);
+      // Case-only renames resolve to the same inode on macOS; allow them.
+      if (existing && oldPath.toLowerCase() !== newPath.toLowerCase()) {
+        throw new Error(`Path already exists: ${newRelativePath}`);
+      }
+    }
+    await rename(oldPath, newPath);
     markProjectFsDirty(projectId);
   }
 
@@ -371,10 +387,15 @@ export function createFilesystemState(ctx: BackendContext) {
   }) {
     const project = storage.getProject(projectId);
     if (!project) throw new Error("Project not found");
-    await rename(
-      resolveSafePath(project.cwd, oldRelativePath),
-      resolveSafePath(project.cwd, newRelativePath),
-    );
+    const oldPath = resolveSafePath(project.cwd, oldRelativePath);
+    const newPath = resolveSafePath(project.cwd, newRelativePath);
+    if (oldPath !== newPath) {
+      const existing = await stat(newPath).catch(() => null);
+      if (existing && oldPath.toLowerCase() !== newPath.toLowerCase()) {
+        throw new Error(`Path already exists: ${newRelativePath}`);
+      }
+    }
+    await rename(oldPath, newPath);
     markProjectFsDirty(projectId);
   }
 

@@ -924,6 +924,10 @@
     "collapseFolders": "折叠文件夹",
     "refresh": "刷新",
     "addToChat": "添加到对话",
+    "createFailed": "创建失败。",
+    "renameFailed": "重命名失败。",
+    "moveFailed": "移动失败。",
+    "dropFailed": "导入文件失败。",
     "noProject": "未选择项目"
   },
   "toolBubble": {

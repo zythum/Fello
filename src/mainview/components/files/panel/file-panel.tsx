@@ -86,6 +86,19 @@ export interface FilePanelProps {
   onPreviewFile: (file: string) => void;
   /** Overrides the project cwd (used by virtual projects: assistant workspace / task outputs). */
   cwd?: string;
+  /**
+   * External refresh trigger. Increment to re-read the tree without remounting,
+   * e.g. when an automation task finishes and its output directory changes.
+   */
+  refreshToken?: number;
+  /**
+   * Persist the expanded folders into the global project store. Virtual projects
+   * that are created per page/run (task outputs) should pass false to avoid
+   * unbounded growth of `projectStates`.
+   */
+  persistOpenFolders?: boolean;
+  /** Empty-state text override (e.g. automation's "No files generated"). */
+  emptyHint?: string;
   /** Hide “Add to Chat” in the tree context menu when the host page has no chat. */
   showAddToChat?: boolean;
   /**
@@ -100,6 +113,9 @@ export const FilePanel = memo(function FilePanel({
   previewFileId,
   onPreviewFile,
   cwd: cwdOverride,
+  refreshToken,
+  persistOpenFolders = true,
+  emptyHint,
   showAddToChat = true,
   hiddenPaths = [],
 }: FilePanelProps) {
@@ -147,7 +163,7 @@ export const FilePanel = memo(function FilePanel({
   // 相邻行之间移动时先不立刻清空高亮，避免 drop 反馈出现一帧闪烁
   const dropTargetClearTimerRef = useRef<number | null>(null);
   const projects = useAppStore((s) => s.projects);
-  const { confirm } = useMessage();
+  const { confirm, toast } = useMessage();
 
   const activeProjectId = projectId;
   const projectCwd = useMemo(() => {
@@ -278,6 +294,15 @@ export const FilePanel = memo(function FilePanel({
     // eslint-disable-next-line react/set-state-in-effect
     refresh();
   }, [refresh]);
+
+  // External refresh trigger: run once per token change, not on mount (the
+  // effect above already performs the initial load).
+  const refreshTokenRef = useRef(refreshToken);
+  useEffect(() => {
+    if (refreshToken === undefined || refreshTokenRef.current === refreshToken) return;
+    refreshTokenRef.current = refreshToken;
+    refresh();
+  }, [refresh, refreshToken]);
 
   useEffect(() => {
     if (!cwd || !activeProjectId) return;
@@ -545,10 +570,11 @@ export const FilePanel = memo(function FilePanel({
   // Sync openFolders to ProjectState whenever it changes, so folder expansion
   // state persists across session switches within the same project.
   useEffect(() => {
+    if (!persistOpenFolders) return;
     useAppStore.getState().updateProjectState(projectId, () => ({
       openFolders: Array.from(openFolders),
     }));
-  }, [openFolders, projectId]);
+  }, [openFolders, persistOpenFolders, projectId]);
 
   const toggle = useCallback(
     (node: TreeNode) => {
@@ -750,6 +776,7 @@ export const FilePanel = memo(function FilePanel({
         });
       } catch (err) {
         console.error("Create failed:", extractErrorMessage(err));
+        toast.error(extractErrorMessage(err) || t("filePanel.createFailed", "Failed to create."));
       }
     } else {
       const parts = editingId.split("/");
@@ -764,6 +791,9 @@ export const FilePanel = memo(function FilePanel({
           });
         } catch (err) {
           console.error("Rename failed:", extractErrorMessage(err));
+          toast.error(
+            extractErrorMessage(err) || t("filePanel.renameFailed", "Failed to rename."),
+          );
         }
       }
     }
@@ -1096,6 +1126,8 @@ export const FilePanel = memo(function FilePanel({
           projectId: activeProjectId,
           relativePath: subDir,
           isFolder: true,
+          // Importing a folder may merge into an existing directory.
+          allowExistingFolder: true,
         });
         const reader = dirEntry.createReader();
         const entries = await new Promise<FileSystemEntry[]>((resolve, reject) =>
@@ -1133,6 +1165,9 @@ export const FilePanel = memo(function FilePanel({
           }
         } catch (err) {
           console.error("Drop files in failed:", extractErrorMessage(err));
+          toast.error(
+            extractErrorMessage(err) || t("filePanel.dropFailed", "Failed to import files."),
+          );
         }
         refresh();
         return;
@@ -1153,10 +1188,13 @@ export const FilePanel = memo(function FilePanel({
         }
       } catch (err) {
         console.error("Drop files in failed:", extractErrorMessage(err));
+        toast.error(
+          extractErrorMessage(err) || t("filePanel.dropFailed", "Failed to import files."),
+        );
       }
       refresh();
     },
-    [refresh, processEntry, readFileAsBase64, activeProjectId],
+    [refresh, processEntry, readFileAsBase64, activeProjectId, t, toast],
   );
 
   // destDir 为空串表示项目根目录
@@ -1207,6 +1245,7 @@ export const FilePanel = memo(function FilePanel({
         );
       } catch (err) {
         console.error("Move failed:", extractErrorMessage(err));
+        toast.error(extractErrorMessage(err) || t("filePanel.moveFailed", "Failed to move."));
       }
       setDragIds([]);
       refresh();
@@ -1219,6 +1258,7 @@ export const FilePanel = memo(function FilePanel({
       activeProjectId,
       confirm,
       t,
+      toast,
       clearDropTarget,
     ],
   );
@@ -1684,7 +1724,9 @@ export const FilePanel = memo(function FilePanel({
           <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3 -mt-10">
             <Folders className="size-5 text-muted-foreground/60" />
           </div>
-          <p className="text-xs text-muted-foreground/70">{t("filePanel.emptyDirectory")}</p>
+          <p className="text-xs text-muted-foreground/70">
+            {emptyHint ?? t("filePanel.emptyDirectory")}
+          </p>
         </div>
       ) : (
         <ScrollArea className="min-h-0 flex-1 px-1">

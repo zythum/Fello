@@ -1216,7 +1216,13 @@ export type FelloIPCRequests = {
   };
   /** 创建新文件或文件夹 */
   createFile: {
-    params: { projectId: string; relativePath: string; isFolder: boolean };
+    params: {
+      projectId: string;
+      relativePath: string;
+      isFolder: boolean;
+      /** External folder import may merge into an existing directory. */
+      allowExistingFolder?: boolean;
+    };
     response: void;
   };
   /** 删除文件或文件夹 */
