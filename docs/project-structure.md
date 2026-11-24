@@ -191,6 +191,21 @@ fello/
 │       │   │   ├── plan-bubble.tsx
 │       │   │   ├── message-bubble.tsx
 │       │   │   └── base-bubble.tsx
+│       │   ├── assistant/            # 个人助理页面
+│       │   │   ├── assistant.tsx     # 助理页面布局 (状态订阅 / detail / panel / 初始化遮罩)
+│       │   │   ├── chat/             # 助理聊天列 (对应 session/chat)
+│       │   │   │   ├── chat.tsx      # header + Dream 提示 + ChatArea + 输入区 + Ask User
+│       │   │   │   ├── chat-header.tsx # 名称 / 状态 / 用量 / 助理配置 Popover
+│       │   │   │   └── chat-input.tsx# 输入框、草稿、发送/停止、模型与思考等级
+│       │   │   ├── worker-status.ts  # worker 状态配色与兜底文案
+│       │   │   ├── detail/           # 助理详情视图
+│       │   │   │   ├── diary-detail.tsx
+│       │   │   │   ├── memory-detail.tsx
+│       │   │   │   └── worker-detail.tsx
+│       │   │   └── panel/            # 助理右侧面板
+│       │   │       ├── panel.tsx
+│       │   │       ├── calendar-panel/
+│       │   │       └── worker-panel/
 │       │   ├── chat/                 # 会话与个人助理共用的聊天组件
 │       │   │   ├── chat-area.tsx     # 消息流渲染与滚动控制
 │       │   │   ├── chat-textarea.tsx # 输入区公共外壳 (MentionsInput、#/@ 建议面板、工具栏)
@@ -235,7 +250,7 @@ fello/
 │       │   │       ├── constants.ts      # 根目录落点标记
 │       │   │       └── types.ts          # TreeNode / actions 类型
 │       │   ├── session/              # 会话主工作区相关组件
-│       │   │   ├── chat/             # 聊天核心区域
+│       │   │   ├── chat/             # 会话专属聊天外壳
 │       │   │   │   ├── chat.tsx      # 聊天主容器（含 ChatHeader）
 │       │   │   │   ├── chat-header.tsx # 会话头部 (Agent Badge, 标题, MCP菜单, 刷新)
 │       │   │   │   └── chat-input.tsx# 底部输入框 (文件拖拽、提及、发送)
