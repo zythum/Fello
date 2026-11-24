@@ -46,6 +46,7 @@ import type {
   SessionModelState,
   SessionTokenBreakdown,
 } from "../shared/schema";
+import { applyModelIdTemplate } from "../shared/model-id";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
@@ -138,15 +139,6 @@ function isOpenAICompatibleModelsResponse(value: unknown): value is OpenAICompat
   const maybe = value as { data?: unknown };
   if (maybe.data === undefined) return true;
   return Array.isArray(maybe.data);
-}
-
-/** 将模版字符串中的 {fieldName} 替换为 modelItem 中对应字段的值 */
-function applyModelIdTemplate(template: string, modelItem: Record<string, unknown>): string {
-  return template.replace(/\{(\w+)\}/g, (_match, fieldName) => {
-    const value = modelItem[fieldName];
-    if (value === undefined || value === null) return _match;
-    return String(value);
-  });
 }
 
 const AgentDescription = "Fello/0.1.1 CodeAgent OpenaiCompatibleAgent opencode codex";

@@ -124,6 +124,7 @@ sendPrompt: {
 |---|---|---|---|
 | `getModels` | `{ sessionId }` | `SessionModelState \| null` | 获取可用模型列表 |
 | `setModel` | `{ sessionId, modelId }` | `void` | 切换模型 |
+| `listAgentModels` | `{ agentId }` | `ModelInfo[]` | 表单模型输入的候选：API agent 实拉 `/models` 并与手填 `models` 合并（失败回退手填列表 → 最近会话缓存），stdio agent 取最近一次会话快照；60s 进程内缓存 |
 | `getModes` | `{ sessionId }` | `SessionModeState \| null` | 获取可用模式列表 |
 | `setMode` | `{ sessionId, modeId }` | `void` | 切换模式 |
 | `getThoughtLevels` | `{ sessionId }` | `SessionThoughtLevelState \| null` | 获取可用思考级别列表 |

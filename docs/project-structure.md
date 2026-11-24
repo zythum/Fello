@@ -53,7 +53,8 @@ fello/
 │   │   │   ├── base-agent.ts             # AgentProcess 统一接口
 │   │   │   ├── stdio-agent.ts            # Stdio Agent 进程 spawn（child_process）
 │   │   │   ├── openai-compatible-api-agent.ts # API Agent 进程内启动
-│   │   │   └── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
+│   │   │   ├── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
+│   │   │   └── model-catalog.ts          # Agent 模型候选（/models 实拉 + 最近会话快照）
 │   │   ├── storage/                  # 持久化管理模块
 │   │   │   ├── index.ts              # 统一入口：组合设置与项目/会话 CRUD + 消息/终端日志
 │   │   │   ├── constant.ts           # 共享路径常量（FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR）
@@ -119,6 +120,7 @@ fello/
 │   ├── shared/                       # 前后端共享类型与常量
 │   │   ├── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
 │   │   ├── constants.ts              # 共享常量（Feature 列表、i18n key 映射等）
+│   │   ├── model-id.ts               # modelIdTemplate 的 {field} 占位符替换
 │   │   └── zod/                      # 共享 Zod schema
 │   │       ├── mcp-ask-user-schema.ts
 │   │       ├── mcp-skills-schema.ts
@@ -298,6 +300,8 @@ fello/
 │       │   │   ├── code-view.tsx               # 代码高亮展示（@pierre/diffs）
 │       │   │   ├── code-compare-view.tsx        # 代码 Diff 对比视图（@pierre/diffs）
 │       │   │   ├── file-icon.tsx               # 文件图标组件（按扩展名匹配图标）
+│       │   │   ├── autocomplete-input.tsx      # 通用输入增强（自由输入 + 候选下拉）
+│       │   │   ├── model-combobox.tsx          # 模型输入（AutocompleteInput + Agent 模型候选）
 │       │   │   ├── loading-state.tsx            # 加载 / 错误状态
 │       │   │   ├── image-view.tsx              # 图片预览
 │       │   │   ├── stream-markdown.tsx         # 流式 Markdown 渲染
@@ -382,6 +386,7 @@ fello/
 - 负责 Agent 进程与会话生命周期管理（`agent/agent-bridge.ts`）
 - Agent 进程 spawner：Stdio（child_process）和 API（in-process）
 - Agent 配置解析：`agent/resolve-agent-info.ts`
+- Agent 模型候选：`agent/model-catalog.ts`（API agent 实拉 `/models` 并合并手填列表；stdio agent 取最近会话快照）
 - Agent 终端管理：`agent/agent-terminal-manager.ts`
 - iLink 微信集成：连接管理、消息收发
 - Skills 系统：目录扫描、skills.sh 市场集成、路由注册（`registerSkillsRoute`、`buildSkillsMcpServer`）

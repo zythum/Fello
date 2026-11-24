@@ -27,6 +27,7 @@ import { createAutomationModule } from "./automation";
 import { createMemoryModule } from "./memory";
 import { createImageGenerationModule } from "./image-generation";
 import { createToolboxModule } from "./toolbox";
+import { listAgentModels as loadAgentModels } from "./agent/model-catalog";
 import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
 import { createAssistantManager } from "./assistant";
@@ -410,6 +411,9 @@ export function initBackend(
     },
     async setModel(params) {
       return session.setModel(params);
+    },
+    async listAgentModels({ agentId }: { agentId: string }) {
+      return loadAgentModels(agentId);
     },
     async getModes(params) {
       return session.getModes(params);

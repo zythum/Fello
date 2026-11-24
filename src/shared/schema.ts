@@ -1179,6 +1179,13 @@ export type FelloIPCRequests = {
   /** 设置当前会话使用的模型 */
   setModel: { params: { sessionId: string; modelId: string }; response: void };
 
+  /**
+   * 获取某个 Agent 的模型候选，用于表单里的模型输入提示。
+   * API agent 实时请求 `/models`；stdio agent 读取最近一次会话缓存的模型列表。
+   * 属于 best-effort 提示数据：拿不到时返回空数组，不影响表单可自由输入。
+   */
+  listAgentModels: { params: { agentId: string }; response: ModelInfo[] };
+
   /** 获取当前会话可用的模式状态 */
   getModes: {
     params: { sessionId: string };
