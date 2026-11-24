@@ -59,17 +59,23 @@ function CalendarDayButtonCell(props: ComponentProps<typeof DayButton>) {
   }
   return (
     <CalendarDayButton {...props}>
-      {props.modifiers.today && (
-        // A div, not a span: the day button styles its direct span children (`[&>span]:text-xs`),
-        // which would override the label's own font size.
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1 text-center text-[7px] leading-none font-medium opacity-60"
-        >
-          {t("assistant.calendar.today", "Today")}
+      {props.modifiers.today ? (
+        // The label is anchored to the day number (not to the cell), so its gap to the number stays
+        // the same while the calendar — and therefore the cell — is resized. A div, not a span:
+        // the day button styles its direct span children (`[&>span]:text-xs`), which would
+        // override the label's own font size.
+        <div className="relative flex flex-col items-center">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 pb-0.5 text-[7px] leading-none font-medium whitespace-nowrap opacity-60"
+          >
+            {t("assistant.calendar.today", "Today")}
+          </div>
+          {props.children}
         </div>
+      ) : (
+        props.children
       )}
-      {props.children}
       {count > 0 && (
         // Absolutely positioned so the dots never change the layout of the day number.
         <span className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-0.5">
