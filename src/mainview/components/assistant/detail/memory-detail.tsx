@@ -54,7 +54,7 @@ export function MemoryDetail({
       >
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
-            <Brain className="size-4 shrink-0 text-muted-foreground/80" />
+            <Brain className="size-4 shrink-0 text-violet-500/70 dark:text-violet-400/70" />
             <div className="flex flex-col min-w-0">
               <span className="text-xs truncate leading-tight text-foreground/60">
                 {t("assistant.memory.title", "Memory")}

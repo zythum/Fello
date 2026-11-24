@@ -144,7 +144,7 @@ export function DiaryDetail({
       >
         <div className="flex items-center min-w-0 flex-1">
           <div className="min-w-0 flex items-center gap-1.5">
-            <BookBookmark className="size-4 shrink-0 text-muted-foreground/80" />
+            <BookBookmark className="size-4 shrink-0 text-amber-500/70 dark:text-amber-400/70" />
             <div className="flex flex-col min-w-0">
               <span className="text-xs truncate leading-tight text-foreground/60">
                 {diary.title ?? diary.file}
