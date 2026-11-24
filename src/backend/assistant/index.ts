@@ -56,6 +56,8 @@ export interface AssistantModule {
   /** Stops everything, including workers and reminder timers. Called on app shutdown. */
   shutdown: () => Promise<void>;
   getStatus: () => AssistantStatus;
+  /** Clear the Dream failure shown in the UI (without touching the next Dream schedule). */
+  dismissDreamError: () => void;
   listReminders: () => Promise<AssistantReminderList>;
   listDiaries: () => Promise<AssistantDiary[]>;
   readDiary: (file: string) => ReturnType<typeof readDiary>;
@@ -81,6 +83,8 @@ export interface AssistantManager {
   listConfigs: () => AssistantConfig[];
   getConfig: (assistantId: string) => AssistantConfig | null;
   getStatus: (assistantId: string) => AssistantStatus;
+  /** Clear the Dream failure shown in the UI; no-op when the assistant is not running. */
+  dismissDreamError: (assistantId: string) => void;
   start: (assistantId: string) => Promise<void>;
   create: (input: {
     name?: string;
@@ -683,7 +687,7 @@ function createAssistantRuntime(
     // Check and set the busy state with no await in between, so a user prompt and a reminder cannot both start.
     if (options.onlyIfIdle && (status.isStreaming || status.dreaming)) throw new AssistantBusyError();
     if (status.isStreaming) await cancelPrompt();
-    updateStatus({ isStreaming: true, promptError: undefined });
+    updateStatus({ isStreaming: true });
     ctx.sendEvent("assistant-prompt-start", { assistantId });
 
     const messageSegment = await storage.beginMessageTurn();
@@ -705,15 +709,11 @@ function createAssistantRuntime(
         prompt: contents,
       });
       stopReason = result.stopReason;
-      if (result.error) {
-        promptError = result.error;
-        updateStatus({ promptError });
-      }
+      if (result.error) promptError = result.error;
       if (result.usage) updateStatus({ lastTurnUsage: result.usage });
       return result;
     } catch (error) {
       promptError = error instanceof Error ? error.message : String(error);
-      updateStatus({ promptError });
       throw error;
     } finally {
       await notificationTail;
@@ -773,7 +773,6 @@ function createAssistantRuntime(
       isStreaming: false,
       dreaming: false,
       dreamError: undefined,
-      promptError: undefined,
     });
     await activeBridge?.kill().catch(() => {});
     if (options.shutdownWorkers) await workerManager.shutdown().catch(() => {});
@@ -807,6 +806,9 @@ function createAssistantRuntime(
     restart,
     shutdown,
     getStatus: () => status,
+    dismissDreamError: () => {
+      if (status.dreamError) updateStatus({ dreamError: undefined });
+    },
     listReminders: async () => {
       // Loads reminders even before the assistant starts, so the calendar never shows an empty list.
       await reminders.load().catch((error) => {
@@ -984,6 +986,9 @@ export function createAssistantManager(
         ...emptyStatus(config ?? null, assistantId),
         enabled: !!config && !config.disabled && isGloballyEnabled(),
       };
+    },
+    dismissDreamError: (assistantId) => {
+      runtimes.get(assistantId)?.dismissDreamError();
     },
     start: async (assistantId) => {
       await requireRuntime(assistantId).start();

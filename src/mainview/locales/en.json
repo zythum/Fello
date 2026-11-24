@@ -157,7 +157,9 @@
     "busyStreaming": "Wait for the current reply to finish.",
     "busyDreaming": "Wait for Dream to finish.",
     "dreaming": "Dreaming…",
+    "dreamFailed": "Dream failed",
     "failed": "Personal Assistant failed.",
+    "dismiss": "Dismiss",
     "selectModel": "Select model",
     "selectThinking": "Select thinking level",
     "calendar": {

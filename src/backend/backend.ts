@@ -300,6 +300,9 @@ export function initBackend(
     async getAssistantStatus({ assistantId }) {
       return assistant.getStatus(assistantId);
     },
+    async dismissAssistantDreamError({ assistantId }) {
+      assistant.dismissDreamError(assistantId);
+    },
     async getAssistantDataSystemPath({ assistantId }) {
       if (!assistant.isAssistantSession(assistantId)) {
         throw new Error(`Assistant ${assistantId} does not exist.`);

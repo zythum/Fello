@@ -156,7 +156,9 @@
     "busyStreaming": "请等待当前回复结束。",
     "busyDreaming": "请等待上下文整理完成。",
     "dreaming": "正在整理上下文…",
+    "dreamFailed": "上下文整理失败",
     "failed": "个人助理执行失败。",
+    "dismiss": "关闭",
     "selectModel": "选择模型",
     "selectThinking": "选择思考等级",
     "calendar": {

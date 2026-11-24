@@ -237,7 +237,6 @@ export interface AssistantStatus {
   isStreaming: boolean;
   dreaming: boolean;
   dreamError?: string;
-  promptError?: string;
   models: SessionModelState | null;
   thoughtLevels: SessionThoughtLevelState | null;
   /** Context-window usage reported by the assistant agent. */
@@ -1010,6 +1009,8 @@ export type FelloIPCRequests = {
   deleteAssistant: { params: { assistantId: string }; response: void };
   /** 获取指定个人助理的状态。 */
   getAssistantStatus: { params: { assistantId: string }; response: AssistantStatus };
+  /** 关闭助理当前的 Dream 失败提示（清空 status.dreamError 并广播）。 */
+  dismissAssistantDreamError: { params: { assistantId: string }; response: void };
   /** 获取助理数据目录（config.json / agent / diary / session）的绝对路径。 */
   getAssistantDataSystemPath: { params: { assistantId: string }; response: string };
   /** 获取助理当前的所有 worker 及其状态。 */

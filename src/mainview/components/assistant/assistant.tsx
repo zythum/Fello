@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Settings2,
   Square,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type {
@@ -148,6 +150,8 @@ export function Assistant({ assistantId }: { assistantId: string }) {
   const isMacApp = useAppStore((state) => state.isMacApp);
   const isFullScreen = useAppStore((state) => state.isFullScreen);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
+  // Dream 失败提示的显示完全由 status.dreamError 决定；关闭时由后端清空并广播。
+  const dreamError = status?.dreamError ?? null;
   // 与 session 的 chat-input 一致：草稿挂在 store 上，挂载时恢复、失焦 / 卸载时写回。
   const draftInput = useSessionDraftInput(assistantId);
   const [input, setInput] = useState(draftInput);
@@ -325,9 +329,6 @@ export function Assistant({ assistantId }: { assistantId: string }) {
       }
       setInput("");
       useAppStore.getState().updateSessionState(assistantId, () => ({ draftInput: "" }));
-      setStatus((current) =>
-        current?.promptError ? { ...current, promptError: undefined } : current,
-      );
       // Same as Session: show the message at once with optimistic ids. The backend's copy
       // carries the same optimistic_id and replaces this one when it arrives.
       const displayId = generateUUID();
@@ -352,14 +353,10 @@ export function Assistant({ assistantId }: { assistantId: string }) {
         const finishedNormally =
           result.stopReason === "end_turn" || result.stopReason === "cancelled";
         if (result.error || !finishedNormally) {
+          // 失败只做一次性提示，不再写进 assistant status：状态里留一份会让 header 长期挂着旧错误。
           const message =
             result.error || result.stopReason || t("assistant.failed", "Assistant failed");
           toast.error(message);
-          setStatus((current) =>
-            current
-              ? { ...current, promptError: message, isStreaming: false, dreaming: false }
-              : current,
-          );
         }
       } catch (error) {
         // The message never reached the backend, so drop the optimistic copy (matched by its displayId).
@@ -546,15 +543,11 @@ export function Assistant({ assistantId }: { assistantId: string }) {
             <span className="flex-1 text-[10px] text-muted-foreground truncate">
               {isDreaming
                 ? t("assistant.dreaming", "Dreaming…")
-                : status?.dreamError
-                  ? status.dreamError
-                  : status?.promptError
-                    ? status.promptError
-                    : status?.connectionStatus === "connected"
-                      ? t("assistant.ready", "Ready")
-                      : status?.connectionStatus === "connecting"
-                        ? t("assistant.connecting", "Connecting…")
-                        : (status?.error ?? t("assistant.unavailable", "Unavailable"))}
+                : status?.connectionStatus === "connected"
+                  ? t("assistant.ready", "Ready")
+                  : status?.connectionStatus === "connecting"
+                    ? t("assistant.connecting", "Connecting…")
+                    : (status?.error ?? t("assistant.unavailable", "Unavailable"))}
             </span>
           </div>
           <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
@@ -745,6 +738,37 @@ export function Assistant({ assistantId }: { assistantId: string }) {
             )}
           </div>
         </header>
+        {/* Dream 失败提示浮在 header 下方，不占聊天区布局；关闭会清掉后端的 dreamError。 */}
+        {dreamError && (
+          <div className="pointer-events-none absolute inset-x-0 top-12 z-20 px-3 pt-2">
+            <div className="pointer-events-auto flex items-start gap-2 rounded-lg border border-destructive/30 bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+              <TriangleAlert className="mt-px size-3.5 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">
+                  {t("assistant.dreamFailed", "Dream failed")}
+                </p>
+                <p className="mt-0.5 wrap-break-word text-[11px] text-muted-foreground">
+                  {dreamError}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  // 先本地隐藏，再让后端清空并广播，避免离开页面再回来又看到同一条错误。
+                  setStatus((current) =>
+                    current?.dreamError ? { ...current, dreamError: undefined } : current,
+                  );
+                  void request.dismissAssistantDreamError({ assistantId }).catch(() => {});
+                }}
+                title={t("assistant.dismiss", "Dismiss")}
+                aria-label={t("assistant.dismiss", "Dismiss")}
+                className="-mr-1 -mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 outline-none transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
         <ChatArea
           session={session}
           showTimeline={false}
