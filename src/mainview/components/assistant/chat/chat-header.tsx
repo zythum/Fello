@@ -286,7 +286,7 @@ export function AssistantChatHeader({
                         }
                       }}
                     >
-                      <SelectTrigger size="sm" className="h-7 w-44 text-xs">
+                      <SelectTrigger size="sm" className="h-7 w-49 text-xs">
                         <SelectValue
                           placeholder={t("assistant.config.selectAgent", "Select an agent")}
                         />
@@ -314,7 +314,7 @@ export function AssistantChatHeader({
                         type="number"
                         min={1}
                         step={1}
-                        className="h-7 w-full text-xs!"
+                        className="h-7 w-full rounded-md bg-background text-xs! text-muted-foreground hover:text-foreground focus:text-foreground"
                         value={dreamMaxContextDraft ?? String(localDream.maxContextTokens)}
                         onChange={(event) => setDreamMaxContextDraft(event.target.value)}
                         onBlur={commitDreamMaxContextDraft}
@@ -330,7 +330,7 @@ export function AssistantChatHeader({
                       <Input
                         type="time"
                         step={60}
-                        className="h-7 w-full text-xs! appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        className="h-7 w-full rounded-md bg-background text-xs! text-muted-foreground hover:text-foreground focus:text-foreground appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                         value={localDream.preferredTime}
                         onChange={(event) =>
                           setLocalDream((current) => ({
