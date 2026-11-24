@@ -132,7 +132,7 @@
     "title": "个人助理",
     "disabled": "已禁用",
     "config": {
-      "id": "ID",
+      "id": "助理 ID",
       "workspace": "工作目录",
       "openDataFolder": "打开助理数据目录",
       "openWorkspaceFolder": "打开工作目录",

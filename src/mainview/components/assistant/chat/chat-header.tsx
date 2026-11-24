@@ -242,7 +242,7 @@ export function AssistantChatHeader({
                 <div className="space-y-px py-1">
                   <div className="px-2">
                     <CopyableRow
-                      label={t("assistant.config.id", "ID")}
+                      label={t("assistant.config.id", "Assistant ID")}
                       value={assistantId}
                       openFolderTitle={t(
                         "assistant.config.openDataFolder",

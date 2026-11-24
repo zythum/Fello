@@ -133,7 +133,7 @@
     "title": "Personal Assistant",
     "disabled": "Disabled",
     "config": {
-      "id": "ID",
+      "id": "Assistant ID",
       "workspace": "Workspace",
       "openDataFolder": "Open Assistant Folder",
       "openWorkspaceFolder": "Open Workspace Folder",
