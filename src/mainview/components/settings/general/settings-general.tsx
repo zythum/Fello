@@ -336,7 +336,7 @@ export function SettingsGeneral() {
                           }
                         }}
                       >
-                        <SelectTrigger size="sm" className="w-44">
+                        <SelectTrigger size="sm" className="w-35">
                           <SelectValue
                             placeholder={t("settings.general.selectEditor", "Select editor")}
                           />
