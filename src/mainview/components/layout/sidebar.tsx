@@ -1839,7 +1839,7 @@ export function Sidebar() {
                     )}
                     inert={!expanded}
                   >
-                    <div className="min-h-0 space-y-0.5 overflow-hidden">
+                    <div className="min-h-0 overflow-hidden">
                       {projectSessions.map((session) => {
                         const currentHoverId = sessionHoverId(session.id);
                         const agentLabel =
@@ -1862,7 +1862,11 @@ export function Sidebar() {
                               }
                             }}
                           >
-                            <HoverCardTrigger render={<div />} delay={0} closeDelay={100}>
+                            <HoverCardTrigger
+                              render={<div className="my-0.5" />}
+                              delay={0}
+                              closeDelay={100}
+                            >
                               <ContextMenu
                                 onOpenChange={(open) => {
                                   // 右键菜单打开时隐藏所有 hoverCard，并保持条目高亮；
