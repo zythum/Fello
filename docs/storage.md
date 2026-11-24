@@ -45,6 +45,8 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 │               ├── session.json   # 子代理记录
 │               ├── messages*.jsonl  # 子代理通知流
 │               └── turns.jsonl    # 轮次元数据
+├── workspaces/                    # 虚拟 project 工作区
+│   └── __assistant__<assistant_id>__/  # 个人助理 workspace（目录名即虚拟 project id）
 ├── automations/                   # 自动化任务数据
 │   └── <schedule_id>/
 │       ├── schedule.json          # 计划配置
@@ -196,7 +198,36 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | `reminders/reminders.json` | 用户提醒配置与触发状态 |
 | `workers/<worker_id>/` | 委派出去的 ACP 子代理记录、通知流与轮次元数据 |
 
-`session/history.jsonl` 与 `chat/messages*.jsonl` 是两套不同的数据：前者给模型恢复上下文，后者给界面重放通知，不能互相替代。
+`config.json` 字段：
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `id` | `string` | `pa_` + 8 位十六进制；同时是伪 session id，不能包含 `:` |
+| `name` | `string` | 展示名称 |
+| `disabled` | `boolean` | 停用后保留数据，但不启动 bridge / 提醒 / worker |
+| `createdAt` | `number` | 创建时间（毫秒） |
+| `sourceAgentId` | `string \| null` | 来源 API Agent id；必须是已启用的 OpenAI-compatible API Agent |
+| `mcpServers` | `string[]` | 该助理可用的全局 MCP Server id |
+| `dream.maxContextTokens` | `number` | Dream 硬上限，默认 `96_000`，不能超过来源 Agent 的上下文窗口 |
+| `dream.preferredTime` | `string` | 每日 Dream 时间 `HH:mm`，默认 `02:00` |
+
+`session/state.json` 字段：
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `modelId` | `string \| null` | 当前模型 |
+| `thoughtLevel` | `string` | `auto` / `max` / `high` / `low` |
+| `contextUsedTokens` | `number` | 最近一轮 input + output token 数 |
+| `lastDreamAt` | `string \| null` | 上次 Dream 结束时间 |
+| `historyStartedAt` | `string \| null` | 当前 Dream 周期起点；Dream 后清空 |
+| `historyTokens` | `number` | 模型历史序列化后的 token 数 |
+| `needsDream` | `boolean` | 是否需要 Dream |
+| `dreamUrgency` | `"none" \| "scheduled" \| "required"` | 触发级别 |
+| `dreamScheduledFor` | `string \| null` | 已武装的下一次 Dream 目标时刻 |
+
+`session/history.jsonl` 与 `chat/messages*.jsonl` 是两套不同的数据：前者给模型恢复上下文，Dream 会清空它；后者给界面重放通知，不会被 Dream 删除，不能互相替代。
+
+个人助理的完整机制（Dream 调度、提醒投递、worker 生命周期、事件协议）见 [Personal Assistant — 个人助理](./assistant.md)。
 
 ### 7. 历史会话流事件 (`messages*.jsonl` / `history.jsonl`)
 

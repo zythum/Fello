@@ -71,6 +71,8 @@
 - **`src/backend/session/index.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、Socket Server 生命周期
 - **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP：skills/search/memory/image-generation/ask-user/share-to-user + 始终加载 toolbox）
 - **`src/backend/session/notifications.ts`**：通知合并、广播、iLink 转发与 tool_call 状态追踪
+- **`src/backend/assistant/index.ts`**：个人助理管理器（`AssistantManager` + 每助理 runtime），负责启动 / 重启 / 删除、状态广播、通知持久化、提醒与 Worker 唤醒队列、iLink 转发
+- **`src/backend/assistant/worker/manager.ts`**：Worker 管理器（ACP 子会话、轮次、权限请求、只读转写、崩溃后 `interrupted` 标记）
 - **`src/backend/bridge-connect.ts`**：Agent Bridge 连接管理（`ensureBridge`/`rekeyBridge`/`killBridge`/`killBridgesByAgent`/`clearAll`/`setBroadcast`），会话级 Bridge 生命周期、连接状态广播、权限路由
 - **`src/backend/ask-user.ts`**：askUser 通用请求/响应机制、超时管理、Socket 路由注册
 - **`src/backend/share-to-user.ts`**：shareToUser 文件分享机制、iLink 媒体队列
@@ -136,10 +138,22 @@
 - **`system-prompts.ts`**：基础系统提示词
 - **`utils.ts`**：ContentBlock 与 AI SDK Part 之间的转换工具
 
+### Personal Assistant Runtime（`src/assistant/`）
+
+个人助理是常驻的单会话助手，运行在主进程内，不走普通会话的 `src/agents/` 路径：
+
+- **`assistant-agent.ts`**：实现 ACP Agent 接口，使用 AI SDK `streamText` 驱动来源 API Agent；管理模型 / 思考等级、系统提示词、工具集与 Dream 调度
+- **`storage.ts` / `config.ts`**：每助理的 `config.json`、`session/`、`chat/`、`memory/` 持久化与配置管理
+- **`dream.ts`**：结构化输出日记与长期记忆，随后清空模型可见历史
+- **`fs/`、`reminders/`、`worker/`、`diary-query.ts`**：文件工具、提醒服务、Worker 工具与日记检索子代理
+- **`mcp-tools.ts`**：按助理配置懒连接 MCP Server
+
+完整机制见 [`docs/assistant.md`](./assistant.md)。
+
 ### Renderer（`src/mainview/`）
 
 - `App.tsx`：全局事件订阅、MessageProvider (全局对话框与 Toast 提示管理)、挂载基于 `react-router-dom` 的应用路由（HashRouter）
-- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页、`/automation` 自动化页）
+- `router.tsx`：使用 `react-router-dom` 定义路由拓扑（`/` 欢迎页、`/assistant/:assistantId` 个人助理页、`/session-view/:sessionId` 会话页、`/settings/*` 嵌套设置页、`/skills/*` Skills 管理页、`/automation` 自动化页）
 - `store.ts`：Zustand 全局 store，按 session 维护聊天状态与 UI 状态，包含 askUserRequests 队列、iLink 状态、全屏状态
 - `lib/session-state-reducer.ts`：ACP 事件归一处理（消息、tool、usage）+ 流式收尾
 - `lib/session-selectors.ts`：Zustand 细粒度选择器 Hooks（`useSessionMessages`/`useSessionActiveToolCalls`/`useSessionIsLoading` 等），使用 `useShallow` 避免不必要的重渲染
@@ -158,11 +172,11 @@
   - `chat-bubbles/`：各类消息气泡（agent、subagent、user、system、tool、thinking、plan、message、base）
   - `session/panel/panel.tsx`：带标签的右侧面板（Files / Terminal 两个标签页切换）
   - `files/`：文件浏览相关共享组件（会话、个人助理与自动化任务共用）——`panel/file-panel.tsx`（文件树状态与文件操作、重命名、拖拽移动、外部文件夹导入）、`tree/`（文件树展示层：树容器、行组件、git 标记、拖拽工具）、`detail/`（文件详情入口，按类型分发到 code / image / media / markdown / html / pdf / docx / xlsx / pptx / fallback / conversation 子目录，并监听 `fs-changed` 检测外部修改）
-  - `assistant/`：个人助理页——`assistant.tsx`（状态订阅、详情 / 面板布局、初始化遮罩）、`chat/`（header / 输入区 / 消息流与 Ask User，对应 `session/chat/`）、`detail/`（日记、记忆、worker 详情与参数面板）、`panel/`（日历与 worker 面板）
+  - `assistant/`：个人助理页——`assistant.tsx`（状态订阅、详情 / 面板布局、初始化遮罩）、`chat/`（header / 输入区 / 消息流与 Ask User，对应 `session/chat/`）、`detail/`（日记、记忆、worker 详情与参数面板）、`panel/`（日历 / 文件 / worker 面板）；详见 [`docs/assistant.md`](./assistant.md)
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
-  - `settings/`：设置页面（general、agents、MCP、WebUI、iLink、snippets、memory、image-generation）
+  - `settings/`：设置页面（general、assistant、agents、MCP、WebUI、iLink、snippets、memory、image-generation）
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
 ### MCP 子进程
@@ -279,6 +293,16 @@ ACPBridge.onSessionUpdate
 - Skills 目录扫描与安装
 
 渲染层只发起受限 RPC，不直接接触 Node API。
+
+### 6) 个人助理是伪会话
+
+助理没有 `ProjectInfo` / `SessionInfo` 记录，也不进入侧边栏的项目会话列表；`assistantId` 直接充当伪 session id：
+
+- 会话层以 `assistant.isAssistantSession(sessionId)` 分派 `sendPrompt` / `cancelPrompt` / `getHistorySegment` / `models` / `thoughtLevels` / `isSessionStreaming`；`updateSession` / `deleteSession` 显式拒绝助理 id。
+- 每个助理有自己的 `ACPBridge`，由 `src/backend/assistant/index.ts` 统一富化通知、写入 `chat/messages*.jsonl` 并广播 `assistant-update`。
+- 前端复用 `reduceSessionNotification`、`ChatArea`、气泡与用量条；助理自己的模型历史与 UI 通知流分开存储，Dream 只清空前者。
+
+完整架构、Dream、提醒、Worker 与数据布局见 [`docs/assistant.md`](./assistant.md)。
 
 ## 关键数据流
 

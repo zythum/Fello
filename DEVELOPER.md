@@ -216,5 +216,6 @@ See [docs/](./docs/README.md) for architecture and internals.
 - [Skills](./docs/skills.md)
 - [Ask User](./docs/ask-user.md)
 - [Automation](./docs/automation.md)
+- [Personal Assistant](./docs/assistant.md)
 - [Project Memory](./docs/memory.md)
 - [Storage & Data](./docs/storage.md)

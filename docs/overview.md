@@ -26,6 +26,16 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 会话时间戳：在侧边栏显示会话的最后更新时间
 - 自动标题生成：API Agent 会话首次发送消息时自动生成简短的会话标题
 
+### 个人助理（Personal Assistant）
+
+- 可创建多个常驻助理，每个助理拥有独立的工作区、模型会话、长期记忆、日记与提醒；不进入项目会话列表
+- 来源 Agent 必须是已启用的 OpenAI-compatible API Agent，支持模型与思考等级切换
+- 内置工具：时间、日记检索、提醒、文件系统、Ask User、文件分享与用户勾选的 MCP
+- **Dream（记忆沉淀）**：上下文超限立即执行，或按每日时间在新对话达到阈值后执行；把对话整理成日记、重写长期记忆并清空模型历史
+- 提醒支持一次性与 cron 周期，到点以聊天消息投递并显示系统通知
+- **Worker**：可把长任务交给后台 ACP 子代理，支持创建、多轮、状态 / 转写查看、权限审批、关闭与终止
+- 详见 [Personal Assistant — 个人助理](./assistant.md)
+
 ### 对话体验
 
 - 流式渲染：实时显示 assistant chunk 与 thinking/reasoning chunk
@@ -140,7 +150,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 数据与安全边界
 
-- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、项目级持久记忆（`~/.fello/projects/<project_id>/memory.json`）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）、自动化任务数据（`~/.fello/automations/` 下）
+- 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、项目级持久记忆（`~/.fello/projects/<project_id>/memory.json`）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）、自动化任务数据（`~/.fello/automations/` 下）、个人助理数据与工作区（`~/.fello/assistants/`、`~/.fello/workspaces/__assistant__<id>__/`）
 - 完整对话事件日志（在会话目录下的 `messages.jsonl` 或 `history.jsonl` 文件中）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
 

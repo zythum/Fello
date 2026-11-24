@@ -118,6 +118,33 @@ sendPrompt: {
 | `getPendingAskUserRequests` | `{ sessionId }` | `AskUserRequest[]` | 获取 pending 的 askUser 请求 |
 | `changeWorkDir` | `{ sessionId }` | `{ ok, cwd }` | 更改会话工作目录 |
 
+### 个人助理
+
+个人助理是伪会话：下面的 `assistantId` 同时是伪 session id；`sendAssistantPrompt` / `cancelAssistantPrompt` 等是助理专属入口，会话层的同名方法也会按 id 分派。
+
+| 方法 | params | response | 说明 |
+|---|---|---|---|
+| `listAssistants` | `void` | `AssistantConfig[]` | 助理列表（按创建时间升序） |
+| `createAssistant` | `{ name?, sourceAgentId, mcpServers }` | `AssistantConfig` | 创建助理并初始化目录 |
+| `updateAssistantConfig` | `{ assistantId, patch: { name?, disabled? } }` | `AssistantConfig` | 立即更新名称 / 停用状态 |
+| `deleteAssistant` | `{ assistantId }` | `void` | 删除助理数据目录与 workspace |
+| `getAssistantStatus` | `{ assistantId }` | `AssistantStatus` | 连接、模型、流式、Dream、usage 状态 |
+| `restartAssistant` | `{ assistantId, config?: { sourceAgentId, mcpServers, dream } }` | `AssistantConfig` | 写入来源 Agent / MCP / Dream 并重启 bridge |
+| `sendAssistantPrompt` | `{ assistantId, contents }` | `{ stopReason, usage?, error? }` | 发送消息 |
+| `cancelAssistantPrompt` | `{ assistantId }` | `void` | 取消当前生成 |
+| `setAssistantModel` | `{ assistantId, modelId }` | `void` | 切换模型 |
+| `setAssistantThoughtLevel` | `{ assistantId, thoughtLevelId }` | `void` | 切换思考等级 |
+| `getAssistantHistorySegment` | `{ assistantId, segmentId? }` | `{ segmentId, previousSegmentId?, messages }` | UI 通知流分段 |
+| `listAssistantReminders` | `{ assistantId }` | `AssistantReminderList` | 提醒列表 + 服务端时区 |
+| `listAssistantDiaries` | `{ assistantId }` | `AssistantDiary[]` | 日记摘要（新的在前） |
+| `readAssistantDiary` | `{ assistantId, file }` | `{ file, content, truncated }` | 读取日记原文 |
+| `readAssistantMemory` | `{ assistantId }` | `{ content }` | 读取 `memory.md` |
+| `runAssistantDream` | `{ assistantId }` | `AssistantDreamStartResult` | 手动触发记忆沉淀 |
+| `dismissAssistantDreamError` | `{ assistantId }` | `void` | 清空 Dream 失败提示 |
+| `listAssistantWorkers` | `{ assistantId }` | `AssistantWorkerInfo[]` | Worker 列表 |
+| `getAssistantWorkerHistorySegment` | `{ assistantId, workerId, segmentId? }` | `AssistantWorkerHistorySegment` | Worker 只读转写分段 |
+| `getAssistantDataSystemPath` | `{ assistantId }` | `string` | 助理数据目录绝对路径 |
+
 ### 模型与模式
 
 | 方法 | params | response | 说明 |
@@ -220,6 +247,15 @@ sendPrompt: {
 | `fs-changed` | `{ projectId, changes, selfChanges? }` | 文件系统变更（selfChanges 为应用自写触发的子集） |
 | `prompt-start` | `{ sessionId }` | Prompt 开始处理 |
 | `prompt-end` | `{ sessionId, stopReason?, error? }` | Prompt 处理结束 |
+| `assistants-changed` | `AssistantConfig[]` | 助理列表 / 名称 / disabled 变更 |
+| `assistant-update` | `{ assistantId, notification }` | 个人助理 ACP 通知 |
+| `assistant-status-changed` | `{ assistantId, status }` | 助理连接 / 模型 / 流式 / Dream / usage 状态 |
+| `assistant-prompt-start` / `assistant-prompt-end` | `{ assistantId }` / `{ assistantId, stopReason?, error? }` | 助理轮次信封 |
+| `assistant-reminders-changed` | `{ assistantId, reminders, timeZone }` | 提醒列表变更 |
+| `assistant-reminder-due` | `{ assistantId, name, id, text, dueAt }` | 提醒到点（供系统通知） |
+| `assistant-workers-changed` | `{ assistantId, workers }` | Worker 列表 / 状态变更 |
+| `assistant-worker-update` | `{ assistantId, workerId, notification }` | Worker 实时 ACP 通知 |
+| `open-assistant-requested` | `{ assistantId }` | 系统通知点击后打开助理页 |
 | `schedules-changed` | `void` | 调度列表发生变更（新增/删除/更新） |
 | `task-update` | `{ scheduleId, task }` | 自动化任务状态更新 |
 

@@ -24,6 +24,15 @@ Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFil
 - Subagent tool: src/agents/subagent-tool.ts (parallel sub-session execution, merged into toolset by openai-compatible-agent.ts)
 - ImageAnalysis tool: src/agents/image-tools.ts (vision/image analysis, merged into toolset by openai-compatible-agent.ts)
 
+Personal Assistant
+- Runtime: src/assistant/ (assistant-agent.ts in-process ACP agent, storage.ts, config.ts, dream.ts, fs/, reminders/, mcp-tools.ts, worker/)
+- Backend manager: src/backend/assistant/index.ts (AssistantManager + per-assistant runtime, status, wake queue, notification persistence); Worker manager: src/backend/assistant/worker/manager.ts
+- Renderer: src/mainview/components/assistant/ (chat/, detail/, panel/), src/mainview/components/settings/assistant/, src/mainview/lib/assistant-lifecycle.ts
+- IPC: assistant* requests/events in src/shared/schema.ts
+- Data: ~/.fello/assistants/<id>/{config.json,session,chat,memory,reminders,workers}; workspace ~/.fello/workspaces/__assistant__<id>__/
+- Full docs: docs/assistant.md; user manual: guides/{en,zh-CN}/assistant.md
+- Pseudo session: assistantId doubles as session id; session I/O dispatches via assistant.isAssistantSession(); updateSession/deleteSession reject assistant ids
+
 Sessions & Persistence
 - Session metadata persistence: src/backend/storage/ (directory; stores SessionInfo including models, modes, initializeInfo, permissionMode, mcpServers)
 - API agent session persistence: src/agents/storage.ts (stores session.json + history.jsonl under ~/.fello/api-agents/<agent_id>/sessions/<session_id>/)

@@ -9,6 +9,7 @@
 | Section | What's inside |
 |---------|---------------|
 | [Quick Start](./quick-start.md) | Download & install → configure your first Agent → start your first conversation, 5 minutes to get up and running |
+| [Personal Assistant](./assistant.md) | Create a resident assistant, configure its source model and MCP servers, and use reminders, diary, memory consolidation and background Workers |
 | [Agent Configuration](./agents.md) | Add local Stdio Agents and API Agents, switch models, manage multiple Agents |
 | → [Kiro as an Agent](./agents-kiro.md) | Configure the Kiro Stdio Agent (ACP) |
 | → [Kiro CLI V3 (Experimental)](./agents-kiro-v3.md) | Try Kiro CLI V3 early (not yet stable) |

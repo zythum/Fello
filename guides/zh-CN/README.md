@@ -10,6 +10,7 @@
 | 章节 | 内容简介 |
 |------|----------|
 | [快速开始](./quick-start.md) | 下载安装 → 配置第一个 Agent → 发起第一次对话，5 分钟上手 |
+| [个人助理](./assistant.md) | 创建常驻助理，配置来源模型与 MCP，使用提醒、日记、记忆沉淀与后台 Worker |
 | [Agent 配置与管理](./agents.md) | 添加本地 Stdio Agent 和 API Agent，切换模型，管理多个 Agent |
 | → [Kiro 作为 Agent](./agents-kiro.md) | 配置 Kiro Stdio Agent（ACP） |
 | → [Kiro CLI V3（实验性）](./agents-kiro-v3.md) | 尝鲜 Kiro CLI V3（尚不稳定） |

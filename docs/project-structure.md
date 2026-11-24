@@ -22,6 +22,20 @@ fello/
 │   │   ├── system-prompts.ts            # 基础系统提示词
 │   │   └── utils.ts                     # ContentBlock 转换工具
 │   │
+│   ├── assistant/                   # 个人助理运行时（主进程使用，不依赖 Electron）
+│   │   ├── config.ts                # 助理配置、目录布局、创建/更新/删除
+│   │   ├── storage.ts               # config/session/chat/memory 持久化与分段
+│   │   ├── assistant-agent.ts       # 进程内 ACP Agent：prompt 循环、工具、Dream 调度
+│   │   ├── dream.ts                 # 记忆沉淀：结构化日记 + 长期记忆
+│   │   ├── diary-query.ts           # 日记检索子代理与 diary_query 工具
+│   │   ├── current-time-tool.ts     # current_time 工具
+│   │   ├── ask-user-tool.ts         # ask_user 工具
+│   │   ├── mcp-tools.ts             # 按助理配置懒连接 MCP
+│   │   ├── tool-updates.ts          # 工具调用状态回传
+│   │   ├── fs/                      # fs_* 工具与路径保护
+│   │   ├── reminders/               # 提醒存储、定时器与工具
+│   │   └── worker/                  # worker_* 工具与类型
+│   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
 │   │   ├── backend.ts                # IPC 总入口：工厂模块实例化、组装 backendHandlers
 │   │   ├── types.ts                  # 共享类型（BackendContext, SendEventFn, EventListener）
@@ -36,6 +50,9 @@ fello/
 │   │   │   ├── index.ts              # 会话管理（new/load/sendPrompt/cancel/delete）
 │   │   │   ├── mcp-config.ts         # MCP Server 配置构建（按 features 注入内置 MCP）
 │   │   │   └── notifications.ts      # 通知合并、广播、iLink 转发、tool_call 状态追踪
+│   │   ├── assistant/                # 个人助理运行时管理
+│   │   │   ├── index.ts              # AssistantManager / 每助理 runtime、状态、唤醒队列、通知持久化
+│   │   │   └── worker/               # WorkerManager + worker 记录/转写存储
 │   │   ├── project/                  # 项目管理模块
 │   │   │   ├── index.ts              # 项目 CRUD + 组合 filesystem/git
 │   │   │   ├── filesystem.ts         # 文件系统操作（搜索/读写/目录遍历）
@@ -120,6 +137,8 @@ fello/
 │   ├── shared/                       # 前后端共享类型与常量
 │   │   ├── schema.ts                 # 主渲染通信协议（请求/事件类型）与持久化接口定义
 │   │   ├── constants.ts              # 共享常量（Feature 列表、i18n key 映射等）
+│   │   ├── assistant.ts              # 助理 workspace 的虚拟 project id
+│   │   ├── reminder.ts               # 提醒触发时间与 cron 工具
 │   │   ├── model-id.ts               # modelIdTemplate 的 {field} 占位符替换
 │   │   └── zod/                      # 共享 Zod schema
 │   │       ├── mcp-ask-user-schema.ts
@@ -151,6 +170,7 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── clipboard.ts              # 剪贴板工具（HTTP fallback + 粘贴检测）
+│       │   ├── assistant-lifecycle.ts    # 助理历史加载、通知排队与写入 store
 │       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage
 │       │   ├── session-selectors.ts      # Zustand 细粒度选择器 Hooks（避免不必要的重渲染）
 │       │   ├── shiki-preload.ts          # Shiki 代码高亮预加载（@pierre/diffs 内置）
@@ -263,6 +283,9 @@ fello/
 │       │   │   │   ├── settings-agents.tsx          # Agents 配置页面
 │       │   │   │   ├── settings-agent-stdio-dialog.tsx # Stdio Agent 配置弹窗
 │       │   │   │   └── settings-agent-api-dialog.tsx    # API Agent 配置弹窗
+│       │   │   ├── assistant/
+│       │   │   │   ├── settings-assistant.tsx           # 全局开关 + worker 类型列表
+│       │   │   │   └── settings-assistant-worker-dialog.tsx # worker 类型配置弹窗
 │       │   │   ├── mcp/
 │       │   │   │   ├── settings-mcp.tsx             # MCP Servers 配置页面
 │       │   │   │   ├── settings-mcp-stdio-dialog.tsx    # Stdio MCP 配置弹窗
@@ -367,11 +390,18 @@ fello/
 - 管理会话状态（ModelMessage 历史、工具集、权限记忆）
 - 提供 API Agent 的持久化层（session.json + history.jsonl）
 
+### `src/assistant`
+
+- 个人助理运行时：配置与持久化、进程内 ACP Agent、Dream、提醒、文件工具、Worker 工具与日记检索
+- 由 `src/backend/assistant/` 管理生命周期，并通过伪 session id 接入会话 I/O 分派
+- 完整机制见 [`docs/assistant.md`](./assistant.md)
+
 ### `src/backend`
 
 - 面向系统能力的底层实现：文件系统、终端 PTY
 - 工厂模式设计：`backend.ts` 创建 `BackendContext`（sendEvent + onEvent + storage），按层级实例化各 `createXxxModule()` 工厂：
   - `session/` — 会话生命周期（new/load/sendPrompt/cancel/delete）、通知广播、MCP 配置
+  - `assistant/` — 个人助理管理器、每助理 runtime、状态广播、唤醒队列与 Worker 管理
   - `bridge-connect.ts` — Agent Bridge 连接管理（生命周期、状态广播、权限路由）
   - `ask-user.ts` — askUser 通用请求/响应/超时机制
   - `share-to-user.ts` — shareToUser 文件分享
@@ -416,6 +446,16 @@ fello/
 ├── settings.json                    # 全局设置
 ├── sockets/                         # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                            # 临时文件目录
+├── assistants/                      # 个人助理数据
+│   └── <assistant-id>/
+│       ├── config.json              # 身份、来源 Agent、MCP、Dream 配置
+│       ├── session/                 # 模型状态与历史
+│       ├── chat/                    # UI 通知流分段
+│       ├── memory/                  # memory.md 与 diary/
+│       ├── reminders/               # reminders.json
+│       └── workers/                 # Worker 记录、通知流与 turns.jsonl
+├── workspaces/                      # 虚拟 project 工作区
+│   └── __assistant__<assistant-id>__/  # 个人助理 workspace
 ├── automations/                     # 自动化任务数据
 │   └── <schedule-id>/
 │       ├── schedule.json            # 计划配置
@@ -453,6 +493,7 @@ fello/
 - `i18n`: 应用语言配置（`language`: string）
 - `fileWatcher`: 文件监听配置（`enabled`: boolean）
 - `ilink`: iLink 相关设置（`useOriginalImage`: `boolean`）
+- `assistant`: 个人助理全局设置（`enabled`: boolean、`workerTypes`: `SettingAssistantWorkerType[]`）；每个助理自己的名称 / 来源 Agent / MCP / Dream 存在 `assistants/<id>/config.json`
 - `editor`: 编辑器设置（`name`: `string`，如 `"code"`、`"cursor"`）
 - `sound`: 音效设置（`volume`: `number`、`muted`: `boolean`、`theme`: `"soft" | "crisp"`）
 - `snippets`: Snippets 列表，每项包含 `id`、`title`、`content` 字段
