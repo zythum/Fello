@@ -191,6 +191,19 @@ CronEditor 组件提供常用预设供快速选择：
 - 日期部分禁用过去日期（`disabled={{ before: new Date() }}`），并通过 `timeZone` 传入本地时区避免选中日偏移
 - 保存时若时间点不在未来，弹窗校验报错（`automation.validation.onceTimeInvalid`）
 
+### 模型输入（ModelCombobox）
+
+「模型」字段复用共享组件 `components/common/model-combobox.tsx`（基于通用
+`components/common/autocomplete-input.tsx`）：普通输入框 + 候选下拉，
+**不强制**从候选里选（仍可输入任意模型 id，留空 = Agent 默认模型）。候选通过
+`listAgentModels({ agentId })` 获取：
+
+- API agent：实时请求 `/models`（应用 `modelIdTemplate`），并与设置里手填的 `models` 合并；
+  请求失败时回退到手填列表、再回退到最近会话缓存；
+- stdio/ACP agent：按 `updatedAt` 读取最近一次带模型快照的会话记录（不额外拉起 agent 进程）。
+
+助理 Worker 类型弹窗（`settings-assistant-worker-dialog.tsx`）的模型字段共用同一组件。
+
 ## 依赖
 
 | 包 | 版本 | 用途 |

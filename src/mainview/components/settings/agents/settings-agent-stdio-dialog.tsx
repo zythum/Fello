@@ -1,11 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
 import type { StdioAgentInfo } from "../../../../shared/schema";
+import { useAppStore } from "../../../store";
+import { AutocompleteInput, type AutocompleteOption } from "../../common/autocomplete-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -15,14 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Ellipsis } from "lucide-react";
 
 function isValidStringMap(raw: string): boolean {
   const trimmed = raw.trim();
@@ -64,6 +58,15 @@ const BUILT_IN_PRESETS: AcpPreset[] = [
   { id: "codebuddy", command: "codebuddy", args: ["--acp"], env: {} },
 ];
 
+/**
+ * Agent ID 候选：只给内置预设。
+ * ID 必须全局唯一，所以不混入已配置的 Agent（选到已占用的 ID 只会触发重复校验）。
+ */
+const ID_OPTIONS: AutocompleteOption[] = BUILT_IN_PRESETS.map((preset) => ({
+  value: preset.id,
+  detail: [preset.command, ...preset.args].join(" "),
+}));
+
 const schema = z.object({
   id: z
     .string()
@@ -91,6 +94,26 @@ export function SettingsAgentStdioDialog({
   onSave,
 }: SettingsAgentStdioDialogProps) {
   const { t } = useTranslation();
+  const configuredAgents = useAppStore((state) => state.configuredAgents);
+
+  /** Command 候选：内置预设使用的命令 + 已配置 stdio Agent 的命令。 */
+  const commandOptions = useMemo<AutocompleteOption[]>(() => {
+    const seen = new Set<string>();
+    const options: AutocompleteOption[] = [];
+    for (const preset of BUILT_IN_PRESETS) {
+      if (seen.has(preset.command)) continue;
+      seen.add(preset.command);
+      options.push({ value: preset.command, detail: preset.id });
+    }
+    for (const agent of configuredAgents) {
+      if (agent.type !== "stdio") continue;
+      const command = agent.command.trim();
+      if (!command || seen.has(command)) continue;
+      seen.add(command);
+      options.push({ value: command, detail: agent.id });
+    }
+    return options;
+  }, [configuredAgents]);
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
@@ -161,43 +184,34 @@ export function SettingsAgentStdioDialog({
                   <FieldLabel htmlFor="stdio-id" className="text-[11px] text-muted-foreground">
                     {t("settings.agents.agentId")}
                   </FieldLabel>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      {...field}
-                      id="stdio-id"
-                      placeholder={t("settings.agents.agentId")}
-                      aria-invalid={fieldState.invalid}
-                      disabled={!!initialAgent?.id}
-                      className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
-                    />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="size-8 shrink-0"
-                            title={t("settings.agents.quickPreset", "Quick preset")}
-                          />
-                        }
-                      >
-                        <Ellipsis className="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-full">
-                        {BUILT_IN_PRESETS.map((preset) => (
-                          <DropdownMenuItem key={preset.id} onClick={() => applyPreset(preset)}>
-                            <span className="truncate text-[10px] mr-auto text-muted-foreground/60">
-                              {preset.id}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-mono pl-3">
-                              {[preset.command, ...preset.args].join(" ")}
-                            </span>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <AutocompleteInput
+                    ref={field.ref}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    id="stdio-id"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={ID_OPTIONS}
+                    // 选中内置预设时，顺带填好命令 / 参数 / 环境变量。
+                    onPick={(option) => {
+                      const preset = BUILT_IN_PRESETS.find(
+                        (candidate) => candidate.id === option.value,
+                      );
+                      if (preset) applyPreset(preset);
+                    }}
+                    placeholder={t("settings.agents.agentId")}
+                    emptyHint={t(
+                      "settings.agents.suggestionEmpty",
+                      "No suggestions — type a value.",
+                    )}
+                    noMatchHint={t(
+                      "settings.agents.suggestionNoMatch",
+                      "No match — type a value.",
+                    )}
+                    aria-invalid={fieldState.invalid}
+                    disabled={!!initialAgent?.id}
+                    className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                  />
                   {fieldState.invalid && (
                     <FieldError
                       errors={[
@@ -222,15 +236,28 @@ export function SettingsAgentStdioDialog({
                   <FieldLabel htmlFor="stdio-command" className="text-[11px] text-muted-foreground">
                     {t("settings.agents.command")}
                   </FieldLabel>
-                  <Input
-                    {...field}
+                  <AutocompleteInput
+                    ref={field.ref}
+                    name={field.name}
+                    onBlur={field.onBlur}
                     id="stdio-command"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={commandOptions}
                     placeholder={t("settings.agents.command")}
+                    emptyHint={t(
+                      "settings.agents.suggestionEmpty",
+                      "No suggestions — type a value.",
+                    )}
+                    noMatchHint={t(
+                      "settings.agents.suggestionNoMatch",
+                      "No match — type a value.",
+                    )}
                     spellCheck={false}
                     autoComplete="off"
                     autoCapitalize="off"
                     aria-invalid={fieldState.invalid}
-                    className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
+                    className="h-8 text-[11px]! text-foreground/70 focus-visible:ring-0.5"
                   />
                   {fieldState.invalid && (
                     <FieldError

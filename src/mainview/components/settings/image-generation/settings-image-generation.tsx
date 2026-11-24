@@ -25,12 +25,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { AutocompleteInput, type AutocompleteOption } from "../../common/autocomplete-input";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Plus, Pencil, Trash2, Ellipsis } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { extractErrorMessage, generateUUID } from "@/lib/utils";
 import { useMessage } from "../../providers/message";
 
@@ -80,6 +75,19 @@ function parseJson(raw: string): Record<string, unknown> | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
   return JSON.parse(trimmed);
+}
+
+/** Base URL 候选：复用已配置 API Agent 的地址（同一网关时可连同 API Key 一起填入）。 */
+function agentBaseUrlOptions(agents: ApiAgentInfo[]): AutocompleteOption[] {
+  const seen = new Set<string>();
+  const options: AutocompleteOption[] = [];
+  for (const agent of agents) {
+    const baseUrl = agent.baseUrl.trim();
+    if (!baseUrl || seen.has(baseUrl)) continue;
+    seen.add(baseUrl);
+    options.push({ value: baseUrl, detail: agent.id });
+  }
+  return options;
 }
 
 const schema = z.object({
@@ -262,49 +270,33 @@ function ImageGenerationDialog({
                       )}
                     </span>
                   </FieldLabel>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      {...field}
-                      id="ig-baseurl"
-                      placeholder="e.g. https://api.openai.com/v1"
-                      aria-invalid={fieldState.invalid}
-                      className="h-8 text-[11px]! font-mono text-foreground/70 focus-visible:ring-0.5"
-                    />
-                    {apiAgents.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="size-8 shrink-0"
-                            />
-                          }
-                        >
-                          <Ellipsis className="size-3.5" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-full">
-                          {apiAgents.map((agent) => (
-                            <DropdownMenuItem
-                              key={agent.id}
-                              onClick={() => {
-                                form.setValue("baseUrl", agent.baseUrl);
-                                form.setValue("apiKey", agent.apiKey);
-                              }}
-                            >
-                              <span className="text-[10px] text-muted-foreground font-mono pr-3">
-                                {agent.baseUrl}
-                              </span>
-                              <span className="truncate text-[10px] ml-auto text-muted-foreground/60">
-                                {agent.id}
-                              </span>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                  <AutocompleteInput
+                    ref={field.ref}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    id="ig-baseurl"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={agentBaseUrlOptions(apiAgents)}
+                    onPick={(option) => {
+                      // 复用 Agent 的地址时，顺带填入它的 API Key。
+                      const agent = apiAgents.find(
+                        (candidate) => candidate.baseUrl === option.value,
+                      );
+                      if (agent) form.setValue("apiKey", agent.apiKey);
+                    }}
+                    placeholder="e.g. https://api.openai.com/v1"
+                    emptyHint={t(
+                      "settings.imageGeneration.form.baseUrlEmptyHint",
+                      "No saved base URLs — type one.",
                     )}
-                  </div>
+                    noMatchHint={t(
+                      "settings.imageGeneration.form.baseUrlNoMatch",
+                      "No matching base URL — type one.",
+                    )}
+                    aria-invalid={fieldState.invalid}
+                    className="h-8 text-[11px]! text-foreground/70 focus-visible:ring-0.5"
+                  />
                   {fieldState.invalid && (
                     <FieldError
                       errors={[

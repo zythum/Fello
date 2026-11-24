@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoaderCircle } from "lucide-react";
 import { useMessage } from "../../providers/message";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { ModelCombobox } from "@/components/common/model-combobox";
 import { CronEditor } from "./cron-editor";
 import { DateTimePicker } from "./date-time-picker";
 
@@ -251,12 +252,19 @@ export function SettingDialog({ schedule, open, onOpenChange, onSuccess }: Props
                 <FieldLabel htmlFor="auto-model" className="text-xs text-muted-foreground">
                   {t("automation.model", "Model")}
                 </FieldLabel>
-                <Input
+                <ModelCombobox
                   id="auto-model"
-                  placeholder={t("automation.modelPlaceholder", "Default model")}
+                  agentId={agentId || null}
                   value={modelId}
-                  onChange={(e) => setModelId(e.target.value)}
-                  className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
+                  onChange={setModelId}
+                  placeholder={t("automation.modelPlaceholder", "Default model")}
+                  emptyHint={t(
+                    "automation.modelEmptyHint",
+                    "No model list for this agent — type a model id.",
+                  )}
+                  noMatchHint={t("automation.modelNoMatch", "No matching model — type an id.")}
+                  loadingLabel={t("automation.modelLoading", "Loading models…")}
+                  className="h-8 text-xs! text-muted-foreground focus-visible:ring-0.5"
                 />
               </Field>
             </div>

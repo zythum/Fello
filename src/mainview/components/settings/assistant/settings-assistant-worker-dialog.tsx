@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { McpToggleGrid } from "../../common/mcp-toggle-grid";
+import { ModelCombobox } from "../../common/model-combobox";
 
 function createEmptyType(
   agents: AgentInfo[],
@@ -221,17 +222,30 @@ export function SettingsAssistantWorkerDialog({
                 </DialogField>
 
                 <DialogField label={t("settings.assistant.workerType.model", "Model")}>
-                  <Input
+                  <ModelCombobox
+                    agentId={form.agentId}
                     value={form.modelId ?? ""}
                     placeholder={t(
                       "settings.assistant.workerType.modelPlaceholder",
                       "Agent default",
                     )}
-                    className="h-7 text-xs!"
-                    onChange={(event) =>
+                    emptyHint={t(
+                      "settings.assistant.workerType.modelEmptyHint",
+                      "No model list for this agent — type a model id.",
+                    )}
+                    noMatchHint={t(
+                      "settings.assistant.workerType.modelNoMatch",
+                      "No matching model — type an id.",
+                    )}
+                    loadingLabel={t(
+                      "settings.assistant.workerType.modelLoading",
+                      "Loading models…",
+                    )}
+                    className="h-7 text-xs! text-muted-foreground"
+                    onChange={(value) =>
                       setForm((current) => ({
                         ...current,
-                        modelId: event.target.value || null,
+                        modelId: value || null,
                       }))
                     }
                   />
