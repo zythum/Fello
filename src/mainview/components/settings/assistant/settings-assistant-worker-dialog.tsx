@@ -150,13 +150,13 @@ export function SettingsAssistantWorkerDialog({
         <DialogHeader>
           <DialogTitle>
             {isEditing
-              ? t("settings.assistant.workerType.edit", "Edit worker type")
-              : t("settings.assistant.workerType.add", "Add worker type")}
+              ? t("settings.assistant.workerType.editTitle", "Edit worker config")
+              : t("settings.assistant.workerType.add", "Add worker config")}
           </DialogTitle>
           <DialogDescription>
             {t(
               "settings.assistant.workerType.dialogDesc",
-              "Describe when the assistant should use this type, then choose its agent, features and MCP servers.",
+              "Describe when the assistant should use this config, then choose its agent, features and MCP servers.",
             )}
           </DialogDescription>
         </DialogHeader>

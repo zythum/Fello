@@ -6,7 +6,14 @@ import { useAppStore } from "../../../store";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Info, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import {
   DndContext,
   closestCenter,
@@ -104,6 +111,7 @@ export function SettingsAssistant() {
   const [isSaving, setIsSaving] = useState(false);
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [workerDialogType, setWorkerDialogType] = useState<SettingAssistantWorkerType | null>(null);
+  const [contextMenuWorkerId, setContextMenuWorkerId] = useState<string | null>(null);
   const workerTypeSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -160,7 +168,7 @@ export function SettingsAssistant() {
       toast.error(
         t(
           "settings.assistant.workerType.duplicate",
-          "A worker type with this ID already exists.",
+          "A worker config with this ID already exists.",
         ),
       );
       return false;
@@ -180,7 +188,7 @@ export function SettingsAssistant() {
 
   const handleDeleteWorkerType = async (type: SettingAssistantWorkerType) => {
     const result = await confirm({
-      title: t("settings.assistant.workerType.deleteTitle", "Delete worker type"),
+      title: t("settings.assistant.workerType.deleteTitle", "Delete worker config"),
       content: t(
         "settings.assistant.workerType.deleteConfirm",
         'Delete "{{name}}"? Existing workers keep their snapshot and are not affected.',
@@ -237,7 +245,7 @@ export function SettingsAssistant() {
             <p className="text-sm text-muted-foreground">
               {t(
                 "settings.assistant.desc",
-                "Manage assistants from the sidebar: create them, edit their agent / MCP / Dream settings in the chat header, or disable and delete them. Worker types are shared by all assistants.",
+                "The personal assistant is a resident helper with its own workspace, memory and reminders, taking care of work that doesn't belong to a project. Enable it here and manage the Worker configs it can delegate tasks to; each assistant's source agent, MCP servers and Dream settings are configured from its own page.",
               )}
             </p>
           </div>
@@ -274,7 +282,7 @@ export function SettingsAssistant() {
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-                {t("settings.assistant.groupWorker", "Worker types")}
+                {t("settings.assistant.groupWorker", "Worker configs")}
               </h4>
               <Button
                 size="sm"
@@ -284,14 +292,14 @@ export function SettingsAssistant() {
                 onClick={openAddWorkerType}
               >
                 <Plus className="size-3" />
-                {t("settings.assistant.workerType.add", "Add worker type")}
+                {t("settings.assistant.workerType.add", "Add worker config")}
               </Button>
             </div>
             {workerTypes.length === 0 ? (
               <p className="text-xs text-muted-foreground/70">
                 {t(
                   "settings.assistant.workerType.empty",
-                  "No worker types yet. Add one so the assistant can delegate work.",
+                  "No worker configs yet. Add one so the assistant can delegate work.",
                 )}
               </p>
             ) : (
@@ -312,54 +320,62 @@ export function SettingsAssistant() {
                           id={type.id}
                           disabled={isSaving}
                         >
-                          <div
-                            title={type.id}
-                            className="flex items-center gap-2 rounded border bg-secondary/50 px-2 py-1.5"
+                          <ContextMenu
+                            onOpenChange={(open) =>
+                              setContextMenuWorkerId(open ? type.id : null)
+                            }
                           >
-                            <div className="flex min-w-0 flex-1 flex-col">
-                              <div className="flex min-w-0 items-center gap-1.5">
-                                <span className="truncate text-xs font-medium">
-                                  {type.name || type.id}
-                                </span>
+                            <ContextMenuTrigger>
+                              <div
+                                title={type.id}
+                                className={`flex cursor-default select-none items-center gap-2 rounded border bg-secondary/50 px-2 py-1.5 ${
+                                  contextMenuWorkerId === type.id ? "ring-1 ring-primary" : ""
+                                }`}
+                              >
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                  <div className="flex min-w-0 items-center gap-1.5">
+                                    <span className="truncate text-xs font-medium">
+                                      {type.name || type.id}
+                                    </span>
+                                  </div>
+                                  <span className="truncate text-[10px] text-muted-foreground/60">
+                                    {type.description ||
+                                      type.agentId ||
+                                      t(
+                                        "settings.assistant.workerType.noDescription",
+                                        "No description",
+                                      )}
+                                  </span>
+                                </div>
+                                <Switch
+                                  size="sm"
+                                  checked={type.enabled}
+                                  disabled={isSaving}
+                                  onCheckedChange={(checked) =>
+                                    handleToggleWorkerType(type.id, checked)
+                                  }
+                                />
                               </div>
-                              <span className="truncate text-[10px] text-muted-foreground/60">
-                                {type.description ||
-                                  type.agentId ||
-                                  t(
-                                    "settings.assistant.workerType.noDescription",
-                                    "No description",
-                                  )}
-                              </span>
-                            </div>
-                            <Switch
-                              size="sm"
-                              checked={type.enabled}
-                              disabled={isSaving}
-                              onCheckedChange={(checked) =>
-                                handleToggleWorkerType(type.id, checked)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              className="size-6 text-muted-foreground/60 hover:text-foreground"
-                              title={t("settings.assistant.workerType.edit", "Edit worker type")}
-                              disabled={isSaving}
-                              onClick={() => openEditWorkerType(type)}
-                            >
-                              <Pencil className="size-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              className="size-6 text-muted-foreground/60 hover:text-destructive"
-                              title={t("settings.assistant.workerType.delete", "Delete")}
-                              disabled={isSaving}
-                              onClick={() => void handleDeleteWorkerType(type)}
-                            >
-                              <Trash2 className="size-3" />
-                            </Button>
-                          </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent className="w-32">
+                              <ContextMenuItem
+                                disabled={isSaving}
+                                onClick={() => openEditWorkerType(type)}
+                              >
+                                <Pencil className="size-3" />
+                                {t("settings.assistant.workerType.edit", "Edit")}
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                variant="destructive"
+                                disabled={isSaving}
+                                onClick={() => void handleDeleteWorkerType(type)}
+                              >
+                                <Trash2 className="size-3" />
+                                {t("settings.assistant.workerType.delete", "Delete")}
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
                         </WorkerTypeSortableItem>
                       );
                     })}
@@ -367,11 +383,14 @@ export function SettingsAssistant() {
                 </SortableContext>
               </DndContext>
             )}
-            <p className="mt-2 text-[10px] text-muted-foreground/60">
-              {t(
-                "settings.assistant.workerType.snapshotHint",
-                "Existing workers keep the type snapshot they were created with.",
-              )}
+            <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
+              <Info className="mt-0.5 size-3 shrink-0" />
+              <span>
+                {t(
+                  "settings.assistant.workerType.tip",
+                  "Workers are background agents the assistant can dispatch work to: for long-running tasks such as reading many files, writing long documents or research, it picks one of these configs, creates a worker and gets a report when the work is done. Each config is a reusable bundle — agent, model, permission, features, MCP servers and instructions — and all assistants share them.",
+                )}
+              </span>
             </p>
           </div>
         </div>
