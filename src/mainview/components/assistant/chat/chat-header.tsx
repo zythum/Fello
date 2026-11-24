@@ -301,6 +301,7 @@ export function AssistantChatHeader({
                     </Select>
                   </div>
                 </div>
+                <div className="my-1 border-t border-border/50" />
                 <div>
                   <div className="mt-0.5 px-2 py-1 text-xs font-semibold text-foreground/80">
                     {t("assistant.config.groupDream", "Dream")}
