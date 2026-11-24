@@ -848,6 +848,7 @@
     "openSessionFolder": "Open Session Folder",
     "projectId": "Project",
     "openProjectFolder": "Open Project Folder",
+    "failedToRevealProject": "Failed to reveal project in Finder.",
     "refresh": "Restart Session",
     "closeSession": "Close Session",
     "closingSession": "Closing…",

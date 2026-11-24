@@ -2,9 +2,9 @@ import { memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../../../store";
-import { Settings2, Loader2, PanelRightOpen, Download } from "lucide-react";
+import { Settings2, Loader2, PanelRightOpen, Download, FolderClosed } from "lucide-react";
 import { cn, extractErrorMessage } from "@/lib/utils";
-import { request } from "../../../backend";
+import { request, isWebUI } from "../../../backend";
 import { electron } from "../../../electron";
 import {
   closeSession,
@@ -40,6 +40,21 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
 
   const currentProjectId = session.projectId;
   const currentProjectInfo = projects.find((project) => project.id === currentProjectId);
+  // 项目名优先取 store 里的最新标题（重命名后立刻生效），兜底用会话快照。
+  const projectName = currentProjectInfo?.title || session.projectTitle;
+  const projectCwd = currentProjectInfo?.cwd ?? session.cwd;
+
+  const handleRevealProjectFolder = useCallback(async () => {
+    if (!projectCwd) return;
+    try {
+      await electron.revealInFinder(projectCwd);
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err) ||
+          t("chatHeader.failedToRevealProject", "Failed to reveal project in Finder."),
+      );
+    }
+  }, [projectCwd, t, toast]);
 
   // Local state: only used while the popover is open, synced from session on open
   const [localMcpServers, setLocalMcpServers] = useState<string[]>([]);
@@ -146,6 +161,14 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
     }
   }, [isExporting, session.id, t, toast]);
 
+  // 图标与项目名一起作为可点区域（WebUI 下退化为纯文本）。
+  const projectLabel = (
+    <>
+      <FolderClosed aria-hidden="true" className="size-3 shrink-0 self-center" />
+      <span className="truncate">{projectName}</span>
+    </>
+  );
+
   return (
     <div
       className={cn(
@@ -161,9 +184,22 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
         <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
           {session.title || t("sidebar.newSession", "New Session")}
         </span>
-        <span className="flex-1 text-[10px] text-muted-foreground truncate">
-          {currentProjectInfo?.cwd}
-        </span>
+        {projectName &&
+          (isWebUI ? (
+            <span className="flex min-w-0 shrink items-baseline gap-1 text-[11px] text-sidebar-foreground/45">
+              {projectLabel}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleRevealProjectFolder()}
+              title={projectCwd}
+              style={{ WebkitAppRegion: "no-drag" }}
+              className="flex min-w-0 shrink cursor-default items-baseline gap-1 text-left text-[11px] text-sidebar-foreground/45 transition-colors hover:text-sidebar-foreground/80"
+            >
+              {projectLabel}
+            </button>
+          ))}
       </div>
       <div className="ml-1 flex items-center shrink-0 gap-1" style={{ WebkitAppRegion: "no-drag" }}>
         <TtsReadoutButton />

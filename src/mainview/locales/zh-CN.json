@@ -847,6 +847,7 @@
     "openSessionFolder": "打开会话文件夹",
     "projectId": "项目目录",
     "openProjectFolder": "打开项目文件夹",
+    "failedToRevealProject": "在访达中显示项目失败。",
     "refresh": "重启会话",
     "closeSession": "关闭会话",
     "closingSession": "关闭中…",
