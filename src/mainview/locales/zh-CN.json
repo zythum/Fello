@@ -4,6 +4,7 @@
     "skills": "技能",
     "automation": "自动化",
     "assistant": "个人助理",
+    "noAssistant": "还没有个人助理",
     "openAssistant": "打开助理",
     "addAssistant": "新建个人助理",
     "renameAssistant": "重命名助理",

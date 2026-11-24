@@ -1384,8 +1384,17 @@ export function Sidebar() {
               <UserRoundPlus className="size-3.5" />
             </Button>
           </div>
-          <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-2">
+          <div
+            role="tree"
+            aria-label={t("sidebar.assistant")}
+            className="px-1.5 pt-2"
+          >
             <div className="space-y-0.5">
+              {assistants.length === 0 && (
+                <div className="p-1.5 text-xs opacity-45 text-sidebar-foreground/70 select-none">
+                  {t("sidebar.noAssistant", "No assistants yet")}
+                </div>
+              )}
               {assistants.map((assistant) => {
                 const currentHoverId = assistantHoverId(assistant.id);
                 const active = currentPath === `/assistant/${assistant.id}`;

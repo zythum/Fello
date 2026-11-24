@@ -4,6 +4,7 @@
     "skills": "Skills",
     "automation": "Automation",
     "assistant": "Personal Assistant",
+    "noAssistant": "No assistants yet",
     "openAssistant": "Open Assistant",
     "addAssistant": "New Assistant",
     "renameAssistant": "Rename Assistant",
