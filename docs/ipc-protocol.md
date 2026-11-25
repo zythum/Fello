@@ -118,6 +118,8 @@ sendPrompt: {
 | `getPendingAskUserRequests` | `{ sessionId }` | `AskUserRequest[]` | 获取 pending 的 askUser 请求 |
 | `changeWorkDir` | `{ sessionId }` | `{ ok, cwd }` | 更改会话工作目录 |
 
+`sendPrompt` / `cancelPrompt` / `setModel` / `setThoughtLevel` 对个人助理同样有效（`sessionId` = `assistantId`，后端按 id 分派）。
+
 ### 个人助理
 
 个人助理是伪会话：下面的 `assistantId` 同时是伪 session id。发送 / 取消 / 模型 / 思考等级直接使用会话入口 `sendPrompt` / `cancelPrompt` / `setModel` / `setThoughtLevel`（`sessionId` = `assistantId`，后端按 id 分派）；历史分段、加载与会话轮次事件同样共用 `getSessionHistorySegment` / `loadSession` / `session-update` / `prompt-start` / `prompt-end`。下表只保留助理特有的请求。

@@ -283,6 +283,7 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 - 聊天列：
   - 消息列表复用 `ChatArea`（伪 `SessionInfo`、`showTimeline={false}`）。
   - 输入区复用 `ChatTextarea`，但 `attachments={null}`（助理不支持附件），草稿复用 `sessionStates.draftInput`。
+  - 语音交互与会话一致：提交前先停止语音输入；流式期间语音面板发送会先取消当前生成再发送。
   - 模型 / 思考等级下拉在 `rightSlot`；发送 / 停止按钮在 `primaryAction`；支持语音与 TTS 朗读。
   - `UsageButton` 提供上下文用量、上轮明细、查看记忆和「立即沉淀」。
   - Dream 失败提示浮在 header 下方；关闭会清空后端 `status.dreamError`。

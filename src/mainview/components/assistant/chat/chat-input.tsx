@@ -106,6 +106,8 @@ export function AssistantChatInput({
 
   const send = useCallback(
     async (value: ChatTextareaSubmitValue) => {
+      // 与会话一致：提交前先停止语音输入，避免识别结果插回已清空的输入框。
+      await voiceInputRef.current?.stop();
       const text = resolveMentions(value.text).trim();
       if (!text) return;
       if (!isConnected) {
@@ -116,9 +118,13 @@ export function AssistantChatInput({
         toast.error(t("assistant.busyDreaming", "Wait for Dream to finish."));
         return;
       }
+      // 与会话一致：语音面板发送允许打断当前生成；普通输入框仍要求等本轮结束。
       if (isStreaming) {
-        toast.error(t("assistant.busyStreaming", "Wait for the current reply to finish."));
-        return;
+        if (value.source !== "voice") {
+          toast.error(t("assistant.busyStreaming", "Wait for the current reply to finish."));
+          return;
+        }
+        await request.cancelPrompt({ sessionId: assistantId });
       }
       tiks.click();
       setInput("");

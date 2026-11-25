@@ -79,7 +79,7 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
 - 面板侧「松手」即调用 `stop()`，尾句定稿于是在复核态里原地替换文本；因此提交 / 取消面板时可能
   撞上正在进行的收尾链，`stop()` 按 in-flight promise 去重（同一条会话上的收尾幂等）。
 - 面板可用性与输入框禁用解耦：流式生成期间输入框禁用，但按住语音键照常可用，
-  发送时由 `chat-input` 先 `cancelPrompt` 再发送。
+  发送时由 `chat-input` 先 `cancelPrompt` 再发送（会话与个人助理一致）。
 
 ## 4. 会话与生命周期
 
