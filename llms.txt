@@ -27,7 +27,7 @@ Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFil
 Personal Assistant
 - Runtime: src/assistant/ (assistant-agent.ts in-process ACP agent, storage.ts, config.ts, dream.ts, fs/, reminders/, mcp-tools.ts, worker/)
 - Backend manager: src/backend/assistant/index.ts (AssistantManager + per-assistant runtime, status, wake queue, notification persistence); Worker manager: src/backend/assistant/worker/manager.ts
-- Renderer: src/mainview/components/assistant/ (chat/, detail/, panel/), src/mainview/components/settings/assistant/, src/mainview/lib/assistant-lifecycle.ts
+- Renderer: src/mainview/components/assistant/ (chat/, detail/, panel/), src/mainview/components/settings/assistant/ (history/notifications reuse src/mainview/lib/session-lifecycle.ts)
 - IPC: assistant* requests/events in src/shared/schema.ts
 - Data: ~/.fello/assistants/<id>/{config.json,session,chat,memory,reminders,workers}; workspace ~/.fello/workspaces/__assistant__<id>__/
 - Full docs: docs/assistant.md; user manual: guides/{en,zh-CN}/assistant.md

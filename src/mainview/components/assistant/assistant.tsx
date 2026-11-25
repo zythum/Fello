@@ -5,12 +5,11 @@ import type {
   AssistantDiary,
   AssistantStatus,
   AssistantWorkerInfo,
-  SessionNotificationFelloExt,
 } from "../../../shared/schema";
 import { assistantProjectId } from "../../../shared/assistant";
 import { request, subscribe } from "../../backend";
 import { useAppStore } from "../../store";
-import { loadAssistantHistory, queueAssistantNotification } from "../../lib/assistant-lifecycle";
+import { loadSession, SessionLifecycleBusyError } from "../../lib/session-lifecycle";
 import { FileDetail } from "../files/detail/file-detail";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
@@ -27,7 +26,6 @@ import { Panel, type PanelTab } from "./panel/panel";
  */
 export function Assistant({ assistantId }: { assistantId: string }) {
   const { t } = useTranslation();
-  const resetSessionState = useAppStore((state) => state.resetSessionState);
   const assistantConfig = useAppStore((state) =>
     state.assistants.find((item) => item.id === assistantId),
   );
@@ -54,36 +52,17 @@ export function Assistant({ assistantId }: { assistantId: string }) {
 
   useEffect(() => {
     let active = true;
-    resetSessionState(assistantId);
-    // reset 会清空 askUser 队列：把后端仍然挂着的请求补回来（离开页面期间可能产生）。
-    void request
-      .getPendingAskUserRequests({ sessionId: assistantId })
-      .then((pending) => {
-        for (const req of pending) {
-          useAppStore.getState().addAskUserRequest(assistantId, req);
-        }
-      })
-      .catch(() => {});
 
     const onStatus = (detail: { assistantId: string; status: AssistantStatus }) => {
       if (active && detail.assistantId === assistantId) setStatus(detail.status);
     };
-    const onUpdate = (detail: {
-      assistantId: string;
-      notification: SessionNotificationFelloExt;
-    }) => {
-      if (active && detail.assistantId === assistantId) {
-        queueAssistantNotification(assistantId, detail.notification);
-      }
-    };
-
     subscribe.on("assistant-status-changed", onStatus);
-    subscribe.on("assistant-update", onUpdate);
-    void Promise.all([
-      request.getAssistantStatus({ assistantId }),
-      loadAssistantHistory(assistantId),
-    ])
-      .then(([nextStatus]) => {
+
+    // 状态与历史分开拉取：助理是伪会话，历史加载 / isLoading / pending 语义
+    // 直接复用会话视图的同一条管线（后端已按 isAssistantSession 分派）。
+    void request
+      .getAssistantStatus({ assistantId })
+      .then((nextStatus) => {
         if (active) setStatus(nextStatus);
       })
       .catch((error: unknown) => {
@@ -101,12 +80,21 @@ export function Assistant({ assistantId }: { assistantId: string }) {
         });
       });
 
+    // 与会话视图一致：只有从未加载过历史时才读盘。离开页面期间到达的通知由 App.tsx 的
+    // 全局 session-update 管线写进同一个 store 桶，不需要每次挂载都重读一遍。
+    const state = useAppStore.getState().getSessionState(assistantId);
+    const shouldLoadHistory = state.messages.length === 0 && state.loadedAt === null;
+    void loadSession(assistantId, { loadHistory: shouldLoadHistory }).catch((error: unknown) => {
+      // StrictMode 二次挂载会与第一次加载撞锁：历史已由第一次加载写回，忽略即可。
+      if (error instanceof SessionLifecycleBusyError) return;
+      console.error(`[assistant:${assistantId}] Failed to load:`, error);
+    });
+
     return () => {
       active = false;
       subscribe.off("assistant-status-changed", onStatus);
-      subscribe.off("assistant-update", onUpdate);
     };
-  }, [assistantId, resetSessionState]);
+  }, [assistantId]);
 
   // Tool/share bubbles dispatch this when their preview button is clicked.
   useEffect(() => {

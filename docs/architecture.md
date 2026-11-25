@@ -299,7 +299,7 @@ ACPBridge.onSessionUpdate
 助理没有 `ProjectInfo` / `SessionInfo` 记录，也不进入侧边栏的项目会话列表；`assistantId` 直接充当伪 session id：
 
 - 会话层以 `assistant.isAssistantSession(sessionId)` 分派 `sendPrompt` / `cancelPrompt` / `getHistorySegment` / `models` / `thoughtLevels` / `isSessionStreaming`；`updateSession` / `deleteSession` 显式拒绝助理 id。
-- 每个助理有自己的 `ACPBridge`，由 `src/backend/assistant/index.ts` 统一富化通知、写入 `chat/messages*.jsonl` 并广播 `assistant-update`。
+- 每个助理有自己的 `ACPBridge`，由 `src/backend/assistant/index.ts` 统一富化通知、写入 `chat/messages*.jsonl` 并广播 `session-update`（助理是伪会话，`sessionId` 即 `assistantId`）。
 - 前端复用 `reduceSessionNotification`、`ChatArea`、气泡与用量条；助理自己的模型历史与 UI 通知流分开存储，Dream 只清空前者。
 
 完整架构、Dream、提醒、Worker 与数据布局见 [`docs/assistant.md`](./assistant.md)。

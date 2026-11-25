@@ -5,7 +5,7 @@ import type { AssistantStatus, SessionInfo } from "../../../../shared/schema";
 import { ASSISTANT_AGENT_ID } from "../../../../assistant/constants";
 import { assistantProjectId } from "../../../../shared/assistant";
 import { request } from "../../../backend";
-import { loadPreviousAssistantHistory } from "../../../lib/assistant-lifecycle";
+import { loadPreviousSessionHistory } from "../../../lib/session-lifecycle";
 import { ChatArea } from "../../chat/chat-area";
 import { AskUserDialog } from "../../chat/chat-ask-user-dialog";
 import { AssistantChatHeader } from "./chat-header";
@@ -124,7 +124,7 @@ export function AssistantChat({
       <ChatArea
         session={session}
         showTimeline={false}
-        loadPreviousHistory={() => loadPreviousAssistantHistory(assistantId)}
+        loadPreviousHistory={() => loadPreviousSessionHistory(assistantId)}
         avatar={HatGlasses}
         name={assistantName}
       />

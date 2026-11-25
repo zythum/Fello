@@ -1050,14 +1050,6 @@ export type FelloIPCRequests = {
     params: { assistantId: string };
     response: { content: string };
   };
-  getAssistantHistorySegment: {
-    params: { assistantId: string; segmentId?: number };
-    response: {
-      segmentId: number;
-      previousSegmentId?: number;
-      messages: SessionNotificationFelloExt[];
-    };
-  };
   /** 向内建个人助理发送用户输入。 */
   sendAssistantPrompt: {
     params: { assistantId: string; contents: ContentBlock[] };
@@ -1464,8 +1456,6 @@ export type FelloIPCRequests = {
 export type FelloIPCEvents = {
   /** 个人助理列表或配置（名称 / disabled / 删除）发生变更。 */
   "assistants-changed": AssistantConfig[];
-  /** 某个个人助理的 ACP 流式通知。 */
-  "assistant-update": { assistantId: string; notification: SessionNotificationFelloExt };
   /** 某个个人助理的连接、模型和流式状态变更。 */
   "assistant-status-changed": { assistantId: string; status: AssistantStatus };
   /** 个人助理提醒的任何变更后推送完整列表。 */
@@ -1478,16 +1468,12 @@ export type FelloIPCEvents = {
     workerId: string;
     notification: SessionNotificationFelloExt;
   };
-  "assistant-prompt-start": { assistantId: string };
-  "assistant-prompt-end": {
-    assistantId: string;
-    stopReason?: string;
-    error?: string;
-  };
-
   /** 单个会话配置或元数据发生变更时触发（如改名、切换模型），用于前端进行原子级 UI 更新 */
   "session-changed": { session: SessionInfo };
-  /** 会话状态更新的事件（如消息流、状态变更等） */
+  /**
+   * 会话状态更新的事件（如消息流、状态变更等）。
+   * 个人助理是伪会话，同样走这里：`sessionId` 即 `assistantId`。
+   */
   "session-update": { sessionId: string; notification: SessionNotificationFelloExt };
   /** 通用 askUser 请求事件（替换 permission-request） */
   "ask-user-request": AskUserRequest;
@@ -1534,9 +1520,9 @@ export type FelloIPCEvents = {
    * `selfChanges` 为可选字段：由应用自身写入（如编辑器保存）触发的变更子集，前端可按需忽略。
    */
   "fs-changed": { projectId: string; changes: string[]; selfChanges?: string[] };
-  /** Prompt 开始处理 */
+  /** Prompt 开始处理（个人助理的轮次也走这里，`sessionId` 即 `assistantId`） */
   "prompt-start": { sessionId: string };
-  /** Prompt 处理结束 */
+  /** Prompt 处理结束（个人助理的轮次也走这里，`sessionId` 即 `assistantId`） */
   "prompt-end": { sessionId: string; stopReason?: StopReason; error?: string };
 
   // ── Automation Events ─────────────────────────────────────────────

@@ -332,9 +332,6 @@ export function initBackend(
     async getAssistantWorkerHistorySegment({ assistantId, workerId, segmentId }) {
       return assistant.readWorkerHistorySegment(assistantId, { workerId, segmentId });
     },
-    async getAssistantHistorySegment({ assistantId, segmentId }) {
-      return assistant.getHistorySegment(assistantId, { segmentId });
-    },
     async sendAssistantPrompt({ assistantId, contents }) {
       return assistant.sendPrompt(assistantId, contents);
     },

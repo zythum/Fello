@@ -170,7 +170,6 @@ fello/
 │       │
 │       ├── lib/
 │       │   ├── clipboard.ts              # 剪贴板工具（HTTP fallback + 粘贴检测）
-│       │   ├── assistant-lifecycle.ts    # 助理历史加载、通知排队与写入 store
 │       │   ├── session-state-reducer.ts  # ACP 事件解析器，将 SessionUpdate 转换为 ChatMessage
 │       │   ├── session-selectors.ts      # Zustand 细粒度选择器 Hooks（避免不必要的重渲染）
 │       │   ├── shiki-preload.ts          # Shiki 代码高亮预加载（@pierre/diffs 内置）

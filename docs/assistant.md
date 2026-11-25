@@ -259,19 +259,19 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 
 ### 事件
 
+轮次流与会话共用同一套协议：助理的 ACP 通知走 `session-update`，轮次信封走 `prompt-start` / `prompt-end`，`sessionId` 即 `assistantId`。助理专属事件只保留实体状态（连接 / 模型 / 流式 / Dream）以及提醒、worker。
+
 | 事件 | 说明 |
 | :--- | :--- |
 | `assistants-changed` | 助理列表 / 名称 / disabled 变更 |
 | `assistant-status-changed` | 连接状态、模型、流式、Dream、usage |
-| `assistant-update` | 助理自己的 ACP 通知（富化 `_meta.fello.displayId/receivedAt`） |
-| `assistant-prompt-start` / `assistant-prompt-end` | 轮次信封 |
 | `assistant-reminders-changed` | 提醒列表变更（附服务端时区） |
 | `assistant-reminder-due` | 提醒到点，供系统通知 |
 | `assistant-workers-changed` | worker 列表 / 状态变更 |
 | `assistant-worker-update` | 某个 worker 的实时 ACP 通知 |
 | `open-assistant-requested` | 系统通知点击后打开助理页 |
 
-通知持久化顺序：`backend/assistant/index.ts` 富化 → 写 `chat/messages*.jsonl` → 广播 `assistant-update`。`tool_call_update` 会先合并进行中的状态，完成时去掉 `rawInput` / `rawOutput` 再落盘。前端复用 `reduceSessionNotification` / `ChatArea` / 气泡 / 用量条。
+通知持久化顺序：`backend/assistant/index.ts` 富化 → 写 `chat/messages*.jsonl` → 广播 `session-update`。`tool_call_update` 会先合并进行中的状态，完成时去掉 `rawInput` / `rawOutput` 再落盘。前端复用 `reduceSessionNotification` / `ChatArea` / 气泡 / 用量条，历史加载与 `isLoading` / `pendingNotifications` 语义也直接复用 `session-lifecycle`。
 
 ### 页面
 
@@ -299,7 +299,6 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 | `restartAssistant` | 写入来源 Agent / MCP / Dream 并重启 |
 | `sendAssistantPrompt` / `cancelAssistantPrompt` | 发送 / 取消 |
 | `setAssistantModel` / `setAssistantThoughtLevel` | 模型 / 思考等级 |
-| `getAssistantHistorySegment` | UI 通知流分段 |
 | `listAssistantReminders` | 提醒列表 + 时区 |
 | `listAssistantDiaries` / `readAssistantDiary` / `readAssistantMemory` | 日记与记忆 |
 | `runAssistantDream` / `dismissAssistantDreamError` | 手动 Dream / 关闭失败提示 |

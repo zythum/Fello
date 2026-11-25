@@ -16,6 +16,7 @@ import type {
   AssistantWorkerInfo,
   SessionNotificationFelloExt,
   SettingsInfo,
+  StopReason,
 } from "../../shared/schema";
 import type { AssistantDiary, AssistantReminderList } from "../../shared/schema";
 import { listDiarySummaries, readDiary } from "../../assistant/diary-query";
@@ -496,7 +497,7 @@ function createAssistantRuntime(
           usage: { used: usage.used, size: usage.size, cost: usage.cost },
         });
       }
-      ctx.sendEvent("assistant-update", { assistantId, notification: enriched });
+      ctx.sendEvent("session-update", { sessionId: assistantId, notification: enriched });
       return;
     }
     if (type === "tool_call_update") {
@@ -530,7 +531,7 @@ function createAssistantRuntime(
     } else {
       await storage.appendMessage(enriched, segment ?? undefined);
     }
-    ctx.sendEvent("assistant-update", { assistantId, notification: enriched });
+    ctx.sendEvent("session-update", { sessionId: assistantId, notification: enriched });
   }
 
   async function getHistorySegment({ segmentId }: { segmentId?: number }) {
@@ -695,11 +696,11 @@ function createAssistantRuntime(
       throw new AssistantBusyError();
     if (status.isStreaming) await cancelPrompt();
     updateStatus({ isStreaming: true });
-    ctx.sendEvent("assistant-prompt-start", { assistantId });
+    ctx.sendEvent("prompt-start", { sessionId: assistantId });
 
     const messageSegment = await storage.beginMessageTurn();
     activeMessageSegment = messageSegment;
-    let stopReason: string | undefined;
+    let stopReason: StopReason | undefined;
     let promptError: string | undefined;
     try {
       for (const content of contents) {
@@ -734,8 +735,8 @@ function createAssistantRuntime(
         activeMessageSegment = null;
       }
       updateStatus({ isStreaming: false });
-      ctx.sendEvent("assistant-prompt-end", {
-        assistantId,
+      ctx.sendEvent("prompt-end", {
+        sessionId: assistantId,
         ...(stopReason ? { stopReason } : {}),
         ...(promptError ? { error: promptError } : {}),
       });

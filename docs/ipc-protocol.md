@@ -120,7 +120,7 @@ sendPrompt: {
 
 ### 个人助理
 
-个人助理是伪会话：下面的 `assistantId` 同时是伪 session id；`sendAssistantPrompt` / `cancelAssistantPrompt` 等是助理专属入口，会话层的同名方法也会按 id 分派。
+个人助理是伪会话：下面的 `assistantId` 同时是伪 session id；`sendAssistantPrompt` / `cancelAssistantPrompt` 等是助理专属入口，会话层的同名方法也会按 id 分派。历史分段、加载与会话轮次事件共用 `getSessionHistorySegment` / `loadSession` / `session-update` / `prompt-start` / `prompt-end`。
 
 | 方法 | params | response | 说明 |
 |---|---|---|---|
@@ -134,7 +134,6 @@ sendPrompt: {
 | `cancelAssistantPrompt` | `{ assistantId }` | `void` | 取消当前生成 |
 | `setAssistantModel` | `{ assistantId, modelId }` | `void` | 切换模型 |
 | `setAssistantThoughtLevel` | `{ assistantId, thoughtLevelId }` | `void` | 切换思考等级 |
-| `getAssistantHistorySegment` | `{ assistantId, segmentId? }` | `{ segmentId, previousSegmentId?, messages }` | UI 通知流分段 |
 | `listAssistantReminders` | `{ assistantId }` | `AssistantReminderList` | 提醒列表 + 服务端时区 |
 | `listAssistantDiaries` | `{ assistantId }` | `AssistantDiary[]` | 日记摘要（新的在前） |
 | `readAssistantDiary` | `{ assistantId, file }` | `{ file, content, truncated }` | 读取日记原文 |
@@ -233,7 +232,7 @@ sendPrompt: {
 | 事件名 | payload | 说明 |
 |---|---|---|
 | `session-changed` | `{ session: SessionInfo }` | 会话元数据变更（标题、模型等） |
-| `session-update` | `{ sessionId, notification }` | 会话流式事件（消息、工具调用等） |
+| `session-update` | `{ sessionId, notification }` | 会话流式事件（消息、工具调用等）；个人助理是伪会话，同样走这里（`sessionId` = `assistantId`） |
 | `ask-user-request` | `AskUserRequest` | Agent 发起 askUser 请求 |
 | `ask-user-response` | `AskUserResponse` | askUser 请求已响应 |
 | `terminal-output` | `{ terminalId, data }` | 终端输出数据 |
@@ -245,12 +244,10 @@ sendPrompt: {
 | `projects-changed` | `void` | 项目列表变更（新增/删除/重命名） |
 | `sessions-changed` | `void` | 会话列表变更 |
 | `fs-changed` | `{ projectId, changes, selfChanges? }` | 文件系统变更（selfChanges 为应用自写触发的子集） |
-| `prompt-start` | `{ sessionId }` | Prompt 开始处理 |
-| `prompt-end` | `{ sessionId, stopReason?, error? }` | Prompt 处理结束 |
+| `prompt-start` | `{ sessionId }` | Prompt 开始处理；个人助理的轮次也走这里（`sessionId` = `assistantId`） |
+| `prompt-end` | `{ sessionId, stopReason?, error? }` | Prompt 处理结束；个人助理的轮次也走这里 |
 | `assistants-changed` | `AssistantConfig[]` | 助理列表 / 名称 / disabled 变更 |
-| `assistant-update` | `{ assistantId, notification }` | 个人助理 ACP 通知 |
 | `assistant-status-changed` | `{ assistantId, status }` | 助理连接 / 模型 / 流式 / Dream / usage 状态 |
-| `assistant-prompt-start` / `assistant-prompt-end` | `{ assistantId }` / `{ assistantId, stopReason?, error? }` | 助理轮次信封 |
 | `assistant-reminders-changed` | `{ assistantId, reminders, timeZone }` | 提醒列表变更 |
 | `assistant-reminder-due` | `{ assistantId, name, id, text, dueAt }` | 提醒到点（供系统通知） |
 | `assistant-workers-changed` | `{ assistantId, workers }` | Worker 列表 / 状态变更 |

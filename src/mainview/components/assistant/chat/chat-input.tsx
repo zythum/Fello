@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMessage } from "../../providers/message";
+import * as tiks from "@rexa-developer/tiks";
 
 const EMPTY_MODELS: NonNullable<AssistantStatus["models"]>["availableModels"] = [];
 
@@ -119,6 +120,7 @@ export function AssistantChatInput({
         toast.error(t("assistant.busyStreaming", "Wait for the current reply to finish."));
         return;
       }
+      tiks.click();
       setInput("");
       useAppStore.getState().updateSessionState(assistantId, () => ({ draftInput: "" }));
       // Same as Session: show the message at once with optimistic ids. The backend's copy

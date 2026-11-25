@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { useAppStore } from "./store";
-import type { AssistantConfig } from "../shared/schema";
+import type { AssistantConfig, SessionInfo } from "../shared/schema";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
-import { disposeAssistantHistory } from "./lib/assistant-lifecycle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageProvider, useMessage } from "./components/providers/message";
 import { ThemeProvider } from "./components/providers/theme";
@@ -25,6 +24,18 @@ import { electron, UpdaterEvent } from "./electron";
 import * as tiks from "@rexa-developer/tiks";
 
 const UPDATE_TOAST_ID = "fello-app-update";
+
+/**
+ * `sessionStates` 里允许存在的桶：项目会话 + 个人助理（伪会话）。
+ *
+ * 通知批处理与「会话列表刷新后的清理」必须用同一个集合：两处不一致时，助理的流式通知
+ * 会被当成「已删除会话」静默丢弃。
+ */
+function liveSessionIds(sessions: SessionInfo[]): Set<string> {
+  const ids = new Set(sessions.map((session) => session.id));
+  for (const assistant of useAppStore.getState().assistants) ids.add(assistant.id);
+  return ids;
+}
 
 function AppContent() {
   // 逐项按需订阅，避免用无 selector 的 useAppStore() 全量订阅整个 store：
@@ -209,6 +220,9 @@ function AppContent() {
     const flushPendingSessioNotificationss = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
+      // 个人助理是伪会话，同样走 session-update；存活集合必须包含助理，
+      // 否则助理的流式通知会在这一层被静默丢弃。
+      const liveIds = liveSessionIds(store.sessions);
       const budgetMs = 8;
       const start = performance.now();
 
@@ -218,8 +232,8 @@ function AppContent() {
 
         let processedCount = 0;
 
-        // Drop queued updates for sessions that were deleted before this RAF ran.
-        if (!useAppStore.getState().sessions.some((session) => session.id === sid)) {
+        // Drop queued updates for sessions / assistants that were deleted before this RAF ran.
+        if (!liveIds.has(sid)) {
           continue;
         }
 
@@ -373,25 +387,6 @@ function AppContent() {
       useAppStore.getState().setAssistantStatus(detail.assistantId, detail.status);
     };
 
-    const handleAssistantPromptStart = (detail: BackendEvents["assistant-prompt-start"]) => {
-      const store = useAppStore.getState();
-      if (!store.sessionStates.has(detail.assistantId)) return;
-      store.updateSessionState(detail.assistantId, () => ({
-        completedAt: null,
-        completedStatus: null,
-      }));
-    };
-
-    const handleAssistantPromptEnd = (detail: BackendEvents["assistant-prompt-end"]) => {
-      const store = useAppStore.getState();
-      if (!store.sessionStates.has(detail.assistantId)) return;
-      const isSuccess = !detail.error && detail.stopReason === "end_turn";
-      store.updateSessionState(detail.assistantId, () => ({
-        completedAt: detail.error ? null : Date.now(),
-        completedStatus: detail.error ? null : isSuccess ? "success" : "error",
-      }));
-    };
-
     let currentProjectsFetchId = 0;
     const handleProjectsChanged = async () => {
       const fetchId = ++currentProjectsFetchId;
@@ -412,8 +407,7 @@ function AppContent() {
       store.setSessions(nextSessions);
 
       const sessionIds = new Set(nextSessions.map((s) => s.id));
-      const liveIds = new Set(useAppStore.getState().assistants.map((a) => a.id));
-      for (const sessionId of sessionIds) liveIds.add(sessionId);
+      const liveIds = liveSessionIds(nextSessions);
 
       // Only update sessionStates if entries were actually removed
       const currentStates = store.sessionStates;
@@ -455,7 +449,6 @@ function AppContent() {
         for (const id of removed) {
           states.delete(id);
           statuses.delete(id);
-          disposeAssistantHistory(id);
         }
         useAppStore.setState({ sessionStates: states, assistantStatuses: statuses });
       }
@@ -491,8 +484,6 @@ function AppContent() {
     subscribe.on("open-assistant-requested", handleOpenAssistantRequested);
     subscribe.on("assistants-changed", handleAssistantsChanged);
     subscribe.on("assistant-status-changed", handleAssistantStatusChanged);
-    subscribe.on("assistant-prompt-start", handleAssistantPromptStart);
-    subscribe.on("assistant-prompt-end", handleAssistantPromptEnd);
     subscribe.on("agent-terminal-output", handleAgentTerminalOutput);
     subscribe.on("webui-status-changed", handleWebUIStatusChanged);
     subscribe.on("projects-changed", handleProjectsChanged);
@@ -640,8 +631,6 @@ function AppContent() {
       subscribe.off("open-assistant-requested", handleOpenAssistantRequested);
       subscribe.off("assistants-changed", handleAssistantsChanged);
       subscribe.off("assistant-status-changed", handleAssistantStatusChanged);
-      subscribe.off("assistant-prompt-start", handleAssistantPromptStart);
-      subscribe.off("assistant-prompt-end", handleAssistantPromptEnd);
       subscribe.off("agent-terminal-output", handleAgentTerminalOutput);
       subscribe.off("webui-status-changed", handleWebUIStatusChanged);
       subscribe.off("projects-changed", handleProjectsChanged);
