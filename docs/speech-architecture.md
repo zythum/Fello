@@ -26,7 +26,7 @@
 | 主进程 TTS 配置 | `src/backend/speech/tts-config.ts` | Provider 配置 → `TTSConfig` 映射，`getActiveTtsProvider()` 取当前启用合成的 Provider |
 | 两侧共用工具 | `src/backend/speech/util.ts` | 凭证读取（`optionalString` / `requireField`）与 `errorMessage`，避免识别 / 合成两份实现漂移 |
 | 语音默认值 | `src/shared/speech.ts` | 识别默认模型与合成默认音色（`effectiveAsrModel` / `effectiveTtsVoice`）：主进程解析、设置页占位符与列表摘要共用同一份值 |
-| 渲染层朗读 | `src/mainview/lib/tts/` | `tts-reader.ts` 朗读会话（分句调度、抢占与抑制）、`tts-text.ts` 分句器、`tts-player.ts` 播放、`tts-prefs.ts` 偏好、`use-tts-auto-read.ts` 自动朗读订阅（见第 10 节） |
+| 渲染层朗读 | `src/mainview/lib/tts/` | `tts-reader.ts` 朗读会话（分句调度、抢占与抑制）、`tts-text.ts` 分句器、`tts-player.ts` 播放、`tts-prefs.ts` 偏好、`use-tts-auto-read.ts` 自动朗读订阅、`injected-message.ts` 提醒 / worker 注入消息的正文提取（见第 10 节） |
 | 音频文件转写 | `src/backend/speech/transcribe.ts` + `ffmpeg.ts` | Toolbox `audio_transcribe` 工具的实现：系统 ffmpeg 解码 → 实时 ASR → 拼接文本（见第 9 节） |
 | 设置存储 | `src/backend/storage/settings.ts` | `speechProviders` provider 数组的读取/校验/持久化（与 imageGeneration 同范式；读取时兼容旧 `speechToText` 列表） |
 | 设置页 | `src/mainview/components/settings/speech/` | 服务商配置管理：列表 + 编辑对话框（每家一个独立表单）。列表行上的 ASR / TTS 开关表达「哪个配置被激活」，弹窗只负责配置字段 |
@@ -197,7 +197,8 @@ Renderer（VoiceInputButton / useRealtimeAsr）        Main Process（speech/asr
 
 ```
 渲染层朗读会话（lib/tts/tts-reader.ts）
-  agent 文本分片 ──▶ tts-text 整理（remove-markdown 去标记、丢弃代码围栏、单句 ≤120 字且必含可朗读字符）
+  agent 文本分片 / 提醒 · worker 注入正文
+        ──▶ tts-text 整理（remove-markdown 去标记、丢弃代码围栏、单句 ≤120 字且必含可朗读字符）
         │ 逐句 request.speakTts（同一会话的 start/speak/end 挂在同一条串行链上）
         ▼
 主进程 tts-manager（无状态）── client.sendText + flush ──▶ provider（websocket，PCM 流）
@@ -219,8 +220,19 @@ tts-audio 事件 ──▶ tts-reader 的单一闸门（liveTtsSessionId 命中�
 
 | 入口 | 触发 | 会话 key |
 | --- | --- | --- |
-| 自动朗读 | 会话头喇叭菜单打开后，`use-tts-auto-read` 订阅本会话的 `agent_message_chunk`，边生成边喂句子 | agent sessionId |
+| 自动朗读 | 会话头喇叭菜单打开后，`use-tts-auto-read` 订阅本会话的 `session-update`（agent 回复分片 + 应用注入的提醒 / worker 消息），边生成边喂句子 | agent sessionId（个人助理为 assistantId） |
 | 手动朗读 | 悬停 agent 回复分组 → 朗读按钮（`speakOnce`，整条消息一次性分句） | `"manual"` |
+
+**自动朗读的内容范围**：除了 agent 回复，应用注入的 `[Reminder ...]` / `[Worker ...]` 消息以
+`user_message` 到达，它们不是用户自己说的话，同样朗读正文（`lib/tts/injected-message.ts`）：
+
+- 标签本身（`id` / `type` / `event` / `turn` 等属性）不读；普通用户消息没有标签，整条不读。
+- `[Reminder ...]` 只读提醒文本。
+- `[Worker ... event="finished|failed"]` 读 worker 名称、`Error:` 与输出正文，跳过 `Stop reason:` 协议行。
+- `[Worker ... event="permission"]` 只读名称与 `Tool:` 行；JSON input、`Options:` 与回复指引不读。
+- 代码围栏仍由 `tts-text` 分句器整块丢弃。
+- 个人助理是与会话共用 `session-update` / `prompt-start` / `prompt-end` 的伪会话，因此助理页的
+  自动朗读、切走停声与「新一轮」清理规则与会话完全一致。
 
 - **播放互斥的唯一闸门是 `liveTtsSessionId`**：只有它的 id 与分片一致时才允许入播放队列。抢占（新朗读开始）、停止、出错都会立即作废它 —— 已经提交给 provider 的文本，其音频分片仍会在回程路上陆续到达（`ttsPlayer.stop()` 只管得住已入队的），靠这道闸门把迟到分片丢掉，否则新旧朗读会交替出声。
 - **抢占语义**：`startSession` 先作废在册 id、结束前台会话（链上未发出的句子直接丢弃、`dead` 标记）、停播放；`endSession` 的 `flushTail` 决定是否补发尾部残句（自然读完 true；抢占 / 手动停止 false）。

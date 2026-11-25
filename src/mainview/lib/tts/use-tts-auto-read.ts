@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { subscribe, type BackendEvents } from "../../backend";
+import { speakableInjectedText } from "./injected-message";
 import { useTtsPrefsStore } from "./tts-prefs";
 import { endTtsStream, feedTtsStream, leaveTtsSession, resetTtsForNewPrompt } from "./tts-reader";
 
@@ -12,7 +13,8 @@ import { endTtsStream, feedTtsStream, leaveTtsSession, resetTtsForNewPrompt } fr
  * - 切会话（`sessionId` 变化）或视图卸载时，cleanup 直接结束当前朗读 —— 朗读的生命周期
  *   和视图生命周期对齐
  *
- * 只朗读本会话的顶层 agent 消息（subagent 与思考过程跳过）；开关取自渲染层偏好
+ * 朗读两类内容：本会话的顶层 agent 消息（subagent 与思考过程跳过），以及应用注入的
+ * 提醒 / worker 事件正文（用户自己说的话不读）。开关取自渲染层偏好
  * （localStorage: `fello.tts.prefs.autoRead`），关掉即整体静默。
  *
  * 互斥（与手动朗读、新一轮 prompt 共用同一条播放通道）：
@@ -28,10 +30,18 @@ export function useTtsAutoRead(sessionId: string): void {
       if (!useTtsPrefsStore.getState().autoRead) return;
       const { notification } = detail;
       const update = notification.update;
-      if (update.sessionUpdate !== "agent_message_chunk") return;
       // subagent 的消息 notification.sessionId（ACP 侧）!= 本会话 resumeId
       const resumeId = sessionId.slice(sessionId.indexOf(":") + 1);
       if (notification.sessionId !== resumeId) return;
+
+      // 提醒 / worker 通知以 user_message 到达：读正文（标签与协议行不算内容）。
+      if (update.sessionUpdate === "user_message_chunk") {
+        if (update.content.type !== "text") return;
+        const spoken = speakableInjectedText(update.content.text);
+        if (spoken) feedTtsStream(sessionId, spoken);
+        return;
+      }
+      if (update.sessionUpdate !== "agent_message_chunk") return;
       if (update.content.type !== "text") return;
       const text = update.content.text;
       if (!text) return;
