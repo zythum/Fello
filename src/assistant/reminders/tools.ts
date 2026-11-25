@@ -1,7 +1,12 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { runWithToolUpdates, type ToolUpdateSender } from "../tool-updates";
-import { serverTimeZone, type ReminderListFilter, type ReminderService, type ReminderView } from "./service";
+import {
+  serverTimeZone,
+  type ReminderListFilter,
+  type ReminderService,
+  type ReminderView,
+} from "./service";
 import type { ReminderTrigger } from "./store";
 import { occurrencesBetween } from "../../shared/reminder";
 
@@ -18,7 +23,9 @@ function formatLocal(ms: number): string {
     hourCycle: "h23",
     timeZoneName: "longOffset",
   });
-  const parts = Object.fromEntries(formatter.formatToParts(new Date(ms)).map((part) => [part.type, part.value]));
+  const parts = Object.fromEntries(
+    formatter.formatToParts(new Date(ms)).map((part) => [part.type, part.value]),
+  );
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} (${(parts.timeZoneName ?? "").replace("GMT", "UTC")})`;
 }
 
@@ -42,7 +49,10 @@ function toToolResult(reminder: ReminderView) {
 
 function parseIsoTime(value: string): number {
   const ms = Date.parse(value);
-  if (Number.isNaN(ms)) throw new Error(`Invalid time: ${value}. Use ISO 8601 with an offset, for example 2026-11-20T15:00:00+08:00.`);
+  if (Number.isNaN(ms))
+    throw new Error(
+      `Invalid time: ${value}. Use ISO 8601 with an offset, for example 2026-11-20T15:00:00+08:00.`,
+    );
   return ms;
 }
 
@@ -54,11 +64,15 @@ const timeInputs = {
   at: z
     .string()
     .optional()
-    .describe("One-time reminder time in ISO 8601 with an offset, for example 2026-11-20T15:00:00+08:00."),
+    .describe(
+      "One-time reminder time in ISO 8601 with an offset, for example 2026-11-20T15:00:00+08:00.",
+    ),
   cron: z
     .string()
     .optional()
-    .describe("Recurring reminder as a 5-field cron expression in local time, for example 0 9 * * 1-5."),
+    .describe(
+      "Recurring reminder as a 5-field cron expression in local time, for example 0 9 * * 1-5.",
+    ),
 };
 
 export function createReminderTools({
@@ -105,16 +119,25 @@ export function createReminderTools({
         from: z
           .string()
           .optional()
-          .describe("Only reminders with a trigger time at or after this ISO 8601 time, with an offset."),
+          .describe(
+            "Only reminders with a trigger time at or after this ISO 8601 time, with an offset.",
+          ),
         to: z
           .string()
           .optional()
-          .describe("Only reminders with a trigger time before this ISO 8601 time, with an offset."),
+          .describe(
+            "Only reminders with a trigger time before this ISO 8601 time, with an offset.",
+          ),
       }),
       execute: async (input, { toolCallId }) =>
         runWithToolUpdates(
           sendUpdate,
-          { toolCallId, title: `List reminders (${input.status ?? "upcoming"})`, kind: "read", rawInput: input },
+          {
+            toolCallId,
+            title: `List reminders (${input.status ?? "upcoming"})`,
+            kind: "read",
+            rawInput: input,
+          },
           async () => {
             const filter: ReminderListFilter = input.status ?? "upcoming";
             const listed = service.list(filter);
@@ -124,7 +147,10 @@ export function createReminderTools({
             const start = input.from === undefined ? 0 : parseIsoTime(input.from);
             const end = input.to === undefined ? Number.MAX_SAFE_INTEGER : parseIsoTime(input.to);
             const reminders = listed
-              .filter((reminder) => occurrencesBetween(reminder, start, end, serverTimeZone(), 1).length > 0)
+              .filter(
+                (reminder) =>
+                  occurrencesBetween(reminder, start, end, serverTimeZone(), 1).length > 0,
+              )
               .map(toToolResult);
             return { reminders };
           },
@@ -144,7 +170,10 @@ export function createReminderTools({
         id: z.string().min(1).describe("Reminder id from reminder_list."),
         text: z.string().trim().min(1).max(500).optional(),
         ...timeInputs,
-        enabled: z.boolean().optional().describe("false pauses the reminder. true resumes a paused one."),
+        enabled: z
+          .boolean()
+          .optional()
+          .describe("false pauses the reminder. true resumes a paused one."),
       }),
       execute: async (input, { toolCallId }) =>
         runWithToolUpdates(
@@ -174,7 +203,12 @@ export function createReminderTools({
       execute: async (input, { toolCallId }) =>
         runWithToolUpdates(
           sendUpdate,
-          { toolCallId, title: `Trigger times of reminder ${input.id}`, kind: "read", rawInput: input },
+          {
+            toolCallId,
+            title: `Trigger times of reminder ${input.id}`,
+            kind: "read",
+            rawInput: input,
+          },
           async () => {
             const reminder = service.get(input.id);
             if (!reminder) {
@@ -183,15 +217,24 @@ export function createReminderTools({
             const start = parseIsoTime(input.from);
             const end = parseIsoTime(input.to);
             if (end <= start) throw new Error("The end time must be after the start time.");
-            const times = occurrencesBetween(reminder, start, end, serverTimeZone(), MAX_OCCURRENCES_RESULT + 1);
+            const times = occurrencesBetween(
+              reminder,
+              start,
+              end,
+              serverTimeZone(),
+              MAX_OCCURRENCES_RESULT + 1,
+            );
             return {
               id: reminder.id,
               text: reminder.text,
-              occurrences: times.slice(0, MAX_OCCURRENCES_RESULT).map((ms) => new Date(ms).toISOString()),
+              occurrences: times
+                .slice(0, MAX_OCCURRENCES_RESULT)
+                .map((ms) => new Date(ms).toISOString()),
               truncated: times.length > MAX_OCCURRENCES_RESULT,
             };
           },
-          (result) => `${result.text}: ${result.occurrences.length} trigger time(s)${result.truncated ? ", more not shown" : ""}`,
+          (result) =>
+            `${result.text}: ${result.occurrences.length} trigger time(s)${result.truncated ? ", more not shown" : ""}`,
         ),
     }),
 

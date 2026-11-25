@@ -92,23 +92,16 @@ function AppContent() {
 
   useEffect(() => {
     async function loadData() {
-      const [
-        projects,
-        sessions,
-        settings,
-        webUIStatus,
-        ilinkStatus,
-        ilinkActive,
-        assistants,
-      ] = await Promise.all([
-        request.listProjects(),
-        request.listSessions(),
-        request.getSettings(),
-        request.getWebUIStatus(),
-        request.getIlinkStatus(),
-        request.getActiveIlinkSession(),
-        request.listAssistants(),
-      ]);
+      const [projects, sessions, settings, webUIStatus, ilinkStatus, ilinkActive, assistants] =
+        await Promise.all([
+          request.listProjects(),
+          request.listSessions(),
+          request.getSettings(),
+          request.getWebUIStatus(),
+          request.getIlinkStatus(),
+          request.getActiveIlinkSession(),
+          request.listAssistants(),
+        ]);
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
       setAssistants(assistants ?? []);
@@ -376,15 +369,11 @@ function AppContent() {
       }
     };
 
-    const handleAssistantStatusChanged = (
-      detail: BackendEvents["assistant-status-changed"],
-    ) => {
+    const handleAssistantStatusChanged = (detail: BackendEvents["assistant-status-changed"]) => {
       useAppStore.getState().setAssistantStatus(detail.assistantId, detail.status);
     };
 
-    const handleAssistantPromptStart = (
-      detail: BackendEvents["assistant-prompt-start"],
-    ) => {
+    const handleAssistantPromptStart = (detail: BackendEvents["assistant-prompt-start"]) => {
       const store = useAppStore.getState();
       if (!store.sessionStates.has(detail.assistantId)) return;
       store.updateSessionState(detail.assistantId, () => ({

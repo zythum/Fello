@@ -204,10 +204,7 @@ export function SettingsAgentStdioDialog({
                       "settings.agents.suggestionEmpty",
                       "No suggestions — type a value.",
                     )}
-                    noMatchHint={t(
-                      "settings.agents.suggestionNoMatch",
-                      "No match — type a value.",
-                    )}
+                    noMatchHint={t("settings.agents.suggestionNoMatch", "No match — type a value.")}
                     aria-invalid={fieldState.invalid}
                     disabled={!!initialAgent?.id}
                     className="h-8 text-xs! text-foreground/70 focus-visible:ring-0.5"
@@ -249,10 +246,7 @@ export function SettingsAgentStdioDialog({
                       "settings.agents.suggestionEmpty",
                       "No suggestions — type a value.",
                     )}
-                    noMatchHint={t(
-                      "settings.agents.suggestionNoMatch",
-                      "No match — type a value.",
-                    )}
+                    noMatchHint={t("settings.agents.suggestionNoMatch", "No match — type a value.")}
                     spellCheck={false}
                     autoComplete="off"
                     autoCapitalize="off"

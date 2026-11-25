@@ -29,11 +29,7 @@ interface HtmlDetailProps {
   showAddToChat?: boolean;
 }
 
-export function HtmlDetail({
-  projectId,
-  file,
-  showAddToChat = true,
-}: HtmlDetailProps) {
+export function HtmlDetail({ projectId, file, showAddToChat = true }: HtmlDetailProps) {
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [hasError, setHasError] = useState(false);

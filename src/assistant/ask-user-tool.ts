@@ -42,9 +42,7 @@ export function createAskUserTool({
           z.object({
             value: z.string().min(1).max(100).describe("Value returned when chosen."),
             label: z.string().min(1).max(200).describe("Label shown to the user."),
-            priority: z
-              .enum(["high", "medium", "low"])
-              .describe("Visual priority of the option."),
+            priority: z.enum(["high", "medium", "low"]).describe("Visual priority of the option."),
             danger: z.boolean().optional().describe("Mark the option as destructive."),
           }),
         )
@@ -72,11 +70,7 @@ export function createAskUserTool({
             allowCustomInput: input.allowCustomInput,
           });
           const timedOut = result.reason === "timeout";
-          const answer = timedOut
-            ? null
-            : result.value !== null
-              ? result.value
-              : result.reason;
+          const answer = timedOut ? null : result.value !== null ? result.value : result.reason;
           return { answer, timedOut, selected: result.value };
         },
         (result) => {

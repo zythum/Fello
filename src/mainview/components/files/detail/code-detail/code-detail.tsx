@@ -31,11 +31,7 @@ interface CodeDetailProps {
   showAddToChat?: boolean;
 }
 
-export function CodeDetail({
-  projectId,
-  file,
-  showAddToChat = true,
-}: CodeDetailProps) {
+export function CodeDetail({ projectId, file, showAddToChat = true }: CodeDetailProps) {
   const { t } = useTranslation();
   const { content, gitContent, loading, errorMsg, filePath, fileSize, reload } = useFile(
     projectId,

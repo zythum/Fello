@@ -31,30 +31,22 @@ export const WORKER_STATUS_FALLBACKS: Record<AssistantWorkerInfo["status"], stri
   interrupted: "Interrupted",
 };
 
-export const WORKER_CONNECTION_DOT: Record<
-  AssistantWorkerInfo["connectionStatus"],
-  string
-> = {
+export const WORKER_CONNECTION_DOT: Record<AssistantWorkerInfo["connectionStatus"], string> = {
   connected: "bg-emerald-500",
   connecting: "bg-amber-500",
   disconnected: "bg-muted-foreground/40",
 };
 
-export const WORKER_CONNECTION_TEXT: Record<
-  AssistantWorkerInfo["connectionStatus"],
-  string
-> = {
+export const WORKER_CONNECTION_TEXT: Record<AssistantWorkerInfo["connectionStatus"], string> = {
   connected: "text-emerald-600 dark:text-emerald-400",
   connecting: "text-amber-600 dark:text-amber-400",
   // Same palette as the idle status: both mean nothing is running right now.
   disconnected: "text-muted-foreground",
 };
 
-export const WORKER_CONNECTION_FALLBACKS: Record<
-  AssistantWorkerInfo["connectionStatus"],
-  string
-> = {
-  connected: "Connected",
-  connecting: "Connecting",
-  disconnected: "Disconnected",
-};
+export const WORKER_CONNECTION_FALLBACKS: Record<AssistantWorkerInfo["connectionStatus"], string> =
+  {
+    connected: "Connected",
+    connecting: "Connecting",
+    disconnected: "Disconnected",
+  };

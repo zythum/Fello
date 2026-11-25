@@ -31,8 +31,7 @@ export function Assistant({ assistantId }: { assistantId: string }) {
   const assistantConfig = useAppStore((state) =>
     state.assistants.find((item) => item.id === assistantId),
   );
-  const assistantName =
-    assistantConfig?.name?.trim() || t("assistant.title", "Personal Assistant");
+  const assistantName = assistantConfig?.name?.trim() || t("assistant.title", "Personal Assistant");
   const projectId = assistantProjectId(assistantId);
 
   const [panelTab, setPanelTab] = useState<PanelTab>("calendar");

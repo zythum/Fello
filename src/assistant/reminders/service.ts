@@ -63,7 +63,8 @@ export function toTrigger(input: { at?: number; cron?: string }, now: number): R
     return { type: "once", at: input.at! };
   }
   const expr = input.cron!.trim();
-  if (!isValidCronExpression(expr, serverTimeZone())) throw new Error(`Invalid cron expression: ${expr}`);
+  if (!isValidCronExpression(expr, serverTimeZone()))
+    throw new Error(`Invalid cron expression: ${expr}`);
   return { type: "cron", expr };
 }
 
@@ -230,7 +231,10 @@ export class ReminderService {
     const job = new Cron(expr, { mode: "5-part", timezone: serverTimeZone() }, () => {
       // The callback only knows the actual (possibly delayed) time. Report the planned occurrence
       // it belongs to, so delivered times line up with the occurrence cards.
-      this.options.onDue({ id, dueAt: previousCronRun(expr, this.now(), serverTimeZone()) ?? this.now() });
+      this.options.onDue({
+        id,
+        dueAt: previousCronRun(expr, this.now(), serverTimeZone()) ?? this.now(),
+      });
     });
     this.timers.set(id, () => job.stop());
   }

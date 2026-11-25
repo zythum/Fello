@@ -9,11 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessage } from "../../providers/message";
 import { ROOT_DROP_TARGET } from "../tree/constants";
 import { FileTree } from "../tree/file-tree";
-import {
-  GIT_FOLDER_STATUS,
-  GIT_SUMMARY_BADGES,
-  type GitSummaryKey,
-} from "../tree/git-status";
+import { GIT_FOLDER_STATUS, GIT_SUMMARY_BADGES, type GitSummaryKey } from "../tree/git-status";
 import type { FileTreeActions, TreeNode } from "../tree/types";
 import {
   basename,
@@ -791,9 +787,7 @@ export const FilePanel = memo(function FilePanel({
           });
         } catch (err) {
           console.error("Rename failed:", extractErrorMessage(err));
-          toast.error(
-            extractErrorMessage(err) || t("filePanel.renameFailed", "Failed to rename."),
-          );
+          toast.error(extractErrorMessage(err) || t("filePanel.renameFailed", "Failed to rename."));
         }
       }
     }

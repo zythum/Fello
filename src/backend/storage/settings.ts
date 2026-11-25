@@ -482,7 +482,9 @@ function readSettings(): SettingsMeta {
         askUser:
           typeof raw?.askUser === "boolean" ? raw.askUser : DEFAULT_SETTINGS.notification.askUser,
         reminder:
-          typeof raw?.reminder === "boolean" ? raw.reminder : DEFAULT_SETTINGS.notification.reminder,
+          typeof raw?.reminder === "boolean"
+            ? raw.reminder
+            : DEFAULT_SETTINGS.notification.reminder,
       };
     })();
 

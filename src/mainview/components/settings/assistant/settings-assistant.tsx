@@ -315,15 +315,9 @@ export function SettingsAssistant() {
                   <div className="space-y-1">
                     {workerTypes.map((type) => {
                       return (
-                        <WorkerTypeSortableItem
-                          key={type.id}
-                          id={type.id}
-                          disabled={isSaving}
-                        >
+                        <WorkerTypeSortableItem key={type.id} id={type.id} disabled={isSaving}>
                           <ContextMenu
-                            onOpenChange={(open) =>
-                              setContextMenuWorkerId(open ? type.id : null)
-                            }
+                            onOpenChange={(open) => setContextMenuWorkerId(open ? type.id : null)}
                           >
                             <ContextMenuTrigger>
                               <div

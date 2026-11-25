@@ -62,9 +62,7 @@ export function Panel({
           <TabsList className="flex-1 gap-0" variant="default">
             <TabsTrigger value="calendar" className="flex-1 min-w-0 text-xs gap-1.5">
               <CalendarDays className="size-3.5 shrink-0" />
-              <span className="min-w-0 truncate">
-                {t("assistant.calendar.title", "Calendar")}
-              </span>
+              <span className="min-w-0 truncate">{t("assistant.calendar.title", "Calendar")}</span>
             </TabsTrigger>
             <TabsTrigger value="files" className="flex-1 min-w-0 text-xs gap-1.5">
               <Folders className="size-3.5 shrink-0" />

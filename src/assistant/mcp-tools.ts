@@ -102,9 +102,7 @@ async function closeClients(clients: MCPClient[]): Promise<void> {
 }
 
 function truncate(text: string): string {
-  return text.length > MAX_TOOL_SUMMARY_CHARS
-    ? `${text.slice(0, MAX_TOOL_SUMMARY_CHARS)}…`
-    : text;
+  return text.length > MAX_TOOL_SUMMARY_CHARS ? `${text.slice(0, MAX_TOOL_SUMMARY_CHARS)}…` : text;
 }
 
 function extractText(value: unknown): string | null {

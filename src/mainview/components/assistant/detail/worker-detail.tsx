@@ -54,12 +54,7 @@ function replayWorkerNotifications(
   live: SessionNotificationFelloExt[],
 ): { state: SessionState; known: Set<string> } {
   const known = new Set<string>();
-  const historyResult = reduceNotifications(
-    sessionId,
-    emptyWorkerSessionState(),
-    history,
-    known,
-  );
+  const historyResult = reduceNotifications(sessionId, emptyWorkerSessionState(), history, known);
   const liveResult = reduceNotifications(sessionId, historyResult.state, live, known);
   return { state: liveResult.state, known };
 }
@@ -387,16 +382,10 @@ function WorkerParamsDock({ worker }: { worker: AssistantWorkerInfo }) {
             </span>
 
             <span
-              className={cn(
-                "flex min-w-0 items-center gap-1",
-                WORKER_STATUS_TEXT[worker.status],
-              )}
+              className={cn("flex min-w-0 items-center gap-1", WORKER_STATUS_TEXT[worker.status])}
             >
               <span
-                className={cn(
-                  "size-1.5 shrink-0 rounded-full",
-                  WORKER_STATUS_DOT[worker.status],
-                )}
+                className={cn("size-1.5 shrink-0 rounded-full", WORKER_STATUS_DOT[worker.status])}
               />
               <span className="truncate">{statusLabel}</span>
             </span>

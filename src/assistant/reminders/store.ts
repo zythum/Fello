@@ -66,7 +66,9 @@ export class ReminderStore {
     try {
       json = JSON.parse(raw);
     } catch {
-      throw new Error("reminders.json is not valid JSON. Fix or remove the file, then restart Fello.");
+      throw new Error(
+        "reminders.json is not valid JSON. Fix or remove the file, then restart Fello.",
+      );
     }
     const parsed = fileSchema.safeParse(json);
     if (!parsed.success) {

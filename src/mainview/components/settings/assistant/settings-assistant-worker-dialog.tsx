@@ -43,9 +43,7 @@ function createEmptyType(
     agentId: agents[0]?.id ?? null,
     modelId: null,
     permissionMode: "ask",
-    features: [
-      ...new Set(defaultFeatures.filter((feature) => WORKER_FEATURES.includes(feature))),
-    ],
+    features: [...new Set(defaultFeatures.filter((feature) => WORKER_FEATURES.includes(feature)))],
     mcpServers: [...new Set(defaultMcpServers)],
     instructions: "",
   };

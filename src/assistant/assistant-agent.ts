@@ -42,10 +42,7 @@ import type {
   SessionModelState,
 } from "../shared/schema";
 import { ASSISTANT_AGENT_ID } from "./constants";
-import {
-  AssistantStorage,
-  type PersistedAssistantSession,
-} from "./storage";
+import { AssistantStorage, type PersistedAssistantSession } from "./storage";
 import { runDream } from "./dream";
 import { createCurrentTimeTool } from "./current-time-tool";
 import type { ToolUpdateSender } from "./tool-updates";
@@ -269,7 +266,7 @@ function buildSystemPrompt(
     ? "Messages that start with [Reminder ...], [Worker ...], or [Fello ...] are events injected by the app, not things the user said."
     : "Messages that start with [Reminder ...] or [Fello ...] are events injected by the app, not things the user said.";
   const workerRunningRule = hasWorkerTools
-    ? "\n- Once a worker is running, end your turn: you stay available for the user, and the app wakes you with a [Worker ... event=\"finished|failed\"] message. Do not poll worker_status in a loop."
+    ? '\n- Once a worker is running, end your turn: you stay available for the user, and the app wakes you with a [Worker ... event="finished|failed"] message. Do not poll worker_status in a loop.'
     : "";
   return `${identity} Help with planning, writing, analysis, and conversation.
 
@@ -614,8 +611,7 @@ export class AssistantAgent {
    * message. The preferred time is only for the "there is enough material" case.
    */
   private dreamIfOverLimit(session: AssistantSession): void {
-    if (session.dreamUrgency !== "required" || !session.history.length || this.dreamPending)
-      return;
+    if (session.dreamUrgency !== "required" || !session.history.length || this.dreamPending) return;
     void this.runDream(session).catch(() => {});
   }
 

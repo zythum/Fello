@@ -228,8 +228,7 @@ export class WorkerManager implements WorkerService {
     const type = settings.assistant.workerTypes.find(
       (candidate) =>
         candidate.enabled &&
-        (candidate.id.toLowerCase() === requested ||
-          candidate.name.toLowerCase() === requested),
+        (candidate.id.toLowerCase() === requested || candidate.name.toLowerCase() === requested),
     );
     if (!type) {
       throw new Error(
@@ -787,9 +786,7 @@ export class WorkerManager implements WorkerService {
 
   private async buildMcpServers(handle: WorkerHandle): Promise<McpServer[]> {
     const record = handle.record;
-    const features = (record.features ?? []).filter((feature) =>
-      WORKER_FEATURES.includes(feature),
-    );
+    const features = (record.features ?? []).filter((feature) => WORKER_FEATURES.includes(feature));
     const socketServer = await this.ensureSocketServer(handle, features);
     const project: ProjectInfo = {
       id: createHash("sha1").update(record.cwd).digest("hex"),
@@ -822,13 +819,9 @@ export class WorkerManager implements WorkerService {
         this.options.mcpDeps.search.registerSearchRoute(server, handle.record.cwd);
       }
       if (features.includes("ask_user")) {
-        this.options.mcpDeps.askUser.registerAskUserRoute(
-          server,
-          this.options.assistantSessionId,
-          {
-            titlePrefix: `[${handle.record.name}] `,
-          },
-        );
+        this.options.mcpDeps.askUser.registerAskUserRoute(server, this.options.assistantSessionId, {
+          titlePrefix: `[${handle.record.name}] `,
+        });
       }
       if (features.includes("share_to_user")) {
         this.options.mcpDeps.shareToUser.registerShareToUserRoute(

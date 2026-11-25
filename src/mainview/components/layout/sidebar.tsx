@@ -206,11 +206,7 @@ function AssistantRowStatus({
  * assistant-status-changed 并按需拉取一次。订阅隔离在这个小组件内，避免侧边栏
  * 跟随助理的每次状态广播（例如 usage 更新）整体重渲染。
  */
-function AssistantHoverDetails({
-  assistant,
-}: {
-  assistant: AssistantConfig;
-}) {
+function AssistantHoverDetails({ assistant }: { assistant: AssistantConfig }) {
   const { t } = useTranslation();
   const { toast } = useMessage();
   const [status, setStatus] = useState<AssistantStatus | null>(null);
@@ -387,9 +383,7 @@ export function Sidebar() {
 
   // Same as sessions: clear a finished state after 3s while its page is open.
   const activeAssistantCompletedAt = useAppStore((s) =>
-    activeAssistantId
-      ? (s.sessionStates.get(activeAssistantId)?.completedAt ?? null)
-      : null,
+    activeAssistantId ? (s.sessionStates.get(activeAssistantId)?.completedAt ?? null) : null,
   );
   const assistantCompletedAtTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -705,10 +699,7 @@ export function Sidebar() {
       handleNavigate(`/assistant/${assistant.id}`);
     } catch (err) {
       toast.error(
-        getErrorMessage(
-          err,
-          t("sidebar.createAssistantFailed", "Failed to create the assistant."),
-        ),
+        getErrorMessage(err, t("sidebar.createAssistantFailed", "Failed to create the assistant.")),
       );
     } finally {
       setCreatingAssistant(false);
@@ -1007,10 +998,7 @@ export function Sidebar() {
       });
     } catch (err) {
       toast.error(
-        getErrorMessage(
-          err,
-          t("sidebar.updateAssistantFailed", "Failed to update the assistant."),
-        ),
+        getErrorMessage(err, t("sidebar.updateAssistantFailed", "Failed to update the assistant.")),
       );
     }
   };
@@ -1306,7 +1294,6 @@ export function Sidebar() {
     }
   };
 
-
   return (
     <aside
       className={cn(
@@ -1384,11 +1371,7 @@ export function Sidebar() {
               <UserRoundPlus className="size-3.5" />
             </Button>
           </div>
-          <div
-            role="tree"
-            aria-label={t("sidebar.assistant")}
-            className="px-1.5 pt-2"
-          >
+          <div role="tree" aria-label={t("sidebar.assistant")} className="px-1.5 pt-2">
             <div className="space-y-0.5">
               {assistants.length === 0 && (
                 <div className="p-1.5 text-xs opacity-45 text-sidebar-foreground/70 select-none">
@@ -1509,9 +1492,7 @@ export function Sidebar() {
                             ilinkStatus.connected &&
                             activeIlinkSessionId !== assistant.id && (
                               <ContextMenuItem
-                                onClick={() =>
-                                  void handleSetActiveIlinkSession(assistant.id)
-                                }
+                                onClick={() => void handleSetActiveIlinkSession(assistant.id)}
                               >
                                 <MessageCircle className="size-3" />
                                 {t("sidebar.ilinkSetActive", "Set as WeChat Active")}
@@ -2307,9 +2288,7 @@ export function Sidebar() {
       <Dialog open={newAssistantDialogOpen} onOpenChange={setNewAssistantDialogOpen}>
         <DialogContent className="max-w-lg!">
           <DialogHeader>
-            <DialogTitle>
-              {t("sidebar.newAssistantDialog.title", "Create assistant")}
-            </DialogTitle>
+            <DialogTitle>{t("sidebar.newAssistantDialog.title", "Create assistant")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">

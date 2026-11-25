@@ -113,8 +113,7 @@ export function createWorkerTools({
           rawInput: input,
         },
         () => worker.create(input),
-        (result) =>
-          `Worker ${result.workerId} (${result.typeName}) ready in ${result.cwd}`,
+        (result) => `Worker ${result.workerId} (${result.typeName}) ready in ${result.cwd}`,
       ),
   });
 

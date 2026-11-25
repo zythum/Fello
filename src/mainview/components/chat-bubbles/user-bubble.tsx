@@ -22,8 +22,16 @@ import type { UserMessage } from "../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
 
 /** Leading tag types that get a badge. Tags of other types stay as plain text. */
-const TAG_BADGES: Record<string, { icon: LucideIcon; className: string; labelKey: string; fallback: string }> = {
-  Reminder: { icon: Bell, className: "text-yellow-400", labelKey: "userBubble.reminder", fallback: "Reminder" },
+const TAG_BADGES: Record<
+  string,
+  { icon: LucideIcon; className: string; labelKey: string; fallback: string }
+> = {
+  Reminder: {
+    icon: Bell,
+    className: "text-yellow-400",
+    labelKey: "userBubble.reminder",
+    fallback: "Reminder",
+  },
   Worker: {
     icon: SquareChevronRight,
     className: "text-sky-400",
@@ -169,7 +177,10 @@ export const UserBubble = memo(function UserBubble({
                 const className = badge.className;
                 return (
                   <>
-                    <Icon className={cn("-m-1", className)} aria-label={t(badge.labelKey, badge.fallback)} />
+                    <Icon
+                      className={cn("-m-1", className)}
+                      aria-label={t(badge.labelKey, badge.fallback)}
+                    />
                   </>
                 );
               })()}

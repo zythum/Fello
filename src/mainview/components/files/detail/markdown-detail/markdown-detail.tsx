@@ -31,11 +31,7 @@ interface MarkdownDetailProps {
   showAddToChat?: boolean;
 }
 
-export function MarkdownDetail({
-  projectId,
-  file,
-  showAddToChat = true,
-}: MarkdownDetailProps) {
+export function MarkdownDetail({ projectId, file, showAddToChat = true }: MarkdownDetailProps) {
   const { t } = useTranslation();
   const { content, gitContent, loading, errorMsg, filePath, hash, fileSize, reload } = useFile(
     projectId,

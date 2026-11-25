@@ -101,8 +101,7 @@ export function AssistantChatHeader({
       setConfigOpen(false);
     } catch (error) {
       toast.error(
-        extractErrorMessage(error) ||
-          t("assistant.restartFailed", "Failed to restart assistant."),
+        extractErrorMessage(error) || t("assistant.restartFailed", "Failed to restart assistant."),
       );
     } finally {
       setIsRestarting(false);

@@ -96,9 +96,7 @@ export function WorkerPanel({
                         type="button"
                         className="flex shrink-0 items-center rounded-sm font-mono text-[10px] whitespace-nowrap text-muted-foreground/70 hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
                         title={`${t("assistant.workers.openDataDir", "Open worker folder")}: ${worker.dataDir}`}
-                        onClick={() =>
-                          void electron.revealInFinder(worker.dataDir).catch(() => {})
-                        }
+                        onClick={() => void electron.revealInFinder(worker.dataDir).catch(() => {})}
                       >
                         {worker.id}
                       </button>

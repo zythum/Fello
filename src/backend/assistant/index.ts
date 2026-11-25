@@ -73,7 +73,10 @@ export interface AssistantModule {
   getHistorySegment: (params: {
     segmentId?: number;
   }) => ReturnType<AssistantStorage["readMessageSegment"]>;
-  sendPrompt: (contents: ContentBlock[], options?: { onlyIfIdle?: boolean }) => Promise<PromptResult>;
+  sendPrompt: (
+    contents: ContentBlock[],
+    options?: { onlyIfIdle?: boolean },
+  ) => Promise<PromptResult>;
   cancelPrompt: () => Promise<void>;
   setModel: (modelId: string) => Promise<void>;
   setThoughtLevel: (thoughtLevelId: string) => Promise<void>;
@@ -105,10 +108,7 @@ export interface AssistantManager {
     patch?: Partial<Pick<AssistantConfig, "sourceAgentId" | "mcpServers" | "dream">>,
   ) => Promise<AssistantConfig>;
   delete: (assistantId: string) => Promise<void>;
-  applySettingsChange: (
-    previous: SettingsInfo,
-    current: SettingsInfo,
-  ) => Promise<void>;
+  applySettingsChange: (previous: SettingsInfo, current: SettingsInfo) => Promise<void>;
   // Per-assistant passthroughs
   listReminders: (assistantId: string) => Promise<AssistantReminderList>;
   listDiaries: (assistantId: string) => Promise<AssistantDiary[]>;
@@ -283,7 +283,10 @@ function createAssistantRuntime(
   let bridge: ACPBridge | null = null;
   let starting: Promise<void> | null = null;
   let generation = 0;
-  let status: AssistantStatus = { ...emptyStatus(initialConfig, assistantId), enabled: isEnabled() };
+  let status: AssistantStatus = {
+    ...emptyStatus(initialConfig, assistantId),
+    enabled: isEnabled(),
+  };
 
   // Wakes are messages injected into the assistant's chat: reminder deliveries and worker
   // events. They wait until the assistant is connected and idle. A reminder wake that cannot be
@@ -590,8 +593,7 @@ function createAssistantRuntime(
           getName,
           reminders,
           worker: workerManager,
-          askUser: (options) =>
-            deps.askUser.askUser({ sessionId: assistantId, ...options }),
+          askUser: (options) => deps.askUser.askUser({ sessionId: assistantId, ...options }),
           shareToUser: deps.mcpDeps.shareToUser,
           filesystem: deps.filesystem,
           onDreamStatus: ({ dreaming, error }) => {
@@ -654,8 +656,7 @@ function createAssistantRuntime(
         updateStatus({
           connectionStatus: "connected",
           models: load.models ?? nextBridge.getModelState(assistantId) ?? null,
-          thoughtLevels:
-            load.thoughtLevels ?? nextBridge.getThoughtLevelState(assistantId) ?? null,
+          thoughtLevels: load.thoughtLevels ?? nextBridge.getThoughtLevelState(assistantId) ?? null,
         });
         void drainWakes();
       } catch (error) {
@@ -690,7 +691,8 @@ function createAssistantRuntime(
   ): Promise<PromptResult> {
     const activeBridge = await requireBridge();
     // Check and set the busy state with no await in between, so a user prompt and a reminder cannot both start.
-    if (options.onlyIfIdle && (status.isStreaming || status.dreaming)) throw new AssistantBusyError();
+    if (options.onlyIfIdle && (status.isStreaming || status.dreaming))
+      throw new AssistantBusyError();
     if (status.isStreaming) await cancelPrompt();
     updateStatus({ isStreaming: true });
     ctx.sendEvent("assistant-prompt-start", { assistantId });
@@ -858,9 +860,7 @@ export function createAssistantManager(
   function emitConfigs(): void {
     ctx.sendEvent(
       "assistants-changed",
-      [...configs.values()].sort(
-        (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
-      ),
+      [...configs.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)),
     );
   }
 
@@ -918,16 +918,11 @@ export function createAssistantManager(
     void assistantId;
   }
 
-  async function applySettingsChange(
-    previous: SettingsInfo,
-    current: SettingsInfo,
-  ): Promise<void> {
+  async function applySettingsChange(previous: SettingsInfo, current: SettingsInfo): Promise<void> {
     const enabledChanged = previous.assistant.enabled !== current.assistant.enabled;
     if (enabledChanged) {
       if (!current.assistant.enabled) {
-        await Promise.allSettled(
-          [...runtimes.values()].map((runtime) => runtime.shutdown()),
-        );
+        await Promise.allSettled([...runtimes.values()].map((runtime) => runtime.shutdown()));
         runtimes.clear();
         return;
       }
@@ -983,9 +978,7 @@ export function createAssistantManager(
     },
     isAssistantSession: (assistantId) => configs.has(assistantId),
     listConfigs: () =>
-      [...configs.values()].sort(
-        (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
-      ),
+      [...configs.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)),
     getConfig,
     getStatus: (assistantId) => {
       const config = configs.get(assistantId);
@@ -1011,9 +1004,11 @@ export function createAssistantManager(
       configs.set(config.id, config);
       emitConfigs();
       if (!config.disabled && isGloballyEnabled()) {
-        await ensureRuntime(config).start().catch((error) => {
-          console.error(`[assistant:${config.id}] Failed to start:`, error);
-        });
+        await ensureRuntime(config)
+          .start()
+          .catch((error) => {
+            console.error(`[assistant:${config.id}] Failed to start:`, error);
+          });
       }
       return config;
     },
@@ -1058,9 +1053,11 @@ export function createAssistantManager(
       if (runtime) {
         await runtime.restart();
       } else if (!next.disabled && isGloballyEnabled()) {
-        await ensureRuntime(next).start().catch((error) => {
-          console.error(`[assistant:${assistantId}] Failed to start:`, error);
-        });
+        await ensureRuntime(next)
+          .start()
+          .catch((error) => {
+            console.error(`[assistant:${assistantId}] Failed to start:`, error);
+          });
       }
       return next;
     },

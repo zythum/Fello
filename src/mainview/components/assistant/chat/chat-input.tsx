@@ -92,7 +92,8 @@ export function AssistantChatInput({
 
   useEffect(() => {
     const handleAddToChat = (event: Event) => {
-      const nodes = (event as CustomEvent<{ id: string; name: string; isFolder: boolean }[]>).detail;
+      const nodes = (event as CustomEvent<{ id: string; name: string; isFolder: boolean }[]>)
+        .detail;
       if (!nodes || nodes.length === 0) return;
       const mentions = nodesToMentionText(nodes);
       setInput((prev) => (prev ? `${prev} ${mentions} ` : `${mentions} `));

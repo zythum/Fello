@@ -113,7 +113,11 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
   }
 
   function getAssistantConfig(assistantId: string): AssistantConfig | null {
-    return getHandlers().listAssistants().find((assistant) => assistant.id === assistantId) ?? null;
+    return (
+      getHandlers()
+        .listAssistants()
+        .find((assistant) => assistant.id === assistantId) ?? null
+    );
   }
 
   /** 个人助理的展示名：名称在创建时已生成，缺失时回退本地化默认名称。 */

@@ -1,8 +1,4 @@
-import type {
-  DragEvent as ReactDragEvent,
-  MouseEvent as ReactMouseEvent,
-  RefObject,
-} from "react";
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { ROOT_DROP_TARGET } from "./constants";
 import { TreeItem } from "./tree-item";

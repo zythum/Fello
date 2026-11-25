@@ -195,8 +195,7 @@ export class AssistantStorage {
     notification: SessionNotificationFelloExt,
     segment?: AssistantMessageSegment,
   ): Promise<void> {
-    const target =
-      segment ?? this.activePromptSegment ?? (await this.getCurrentMessageSegment());
+    const target = segment ?? this.activePromptSegment ?? (await this.getCurrentMessageSegment());
     await this.ensureChatDirectory();
     await appendFile(target.filePath, `${JSON.stringify(notification)}\n`, "utf8");
   }

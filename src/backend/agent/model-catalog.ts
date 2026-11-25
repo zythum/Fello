@@ -145,9 +145,7 @@ function toModelInfos(payload: unknown, modelIdTemplate: string | undefined): Mo
     const rawId = typeof item.id === "string" ? item.id.trim() : "";
     if (!rawId) continue;
 
-    const modelId = modelIdTemplate
-      ? applyModelIdTemplate(modelIdTemplate, item).trim()
-      : rawId;
+    const modelId = modelIdTemplate ? applyModelIdTemplate(modelIdTemplate, item).trim() : rawId;
     if (!modelId || seen.has(modelId)) continue;
 
     seen.add(modelId);

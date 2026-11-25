@@ -74,10 +74,7 @@ export function createFileSystemTools({
       description:
         "List one directory. Directories come first. Paths may be absolute or relative to your workspace. Hidden entries are included.",
       inputSchema: z.object({
-        path: z
-          .string()
-          .optional()
-          .describe("Directory to list. Defaults to your workspace root."),
+        path: z.string().optional().describe("Directory to list. Defaults to your workspace root."),
       }),
       execute: async ({ path }, { toolCallId }) =>
         runWithToolUpdates(
@@ -167,9 +164,7 @@ export function createFileSystemTools({
         "Write a UTF-8 text file, creating parent directories. Relative paths resolve to your workspace. Never write into the assistant runtime directories.",
       inputSchema: z.object({
         path: z.string().describe("File to write, absolute or relative to your workspace."),
-        content: z
-          .string()
-          .describe(`File content. At most ${MAX_WRITE_BYTES} bytes per call.`),
+        content: z.string().describe(`File content. At most ${MAX_WRITE_BYTES} bytes per call.`),
         mode: z
           .enum(["overwrite", "append"])
           .optional()
@@ -202,10 +197,7 @@ export function createFileSystemTools({
       inputSchema: z.object({
         from: z.string().describe("Source path."),
         to: z.string().describe("Destination path."),
-        force: z
-          .boolean()
-          .optional()
-          .describe("Replace an existing destination. Default false."),
+        force: z.boolean().optional().describe("Replace an existing destination. Default false."),
       }),
       execute: async ({ from, to, force }, { toolCallId }) =>
         runWithToolUpdates(
@@ -341,7 +333,10 @@ export function createFileSystemTools({
           .optional()
           .describe("Maximum matching lines. Default 100."),
       }),
-      execute: async ({ pattern, path, glob: fileGlob, ignoreCase, regex, maxResults }, { toolCallId }) =>
+      execute: async (
+        { pattern, path, glob: fileGlob, ignoreCase, regex, maxResults },
+        { toolCallId },
+      ) =>
         runWithToolUpdates(
           sendUpdate,
           { toolCallId, title: `Search ${pattern}`, kind: "read", rawInput: { pattern, path } },

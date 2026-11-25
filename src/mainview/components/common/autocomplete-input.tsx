@@ -13,11 +13,10 @@ export interface AutocompleteOption {
   detail?: string;
 }
 
-export interface AutocompleteInputProps
-  extends Omit<
-    React.ComponentProps<"input">,
-    "value" | "onChange" | "children" | "onSelect"
-  > {
+export interface AutocompleteInputProps extends Omit<
+  React.ComponentProps<"input">,
+  "value" | "onChange" | "children" | "onSelect"
+> {
   value: string;
   onChange: (value: string) => void;
   /** 候选列表；为空时仍可自由输入。 */
@@ -246,7 +245,9 @@ export function AutocompleteInput({
                   index === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
                 )}
               >
-                <span className="min-w-0 truncate text-muted-foreground">{option.label ?? option.value}</span>
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {option.label ?? option.value}
+                </span>
                 {option.detail && (
                   <span className="shrink-0 truncate text-[10px] text-muted-foreground/60">
                     {option.detail}

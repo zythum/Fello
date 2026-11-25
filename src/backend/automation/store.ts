@@ -1,13 +1,6 @@
 import { join, dirname } from "path";
 import { homedir } from "os";
-import {
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  existsSync,
-} from "fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 import type { Schedule, Task } from "../../shared/schema";
 import { isSafeAutomationId } from "../../shared/task-project";
 

@@ -108,18 +108,14 @@ export function createAutomationModule(
 
     if (schedule.cron.type !== "cron" || !schedule.cron.expr) return;
     try {
-      const cronJob = new Cron(
-        schedule.cron.expr,
-        { mode: "5-part" },
-        async () => {
-          if (runningTasks.has(schedule.id)) return;
-          try {
-            await executeTask(schedule.id, "cron");
-          } catch (err) {
-            console.error(`[Automation] Failed to start task for "${schedule.name}":`, err);
-          }
-        },
-      );
+      const cronJob = new Cron(schedule.cron.expr, { mode: "5-part" }, async () => {
+        if (runningTasks.has(schedule.id)) return;
+        try {
+          await executeTask(schedule.id, "cron");
+        } catch (err) {
+          console.error(`[Automation] Failed to start task for "${schedule.name}":`, err);
+        }
+      });
       scheduledCrons.set(schedule.id, cronJob);
       const next = getNextRun(schedule);
       console.log(

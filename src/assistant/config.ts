@@ -194,7 +194,9 @@ export function createAssistantConfig(input: {
 
 export function updateAssistantConfig(
   assistantId: string,
-  patch: Partial<Pick<AssistantConfig, "name" | "disabled" | "sourceAgentId" | "mcpServers" | "dream">>,
+  patch: Partial<
+    Pick<AssistantConfig, "name" | "disabled" | "sourceAgentId" | "mcpServers" | "dream">
+  >,
 ): AssistantConfig {
   const current = loadAssistantConfig(assistantId);
   if (!current) throw new Error(`Assistant ${assistantId} does not exist.`);
