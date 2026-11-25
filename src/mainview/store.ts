@@ -252,6 +252,28 @@ export interface AppState {
   setIsFullScreen: (v: boolean) => void;
 }
 
+type LiveSessionSource = Pick<AppState, "sessions" | "assistants">;
+
+/**
+ * 会话桶的存活 id：项目会话 + 个人助理（伪会话）。
+ *
+ * 助理不在 `sessions` 里，但同样拥有 `sessionStates` 桶；判定存活 / 清理桶时必须一起算，
+ * 否则助理的流式通知会被当成「已删除会话」丢弃，历史也写不进去。
+ */
+export function isLiveSessionId(state: LiveSessionSource, id: string): boolean {
+  return (
+    state.sessions.some((session) => session.id === id) ||
+    state.assistants.some((assistant) => assistant.id === id)
+  );
+}
+
+/** 同上，集合形式；用于批处理 / 清理时的 O(1) 判断。 */
+export function liveSessionIds(state: LiveSessionSource): Set<string> {
+  const ids = new Set(state.sessions.map((session) => session.id));
+  for (const assistant of state.assistants) ids.add(assistant.id);
+  return ids;
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // 1. Core Data (Entities)
@@ -327,7 +349,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateSessionState: (id, updater) => {
     set((state) => {
       const current = state.sessionStates.get(id);
-      if (!current && !state.sessions.some((s) => s.id === id)) return state; // Deleted session, skip
+      // 未知 / 已删除 id 不建桶（避免复活旧会话）；会话与个人助理都算存活。
+      if (!current && !isLiveSessionId(state, id)) return state;
       const map = new Map(state.sessionStates);
       const base = current ?? emptySessionState();
       map.set(id, { ...base, ...updater(base) });

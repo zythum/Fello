@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
-import { useAppStore } from "./store";
-import type { AssistantConfig, SessionInfo } from "../shared/schema";
+import { liveSessionIds, useAppStore } from "./store";
+import type { AssistantConfig } from "../shared/schema";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
@@ -24,18 +24,6 @@ import { electron, UpdaterEvent } from "./electron";
 import * as tiks from "@rexa-developer/tiks";
 
 const UPDATE_TOAST_ID = "fello-app-update";
-
-/**
- * `sessionStates` 里允许存在的桶：项目会话 + 个人助理（伪会话）。
- *
- * 通知批处理与「会话列表刷新后的清理」必须用同一个集合：两处不一致时，助理的流式通知
- * 会被当成「已删除会话」静默丢弃。
- */
-function liveSessionIds(sessions: SessionInfo[]): Set<string> {
-  const ids = new Set(sessions.map((session) => session.id));
-  for (const assistant of useAppStore.getState().assistants) ids.add(assistant.id);
-  return ids;
-}
 
 function AppContent() {
   // 逐项按需订阅，避免用无 selector 的 useAppStore() 全量订阅整个 store：
@@ -222,7 +210,7 @@ function AppContent() {
       const store = useAppStore.getState();
       // 个人助理是伪会话，同样走 session-update；存活集合必须包含助理，
       // 否则助理的流式通知会在这一层被静默丢弃。
-      const liveIds = liveSessionIds(store.sessions);
+      const liveIds = liveSessionIds(store);
       const budgetMs = 8;
       const start = performance.now();
 
@@ -407,7 +395,7 @@ function AppContent() {
       store.setSessions(nextSessions);
 
       const sessionIds = new Set(nextSessions.map((s) => s.id));
-      const liveIds = liveSessionIds(nextSessions);
+      const liveIds = liveSessionIds(useAppStore.getState());
 
       // Only update sessionStates if entries were actually removed
       const currentStates = store.sessionStates;
