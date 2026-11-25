@@ -6,6 +6,7 @@ import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import type { SelectedLineRange } from "@pierre/diffs";
 import { shikiPreloadPromise, isShikiReady } from "@/lib/shiki-preload";
+import "@/lib/diffs-i18n";
 
 const unsafeCSS = `
 :host{--diffs-font-size:12px;user-select:text;}
@@ -21,8 +22,7 @@ const unsafeCSS = `
 `;
 
 const hideNoNewlineCSS = `
-[data-no-newline],
-[data-gutter-buffer="metadata"] {
+[data-no-newline] {
   display: none;
 }
 `;

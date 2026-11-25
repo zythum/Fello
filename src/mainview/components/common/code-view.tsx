@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { File } from "@pierre/diffs/react";
 import type { SelectedLineRange, SupportedLanguages } from "@pierre/diffs";
 import { shikiPreloadPromise, isShikiReady } from "@/lib/shiki-preload";
+import "@/lib/diffs-i18n";
 
 const unsafeCSS = `
 :host{--diffs-font-size:12px;user-select:text;}
