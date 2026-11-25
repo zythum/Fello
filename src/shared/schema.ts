@@ -1050,20 +1050,6 @@ export type FelloIPCRequests = {
     params: { assistantId: string };
     response: { content: string };
   };
-  /** 向内建个人助理发送用户输入。 */
-  sendAssistantPrompt: {
-    params: { assistantId: string; contents: ContentBlock[] };
-    response: { stopReason: string; usage?: Usage | null; error?: string };
-  };
-  /** 取消内建个人助理正在生成的回复。 */
-  cancelAssistantPrompt: { params: { assistantId: string }; response: void };
-  /** 更新内建个人助理当前模型。 */
-  setAssistantModel: { params: { assistantId: string; modelId: string }; response: void };
-  /** 更新内建个人助理当前思考等级。 */
-  setAssistantThoughtLevel: {
-    params: { assistantId: string; thoughtLevelId: string };
-    response: void;
-  };
   /**
    * 写入新的配置并重启个人助理 bridge。
    * 这是 header 配置（来源 Agent / MCP / Dream）唯一的生效入口；不调用则改动只存在于 UI。

@@ -332,18 +332,6 @@ export function initBackend(
     async getAssistantWorkerHistorySegment({ assistantId, workerId, segmentId }) {
       return assistant.readWorkerHistorySegment(assistantId, { workerId, segmentId });
     },
-    async sendAssistantPrompt({ assistantId, contents }) {
-      return assistant.sendPrompt(assistantId, contents);
-    },
-    async cancelAssistantPrompt({ assistantId }) {
-      return assistant.cancelPrompt(assistantId);
-    },
-    async setAssistantModel({ assistantId, modelId }) {
-      return assistant.setModel(assistantId, modelId);
-    },
-    async setAssistantThoughtLevel({ assistantId, thoughtLevelId }) {
-      return assistant.setThoughtLevel(assistantId, thoughtLevelId);
-    },
     async restartAssistant({ assistantId, config }) {
       return assistant.restart(assistantId, config);
     },

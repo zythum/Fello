@@ -120,7 +120,7 @@ sendPrompt: {
 
 ### 个人助理
 
-个人助理是伪会话：下面的 `assistantId` 同时是伪 session id；`sendAssistantPrompt` / `cancelAssistantPrompt` 等是助理专属入口，会话层的同名方法也会按 id 分派。历史分段、加载与会话轮次事件共用 `getSessionHistorySegment` / `loadSession` / `session-update` / `prompt-start` / `prompt-end`。
+个人助理是伪会话：下面的 `assistantId` 同时是伪 session id。发送 / 取消 / 模型 / 思考等级直接使用会话入口 `sendPrompt` / `cancelPrompt` / `setModel` / `setThoughtLevel`（`sessionId` = `assistantId`，后端按 id 分派）；历史分段、加载与会话轮次事件同样共用 `getSessionHistorySegment` / `loadSession` / `session-update` / `prompt-start` / `prompt-end`。下表只保留助理特有的请求。
 
 | 方法 | params | response | 说明 |
 |---|---|---|---|
@@ -130,10 +130,6 @@ sendPrompt: {
 | `deleteAssistant` | `{ assistantId }` | `void` | 删除助理数据目录与 workspace |
 | `getAssistantStatus` | `{ assistantId }` | `AssistantStatus` | 连接、模型、流式、Dream、usage 状态 |
 | `restartAssistant` | `{ assistantId, config?: { sourceAgentId, mcpServers, dream } }` | `AssistantConfig` | 写入来源 Agent / MCP / Dream 并重启 bridge |
-| `sendAssistantPrompt` | `{ assistantId, contents }` | `{ stopReason, usage?, error? }` | 发送消息 |
-| `cancelAssistantPrompt` | `{ assistantId }` | `void` | 取消当前生成 |
-| `setAssistantModel` | `{ assistantId, modelId }` | `void` | 切换模型 |
-| `setAssistantThoughtLevel` | `{ assistantId, thoughtLevelId }` | `void` | 切换思考等级 |
 | `listAssistantReminders` | `{ assistantId }` | `AssistantReminderList` | 提醒列表 + 服务端时区 |
 | `listAssistantDiaries` | `{ assistantId }` | `AssistantDiary[]` | 日记摘要（新的在前） |
 | `readAssistantDiary` | `{ assistantId, file }` | `{ file, content, truncated }` | 读取日记原文 |

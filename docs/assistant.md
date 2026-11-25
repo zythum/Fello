@@ -297,15 +297,13 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 | `listAssistants` / `createAssistant` / `updateAssistantConfig` / `deleteAssistant` | 助理 CRUD；`updateAssistantConfig` 只接受 `name` / `disabled` |
 | `getAssistantStatus` | 运行时状态 |
 | `restartAssistant` | 写入来源 Agent / MCP / Dream 并重启 |
-| `sendAssistantPrompt` / `cancelAssistantPrompt` | 发送 / 取消 |
-| `setAssistantModel` / `setAssistantThoughtLevel` | 模型 / 思考等级 |
 | `listAssistantReminders` | 提醒列表 + 时区 |
 | `listAssistantDiaries` / `readAssistantDiary` / `readAssistantMemory` | 日记与记忆 |
 | `runAssistantDream` / `dismissAssistantDreamError` | 手动 Dream / 关闭失败提示 |
 | `listAssistantWorkers` / `getAssistantWorkerHistorySegment` | worker 列表与只读转写 |
 | `getAssistantDataSystemPath` | 助理数据目录绝对路径 |
 
-会话层还按 `assistant.isAssistantSession(sessionId)` 分派 `sendPrompt` / `cancelPrompt` / `getHistorySegment` / `models` / `thoughtLevels` / `isSessionStreaming`；`updateSession` / `deleteSession` 显式拒绝助理 id。
+发送 / 取消 / 模型 / 思考等级由助理页直接走会话入口 `sendPrompt` / `cancelPrompt` / `setModel` / `setThoughtLevel`（`sessionId` = `assistantId`）。会话层还按 `assistant.isAssistantSession(sessionId)` 分派 `sendPrompt` / `cancelPrompt` / `getHistorySegment` / `models` / `thoughtLevels` / `isSessionStreaming`；`updateSession` / `deleteSession` 显式拒绝助理 id。
 
 ## 已知取舍
 

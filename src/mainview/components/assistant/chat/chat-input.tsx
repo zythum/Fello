@@ -143,7 +143,7 @@ export function AssistantChatInput({
         new CustomEvent("fello-scroll-to-bottom", { detail: { duration: 0 } }),
       );
       try {
-        const result = await request.sendAssistantPrompt({ assistantId, contents });
+        const result = await request.sendPrompt({ sessionId: assistantId, contents });
         const finishedNormally =
           result.stopReason === "end_turn" || result.stopReason === "cancelled";
         if (result.error || !finishedNormally) {
@@ -180,7 +180,7 @@ export function AssistantChatInput({
     async (modelId: string | null) => {
       if (!modelId || modelId === currentModelId) return;
       try {
-        await request.setAssistantModel({ assistantId, modelId });
+        await request.setModel({ sessionId: assistantId, modelId });
       } catch (error) {
         onStatusChange((current) => ({
           ...(current ?? {
@@ -204,7 +204,7 @@ export function AssistantChatInput({
     async (thoughtLevelId: string | null) => {
       if (!thoughtLevelId || thoughtLevelId === currentThoughtLevelId) return;
       try {
-        await request.setAssistantThoughtLevel({ assistantId, thoughtLevelId });
+        await request.setThoughtLevel({ sessionId: assistantId, thoughtLevelId });
       } catch (error) {
         onStatusChange((current) => ({
           ...(current ?? {
@@ -364,7 +364,7 @@ export function AssistantChatInput({
                 variant="destructive"
                 size="icon"
                 className="size-7 cursor-default rounded-lg"
-                onClick={() => void request.cancelAssistantPrompt({ assistantId })}
+                onClick={() => void request.cancelPrompt({ sessionId: assistantId })}
               >
                 <Square className="size-3.5" />
               </Button>
