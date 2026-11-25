@@ -44,7 +44,7 @@ function syncLanguage(): void {
 /** Translate a key with optional interpolation values. */
 export function t(key: string, options?: Record<string, unknown>): string {
   syncLanguage();
-  return instance.t(key, options);
+  return options ? instance.t(key, options) : instance.t(key);
 }
 
 /** Force i18next to use a specific language. Called when settings change at runtime. */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PptxPresentation } from "@silurus/ooxml/pptx";
+import { googleFonts, PptxPresentation } from "@silurus/ooxml/pptx";
 import { math } from "@silurus/ooxml/math";
 import { useTranslation } from "react-i18next";
 import { MessageSquareText, ZoomIn, ZoomOut } from "lucide-react";
@@ -11,6 +11,12 @@ export interface PptxViewProps {
 }
 
 const BASE_SLIDE_WIDTH = 960;
+
+/**
+ * 模块级复用同一份字体源：0.90 起字体源是页面内可共享的不透明对象，
+ * 每次 load 新建会丢掉样式表/字体文件的共享缓存。
+ */
+const PPTX_FONTS = [googleFonts()];
 
 function PptxSlide({
   pres,
@@ -117,7 +123,8 @@ export function PptxView({ data }: PptxViewProps) {
     async function load() {
       try {
         instance = await PptxPresentation.load(data.slice(0), {
-          useGoogleFonts: true,
+          // 0.90 起 useGoogleFonts 被 fonts 取代（0.91 会被忽略）
+          fonts: PPTX_FONTS,
           math,
         });
         if (cancelled) {
