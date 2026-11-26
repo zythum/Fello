@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { liveSessionIds, useAppStore } from "./store";
-import type { AssistantConfig } from "../shared/schema";
+import type { AssistantConfig, SessionInfo } from "../shared/schema";
+import i18n from "./i18n";
 import { request, subscribe, BackendEvents } from "./backend";
 import { reduceSessionNotification } from "./lib/session-state-reducer";
 import { isSessionLifecycleBusy } from "./lib/session-lifecycle";
@@ -56,7 +57,8 @@ function AppContent() {
   const setActiveIlinkSessionId = useAppStore((s) => s.setActiveIlinkSessionId);
   const shortcuts = useAppStore((state) => state.shortcuts);
   const { resolvedTheme } = useTheme();
-  const { i18n, t } = useTranslation();
+  // 只取 t；i18n 用模块单例（见 loadData 里的说明，不能依赖 useTranslation 返回的实例）
+  const { t } = useTranslation();
   const { toast } = useMessage();
   const location = useLocation();
   const matchSession = location.pathname.match(/^\/session-view\/(.+)$/);
@@ -90,6 +92,59 @@ function AppContent() {
   }, [resolvedTheme]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    /**
+     * pending 的 askUser 请求只是「补状态」，不属于首屏必需内容。
+     * 以前在这里逐个 await 串行拉取（N 个会话 = N 次往返）：WebUI 走 devtunnel 这类
+     * 高 RTT 链路时，几十个会话就要多等十几秒才能出首屏。现在改成并发拉取，
+     * 并且放到 isReady 之后启动，不再计入首屏耗时。
+     */
+    async function restorePendingState(sessions: SessionInfo[], assistants: AssistantConfig[]) {
+      await Promise.all(
+        sessions.map(async (session) => {
+          try {
+            const pending = await request.getPendingAskUserRequests({ sessionId: session.id });
+            if (cancelled) return;
+            for (const req of pending) {
+              useAppStore.getState().addAskUserRequest(session.id, req);
+            }
+          } catch {
+            // ignore
+          }
+        }),
+      );
+
+      // 个人助理是伪会话，不在 sessions 列表里，逐个恢复状态与 pending 请求。
+      await Promise.all(
+        assistants.map(async (assistant) => {
+          try {
+            const status = await request.getAssistantStatus({ assistantId: assistant.id });
+            if (cancelled) return;
+            setAssistantStatus(assistant.id, status);
+          } catch {
+            // ignore
+          }
+          try {
+            const pending = await request.getPendingAskUserRequests({
+              sessionId: assistant.id,
+            });
+            if (cancelled) return;
+            if (pending.length > 0) {
+              if (!useAppStore.getState().sessionStates.has(assistant.id)) {
+                useAppStore.getState().resetSessionState(assistant.id);
+              }
+              for (const req of pending) {
+                useAppStore.getState().addAskUserRequest(assistant.id, req);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }),
+      );
+    }
+
     async function loadData() {
       const [projects, sessions, settings, webUIStatus, ilinkStatus, ilinkActive, assistants] =
         await Promise.all([
@@ -101,6 +156,7 @@ function AppContent() {
           request.getActiveIlinkSession(),
           request.listAssistants(),
         ]);
+      if (cancelled) return;
       setProjects(projects ?? []);
       setSessions(sessions ?? []);
       setAssistants(assistants ?? []);
@@ -113,6 +169,8 @@ function AppContent() {
       if (settings.theme) setTheme(settings.theme);
       if (settings.i18n) {
         setI18n(settings.i18n);
+        // 用模块单例而不是 useTranslation() 返回的实例：后者在语言变化时会换成新的
+        // Proxy（react-i18next v18），会污染本 effect 的依赖数组。
         i18n.changeLanguage(settings.i18n.language);
       }
       if (settings.proxy) setProxy(settings.proxy);
@@ -125,41 +183,6 @@ function AppContent() {
       if (settings.notification) setNotification(settings.notification);
       if (settings.shortcuts) setShortcuts(settings.shortcuts);
       if (settings.peripherals) setPeripherals(settings.peripherals);
-      // 恢复所有 session 中 pending 的 askUser 请求
-      for (const session of sessions ?? []) {
-        try {
-          const pending = await request.getPendingAskUserRequests({ sessionId: session.id });
-          for (const req of pending) {
-            useAppStore.getState().addAskUserRequest(session.id, req);
-          }
-        } catch {
-          // ignore
-        }
-      }
-      // 个人助理是伪会话，不在 sessions 列表里，逐个恢复状态与 pending 请求。
-      for (const assistant of assistants ?? []) {
-        try {
-          const status = await request.getAssistantStatus({ assistantId: assistant.id });
-          setAssistantStatus(assistant.id, status);
-        } catch {
-          // ignore
-        }
-        try {
-          const pending = await request.getPendingAskUserRequests({
-            sessionId: assistant.id,
-          });
-          if (pending.length > 0) {
-            if (!useAppStore.getState().sessionStates.has(assistant.id)) {
-              useAppStore.getState().resetSessionState(assistant.id);
-            }
-            for (const req of pending) {
-              useAppStore.getState().addAskUserRequest(assistant.id, req);
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
 
       tiks.init();
       if (settings.sound.muted) {
@@ -170,8 +193,13 @@ function AppContent() {
       tiks.setVolume(settings.sound.volume / 100);
       tiks.setTheme(settings.sound.theme);
       setIsReady(true);
+      // 首屏已就绪，再补齐 pending 状态。
+      void restorePendingState(sessions ?? [], assistants ?? []);
     }
     void loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [
     setProjects,
     setSessions,
@@ -181,7 +209,8 @@ function AppContent() {
     setWebUIStatus,
     setTheme,
     setI18n,
-    i18n,
+    // 不要把 i18n 放进依赖：react-i18next v18 在语言变化时返回新的 Proxy 实例，
+    // 而 loadData 里会调用 changeLanguage()，放依赖会让整套初始化重跑一遍。
     setEditor,
     setSnippets,
     setImageGeneration,
