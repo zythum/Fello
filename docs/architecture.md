@@ -126,7 +126,7 @@
 
 此目录是框架无关的 Agent 会话逻辑，同时被 backend（主进程）使用：
 
-- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、自动标题生成。每轮生成结束后通过 `result.usage` / `result.totalUsage` 采集每轮 Token 用量，并通过 ACP `usage_update` 事件发送上下文窗口占用通知
+- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、首轮自动生成标题，以及运行中通过 `SetSessionTitle` 改标题。每轮生成结束后通过 `result.usage` / `result.totalUsage` 采集每轮 Token 用量，并通过 ACP `usage_update` 事件发送上下文窗口占用通知
 - **`session-state.ts`**：创建会话状态（SessionState），组装 ACP client tools + MCP session tools + 权限记忆。新增 `contextUsedTokens` 字段追踪当前上下文窗口已用 Token 数
 - **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`。session.json 新增 `contextUsedTokens` 字段，支持跨会话持久化上下文用量
 - **`acp-client-tools.ts`**：创建 ACP 客户端工具集（文件读写、终端、搜索等）
@@ -134,6 +134,7 @@
 - **`agent-client-proxy.ts`**：将 ACP Client 能力代理为 API Agent 可调用的客户端接口
 - **`subagent-tool.ts`**：API Agent 的子代理工具与执行协调
 - **`image-tools.ts`**：API Agent 图片输入与图片相关工具处理
+- **`session-title-tool.ts`**：API Agent 的会话标题工具（`SetSessionTitle`）及其 system prompt 片段，通过标准 ACP `session_info_update` 申请改标题
 - **`permission.ts`**：权限记忆系统，支持"始终允许"（Always Allow），持久化到会话状态
 - **`system-prompts.ts`**：基础系统提示词
 - **`utils.ts`**：ContentBlock 与 AI SDK Part 之间的转换工具

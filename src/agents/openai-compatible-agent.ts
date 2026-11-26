@@ -61,6 +61,7 @@ import {
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 import { createSubagentTool } from "./subagent-tool";
 import { createImageTools } from "./image-tools";
+import { createSessionTitleTool, SESSION_TITLE_PROMPT } from "./session-title-tool";
 import {
   embeddedResourceToFilePart,
   audioContentToFilePart,
@@ -848,7 +849,10 @@ export class OpenaiCompatibleAgent {
       if (!session.modelId) {
         throw new Error("No model available for current session.");
       }
+      // 子代理复用 buildWorkspaceSystemPrompt 的结果；标题工具只挂主会话，所以标题指引
+      // 只追加到主会话的 system prompt，避免子代理被告知一个它没有的工具。
       const systemPrompt = buildWorkspaceSystemPrompt(session.cwd, session.additionalDirectories);
+      const mainSystemPrompt = systemPrompt + SESSION_TITLE_PROMPT;
       const sharedTools: ToolSet = {
         ...session.mcp.tools,
         ...session.acp.tools,
@@ -868,14 +872,20 @@ export class OpenaiCompatibleAgent {
         getModel: () => this.provider.chatModel(session.modelId!),
         parentSignal: abortController.signal,
       });
+      // SetSessionTitle：主题切换时由模型主动申请改标题（用户已手动改名时后端会忽略）。
+      const titleTool = createSessionTitleTool({
+        sessionId: params.sessionId,
+        getConnection: () => this.connection,
+      });
       const allTools: ToolSet = {
         ...sharedTools,
         ...subagentTool,
         ...imageTools.tools,
+        ...titleTool,
       };
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
-        system: systemPrompt,
+        system: mainSystemPrompt,
         messages: [...session.history, userMessage],
         tools: allTools,
         stopWhen: isStepCount(512),
@@ -968,7 +978,7 @@ export class OpenaiCompatibleAgent {
       // Build per-step token breakdown and estimate input composition.
       // These are optional metadata and must not fail the completed prompt.
       const tokenBreakdown = await this.buildTokenBreakdown({
-        systemPrompt,
+        systemPrompt: mainSystemPrompt,
         tools: allTools,
         history: historyBeforeTurn,
         userMessage,

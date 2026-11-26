@@ -23,6 +23,7 @@ Agent Architecture
 Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan)
 - Subagent tool: src/agents/subagent-tool.ts (parallel sub-session execution, merged into toolset by openai-compatible-agent.ts)
 - Image tools: src/agents/image-tools.ts (ImageAnalysis + ImageRead; vision capability probe, image normalization via sharp, images injected into the next step via prepareStep; merged into toolset by openai-compatible-agent.ts)
+- Session title tool: src/agents/session-title-tool.ts (SetSessionTitle; emits an ACP session_info_update so the backend applies the same rules as any agent-driven title; main session only, plus the matching system-prompt guidance)
 
 Personal Assistant
 - Runtime: src/assistant/ (assistant-agent.ts in-process ACP agent, storage.ts, config.ts, dream.ts, fs/, reminders/, mcp-tools.ts, worker/)
@@ -38,7 +39,8 @@ Sessions & Persistence
 - API agent session persistence: src/agents/storage.ts (stores session.json + history.jsonl under ~/.fello/api-agents/<agent_id>/sessions/<session_id>/)
 - Fine-grained session updates: Uses `session-changed` IPC event to update single sessions atomically in the frontend store
 - Permission memory: src/agents/permission.ts — supports "always allow" per tool kind, persisted in session state
-- Auto session titles: OpenAI-compatible agent generates short titles on first user message via generateText
+- Session titles: two slots in session.json — `title` (agent/auto: first-message fallback, API agent generateText on first turn, and later `session_info_update`s) and `user_title` (manual rename, wins over the agent and freezes further agent changes); SessionInfo.title stays the agent/auto title and SessionInfo.userTitle carries the override, so every display site must resolve through resolveSessionTitle() (src/shared/session-title.ts) instead of reading title directly; IPC updateSession({ userTitle }) sets/clears it, agent title writes never bump updated_at
+- Title tool: OpenaiCompatibleAgent registers SetSessionTitle (src/agents/session-title-tool.ts) so the model can rename the session when the topic changes
 - MCP Server support: both Stdio (subprocess) and HTTP types, toggle per session
 - Message history: persisted locally in messages.jsonl (ACP agents) or history.jsonl (API agents), enabling robust offline recovery
 - Agent terminal outputs: persisted as .log files in the `terminals/` folder under each session's directory, automatically restored

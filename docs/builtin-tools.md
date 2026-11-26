@@ -14,8 +14,9 @@ Fello 为 API Agent 内置了一套文件系统和执行工具，定义在 `src/
 | `Subagent` | 并行子 Agent 任务执行 | `subagent-tool.ts` |
 | `ImageAnalysis` | 图片视觉分析与理解 | `image-tools.ts` |
 | `ImageRead` | 读取图片，作为下一步 user 消息的图片内容块注入（仅该步可见，后续步需重新读取） | `image-tools.ts` |
+| `SetSessionTitle` | 话题切换时修改当前会话标题（以 `session_info_update` 发出；用户已手动改名时后端忽略） | `session-title-tool.ts` |
 
-> **注：** `Subagent` 和 `ImageAnalysis` / `ImageRead` 不在 `acp-client-tools.ts` 中定义，而是在 `subagent-tool.ts` 和 `image-tools.ts` 中分别定义，由 `openai-compatible-agent.ts` 合并到 Agent 工具集中。
+> **注：** `Subagent`、`ImageAnalysis` / `ImageRead` 和 `SetSessionTitle` 不在 `acp-client-tools.ts` 中定义，而是在 `subagent-tool.ts`、`image-tools.ts` 和 `session-title-tool.ts` 中分别定义，由 `openai-compatible-agent.ts` 合并到 Agent 工具集中。`SetSessionTitle` 只挂主会话，不提供给子代理。
 
 > **注：** `file_outline` 不是 ACP client tool，而是 Search MCP Server 提供的工具（见下方 [Search MCP — file_outline](#search-mcp--file_outline) 章节）。
 
@@ -126,6 +127,25 @@ Fello 为 API Agent 内置了一套文件系统和执行工具，定义在 `src/
 | `content` | `string` | 任务描述 |
 | `priority` | `"high" \| "medium" \| "low"` | 优先级 |
 | `status` | `"pending" \| "in_progress" \| "completed"` | 状态 |
+
+---
+
+## SetSessionTitle
+
+让 API Agent 在话题明显变化时主动修改当前会话标题。
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `title` | `string` | 是 | 新标题，3-10 个词，跟随用户语言 |
+
+### 行为说明
+
+- 以标准 ACP `session_info_update` 携带标题发出，复用「Agent 改标题」的后端链路，没有额外的 IPC 或后端工具
+- 标题会规范化：压平空白、单行化、截断到 80 字符
+- 用户在侧边栏手动改过标题时，后端直接丢弃该请求（`user_title` 优先），工具调用本身仍会正常结束
+- 改标题不刷新 `updated_at`，不会把会话顶到侧边栏最前
 
 ---
 
