@@ -154,8 +154,8 @@ export function initBackend(
       return status;
     },
     async stopWebUIServer() {
-      // WebUI 关闭后隧道失去转发目标，必须一起停掉。
-      tunnel.stopAll();
+      // WebUI 关闭后隧道失去转发目标，必须一起停掉（并删除本次创建的隧道）。
+      await tunnel.stopAll();
       webui.stop();
       const status = { enabled: false, url: null };
       sendEvent("webui-status-changed", { status });
@@ -642,10 +642,11 @@ export function initBackend(
   // ── closeBackend ─────────────────────────────────────────────────
   async function closeBackend() {
     automation.stopAllCrons();
+    // 隧道清理要跑一次联网的 CLI 删除命令，尽量提前：退出路径有看门狗，放到后面可能被直接切断。
+    await tunnel.stopAll();
     await assistant.shutdown();
     await asr.closeAll();
     await tts.closeAll();
-    tunnel.stopAll();
     webui.stop();
     await ilink.stopIlink({ logout: false });
     session.clearSession();
