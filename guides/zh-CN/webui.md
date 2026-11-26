@@ -82,10 +82,10 @@ devtunnel user login
 Fello 实际执行的是：
 
 ```bash
-devtunnel host -p <WebUI端口> --allow-anonymous
+devtunnel host -p <WebUI端口> --allow-anonymous -l fello -d "Fello WebUI"
 ```
 
-`--allow-anonymous` 让外部设备无需登录 Microsoft 账号即可访问，访问权限由 WebUI 自己的 Token 控制。
+`--allow-anonymous` 让外部设备无需登录 Microsoft 账号即可访问，访问权限由 WebUI 自己的 Token 控制。`-l fello -d "Fello WebUI"` 给隧道打上标签和描述，Fello 用它认出「自己创建的那条」：关闭开关或退出应用时会自动删除该隧道（不影响同账号下的其它隧道）；万一账号配额已满（每账号 10 条）导致创建被挡住，会先删掉一条最早的 Fello 遗留隧道再重试。
 
 #### ngrok
 
@@ -122,7 +122,8 @@ ngrok http --log=stdout --log-format=json http://127.0.0.1:<WebUI端口>
 ### 关闭隧道
 
 - 关闭对应提供方卡片中的开关（只停止这一条，另一条继续运行）；启动过程中关闭开关即取消启动
-- 或直接关闭 WebUI 服务 / 退出 Fello：所有隧道会随之停止，公网地址立即失效
+- devtunnel 还会删除本次创建的隧道，服务端不会留下垃圾记录；ngrok 的会话随进程退出自动释放
+- 或直接关闭 WebUI 服务 / 退出 Fello：所有隧道会随之停止，公网地址立即失效，devtunnel 同样会被删除
 
 ### 常见问题
 
@@ -130,7 +131,9 @@ ngrok http --log=stdout --log-format=json http://127.0.0.1:<WebUI端口>
 |------|---------|
 | 显示「未安装」 | 确认 CLI 已安装并在 `PATH` 中。从 Finder / 开始菜单启动的 App 可能拿不到 shell 的完整 PATH；Fello 已额外搜索 `/opt/homebrew/bin`、`/usr/local/bin`、`~/.dotnet/tools` 等目录 |
 | devtunnel 启动失败并提示登录 | 先在终端执行 `devtunnel user login` |
+| devtunnel 提示 `Rate limit exceeded` | 通常不是没登录，而是账号下隧道达到 10 条上限：Fello 会先删除一条最早的遗留隧道（标签 `fello` + 描述 `Fello WebUI` 且无活跃连接）再重试；如果仍然失败，用 `devtunnel list` 查看并用 `devtunnel delete <隧道ID>` 手工清理 |
 | ngrok 启动失败并提示 authtoken | 先执行 `ngrok config add-authtoken <Token>` |
+| ngrok 提示 `endpoint ... already online`（`ERR_NGROK_334` / `ERR_NGROK_108`） | 账号的静态域名已被另一个 ngrok 进程或另一个 Fello 实例占用：先停掉那个会话（`pkill ngrok` 或退出另一个 Fello）再重试。免费版同一个 endpoint 只允许一条会话 |
 | 浏览器打开 ngrok 地址先出现提示页 | ngrok 免费版的流量提醒页，点击「Visit Site」继续即可 |
 | 隧道地址打不开 | 确认 WebUI 仍在运行：隧道只转发当前 WebUI 端口，WebUI 停止后隧道也会停止 |
 

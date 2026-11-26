@@ -82,10 +82,10 @@ devtunnel user login
 Fello runs:
 
 ```bash
-devtunnel host -p <webui-port> --allow-anonymous
+devtunnel host -p <webui-port> --allow-anonymous -l fello -d "Fello WebUI"
 ```
 
-`--allow-anonymous` lets external devices connect without a Microsoft account; access is still protected by the WebUI token.
+`--allow-anonymous` lets external devices connect without a Microsoft account; access is still protected by the WebUI token. `-l fello -d "Fello WebUI"` tags the tunnel so Fello can recognize its own: turning the switch off or quitting the app deletes that tunnel (other tunnels on the same account are untouched). If creation is blocked because the account's tunnel quota is full (10 per user), Fello first removes the oldest leftover Fello tunnel and retries.
 
 #### ngrok
 
@@ -122,7 +122,8 @@ ngrok http --log=stdout --log-format=json http://127.0.0.1:<webui-port>
 ### Stopping a tunnel
 
 - Turn off the switch in the provider's card (only that tunnel stops; the other keeps running). Turning it off while starting cancels the start
-- Or disable the WebUI service / quit Fello: all tunnels stop and their public URLs become invalid immediately
+- devtunnel also deletes the tunnel it created, so no stale record is left on the service; the ngrok session is released when its process exits
+- Or disable the WebUI service / quit Fello: all tunnels stop and their public URLs become invalid immediately; devtunnel is deleted as well
 
 ### Troubleshooting
 
@@ -130,7 +131,9 @@ ngrok http --log=stdout --log-format=json http://127.0.0.1:<webui-port>
 |------|---------|
 | Shows "Not installed" | Make sure the CLI is installed and on `PATH`. Apps launched from Finder / the Start menu may not inherit your shell's full PATH; Fello also searches `/opt/homebrew/bin`, `/usr/local/bin`, `~/.dotnet/tools` and similar locations |
 | devtunnel fails with a login message | Run `devtunnel user login` in a terminal first |
+| devtunnel reports `Rate limit exceeded` | Usually not a login problem but the 10-tunnels-per-account limit: Fello removes the oldest leftover Fello tunnel (label `fello` + description `Fello WebUI`, no active host connection) and retries. If it still fails, run `devtunnel list` and delete unused tunnels with `devtunnel delete <tunnel-id>` |
 | ngrok fails with an authtoken message | Run `ngrok config add-authtoken <token>` first |
+| ngrok reports `endpoint ... already online` (`ERR_NGROK_334` / `ERR_NGROK_108`) | The account's static domain is already used by another ngrok process or another Fello instance: stop that session (`pkill ngrok`, or quit the other Fello) and retry. The free plan allows only one session per endpoint |
 | The ngrok URL shows a warning page first | That is the free-plan traffic notice; click "Visit Site" to continue |
 | The tunnel URL does not open | Make sure the WebUI is still running: the tunnel forwards the current WebUI port and stops when the WebUI stops |
 
