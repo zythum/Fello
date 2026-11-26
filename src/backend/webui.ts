@@ -45,6 +45,8 @@ export interface WebUIModule {
   start: (options?: { port?: number; token?: string }) => Promise<{ url: string }>;
   stop: () => void;
   getStatus: () => { enabled: boolean; url: string | null };
+  /** 供 tunnel 模块读取监听端口与访问 token（不经过 IPC 暴露）。 */
+  getAccessInfo: () => { enabled: boolean; port: number | null; token: string | null };
   setHandlers: (handlers: BackendHandlers) => void;
 }
 
@@ -423,6 +425,13 @@ export function createWebUIModule(): WebUIModule {
     return { enabled: true, url: getWebUIUrl(httpServer.address()) };
   }
 
+  function getAccessInfo() {
+    if (!isEnabled || !httpServer) return { enabled: false, port: null, token: null };
+    const address = httpServer.address();
+    const port = address && typeof address !== "string" ? address.port : null;
+    return { enabled: true, port, token: currentToken };
+  }
+
   function getWebUIUrl(addressInfo: string | AddressInfo | null) {
     const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
     if (!addressInfo) {
@@ -452,6 +461,7 @@ export function createWebUIModule(): WebUIModule {
     start,
     stop,
     getStatus,
+    getAccessInfo,
     setHandlers: (handlers: BackendHandlers) => {
       backendHandlers = handlers;
     },

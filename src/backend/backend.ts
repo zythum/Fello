@@ -12,6 +12,7 @@ import {
 // ── Module factories ─────────────────────────────────────────────────
 
 import { createWebUIModule } from "./webui";
+import { createTunnelModule } from "./tunnel";
 import { createWatcherModule } from "./watcher";
 import { createSkillsModule, SKILL_FILENAME } from "./skills";
 import { createSearchModule, glob, grep } from "./search";
@@ -56,6 +57,11 @@ export function initBackend(
     const sentNative = emitter(channel, payload);
     return sentWebUI || sentNative;
   };
+
+  // 公网隧道（devtunnel / ngrok）：把 WebUI 端口暴露到公网，状态通过事件同步给设置页。
+  const tunnel = createTunnelModule({
+    onChange: (status) => sendEvent("tunnel-status-changed", { status }),
+  });
 
   const onEvent = (listener: EventListener) => {
     listeners.push(listener);
@@ -148,10 +154,27 @@ export function initBackend(
       return status;
     },
     async stopWebUIServer() {
+      // WebUI 关闭后隧道失去转发目标，必须一起停掉。
+      tunnel.stopAll();
       webui.stop();
       const status = { enabled: false, url: null };
       sendEvent("webui-status-changed", { status });
       return status;
+    },
+
+    // Public tunnel (devtunnel / ngrok)：每个提供方独立，可同时开启。
+    async getTunnelStatus(params) {
+      return { providers: await tunnel.getProviderInfos({ refresh: params?.refresh }) };
+    },
+    async startTunnel({ provider }) {
+      const access = webui.getAccessInfo();
+      if (!access.enabled || access.port === null) {
+        throw new Error("WebUI is not running. Start the WebUI service before opening a tunnel.");
+      }
+      return tunnel.start({ provider, port: access.port, token: access.token });
+    },
+    async stopTunnel({ provider }) {
+      return tunnel.stop(provider);
     },
 
     // Settings
@@ -622,6 +645,7 @@ export function initBackend(
     await assistant.shutdown();
     await asr.closeAll();
     await tts.closeAll();
+    tunnel.stopAll();
     webui.stop();
     await ilink.stopIlink({ logout: false });
     session.clearSession();

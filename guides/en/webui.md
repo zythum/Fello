@@ -4,7 +4,7 @@
 
 ## How It Works
 
-Fello Desktop ships with a built-in WebUI server. Once enabled, devices on the same network can access Fello's full interface through a browser, and all operations communicate with the desktop main process in real time over WebSocket.
+Fello Desktop ships with a built-in WebUI server. Once enabled, devices on the same network can access Fello's full interface through a browser, and all operations communicate with the desktop main process in real time over WebSocket. If you need access from outside the local network, you can add a public tunnel (see "Public Tunnels" below).
 
 ---
 
@@ -55,6 +55,87 @@ http://<local-ip>:<port>/?token=<your-token>
 
 ---
 
+## Public Tunnels (devtunnel / ngrok)
+
+When you need access from outside the local network (for example, from a phone on cellular data), you can put a public tunnel in front of the WebUI after enabling it. The access URL becomes a public HTTPS link. `devtunnel` and `ngrok` are independent — you can **run both at the same time**, or just one of them.
+
+> ⚠️ A tunnel exposes the WebUI to the internet. Always use a strong token and only keep the tunnel open while you need it.
+
+### Prerequisite: install and sign in to the CLI
+
+Fello invokes the local `devtunnel` or `ngrok` command. A provider's switch is only enabled when the corresponding command is detected. Detection covers `PATH` plus common install locations such as Homebrew and `~/.dotnet/tools`. Click the `devtunnel` / `ngrok` name in Settings to open its official website for install and login instructions.
+
+#### devtunnel (Microsoft Dev Tunnels)
+
+| Platform | Install command |
+|------|---------|
+| macOS | `brew install devtunnel` |
+| Windows | `winget install Microsoft.devtunnel` |
+| Linux | `curl -sL https://aka.ms/DevTunnelCliInstall \| bash` |
+
+Sign in once before the first use (hosting always requires a login, even with anonymous access):
+
+```bash
+devtunnel user login
+```
+
+Fello runs:
+
+```bash
+devtunnel host -p <webui-port> --allow-anonymous
+```
+
+`--allow-anonymous` lets external devices connect without a Microsoft account; access is still protected by the WebUI token.
+
+#### ngrok
+
+| Platform | Install command |
+|------|---------|
+| macOS | `brew install ngrok/ngrok/ngrok` |
+| Windows | `winget install ngrok.ngrok` |
+| Other | Download from [ngrok.com/download](https://ngrok.com/download) and add it to `PATH` |
+
+Configure your authtoken once:
+
+```bash
+ngrok config add-authtoken <your-authtoken>
+```
+
+Fello runs:
+
+```bash
+ngrok http --log=stdout --log-format=json http://127.0.0.1:<webui-port>
+```
+
+### Starting a tunnel in Settings
+
+1. Open Fello → **Settings → WebUI** and enable the WebUI service first
+2. Check the **Public tunnel** section:
+   - **Detected**: turn on the switch
+   - **Not installed**: install the CLI as shown above, then click **Re-detect** in the section header
+3. Turn on the switch in the card for `devtunnel` or `ngrok` (the other provider is unaffected and can be enabled at the same time)
+4. Wait for that card's badge to change from "Starting…" to "Running"; the **Tunnel URL** (including the token) appears inside the same card
+5. Click the copy button next to the URL and send the full link to the device that needs access
+
+> 💡 Tunnel URLs look like `https://<tunnel-id>.devtunnels.ms/?token=<token>` or `https://<tunnel-id>.ngrok-free.dev/?token=<token>`. The `?token=` part is required, otherwise the WebUI rejects the request.
+
+### Stopping a tunnel
+
+- Turn off the switch in the provider's card (only that tunnel stops; the other keeps running). Turning it off while starting cancels the start
+- Or disable the WebUI service / quit Fello: all tunnels stop and their public URLs become invalid immediately
+
+### Troubleshooting
+
+| Symptom | Fix |
+|------|---------|
+| Shows "Not installed" | Make sure the CLI is installed and on `PATH`. Apps launched from Finder / the Start menu may not inherit your shell's full PATH; Fello also searches `/opt/homebrew/bin`, `/usr/local/bin`, `~/.dotnet/tools` and similar locations |
+| devtunnel fails with a login message | Run `devtunnel user login` in a terminal first |
+| ngrok fails with an authtoken message | Run `ngrok config add-authtoken <token>` first |
+| The ngrok URL shows a warning page first | That is the free-plan traffic notice; click "Visit Site" to continue |
+| The tunnel URL does not open | Make sure the WebUI is still running: the tunnel forwards the current WebUI port and stops when the WebUI stops |
+
+---
+
 ## Features Supported by WebUI
 
 | Feature | Supported | Notes |
@@ -80,10 +161,11 @@ http://<local-ip>:<port>/?token=<your-token>
 
 > ⚠️ **Security notes:**
 > - **Token equals access** — Anyone who knows the token can fully operate Fello (file read/write, terminal execution, AI chat). Always use a strong string
-> - **Local network only** — By default it binds to the local network IP; do not expose it to the public internet via port forwarding
-> - **Plain HTTP** — The WebUI uses HTTP (not HTTPS), so traffic on the same network can be intercepted. Take extra care on public WiFi
+> - **LAN by default** — The WebUI binds only to the local network by default. Avoid exposing it through untrusted port forwarding; use the built-in public tunnel for remote access
+> - **Public tunnel = public exposure** — With devtunnel / ngrok enabled, anyone with the full tunnel URL (including the token) can operate Fello from the internet (file access, terminal commands, AI chat). If Fello runs on a company network, an office computer, or another sensitive environment, confirm your network and security policies before enabling it, and turn it off when you are done
+> - **Plain HTTP** — Over a direct LAN connection the WebUI uses HTTP (not HTTPS), so traffic on the same network can be intercepted; a public tunnel URL is HTTPS (TLS terminates at the tunnel service). Take extra care on public WiFi
 > - **Turn it off when unused** — We recommend disabling the WebUI service when not in use to reduce the attack surface
-> - **Clipboard limitations** — Under HTTP, browser paste is restricted (`navigator.clipboard` requires HTTPS); copying works, but the paste button is unavailable
+> - **Clipboard limitations** — Under HTTP, browser paste is restricted (`navigator.clipboard` requires HTTPS); copying works, but the paste button is unavailable. This does not apply when accessing through an HTTPS tunnel
 
 ---
 

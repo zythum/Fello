@@ -797,6 +797,36 @@ export interface WebUIStatus {
 }
 
 /**
+ * WebUI 公网隧道提供方。
+ * - `devtunnel`：Microsoft Dev Tunnels CLI
+ * - `ngrok`：ngrok CLI
+ */
+export type TunnelProvider = "devtunnel" | "ngrok";
+
+/** 公网隧道的运行状态（每个提供方各自一份，可同时运行）。 */
+export type TunnelState = "stopped" | "starting" | "running" | "error";
+
+export interface TunnelStatus {
+  provider: TunnelProvider;
+  state: TunnelState;
+  /** 公网访问地址（已带上 WebUI 的 token 参数） */
+  url: string | null;
+  /** 启动失败或隧道进程异常退出时的错误信息 */
+  error: string | null;
+}
+
+/** 某个隧道提供方的运行状态 + 本机安装情况。 */
+export interface TunnelProviderInfo extends TunnelStatus {
+  /** 是否在 PATH（或常见安装目录）中找到对应的 CLI */
+  installed: boolean;
+}
+
+/** 所有提供方的隧道状态，供设置页一次性读取。 */
+export interface TunnelInfo {
+  providers: TunnelProviderInfo[];
+}
+
+/**
  * ILink 的运行状态
  */
 export interface ILinkStatus {
@@ -914,6 +944,13 @@ export type FelloIPCRequests = {
   stopWebUIServer: { params: void; response: WebUIStatus };
   /** 获取当前 Web UI 服务的状态 */
   getWebUIStatus: { params: void; response: WebUIStatus };
+
+  /** 获取公网隧道状态及可用提供方（检测本机是否安装 devtunnel / ngrok） */
+  getTunnelStatus: { params: { refresh?: boolean }; response: TunnelInfo };
+  /** 通过指定提供方为当前 WebUI 端口开启公网隧道 */
+  startTunnel: { params: { provider: TunnelProvider }; response: TunnelStatus };
+  /** 关闭指定提供方的公网隧道（其它提供方不受影响） */
+  stopTunnel: { params: { provider: TunnelProvider }; response: TunnelStatus };
 
   /** 获取所有已安装的 Skills */
   getSkillsCatalog: {
@@ -1486,6 +1523,8 @@ export type FelloIPCEvents = {
   "agent-terminal-output": { sessionId: string; terminalId: string; data: string };
   /** Web UI 服务状态变更的事件 */
   "webui-status-changed": { status: WebUIStatus };
+  /** 公网隧道状态变更的事件（启动中 / 已就绪 / 出错 / 已停止） */
+  "tunnel-status-changed": { status: TunnelStatus };
   /** iLink 连接状态变更的事件 */
   "ilink-status-changed": { status: ILinkStatus };
   /** iLink 活跃 session 变更的事件 */
