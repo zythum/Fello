@@ -19,6 +19,12 @@ import { join } from "path";
 import { Readable } from "stream";
 import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
+import {
+  appendCrashLog,
+  markStartupFinished,
+  reportFatal,
+  setCrashDialogText,
+} from "./crash-log";
 import type { AskUserRequest, AskUserResponse, FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
 const nodeRequire = createRequire(import.meta.url);
@@ -41,6 +47,12 @@ import {
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 const { autoUpdater } = electronUpdater;
+
+// 致命弹窗文案跟随界面语言。见 ./crash-log.ts。
+setCrashDialogText({
+  title: () => t("crash.title"),
+  message: (entry, path) => t("crash.message", { error: entry, path }),
+});
 
 // Set to true to mock the update flow in dev mode for UI testing.
 const UPDATER_MOCK = false;
@@ -328,20 +340,30 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
 // system 模式：detectSystemProxy 为同步实现（scutil/netsh 毫秒级），
 // 启动早期即可一次探测完整生效，无需后续异步补齐。
 const proxySettings = storageOps.getSettings().proxy;
-applyProxy(
-  proxySettings.mode === "system"
-    ? detectSystemProxy()
-    : settingProxyInfoToProxyConfig(proxySettings),
-);
+
+// 启动期的同步失败一律走致命兜底：此刻还没有任何窗口，静默退出等于「打不开，也没法查」。
+// （initBackend 会同步做不少初始化：存储、watcher、助理配置读取……）
+let backend: ReturnType<typeof initBackend>;
+try {
+  applyProxy(
+    proxySettings.mode === "system"
+      ? detectSystemProxy()
+      : settingProxyInfoToProxyConfig(proxySettings),
+  );
+  backend = initBackend(safeSend, {
+    trashItem: (path) => shell.trashItem(path),
+  });
+} catch (error) {
+  reportFatal("initBackend", error);
+  throw error;
+}
 
 const {
   backendHandlers,
   closeBackend,
   isAssistantSession,
   isAssistantAvailable: isAssistantAvailableSync,
-} = initBackend(safeSend, {
-  trashItem: (path) => shell.trashItem(path),
-});
+} = backend;
 isAssistantSessionId = isAssistantSession;
 isAssistantAvailable = isAssistantAvailableSync;
 
@@ -1130,6 +1152,13 @@ function createMainWindow() {
     });
   }
 
+  win.webContents.on("render-process-gone", (_event, details) => {
+    // 渲染进程崩溃（含 OOM）会让窗口变成白屏，用户感知同样是「没启动起来」。
+    // 此时主进程还活着，所以只留痕、不弹窗；正常退出是 clean-exit，跳过免得刷日志。
+    if (details.reason === "clean-exit") return;
+    appendCrashLog("render-process-gone", `${details.reason} (exitCode ${details.exitCode})`);
+  });
+
   win.webContents.on("did-finish-load", () => {
     flushPendingSessionNavigation(win);
   });
@@ -1260,7 +1289,13 @@ app.on("before-quit", (event) => {
     });
 });
 
-app.whenReady().then(async () => {
+/**
+ * 启动主体。
+ *
+ * 单独抽成函数是为了能挂 `.catch`：这里的任何失败都发生在窗口创建之前，必须弹框 + 留痕，
+ * 而不是变成一个无声的 unhandledRejection。
+ */
+async function bootstrap() {
   // 权限白名单：只放行麦克风/摄像头（语音输入）与 HTML 全屏。
   //
   // `fullscreen` 必须放行 —— Electron 把 HTML 全屏也挂在权限管线上：请求被拒时
@@ -1321,9 +1356,16 @@ app.whenReady().then(async () => {
   await applyChromiumProxy();
   createMainWindow();
   setupAutoUpdater();
+  // 窗口已经创建：此后的 unhandledRejection 不再算启动失败（只留痕，不弹窗退出）。
+  markStartupFinished();
   // 窗口建立后再同步外设：状态事件需要 mainWindow 才能送达渲染层。
   // 这里不 await：BLE 装配（含 45s 扫描）不得推迟窗口可用时间。
   syncPeripherals();
+}
+
+app.whenReady().then(bootstrap).catch((error: unknown) => {
+  // 窗口还没出来就失败：原生错误框 + crash.log，避免「打不开，也没法查」。
+  reportFatal("bootstrap", error);
 });
 
 app.on("activate", () => {

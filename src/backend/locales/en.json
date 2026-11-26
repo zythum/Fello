@@ -87,6 +87,10 @@
   "reminder": {
     "notificationTitle": "Fello reminder"
   },
+  "crash": {
+    "title": "Fello failed to start",
+    "message": "{{error}}\n\nCrash details were written to:\n{{path}}"
+  },
   "assistant": {
     "defaultName": "Personal Assistant {{n}}"
   }

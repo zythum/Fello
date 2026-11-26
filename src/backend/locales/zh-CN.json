@@ -87,6 +87,10 @@
   "reminder": {
     "notificationTitle": "Fello 提醒"
   },
+  "crash": {
+    "title": "Fello 启动失败",
+    "message": "{{error}}\n\n崩溃详情已写入：\n{{path}}"
+  },
   "assistant": {
     "defaultName": "个人助理 {{n}}"
   }
