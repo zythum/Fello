@@ -3,13 +3,37 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { randomBytes, createHash } from "crypto";
 import { networkInterfaces } from "os";
-import { join } from "path";
+import { basename, join } from "path";
+import { createReadStream, type Stats } from "fs";
 import { readFile, stat } from "fs/promises";
 import { parseFileRoute, serveRoute } from "./file-routes";
 import type { FelloIPCSchema } from "../shared/schema";
 import { extractErrorMessage } from "./utils";
 import * as mimeTypes from "mime-types";
 import type { BackendHandlers } from "./types";
+
+// ── Static asset caching ─────────────────────────────────────────────
+
+/**
+ * 只有「文件名里带内容哈希」的构建产物才允许长缓存：内容一变文件名就变，
+ * 旧 URL 永远不会再返回新内容，所以不会出现「发版后浏览器还在跑旧代码」。
+ * 固定名字的文件（index.html 等）必须每次协商。
+ * 判据故意写得保守：匹配不上就按不可长缓存处理（只是多一次协商，不会出错）。
+ */
+const CONTENT_HASHED_NAME_RE = /[-.][A-Za-z0-9_-]{6,}\.[a-z0-9]{2,5}$/;
+
+/**
+ * 非内容哈希命名的文件用「内容 MD5」做 ETag。打包进 app.asar 后，asar 内所有文件的
+ * mtime 都是同一个值（实测等于 app.asar 的 mtime），而 index.html 每次发版的字节数
+ * 几乎不变，size+mtime 很容易撞车 —— 一旦撞车浏览器就永远拿到旧 index.html。
+ * 超过这个大小退回 size+mtime，避免每次协商都整份读文件。
+ */
+const CONTENT_ETAG_MAX_BYTES = 2 * 1024 * 1024;
+
+/** 内容哈希命名 → 浏览器端永久缓存；private 避免被代理/隧道边缘等共享缓存留存。 */
+const IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable";
+/** 固定名字的文件 → 每次都要协商（可用 304 省流量，但不能省掉校验）。 */
+const REVALIDATE_CACHE_CONTROL = "no-cache";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -211,12 +235,26 @@ export function createWebUIModule(): WebUIModule {
         }
 
         const baseDir = process.rendererPath;
+        const indexHtmlPath = join(baseDir, "index.html");
+        // /assets/* 只放构建产物，命中就是真的文件；没命中说明是旧版本留下的引用，
+        // 必须 404 —— 绝不能回退成 index.html，否则这段 HTML 会被当成这个 JS/CSS
+        // 缓存下来（长缓存），前端从此一直加载到一份 HTML。
+        const isAssetPath = url.pathname.startsWith("/assets/");
+
         let filePath = join(baseDir, reqPath);
 
-        let s = await stat(filePath).catch(() => null);
-        if (!s || s.isDirectory()) {
-          filePath = join(baseDir, "index.html");
+        let fileStat: Stats | null = await stat(filePath).catch(() => null);
+        if (!fileStat || fileStat.isDirectory()) {
+          if (isAssetPath) {
+            res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+            res.end("Not found");
+            return;
+          }
+          // SPA 路由 / 目录请求回退到 index.html
+          filePath = indexHtmlPath;
+          fileStat = await stat(filePath).catch(() => null);
         }
+        if (!fileStat) throw new Error(`renderer asset not found: ${reqPath}`);
 
         const mime = mimeTypes.lookup(filePath) || "application/octet-stream";
 
@@ -224,48 +262,71 @@ export function createWebUIModule(): WebUIModule {
         const acceptEncoding = (req.headers["accept-encoding"] as string) || "";
         let encoding: string | null = null;
         let encodedPath: string | null = null;
+        let encodedStat: Stats | null = null;
 
         if (/\bbr\b/.test(acceptEncoding)) {
           const brPath = filePath + ".br";
-          if (
-            await stat(brPath)
-              .then((s) => s.isFile())
-              .catch(() => false)
-          ) {
+          const brStat = await stat(brPath).catch(() => null);
+          if (brStat?.isFile()) {
             encoding = "br";
             encodedPath = brPath;
+            encodedStat = brStat;
           }
         }
 
         if (!encodedPath && /\bgzip\b/.test(acceptEncoding)) {
           const gzPath = filePath + ".gz";
-          if (
-            await stat(gzPath)
-              .then((s) => s.isFile())
-              .catch(() => false)
-          ) {
+          const gzStat = await stat(gzPath).catch(() => null);
+          if (gzStat?.isFile()) {
             encoding = "gzip";
             encodedPath = gzPath;
+            encodedStat = gzStat;
           }
         }
 
-        // ── ETag: 基于文件内容 MD5 hash，用于 304 缓存协商 ──
-        const actualPath = encodedPath && encoding ? encodedPath : filePath;
-        const content = await readFile(actualPath);
-        const etag = `"${createHash("md5").update(content).digest("hex")}"`;
+        // ── ETag / Cache-Control ──
+        // 内容哈希命名的产物：文件名已经唯一标识内容，走 stat 生成的 ETag 即可，
+        // 不必把上 MB 的文件读进内存（以前每个请求都算一次 MD5，且无法流式回传）。
+        // 其余文件（index.html、SPA 回退）按内容算 ETag，保证内容一变就一定不会被 304
+        // 掉——这是「发版后能及时更新」的关键，size+mtime 在 asar 里并不可靠。
+        const actualPath = encodedPath ?? filePath;
+        const servedStat = encodedStat ?? fileStat;
+        const contentHashed =
+          isAssetPath && CONTENT_HASHED_NAME_RE.test(basename(filePath));
+
+        let etag: string;
+        if (contentHashed || servedStat.size > CONTENT_ETAG_MAX_BYTES) {
+          etag = `"${servedStat.size.toString(16)}-${Math.floor(servedStat.mtimeMs).toString(16)}"`;
+        } else {
+          const content = await readFile(actualPath);
+          etag = `"${createHash("md5").update(content).digest("hex")}"`;
+        }
+
+        const validators: Record<string, string> = {
+          ETag: etag,
+          "Cache-Control": contentHashed ? IMMUTABLE_CACHE_CONTROL : REVALIDATE_CACHE_CONTROL,
+          // 同一个 URL 会因 Accept-Encoding 返回 br / gzip / 原文三种实体，
+          // 必须声明，否则共享缓存可能把 br 的实体回给不支持 br 的客户端。
+          Vary: "Accept-Encoding",
+        };
+        if (encoding) validators["Content-Encoding"] = encoding;
 
         if (req.headers["if-none-match"] === etag) {
-          res.writeHead(304);
+          res.writeHead(304, validators);
           res.end();
           return;
         }
 
-        const headers: Record<string, string> = { "Content-Type": mime, ETag: etag };
-        if (encodedPath && encoding) {
-          headers["Content-Encoding"] = encoding;
-        }
+        const headers: Record<string, string> = {
+          "Content-Type": mime,
+          ...validators,
+          "Content-Length": String(servedStat.size),
+        };
         res.writeHead(200, headers);
-        res.end(content);
+        // 流式回传，避免把上 MB 的 chunk 整份读进内存。
+        createReadStream(actualPath)
+          .on("error", () => res.destroy())
+          .pipe(res);
       } catch (err) {
         console.error("WebUI request error:", err);
         res.writeHead(404, { "Content-Type": "text/plain" });
@@ -273,7 +334,12 @@ export function createWebUIModule(): WebUIModule {
       }
     });
 
-    wss = new WebSocketServer({ server: httpServer });
+    wss = new WebSocketServer({
+      server: httpServer,
+      // 首屏 listSessions 就有数百 KB 明文 JSON（含各会话的 models/modes/usage 缓存），
+      // 跨隧道时尤其贵；小消息（事件推送）不压缩，避免 CPU 开销。
+      perMessageDeflate: { threshold: 1024 },
+    });
 
     wss.on("connection", (ws, req) => {
       // Authenticate via cookie (browser sends it automatically) or ?token= fallback
