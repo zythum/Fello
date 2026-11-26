@@ -365,4 +365,4 @@ for (const file of await readdir(TEMP_DIR)) {
 | `src/shared/constants.ts` | Shared | `ALL_FEATURES`、`FEATURE_I18N_KEYS` |
 | `src/mainview/components/session/chat/chat-input.tsx` | Frontend | @mention 补全中展示 Skills |
 | `src/mainview/components/skills/` | Frontend | Skills 管理页面（已安装列表 + skills.sh 市场） |
-| `src/mainview/components/layout/sidebar.tsx` | Frontend | 新会话对话框中的 feature 开关 |
+| `src/mainview/components/sidebar/new-session-dialog.tsx` | Frontend | 新会话对话框中的 feature 开关 |

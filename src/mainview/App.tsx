@@ -48,6 +48,7 @@ function AppContent() {
   const setNotification = useAppStore((s) => s.setNotification);
   const setShortcuts = useAppStore((s) => s.setShortcuts);
   const setPeripherals = useAppStore((s) => s.setPeripherals);
+  const setUpdaterEvent = useAppStore((s) => s.setUpdaterEvent);
   const setProxy = useAppStore((s) => s.setProxy);
   const setAssistant = useAppStore((s) => s.setAssistant);
   const setAssistants = useAppStore((s) => s.setAssistants);
@@ -489,11 +490,6 @@ function AppContent() {
       useAppStore.getState().setActiveIlinkSessionId(detail.sessionId);
     };
 
-    const showUpdaterActionError = (error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      toast.error(message || t("updater.actionFailed", "Update action failed"));
-    };
-
     subscribe.on("session-update", handleSessionUpdate);
     subscribe.on("ask-user-request", handleAskUserRequest);
     subscribe.on("ask-user-response", handleAskUserResponse);
@@ -516,6 +512,10 @@ function AppContent() {
     }
 
     let unlistenUpdater: (() => void) | undefined;
+    /**
+     * 更新状态只写进 store，由侧边栏的升级卡片展示，不再用常驻 toast 抢占视野。
+     * 仅「用户手动检查」的结果仍用一次性 toast 反馈，否则点了菜单没有任何回音。
+     */
     const handleUpdaterEvent = (event: UpdaterEvent) => {
       switch (event.type) {
         case "checking":
@@ -523,116 +523,78 @@ function AppContent() {
             toast.loading(t("updater.checking", "Checking for updates..."), {
               id: UPDATE_TOAST_ID,
               duration: Infinity,
-              action: undefined,
-              cancel: {
-                label: t("updater.later", "Later"),
-                onClick: () => toast.dismiss(UPDATE_TOAST_ID),
-              },
             });
           }
           break;
-        case "available": {
-          const version = event.info.version
-            ? `v${event.info.version}`
-            : t("updater.newVersion", "a new version");
-          toast.info(t("updater.available", "Update available"), {
+        case "available":
+          // 用户主动检查发现更新时展开侧边栏：卡片在侧边栏里，收起状态下等于没有提示。
+          if (event.manual) useAppStore.getState().setSidebarOpen(true);
+          // 「同一版本已下载」的情况由主进程改写为 downloaded 事件，这里直接采用即可。
+          setUpdaterEvent(event);
+          toast.dismiss(UPDATE_TOAST_ID);
+          break;
+        case "download-progress":
+          setUpdaterEvent(event);
+          toast.dismiss(UPDATE_TOAST_ID);
+          break;
+        case "downloaded":
+          // 手动检查发现「同一版本已下载」时也展开侧边栏，否则收起的侧边栏看不到待重启状态。
+          if (event.manual) useAppStore.getState().setSidebarOpen(true);
+          setUpdaterEvent(event);
+          toast.dismiss(UPDATE_TOAST_ID);
+          break;
+        case "download-failed":
+          // 下载失败：卡片保持在原位并提供「重试」，另用一次性 toast 说明原因。
+          setUpdaterEvent(event);
+          toast.error(event.message || t("updater.downloadFailed", "Update download failed"), {
             id: UPDATE_TOAST_ID,
-            description: event.info.releaseName || version,
-            duration: Infinity,
-            classNames: {
-              content: "flex-1",
-            },
-            action: {
-              label: t("updater.updateNow", "Update now"),
-              onClick: () => {
-                toast.loading(t("updater.startingDownload", "Starting download..."), {
-                  id: UPDATE_TOAST_ID,
-                  duration: Infinity,
-                });
-                void electron.downloadUpdate().catch(showUpdaterActionError);
-              },
-            },
-            cancel: {
-              label: t("updater.later", "Later"),
-              onClick: () => toast.dismiss(UPDATE_TOAST_ID),
-            },
+            duration: 5000,
           });
           break;
-        }
         case "not-available":
+          setUpdaterEvent(null);
           if (event.manual) {
             toast.success(t("updater.upToDate", "Fello is up to date."), {
               id: UPDATE_TOAST_ID,
               duration: 3000,
-              action: undefined,
-              cancel: undefined,
             });
+          } else {
+            toast.dismiss(UPDATE_TOAST_ID);
           }
           break;
-        case "download-progress":
-          toast.loading(
-            t("updater.downloading", "Downloading update {{percent}}%", {
-              percent: Math.round(event.percent),
-            }),
-            {
-              id: UPDATE_TOAST_ID,
-              duration: Infinity,
-              action: undefined,
-              cancel: undefined,
-            },
-          );
-          break;
-        case "downloaded": {
-          const version = event.info.version
-            ? `v${event.info.version}`
-            : t("updater.newVersion", "new version");
-          toast.success(t("updater.ready", "Update ready to install"), {
-            id: UPDATE_TOAST_ID,
-            description: t("updater.restartToInstall", "Restart to install {{version}}.", {
-              version,
-            }),
-            duration: Infinity,
-            classNames: {
-              content: "flex-1",
-            },
-            action: {
-              label: t("updater.restart", "Restart"),
-              onClick: () => {
-                void electron.installUpdate().catch(showUpdaterActionError);
-              },
-            },
-            cancel: {
-              label: t("updater.later", "Later"),
-              onClick: () => toast.dismiss(UPDATE_TOAST_ID),
-            },
-          });
-          break;
-        }
         case "disabled":
           if (event.manual) {
             toast.info(t("updater.disabled", "Updates are available only in packaged builds."), {
               id: UPDATE_TOAST_ID,
               duration: 4000,
-              action: undefined,
-              cancel: undefined,
             });
+          } else {
+            toast.dismiss(UPDATE_TOAST_ID);
           }
           break;
         case "error":
+          // 检查失败只提示，不动卡片：下载失败已由 download-failed 单独处理。
           if (event.manual) {
             toast.error(event.message, {
               id: UPDATE_TOAST_ID,
               duration: 5000,
-              action: undefined,
-              cancel: undefined,
             });
+          } else {
+            toast.dismiss(UPDATE_TOAST_ID);
           }
           break;
       }
     };
+    // 渲染层重新挂载时恢复后端记住的更新状态（例如下载到一半刷新了窗口）。
     void electron.getUpdaterStatus().then((event) => {
-      if (event?.type === "available" || event?.type === "downloaded") {
-        handleUpdaterEvent(event);
+      if (
+        event &&
+        (event.type === "available" ||
+          event.type === "download-progress" ||
+          event.type === "downloaded" ||
+          event.type === "download-failed")
+      ) {
+        setUpdaterEvent(event);
       }
     });
     void electron.checkForUpdates(false).catch(() => {});
@@ -663,7 +625,7 @@ function AppContent() {
       }
       map.clear();
     };
-  }, [isMacApp, setIsFullScreen, toast, t, navigate]);
+  }, [isMacApp, setIsFullScreen, setUpdaterEvent, toast, t, navigate]);
 
   if (!isReady) {
     // 首屏数据/主题加载期间渲染主题背景色，避免空白（白闪）

@@ -206,6 +206,30 @@ body,
   }
 }
 
+/**
+ * 升级卡片首次出现时的入场动画。
+ *
+ * 出更新时卡片插在侧边栏底部，若直接挂载会把上方项目列表瞬间顶上去。这里用
+ * 0fr → 1fr 的 grid 行过渡把占位平滑撑开，再叠一层淡入 + 轻微上移。
+ * 只在卡片首次出现时播放（事件切换状态不会重新挂载）。
+ */
+@utility animate-update-card-in {
+  animation: update-card-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes update-card-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

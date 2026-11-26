@@ -36,6 +36,7 @@ import {
   createUpdaterProgressEvent,
   normalizeUpdaterInfo,
   type UpdaterEvent,
+  type UpdaterInfo,
 } from "./updater";
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
@@ -595,19 +596,45 @@ ipcMain.handle("trashFile", async (_event: unknown, path: string) => {
 });
 
 const autoUpdateCheckGate = createAutoUpdateCheckGate();
-let lastUpdaterEvent: UpdaterEvent | null = null;
+/**
+ * 渲染层重新挂载时用来恢复升级卡片的「可恢复状态」。
+ *
+ * checking / error 只是过程信息，不覆盖它：否则一次检查就会把「已下载待重启」的状态弄丢。
+ */
+let lastRestorableUpdaterEvent: UpdaterEvent | null = null;
+/** 最近一次检查到的更新信息：下载 / 重试需要它，不能只依赖「最后一个事件」。 */
+let availableUpdateInfo: UpdaterInfo | null = null;
+/** 已下载的更新信息与版本号：用于识别「重检查发现同一版本」并保持待重启状态。 */
+let downloadedUpdateInfo: UpdaterInfo | null = null;
+let downloadedVersion: string | null = null;
 let lastUpdateCheckManual = false;
 let isUpdateChecking = false;
 let isUpdateDownloading = false;
 let hasDownloadedUpdate = false;
 let isInstallingUpdate = false;
+
 function sendUpdaterEvent(event: UpdaterEvent) {
-  lastUpdaterEvent = event;
+  switch (event.type) {
+    case "available":
+    case "download-progress":
+    case "downloaded":
+    case "download-failed":
+      lastRestorableUpdaterEvent = event;
+      break;
+    case "not-available":
+    case "disabled":
+      lastRestorableUpdaterEvent = null;
+      break;
+    case "checking":
+    case "error":
+      // 过程状态不覆盖可恢复的卡片状态
+      break;
+  }
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   mainWindow.webContents.send("electron:updater-event", event);
 }
 
-ipcMain.handle("getUpdaterStatus", () => lastUpdaterEvent);
+ipcMain.handle("getUpdaterStatus", () => lastRestorableUpdaterEvent);
 
 ipcMain.handle("checkForUpdates", async (_event: unknown, params?: { manual?: boolean }) => {
   await checkForUpdates({ manual: Boolean(params?.manual) });
@@ -643,7 +670,14 @@ async function checkForUpdates({ manual }: { manual: boolean }) {
     return;
   }
 
-  if (isUpdateChecking) return;
+  if (isUpdateChecking) {
+    // 已有检查在进行：手动点击仍然给出反馈，并把这次的结果按手动检查处理。
+    if (manual) {
+      lastUpdateCheckManual = true;
+      sendUpdaterEvent({ type: "checking", manual: true });
+    }
+    return;
+  }
 
   lastUpdateCheckManual = manual;
   isUpdateChecking = true;
@@ -672,7 +706,13 @@ const MOCK_UPDATE_INFO = {
 };
 
 async function mockCheckForUpdates(manual: boolean) {
-  if (isUpdateChecking) return;
+  if (isUpdateChecking) {
+    if (manual) {
+      lastUpdateCheckManual = true;
+      sendUpdaterEvent({ type: "checking", manual: true });
+    }
+    return;
+  }
   isUpdateChecking = true;
   lastUpdateCheckManual = manual;
   sendUpdaterEvent({ type: "checking", manual });
@@ -680,8 +720,17 @@ async function mockCheckForUpdates(manual: boolean) {
   await delay(1000);
 
   isUpdateChecking = false;
-  hasDownloadedUpdate = false;
-  sendUpdaterEvent({ type: "available", manual, info: MOCK_UPDATE_INFO });
+  availableUpdateInfo = MOCK_UPDATE_INFO;
+  // 与真实 updater 保持一致：同一版本已下载时保持「待重启」，不要打回「可下载」。
+  if (hasDownloadedUpdate) {
+    sendUpdaterEvent({
+      type: "downloaded",
+      info: downloadedUpdateInfo ?? MOCK_UPDATE_INFO,
+      manual,
+    });
+  } else {
+    sendUpdaterEvent({ type: "available", manual, info: MOCK_UPDATE_INFO });
+  }
   lastUpdateCheckManual = false;
 }
 
@@ -702,6 +751,8 @@ async function mockDownloadUpdate() {
   }
   isUpdateDownloading = false;
   hasDownloadedUpdate = true;
+  downloadedUpdateInfo = MOCK_UPDATE_INFO;
+  downloadedVersion = MOCK_UPDATE_INFO.version;
   sendUpdaterEvent({ type: "downloaded", info: MOCK_UPDATE_INFO });
 }
 
@@ -711,8 +762,12 @@ function delay(ms: number) {
 
 async function downloadAvailableUpdate() {
   if (isDev && UPDATER_MOCK) {
-    if (isUpdateDownloading || hasDownloadedUpdate) return;
-    if (lastUpdaterEvent?.type !== "available") {
+    if (isUpdateDownloading) return;
+    if (hasDownloadedUpdate) {
+      sendUpdaterEvent({ type: "downloaded", info: downloadedUpdateInfo ?? MOCK_UPDATE_INFO });
+      return;
+    }
+    if (!availableUpdateInfo) {
       const message = "No update is ready to download.";
       sendUpdaterEvent({ type: "error", manual: true, message });
       throw new Error(message);
@@ -724,8 +779,15 @@ async function downloadAvailableUpdate() {
   if (!isUpdaterEnabled()) {
     throw new Error("Updates are available only in packaged builds.");
   }
-  if (isUpdateDownloading || hasDownloadedUpdate) return;
-  if (lastUpdaterEvent?.type !== "available") {
+  if (isUpdateDownloading) return;
+  if (hasDownloadedUpdate) {
+    // 已下载：把卡片恢复到「待重启」，而不是静默返回、留下一个按不动的死按钮。
+    if (downloadedUpdateInfo) {
+      sendUpdaterEvent({ type: "downloaded", info: downloadedUpdateInfo });
+    }
+    return;
+  }
+  if (!availableUpdateInfo) {
     const message = "No update is ready to download.";
     sendUpdaterEvent({ type: "error", manual: true, message });
     throw new Error(message);
@@ -736,16 +798,16 @@ async function downloadAvailableUpdate() {
     await autoUpdater.downloadUpdate();
   } catch (error) {
     isUpdateDownloading = false;
-    sendUpdaterEvent({
-      type: "error",
-      manual: true,
-      message: extractErrorMessage(error),
-    });
-    throw new Error(extractErrorMessage(error));
+    const message = extractErrorMessage(error);
+    // 保留可重试状态：卡片显示「下载失败 + 重试」，不会直接消失。
+    sendUpdaterEvent({ type: "download-failed", message, info: availableUpdateInfo ?? {} });
+    throw new Error(message);
   }
 }
 
 async function installDownloadedUpdate() {
+  // 卡片上的重启按钮可能被连点：收尾 / 重启只允许跑一次。
+  if (isInstallingUpdate) return;
   if (isDev && UPDATER_MOCK) {
     if (!hasDownloadedUpdate) {
       throw new Error("No downloaded update is ready to install.");
@@ -764,8 +826,14 @@ async function installDownloadedUpdate() {
   }
 
   isInstallingUpdate = true;
-  await shutdown();
-  autoUpdater.quitAndInstall(false, true);
+  try {
+    await shutdown();
+    autoUpdater.quitAndInstall(false, true);
+  } catch (error) {
+    // 重启没走到 quitAndInstall 时恢复标记，允许用户再次点击重试。
+    isInstallingUpdate = false;
+    throw error;
+  }
 }
 
 // ── Restart app ────────────────────────────────────────────────────
@@ -872,7 +940,10 @@ function setupMenu() {
       label: "Help",
       submenu: [
         { role: "toggleDevTools" },
-        { label: "Check for Updates...", click: () => void checkForUpdates({ manual: true }) },
+        {
+          label: "Check for Updates...",
+          click: () => void checkForUpdates({ manual: true }).catch(() => {}),
+        },
         { type: "separator" },
         {
           label: "Fello on GitHub",
@@ -1038,28 +1109,72 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = false;
 
   autoUpdater.on("error", (error: unknown) => {
+    const wasChecking = isUpdateChecking;
+    const wasDownloading = isUpdateDownloading;
     isUpdateChecking = false;
-    isUpdateDownloading = false;
+    // 下载进行中又插了一次检查时，error 可能来自检查本身，不能据此判定下载结束；
+    // 真正的下载失败会在 downloadAvailableUpdate 的 catch 里复位该标记。
+    if (!wasChecking) isUpdateDownloading = false;
     const manual = lastUpdateCheckManual;
     lastUpdateCheckManual = false;
     const message = extractErrorMessage(error);
     console.error("[autoUpdater:error]", message);
-    sendUpdaterEvent({ type: "error", manual, message });
+    // 下载失败要保留可重试状态；检查阶段的 error 只是提示，不动卡片。
+    // 下载进行中又插了一次手动检查时，error 更可能来自检查，交给检查分支。
+    if (wasDownloading && !wasChecking) {
+      sendUpdaterEvent({ type: "download-failed", message, info: availableUpdateInfo ?? {} });
+    } else {
+      sendUpdaterEvent({ type: "error", manual, message });
+    }
   });
 
   autoUpdater.on("update-available", (info: unknown) => {
     isUpdateChecking = false;
-    hasDownloadedUpdate = false;
-    console.log("[autoUpdater] update available");
-    sendUpdaterEvent(createUpdaterEvent("available", info, lastUpdateCheckManual));
+    const normalized = normalizeUpdaterInfo(info);
+    const manual = lastUpdateCheckManual;
     lastUpdateCheckManual = false;
+    if (isUpdateDownloading) {
+      // 下载进行中：检查结果不打断进度卡片（进度事件会继续更新它）。
+      if (!availableUpdateInfo) availableUpdateInfo = normalized;
+      return;
+    }
+    availableUpdateInfo = normalized;
+    // 同一版本已经下载完成时保持「待重启」。重检查（例如手动点菜单）会再次触发
+    // update-available，若在这里清掉 hasDownloadedUpdate，重启按钮就会永远失败。
+    const sameAsDownloaded =
+      hasDownloadedUpdate &&
+      (normalized.version == null || normalized.version === downloadedVersion);
+    if (sameAsDownloaded && downloadedUpdateInfo) {
+      console.log("[autoUpdater] update still ready to install");
+      sendUpdaterEvent({ type: "downloaded", info: downloadedUpdateInfo, manual });
+      return;
+    }
+    if (hasDownloadedUpdate) {
+      // 出现了一个新版本：丢弃旧的已下载状态，允许重新下载新包。
+      hasDownloadedUpdate = false;
+      downloadedUpdateInfo = null;
+      downloadedVersion = null;
+    }
+    console.log("[autoUpdater] update available");
+    sendUpdaterEvent(createUpdaterEvent("available", info, manual));
   });
 
   autoUpdater.on("update-not-available", (info: unknown) => {
     isUpdateChecking = false;
-    console.log("[autoUpdater] no update available");
-    sendUpdaterEvent(createUpdaterEvent("not-available", info, lastUpdateCheckManual));
+    const manual = lastUpdateCheckManual;
     lastUpdateCheckManual = false;
+    if (isUpdateDownloading) {
+      // 下载进行中：保留进度与重试所需的信息，不被检查结果清空。
+      console.log("[autoUpdater] no update available (download in progress, ignored)");
+      return;
+    }
+    availableUpdateInfo = null;
+    // feed 里已经没有更新：之前下载的包（例如发布被撤回）也不再允许安装。
+    hasDownloadedUpdate = false;
+    downloadedUpdateInfo = null;
+    downloadedVersion = null;
+    console.log("[autoUpdater] no update available");
+    sendUpdaterEvent(createUpdaterEvent("not-available", info, manual));
   });
 
   autoUpdater.on("download-progress", (progress: unknown) => {
@@ -1070,8 +1185,12 @@ function setupAutoUpdater() {
   autoUpdater.on("update-downloaded", (info: unknown) => {
     isUpdateDownloading = false;
     hasDownloadedUpdate = true;
+    const normalized = normalizeUpdaterInfo(info);
+    downloadedUpdateInfo = normalized;
+    downloadedVersion = normalized.version ?? null;
+    if (!availableUpdateInfo) availableUpdateInfo = normalized;
     console.log("[autoUpdater] update downloaded");
-    sendUpdaterEvent({ type: "downloaded", info: normalizeUpdaterInfo(info) });
+    sendUpdaterEvent({ type: "downloaded", info: normalized });
   });
 }
 

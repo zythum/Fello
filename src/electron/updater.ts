@@ -16,7 +16,15 @@ export type UpdaterEvent =
       total?: number;
       bytesPerSecond?: number;
     }
-  | { type: "downloaded"; info: UpdaterInfo }
+  /** manual 仅用于「手动检查发现同一版本已下载」时把侧边栏展开，普通下载完成不带该字段。 */
+  | { type: "downloaded"; info: UpdaterInfo; manual?: boolean }
+  /**
+   * 下载失败。
+   *
+   * 与 `error` 区分：`error` 是检查阶段的失败（卡片状态保持不变），
+   * 这里表示「更新仍然可用，只是这次下载没成功」，升级卡片会保留并提供重试。
+   */
+  | { type: "download-failed"; message: string; info: UpdaterInfo }
   | { type: "error"; manual: boolean; message: string }
   | { type: "disabled"; manual: boolean; reason: string };
 

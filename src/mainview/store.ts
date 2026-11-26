@@ -18,6 +18,7 @@ import type {
   SubagentMessage,
   CompactionMessage,
 } from "./lib/chat-message";
+import type { UpdaterEvent } from "../electron/updater";
 import { ALL_FEATURES } from "../shared/constants";
 
 enableArrayMethods();
@@ -181,6 +182,11 @@ export interface AppState {
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
+  /**
+   * 自动更新的最新状态。由 App.tsx 的统一事件订阅写入，侧边栏升级卡片消费。
+   * null 表示当前没有可展示的更新（检查中 / 已是最新 / 出错）。
+   */
+  updaterEvent: UpdaterEvent | null;
 
   // ==========================================================================
   // Selectors
@@ -240,6 +246,7 @@ export interface AppState {
   setSpeechProviders: (speechProviders: SettingsInfo["speechProviders"]) => void;
   setShortcuts: (shortcuts: SettingsInfo["shortcuts"]) => void;
   setPeripherals: (peripherals: SettingsInfo["peripherals"]) => void;
+  setUpdaterEvent: (event: UpdaterEvent | null) => void;
   setWebUIStatus: (status: { enabled: boolean; url: string | null }) => void;
   setIlinkStatus: (status: {
     connected: boolean;
@@ -328,6 +335,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ==========================================================================
   // 5. Global Caches & Ephemeral State
   // ==========================================================================
+  updaterEvent: null,
 
   // ==========================================================================
   // Selectors
@@ -507,6 +515,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSpeechProviders: (speechProviders) => set({ speechProviders }),
   setShortcuts: (shortcuts) => set({ shortcuts }),
   setPeripherals: (peripherals) => set({ peripherals }),
+  setUpdaterEvent: (event) => set({ updaterEvent: event }),
   setWebUIStatus: (status) => set({ webUIStatus: status }),
   setIlinkStatus: (status) => set({ ilinkStatus: status }),
   setActiveIlinkSessionId: (sessionId) => set({ activeIlinkSessionId: sessionId }),

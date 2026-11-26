@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
-import { Sidebar } from "./components/layout/sidebar";
+import { Sidebar } from "./components/sidebar/sidebar";
 import { useAppStore } from "./store";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";

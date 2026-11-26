@@ -274,9 +274,20 @@ fello/
 │       │   │       ├── detail.tsx         # 详情视图容器 (根据类型分发)
 │       │   │       └── terminal/
 │       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
-│       │   ├── layout/               # 整体布局组件
-│       │   │   ├── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
-│       │   │   └── rename-session-dialog.tsx # 会话重命名弹层（用户标题 / 自动标题回落提示）
+│       │   ├── sidebar/              # 左侧边栏及附属组件
+│       │   │   ├── sidebar.tsx       # 侧边栏壳：数据、展开状态、键盘导航、弹层编排
+│       │   │   ├── project-tree.tsx  # 项目与会话树（右键菜单、hover 卡片、拖入添加项目）
+│       │   │   ├── assistant-section.tsx # 个人助理分区（重命名/启停/删除/微信活跃）
+│       │   │   ├── assistant-hover-details.tsx # 个人助理 hover 卡片详情
+│       │   │   ├── sidebar-nav.tsx   # 顶部固定导航（欢迎 / Skills / 自动化）
+│       │   │   ├── row-status.tsx    # 会话 / 助理行状态图标
+│       │   │   ├── new-session-dialog.tsx # 新建会话弹层（Agent / 权限 / Features / MCP）
+│       │   │   ├── new-assistant-dialog.tsx # 新建个人助理弹层
+│       │   │   ├── rename-session-dialog.tsx # 会话重命名弹层（用户标题 / 自动标题回落提示）
+│       │   │   ├── sidebar-constants.ts # hover id / 拖拽 MIME / 导航项类型
+│       │   │   ├── sidebar-types.ts  # hover 与键盘导航的共享类型
+│       │   │   ├── sidebar-utils.ts  # 相对时间 / 错误信息工具
+│       │   │   └── update-card.tsx   # 侧边栏底部升级卡片（可用/下载进度/待重启）
 │       │   ├── settings/             # 设置相关页面组件
 │       │   │   ├── settings-layout.tsx          # 设置页侧边导航布局
 │       │   │   ├── general/
