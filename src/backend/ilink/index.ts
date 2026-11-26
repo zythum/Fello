@@ -20,6 +20,7 @@ import {
 } from "./ilink-bridge";
 import { isImageMimeType } from "../../shared/constants";
 import { ALL_FEATURES } from "../../shared/constants";
+import { resolveSessionTitle } from "../../shared/session-title";
 import type { BackendContext } from "../types";
 import type { SessionModule } from "../session";
 import type { AskUserModule } from "../ask-user";
@@ -400,7 +401,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       lines.push(`\n**${projectName}**`, "");
       for (const s of sessions) {
         const marker = s.id === activeSessionId ? " 👈" : "";
-        const label = s.title || t("ilink.newSession");
+        const label = resolveSessionTitle(s) || t("ilink.newSession");
         const agentId = s.agentId;
         lines.push(`  ${index}. [${agentId}] ${label}${marker}`);
         sessionEntries.push({ sessionId: s.id, label });
@@ -933,7 +934,7 @@ export function createIlinkModule(ctx: BackendContext): IlinkModule {
       }
       const projects = storage.listProjects();
       const project = projects.find((p) => p.id === currentSession.projectId);
-      lines.push(`📋 **${currentSession.title || t("ilink.newSession")}**\n`);
+      lines.push(`📋 **${resolveSessionTitle(currentSession) || t("ilink.newSession")}**\n`);
       if (project) lines.push(`**${t("ilink.project")}**: ${project.title}\n`);
       lines.push(`**${t("ilink.projectDir")}**: \`${currentSession.cwd}\`\n`);
       lines.push(`**${t("ilink.agent")}**: \`${currentSession.agentId}\`\n`);

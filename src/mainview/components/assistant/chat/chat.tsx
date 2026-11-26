@@ -25,6 +25,8 @@ function assistantSession(
     projectTitle: name,
     agentId: ASSISTANT_AGENT_ID,
     title: name,
+    // 助理是伪会话，名称来自 config.json，不存在「用户自定义标题」。
+    userTitle: null,
     cwd: status?.workspace ?? "",
     createdAt: now,
     updatedAt: now,

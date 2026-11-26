@@ -9,6 +9,7 @@ import { adapters, extNotificationSpecs, agentEnv } from "./acp-adapters/adapter
 import { resolveAgentInfo } from "./agent/resolve-agent-info";
 import type { BackendContext } from "./types";
 import type { AskUserModule } from "./ask-user";
+import { normalizeSessionTitle } from "../shared/session-title";
 import { t } from "./i18n";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -125,9 +126,18 @@ export function createBridgeConnectModule(
         if (currentSessionId && currentSessionId === `${agentId}:${result.sessionId}`) {
           if (sessionUpdate === "session_info_update") {
             if (result.update.title) {
-              storage.updateSession(currentSessionId, { title: result.update.title });
-              const updated = storage.getSession(currentSessionId);
-              if (updated) sendEvent("session-changed", { session: updated });
+              // Agent-driven title change. It may arrive at any time (kiro sends one per
+              // focus update, the API agent through its SetSessionTitle tool), but a title
+              // the user set by hand always wins, so skip the write once they renamed.
+              const session = storage.getSession(currentSessionId);
+              const nextTitle = normalizeSessionTitle(result.update.title);
+              if (session && !session.userTitle && nextTitle && nextTitle !== session.title) {
+                // updateTime=false: renaming is not conversation activity, and the sidebar
+                // is ordered by updatedAt — a rename must not jump the session to the top.
+                storage.updateSession(currentSessionId, { title: nextTitle }, false);
+                const updated = storage.getSession(currentSessionId);
+                if (updated) sendEvent("session-changed", { session: updated });
+              }
               continue;
             }
           }

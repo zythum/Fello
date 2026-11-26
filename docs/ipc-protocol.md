@@ -103,7 +103,7 @@ sendPrompt: {
 | `getSessionDataSystemPath` | `{ sessionId }` | `string \| null` | 获取会话存储目录的绝对路径 |
 | `resetAgent` | `{ agentId }` | `void` | 重置 Agent：关闭其所有会话并清理 bridge |
 | `clearAgentSessions` | `{ agentId }` | `{ deletedSessionIds }` | 清理 Agent 的所有会话数据 |
-| `updateSession` | `{ sessionId, title?, mcpServers?, features? }` | `void` | 更新会话属性（标题 / MCP / features） |
+| `updateSession` | `{ sessionId, userTitle?, mcpServers?, features?, permissionMode? }` | `void` | 更新会话属性（用户标题 / MCP / features / 权限）。`userTitle` 是「用户手动改名」：设置后 Agent 的标题变更被忽略，传 `null` 或空串则清除、回落到 Agent 标题 |
 
 ### 会话交互
 

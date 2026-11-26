@@ -282,6 +282,12 @@ export async function newSession(options: NewSessionOptions): Promise<string> {
   return result.sessionId;
 }
 
+/**
+ * 手动重命名会话。
+ *
+ * 写入的是「用户标题」（`userTitle`）：一旦设置，Agent 后续的标题变更会被忽略。
+ * 传空串表示清除用户标题，回落到 Agent / 自动标题。
+ */
 export async function renameSession(sessionId: string, title: string): Promise<void> {
-  await request.updateSession({ sessionId, title });
+  await request.updateSession({ sessionId, userTitle: title.trim() || null });
 }

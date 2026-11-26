@@ -13,6 +13,7 @@ import { useAppStore } from "@/store";
 import { request, subscribe } from "@/backend";
 import { electron } from "@/electron";
 import { openGuide } from "@/lib/open-guide";
+import { resolveSessionTitle } from "../../../../shared/session-title";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,8 @@ export function SettingsILink() {
     ? assistants.filter((assistant) => !assistant.disabled)
     : [];
   const activeAssistant = assistants.find((assistant) => assistant.id === activeIlinkSessionId);
+  const activeSession = sessions.find((session) => session.id === activeIlinkSessionId);
+  const activeSessionLabel = activeSession ? resolveSessionTitle(activeSession) : undefined;
 
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginHint, setLoginHint] = useState<string>("");
@@ -193,7 +196,7 @@ export function SettingsILink() {
         groupMap.set(key, group);
         groups.push(group);
       }
-      group.items.push({ value: s.id, label: s.title || s.id });
+      group.items.push({ value: s.id, label: resolveSessionTitle(s) || s.id });
     }
     return groups;
   }, [sessions]);
@@ -320,8 +323,7 @@ export function SettingsILink() {
                   <SelectValue
                     placeholder={t("settings.ilink.selectSession", "-- Select a session --")}
                   >
-                    {activeAssistant?.name ??
-                      sessions.find((session) => session.id === activeIlinkSessionId)?.title}
+                    {activeAssistant?.name ?? activeSessionLabel}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

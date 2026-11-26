@@ -163,6 +163,7 @@ export function ConversationDetail({ projectId, file }: ConversationDetailProps)
     () => ({
       id: conversationSessionId,
       title: "Automation",
+      userTitle: null,
       cwd: "",
       projectId: "",
       projectTitle: "",

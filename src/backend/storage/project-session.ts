@@ -11,6 +11,7 @@ import type {
   Feature,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
+import { normalizeSessionTitle } from "../../shared/session-title";
 import { parseAssistantProjectId } from "../../shared/assistant";
 import { parseTaskProjectId } from "../../shared/task-project";
 import { store as automationStore } from "../automation/store";
@@ -42,7 +43,10 @@ interface SessionMeta {
 
   // === 需要存的 ===
   id: string;
+  /** Agent / 自动生成的标题（首条消息兜底标题也写这里）。 */
   title: string;
+  /** 用户手动设置的标题；存在时优先生效，并冻结 Agent 的标题变更。 */
+  user_title?: string;
   agent_id: string;
   resume_id: string;
   project_id: string;
@@ -108,6 +112,8 @@ const sessionMetaMemo = (() => {
           if (!raw) continue;
           const id = String(raw.id);
           const title = String(raw.title || "");
+          const user_title =
+            typeof raw.user_title === "string" && raw.user_title ? raw.user_title : undefined;
           const agent_id = String(raw.agent_id);
           const resume_id = String(raw.resume_id);
           const project_id = String(raw.project_id);
@@ -137,6 +143,7 @@ const sessionMetaMemo = (() => {
             lastTurnUsage: null,
             id,
             title,
+            user_title,
             agent_id,
             resume_id,
             project_id,
@@ -313,7 +320,7 @@ export function createSession(
     usage: null,
     lastTurnUsage: null,
     id: id,
-    title: updates?.title ?? "",
+    title: normalizeSessionTitle(updates?.title ?? ""),
     agent_id: agentId,
     resume_id: resumeId,
     project_id: projectId,
@@ -334,7 +341,10 @@ export function createSession(
 export function updateSession(
   sessionId: string,
   updates: Partial<{
+    /** Agent / 自动标题。用户已手动设置标题时，调用方应先自行判断是否允许写入。 */
     title: string;
+    /** 用户手动标题；`null` 表示清除，回落到 `title`。 */
+    userTitle: string | null;
     mcpServers: string[];
     features: Feature[];
     permissionMode: "ask" | "allow-all";
@@ -354,7 +364,11 @@ export function updateSession(
   if (!meta) return;
   if (updates.isStreaming !== undefined) meta.isStreaming = updates.isStreaming;
   if (updates.connectionStatus !== undefined) meta.connectionStatus = updates.connectionStatus;
-  if (updates.title !== undefined) meta.title = updates.title;
+  if (updates.title !== undefined) meta.title = normalizeSessionTitle(updates.title);
+  if (updates.userTitle !== undefined) {
+    const nextUserTitle = normalizeSessionTitle(updates.userTitle ?? "");
+    meta.user_title = nextUserTitle || undefined;
+  }
   if (updates.mcpServers !== undefined) meta.mcp_servers = updates.mcpServers;
   if (updates.features !== undefined) meta.features = updates.features;
   if (updates.permissionMode !== undefined) meta.permission_mode = updates.permissionMode;
@@ -392,6 +406,7 @@ export function listSessions(): SessionInfo[] {
       result.push({
         id: meta.id,
         title: meta.title,
+        userTitle: meta.user_title ?? null,
         cwd: project.cwd,
         projectId: meta.project_id,
         projectTitle: project.title,
@@ -427,6 +442,7 @@ export function getSession(sessionId: string): SessionInfo | null {
   return {
     id: meta.id,
     title: meta.title,
+    userTitle: meta.user_title ?? null,
     cwd: project.cwd,
     projectId: meta.project_id,
     projectTitle: project.title,

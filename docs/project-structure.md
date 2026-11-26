@@ -18,6 +18,7 @@ fello/
 │   │   ├── agent-client-proxy.ts         # ACP Client 能力代理
 │   │   ├── subagent-tool.ts              # 子代理工具与执行协调
 │   │   ├── image-tools.ts                # 图片输入与相关工具处理
+│   │   ├── session-title-tool.ts         # SetSessionTitle 工具与标题 system prompt
 │   │   ├── permission.ts                 # 权限记忆系统（"始终允许"）
 │   │   ├── system-prompts.ts            # 基础系统提示词
 │   │   └── utils.ts                     # ContentBlock 转换工具
@@ -140,6 +141,7 @@ fello/
 │   │   ├── assistant.ts              # 助理 workspace 的虚拟 project id
 │   │   ├── reminder.ts               # 提醒触发时间与 cron 工具
 │   │   ├── model-id.ts               # modelIdTemplate 的 {field} 占位符替换
+│   │   ├── session-title.ts          # 会话标题规范化 + resolveSessionTitle（用户标题优先）
 │   │   └── zod/                      # 共享 Zod schema
 │   │       ├── mcp-ask-user-schema.ts
 │   │       ├── mcp-skills-schema.ts
@@ -273,7 +275,8 @@ fello/
 │       │   │       └── terminal/
 │       │   │           └── terminal-detail.tsx # 终端详情展示 (xterm.js 全尺寸)
 │       │   ├── layout/               # 整体布局组件
-│       │   │   └── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
+│       │   │   ├── sidebar.tsx       # 左侧边栏 (项目与会话列表管理)
+│       │   │   └── rename-session-dialog.tsx # 会话重命名弹层（用户标题 / 自动标题回落提示）
 │       │   ├── settings/             # 设置相关页面组件
 │       │   │   ├── settings-layout.tsx          # 设置页侧边导航布局
 │       │   │   ├── general/
@@ -514,7 +517,8 @@ fello/
 `session.json` 字段（Stdio Agent 会话）：
 
 - `id`: 会话 ID（格式：`<agent_id>:<resume_id>`）
-- `title`: 会话标题
+- `title`: Agent / 自动标题（首次消息兜底、API Agent 首轮生成，之后 Agent 可继续改写）
+- `user_title`: 用户手动设置的标题（可选）；存在时 `SessionInfo.title` 取它，并冻结 Agent 的标题变更
 - `agent_id`: 会话使用的 Agent ID
 - `resume_id`: 底层 ACP 服务的真实会话 ID
 - `project_id`: 所属项目 ID

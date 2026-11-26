@@ -155,13 +155,14 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `id` | `string` | Fello 侧的会话唯一标识。生成规则：`<agent_id>:<resume_id>`。 |
-| `title` | `string` | 会话的显示标题（默认初始为 `"New Chat"`，API Agent 会话首次发消息时自动生成）。 |
+| `title` | `string` | Agent / 自动标题。初始为空，首次发消息时先用首条消息兜底；API Agent 会用模型生成标题，此后 Agent 也可随时通过 `session_info_update` 改写它。 |
+| `user_title` | `string?` | 用户手动设置的标题。存在时优先生效，并冻结 Agent 的标题变更；删除该字段即回落到 `title`。`SessionInfo` 分别暴露 `title`（对应本文件的 `title`）与 `userTitle`，展示方统一用 `resolveSessionTitle()` 取「用户标题优先」的结果。 |
 | `agent_id` | `string` | 该会话使用的代理 ID（关联 `settings.json` 中的 Agent）。 |
 | `resume_id` | `string` | **[关键]** Agent 侧（如 ACP 协议底层）的真实会话 ID，用于向 Agent 恢复历史上下文。 |
 | `project_id` | `string` | 该会话所属的项目 ID。 |
 | `cwd` | `string` | 会话的当前工作目录。 |
 | `created_at` | `number` | 会话的创建时间（**毫秒级**时间戳）。 |
-| `updated_at` | `number` | 会话的最后更新时间（**毫秒级**时间戳），用户每次发送新消息或修改标题时会更新此字段。 |
+| `updated_at` | `number` | 会话的最后更新时间（**毫秒级**时间戳）。用户发消息、手动改标题时更新；**Agent 改标题不更新**（重命名不算会话活动，否则会话会被顶到侧边栏最前）。 |
 | `mcp_servers` | `string[]` | 该会话启用的 MCP Server ID 列表。 |
 | `features` | `Feature[]` | 该会话启用的 feature 列表（如 `"skills"`、`"search"`、`"memory"`、`"image_generation"`、`"ask_user"`、`"share_to_user"`）。 |
 | `permission_mode` | `"ask" \| "allow-all"` | 权限模式：每次询问或默认全部允许。 |

@@ -22,6 +22,7 @@ import type {
   FelloIPCSchema,
 } from "../../shared/schema";
 import { ALL_FEATURES } from "../../shared/constants";
+import { normalizeSessionTitle, resolveSessionTitle } from "../../shared/session-title";
 import {
   buildConversationDocument,
   buildConversationTurns,
@@ -497,7 +498,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     const document = buildConversationDocument(
       {
         id: session.id,
-        title: session.title,
+        title: resolveSessionTitle(session),
         agentId: session.agentId,
         cwd: session.cwd,
         createdAt: session.createdAt,
@@ -507,7 +508,7 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     );
     // Keep the download name filesystem-safe; fall back to the session id.
     const base =
-      (session.title || session.id)
+      (resolveSessionTitle(session) || session.id)
         .replace(/[\\/:*?"<>|]+/g, "_")
         .replace(/\s+/g, " ")
         .trim()
@@ -632,9 +633,12 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
     if (!session.title) {
       const firstTextContent = contents.find((c) => c.type === "text");
       if (firstTextContent && firstTextContent.type === "text" && firstTextContent.text) {
-        let fallbackTitle = firstTextContent.text.trim().split("\n")[0].substring(0, 30);
-        if (firstTextContent.text.length > 30) fallbackTitle += "...";
-        storage.updateSession(sessionId, { title: fallbackTitle });
+        // 先用首行前 30 字兜底；Agent 之后的 session_info_update / SetSessionTitle 会覆盖它。
+        const firstLine = firstTextContent.text.trim().split("\n")[0] ?? "";
+        const fallbackTitle = normalizeSessionTitle(
+          firstLine.length > 30 ? `${firstLine.slice(0, 30)}...` : firstLine,
+        );
+        if (fallbackTitle) storage.updateSession(sessionId, { title: fallbackTitle });
       }
     }
 
@@ -761,13 +765,20 @@ export function createSessionModule(ctx: BackendContext, deps: SessionDeps): Ses
 
   async function updateSession({
     sessionId,
+    userTitle,
     ...updates
   }: {
     sessionId: string;
+    userTitle?: string | null;
     [key: string]: unknown;
   }) {
     if (assistant.isAssistantSession(sessionId)) {
       throw new Error("Assistant sessions cannot be updated through the session API.");
+    }
+    if (userTitle !== undefined) {
+      // 用户手动改名：写入 userTitle 后 Agent 的标题变更会被忽略；
+      // null / 空串表示清除用户标题，回落到 Agent 标题。
+      storage.updateSession(sessionId, { userTitle });
     }
     storage.updateSession(sessionId, updates);
     const session = storage.getSession(sessionId);

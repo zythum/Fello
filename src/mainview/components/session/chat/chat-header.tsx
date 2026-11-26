@@ -20,6 +20,7 @@ import { SessionConfigFields } from "@/components/common/session-config";
 import { CopyableRow } from "../../common/copyable-row";
 import { TtsMenuButton, TtsReadoutButton } from "../../common/tts-header-controls";
 import { UsageButton } from "../../common/usage-button";
+import { resolveSessionTitle } from "../../../../shared/session-title";
 import type { SessionInfo, Feature } from "../../../../shared/schema";
 
 interface ChatHeaderProps {
@@ -182,7 +183,7 @@ function ChatHeaderImpl({ session }: ChatHeaderProps) {
       </Badge>
       <div className="flex flex-1 min-w-0 items-baseline gap-2">
         <span className="truncate text-[13px] font-normal text-sidebar-foreground/85">
-          {session.title || t("sidebar.newSession", "New Session")}
+          {resolveSessionTitle(session) || t("sidebar.newSession", "New Session")}
         </span>
         {projectName &&
           (isWebUI ? (

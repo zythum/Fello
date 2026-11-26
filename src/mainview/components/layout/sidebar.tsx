@@ -18,6 +18,7 @@ import type {
   AssistantStatus,
 } from "../../../shared/schema";
 import { ALL_FEATURES, EDITOR_LABELS } from "../../../shared/constants";
+import { resolveSessionTitle } from "../../../shared/session-title";
 import { ASSISTANT_AGENT_ID } from "../../../assistant/constants";
 import { request, isWebUI, subscribe } from "../../backend";
 import { electron } from "../../electron";
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SessionConfigFields } from "@/components/common/session-config";
+import { RenameSessionDialog } from "./rename-session-dialog";
 import { cn } from "@/lib/utils";
 import { copyText } from "@/lib/clipboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -419,6 +421,9 @@ export function Sidebar() {
     id: string;
     type: "restart" | "close" | "delete";
   } | null>(null);
+  // 重命名会话弹层：目标会话 + 受控输入值（没有用户标题时为空串）。
+  const [renameTarget, setRenameTarget] = useState<SessionInfo | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
   // 记录鼠标当前悬停的条目（用于右键菜单关闭后恢复 hover 卡片，避免出现后立即消失的闪现）
   const hoveredTriggerIdRef = useRef<string | null>(null);
 
@@ -792,7 +797,7 @@ export function Sidebar() {
 
   const handleDeleteSession = async (session: SessionInfo) => {
     if (sessionAction) return;
-    const displayTitle = session.title || t("sidebar.newSession", "New Session");
+    const displayTitle = resolveSessionTitle(session) || t("sidebar.newSession", "New Session");
     await confirm({
       title: t("sidebar.deleteSession"),
       content: t("sidebar.deleteSessionConfirm", { title: displayTitle }),
@@ -855,19 +860,33 @@ export function Sidebar() {
     }
   };
 
-  const handleRenameSession = async (session: SessionInfo) => {
-    const displayTitle = session.title || t("sidebar.newSession", "New Session");
-    const newName = await prompt({
-      title: t("sidebar.renameSession"),
-      content: t("sidebar.enterNewSessionName"),
-      defaultValue: displayTitle,
-      validate: (val) =>
-        val.trim() ? undefined : t("sidebar.sessionNameEmpty", "Session name cannot be empty"),
-    });
+  /** 打开重命名弹层：输入框从用户标题开始，没有用户标题时为空。 */
+  const handleRenameSession = (session: SessionInfo) => {
+    setRenameTarget(session);
+    setRenameTitle(session.userTitle ?? "");
+  };
 
-    if (newName) {
-      await renameSession(session.id, newName.trim());
+  /**
+   * 提交重命名。
+   *
+   * 用户点确认就是「用这个标题锁住」，即使内容与当前的 Agent 标题一致也要写入 userTitle
+   * （否则 Agent 之后还能改掉它）。只有与已设置的用户标题完全一致、或本来就没有用户标题
+   * 却提交空值时，才跳过这次无意义的写入。
+   */
+  const submitRenameSession = async () => {
+    const session = renameTarget;
+    if (!session) return;
+    const nextUserTitle = renameTitle.trim() || null;
+    setRenameTarget(null);
+    if (nextUserTitle === session.userTitle) return;
+    try {
+      await renameSession(session.id, renameTitle);
       await refreshData();
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err) ||
+          t("sidebar.failedToRenameSession", "Failed to rename the session."),
+      );
     }
   };
 
@@ -1927,7 +1946,8 @@ export function Sidebar() {
                                       {agentLabel}
                                     </Badge>
                                     <span className="min-w-0 flex-1 truncate leading-normal select-none">
-                                      {session.title || t("sidebar.newSession", "New Session")}
+                                      {resolveSessionTitle(session) ||
+                                        t("sidebar.newSession", "New Session")}
                                     </span>
                                     {activeIlinkSessionId === session.id && (
                                       <MessageCircle className="size-3 shrink-0 text-green-500" />
@@ -2043,7 +2063,8 @@ export function Sidebar() {
                               <div className="flex flex-col gap-2">
                                 <div className="text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
                                   <span>
-                                    {session.title || t("sidebar.newSession", "New Session")}
+                                    {resolveSessionTitle(session) ||
+                                      t("sidebar.newSession", "New Session")}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-px">
@@ -2366,6 +2387,14 @@ export function Sidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RenameSessionDialog
+        session={renameTarget}
+        value={renameTitle}
+        onValueChange={setRenameTitle}
+        onClose={() => setRenameTarget(null)}
+        onSubmit={() => void submitRenameSession()}
+      />
     </aside>
   );
 }

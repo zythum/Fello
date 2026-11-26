@@ -24,7 +24,8 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - 重命名/删除：支持项目与会话的重命名、删除操作
 - 连接状态：切换会话时显示连接中状态，异常信息通过 Toast 提示
 - 会话时间戳：在侧边栏显示会话的最后更新时间
-- 自动标题生成：API Agent 会话首次发送消息时自动生成简短的会话标题
+- 会话标题：首次发送消息时自动生成；Agent 之后也可随时改写（API Agent 通过 `SetSessionTitle` 工具，stdio Agent 通过 `session_info_update`），以便话题变化后标题仍然贴合内容
+- 用户标题优先：在侧边栏手动改过标题后，Agent 的标题变更会被忽略；改名时清空输入即恢复由 Agent 接管
 
 ### 个人助理（Personal Assistant）
 

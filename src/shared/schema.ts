@@ -733,8 +733,17 @@ export interface SessionInfo {
    * 主要用于前端 UI 路由和列表区分
    */
   id: string;
-  /** 会话的显示标题（默认：'New Session'） */
+  /**
+   * Agent / 自动标题（`session.json` 的 `title`）：首条消息兜底或 Agent 生成的那一份，
+   * Agent 可以继续改写它。**展示时不要直接读它**，用 `resolveSessionTitle(session)`
+   * 让用户标题优先生效。
+   */
   title: string;
+  /**
+   * 用户手动设置的标题；`null` 表示用户没有改过名，此时展示的就是 `title`。
+   * 用户改名后 Agent 的标题变更会被忽略，清空该字段即可恢复显示 `title`。
+   */
+  userTitle: string | null;
   /** 会话当前的工作目录 */
   cwd: string;
   /** 关联的项目 ID（对应 ProjectInfo.id） */
@@ -1160,10 +1169,14 @@ export type FelloIPCRequests = {
     params: { sessionId: string };
     response: AskUserRequest[];
   };
-  /** 更新会话属性（title / mcpServers / features / permissionMode 等） */
+  /**
+   * 更新会话属性（用户标题 / mcpServers / features / permissionMode 等）。
+   * `userTitle` 属于「用户手动改名」：写入后 Agent 的标题变更不再生效；
+   * 传 `null` 或空串表示清除用户标题，回落到 Agent 标题。
+   */
   updateSession: {
     params: { sessionId: string } & Partial<
-      Pick<SessionInfo, "title" | "mcpServers" | "features" | "permissionMode">
+      Pick<SessionInfo, "userTitle" | "mcpServers" | "features" | "permissionMode">
     >;
     response: void;
   };

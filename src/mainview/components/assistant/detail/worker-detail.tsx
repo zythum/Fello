@@ -208,6 +208,8 @@ export function WorkerDetail({
     () => ({
       id: `worker:${info.id}`,
       title: info.name || info.id,
+      // worker 的展示名来自自身记录，不支持手动改标题。
+      userTitle: null,
       cwd: info.cwd,
       projectId: "",
       projectTitle: "",
