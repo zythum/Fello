@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpRight, CircleCheck, Download, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,12 @@ export function UpdateCard() {
   const updaterEvent = useAppStore((s) => s.updaterEvent);
   const [isInstalling, setIsInstalling] = useState(false);
 
+  useEffect(() => {
+    // 安装失败 / 状态切回可操作时复位本地的「重启中」，否则卡片会永远停在禁用态。
+    // eslint-disable-next-line react/set-state-in-effect
+    if (updaterEvent?.type !== "downloaded") setIsInstalling(false);
+  }, [updaterEvent]);
+
   if (!updaterEvent) return null;
 
   const showActionError = (error: unknown) => {
@@ -38,7 +44,8 @@ export function UpdateCard() {
   const hasUpdateInfo =
     updaterEvent.type === "available" ||
     updaterEvent.type === "downloaded" ||
-    updaterEvent.type === "download-failed";
+    updaterEvent.type === "download-failed" ||
+    updaterEvent.type === "install-failed";
   const version = hasUpdateInfo ? updaterEvent.info.version : undefined;
   const versionLabel = hasUpdateInfo
     ? version
@@ -47,7 +54,7 @@ export function UpdateCard() {
     : null;
   const releaseUrl = versionLabel ? releaseUrlFor(version) : null;
   /**
-   * 四种状态固定为「标题 + 说明 + 操作区」三行，切换状态时卡片高度不变。
+   * 各状态固定为「标题 + 说明 + 操作区」三行，切换状态时卡片高度不变。
    * 下载中没有版本号，用一句提示占住说明行，避免卡片突然变矮。
    */
   const description =
@@ -59,7 +66,10 @@ export function UpdateCard() {
           })
         : updaterEvent.type === "download-failed"
           ? updaterEvent.message || t("updater.downloadFailedHint", "Please try again")
-          : versionLabel;
+          : updaterEvent.type === "install-failed"
+            ? updaterEvent.message ||
+              t("updater.installFailedHint", "Restart the app and try again")
+            : versionLabel;
 
   const handleDownload = () => {
     void electron.downloadUpdate().catch(showActionError);
@@ -81,6 +91,10 @@ export function UpdateCard() {
     }
   };
 
+  const handleRestartApp = () => {
+    void electron.restartApp().catch(showActionError);
+  };
+
   return (
     <div className="grid animate-update-card-in motion-reduce:animate-none">
       <div className="min-h-0 overflow-hidden">
@@ -90,7 +104,8 @@ export function UpdateCard() {
               <LoaderCircle className="mt-px size-3.5 shrink-0 animate-spin text-sidebar-foreground/60" />
             ) : updaterEvent.type === "downloaded" ? (
               <CircleCheck className="mt-px size-3.5 shrink-0 text-green-500" />
-            ) : updaterEvent.type === "download-failed" ? (
+            ) : updaterEvent.type === "download-failed" ||
+              updaterEvent.type === "install-failed" ? (
               <TriangleAlert className="mt-px size-3.5 shrink-0 text-yellow-500" />
             ) : (
               <Download className="mt-px size-3.5 shrink-0 text-sidebar-foreground/60" />
@@ -105,7 +120,9 @@ export function UpdateCard() {
                       })
                     : updaterEvent.type === "download-failed"
                       ? t("updater.downloadFailed", "Update download failed")
-                      : t("updater.ready", "Update ready to install")}
+                      : updaterEvent.type === "install-failed"
+                        ? t("updater.installFailed", "Update install failed")
+                        : t("updater.ready", "Update ready to install")}
               </div>
               <div
                 className="h-4 truncate text-[11px] leading-4 text-sidebar-foreground/50"
@@ -155,6 +172,12 @@ export function UpdateCard() {
             {updaterEvent.type === "download-failed" && (
               <Button size="xs" className="w-full text-xs" onClick={handleDownload}>
                 {t("updater.retry", "Retry")}
+              </Button>
+            )}
+
+            {updaterEvent.type === "install-failed" && (
+              <Button size="xs" className="w-full text-xs" onClick={handleRestartApp}>
+                {t("updater.restartApp", "Restart app")}
               </Button>
             )}
 

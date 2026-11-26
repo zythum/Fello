@@ -612,6 +612,9 @@ let isUpdateChecking = false;
 let isUpdateDownloading = false;
 let hasDownloadedUpdate = false;
 let isInstallingUpdate = false;
+/** 安装 / 重启阶段若迟迟没有退出，用看门狗恢复 UI（否则会永远停在「正在重启…」）。 */
+const INSTALL_WATCHDOG_MS = 30_000;
+let installWatchdog: ReturnType<typeof setTimeout> | null = null;
 
 function sendUpdaterEvent(event: UpdaterEvent) {
   switch (event.type) {
@@ -619,6 +622,7 @@ function sendUpdaterEvent(event: UpdaterEvent) {
     case "download-progress":
     case "downloaded":
     case "download-failed":
+    case "install-failed":
       lastRestorableUpdaterEvent = event;
       break;
     case "not-available":
@@ -635,6 +639,25 @@ function sendUpdaterEvent(event: UpdaterEvent) {
 }
 
 ipcMain.handle("getUpdaterStatus", () => lastRestorableUpdaterEvent);
+
+/**
+ * 安装阶段失败的统一收尾：复位标记、清掉看门狗，并把失败原因送回渲染层。
+ *
+ * 走到这里时 `shutdown()` 通常已经执行过（后端 / 外设不可用），所以卡片只能引导
+ * 用户重启应用后重新更新，而不是继续重试安装。
+ */
+function failInstall(message: string) {
+  if (installWatchdog) {
+    clearTimeout(installWatchdog);
+    installWatchdog = null;
+  }
+  isInstallingUpdate = false;
+  sendUpdaterEvent({
+    type: "install-failed",
+    message,
+    info: downloadedUpdateInfo ?? availableUpdateInfo ?? {},
+  });
+}
 
 ipcMain.handle("checkForUpdates", async (_event: unknown, params?: { manual?: boolean }) => {
   await checkForUpdates({ manual: Boolean(params?.manual) });
@@ -772,6 +795,9 @@ async function downloadAvailableUpdate() {
       sendUpdaterEvent({ type: "error", manual: true, message });
       throw new Error(message);
     }
+    isUpdateDownloading = true;
+    // 立即把卡片切到「下载中」，不要等第一个真实进度事件。
+    sendUpdaterEvent({ type: "download-progress", percent: 0 });
     await mockDownloadUpdate();
     return;
   }
@@ -794,6 +820,9 @@ async function downloadAvailableUpdate() {
   }
 
   isUpdateDownloading = true;
+  // electron-updater（尤其差分下载）在第一个 progress 事件之前要先取 blockmap / 建立连接，
+  // 可能空等好几秒。先发一个 0% 让卡片立刻进入「下载中」，避免用户以为没点上。
+  sendUpdaterEvent({ type: "download-progress", percent: 0 });
   try {
     await autoUpdater.downloadUpdate();
   } catch (error) {
@@ -826,13 +855,25 @@ async function installDownloadedUpdate() {
   }
 
   isInstallingUpdate = true;
+  if (installWatchdog) clearTimeout(installWatchdog);
+  // quitAndInstall 在部分平台是「触发后不保证退出」：失败时既不抛错也不 quit
+  // （本地未签名构建就是典型情况）。加看门狗，超时后把失败状态送回渲染层。
+  installWatchdog = setTimeout(() => {
+    installWatchdog = null;
+    if (!isInstallingUpdate) return;
+    console.warn("[autoUpdater] install / restart did not complete in time");
+    failInstall("");
+  }, INSTALL_WATCHDOG_MS);
+  installWatchdog.unref?.();
+
   try {
     await shutdown();
     autoUpdater.quitAndInstall(false, true);
   } catch (error) {
-    // 重启没走到 quitAndInstall 时恢复标记，允许用户再次点击重试。
-    isInstallingUpdate = false;
-    throw error;
+    // 同步失败：恢复 UI 并提示重启应用，避免永远停在「正在重启…」。
+    const message = extractErrorMessage(error);
+    failInstall(message);
+    throw new Error(message);
   }
 }
 
@@ -1111,6 +1152,7 @@ function setupAutoUpdater() {
   autoUpdater.on("error", (error: unknown) => {
     const wasChecking = isUpdateChecking;
     const wasDownloading = isUpdateDownloading;
+    const wasInstalling = isInstallingUpdate;
     isUpdateChecking = false;
     // 下载进行中又插了一次检查时，error 可能来自检查本身，不能据此判定下载结束；
     // 真正的下载失败会在 downloadAvailableUpdate 的 catch 里复位该标记。
@@ -1119,6 +1161,11 @@ function setupAutoUpdater() {
     lastUpdateCheckManual = false;
     const message = extractErrorMessage(error);
     console.error("[autoUpdater:error]", message);
+    if (wasInstalling) {
+      // 安装 / 重启阶段失败（例如 macOS 签名不匹配、Squirrel 报错）。
+      failInstall(message);
+      return;
+    }
     // 下载失败要保留可重试状态；检查阶段的 error 只是提示，不动卡片。
     // 下载进行中又插了一次手动检查时，error 更可能来自检查，交给检查分支。
     if (wasDownloading && !wasChecking) {

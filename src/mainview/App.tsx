@@ -551,6 +551,14 @@ function AppContent() {
             duration: 5000,
           });
           break;
+        case "install-failed":
+          // 安装失败：后端已经关闭，卡片引导重启应用后重新更新。
+          setUpdaterEvent(event);
+          toast.error(
+            event.message || t("updater.installFailedHint", "Restart the app and try again"),
+            { id: UPDATE_TOAST_ID, duration: 5000 },
+          );
+          break;
         case "not-available":
           setUpdaterEvent(null);
           if (event.manual) {
@@ -592,7 +600,8 @@ function AppContent() {
         (event.type === "available" ||
           event.type === "download-progress" ||
           event.type === "downloaded" ||
-          event.type === "download-failed")
+          event.type === "download-failed" ||
+          event.type === "install-failed")
       ) {
         setUpdaterEvent(event);
       }

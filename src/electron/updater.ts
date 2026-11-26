@@ -25,6 +25,12 @@ export type UpdaterEvent =
    * 这里表示「更新仍然可用，只是这次下载没成功」，升级卡片会保留并提供重试。
    */
   | { type: "download-failed"; message: string; info: UpdaterInfo }
+  /**
+   * 安装 / 重启失败：更新包已经下载，但应用没能退出并完成安装
+   * （例如 macOS 签名不匹配、安装包被清理、Squirrel 没有响应等）。
+   * 此时后端已经关闭，卡片只能引导用户重启应用后重新更新。
+   */
+  | { type: "install-failed"; message: string; info: UpdaterInfo }
   | { type: "error"; manual: boolean; message: string }
   | { type: "disabled"; manual: boolean; reason: string };
 
