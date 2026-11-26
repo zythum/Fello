@@ -190,7 +190,7 @@ This means each browser session needs the token URL once; refreshing the page wo
 | React components | `src/mainview/` |
 | Routing | `src/mainview/router.tsx` |
 | i18n translations | `src/mainview/locales/*.json` |
-| Window / lifecycle | `src/electron/main.ts` |
+| Window / lifecycle | `src/electron/app.ts`（入口 `src/electron/main.ts` 只做崩溃兜底与 ready 前注册） |
 | Backend logic | `src/backend/backend.ts` + `src/backend/agent/agent-bridge.ts` |
 | IPC bridge | `src/scripts/electron-preload/preload.ts`, `src/mainview/backend.ts` |
 | IPC types | `src/shared/schema.ts`, `src/shared/constants.ts`, `src/shared/zod/` |

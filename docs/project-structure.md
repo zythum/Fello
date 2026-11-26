@@ -438,6 +438,7 @@ fello/
 
 ### `src/electron`
 
+- `main.ts` 是薄入口：装崩溃兜底、完成 `ready` 之前必须同步生效的注册（`fello://` scheme、`no-sandbox`），再动态 import `app.ts`；`app.ts` 承载全部业务逻辑，`crash-log.ts` 负责 `~/.fello/crash.log` 与启动失败弹窗
 - Electron 应用生命周期与窗口管理
 - 系统菜单、Dock 集成、系统对话框、Finder 定位等原生能力
 - 注册由 `src/backend` 提供的 IPC 处理器
@@ -457,6 +458,7 @@ fello/
 ```
 ~/.fello/
 ├── settings.json                    # 全局设置
+├── crash.log                        # 主进程崩溃留痕（启动失败 / 未捕获异常 / 渲染进程异常退出）
 ├── sockets/                         # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                            # 临时文件目录
 ├── assistants/                      # 个人助理数据

@@ -64,7 +64,9 @@
 
 ### Main Process（`src/electron/` & `src/backend/`）
 
-- **`src/electron/main.ts`**：窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理
+- **`src/electron/main.ts`**：主进程入口（薄壳）——装崩溃兜底、完成 `ready` 之前必须同步生效的注册（自定义 `fello://` scheme、`no-sandbox` 开关），然后动态 import `app.ts`
+- **`src/electron/app.ts`**：主进程业务主体——窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理、自动更新
+- **`src/electron/crash-log.ts`**：`~/.fello/crash.log` 崩溃留痕 + 启动失败原生弹窗（入口与 `app.ts` 共用）
 - **`src/scripts/electron-preload/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - **`src/backend/backend.ts`**：IPC 总入口，创建 BackendContext 与事件总线，按层级实例化各工厂模块，组装统一的 `backendHandlers` 对象并返回 `{ backendHandlers, closeBackend }`
 - **`src/backend/types.ts`**：共享类型定义（`BackendContext`、`SendEventFn`、`EventListener`）

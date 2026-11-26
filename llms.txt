@@ -1,7 +1,8 @@
 Fello (Electron ACP Client)
 
 Runtime
-- Main process: src/electron/main.ts
+- Main process entry: src/electron/main.ts (crash handler + pre-ready registrations, then dynamic import)
+- Main process body: src/electron/app.ts (windows, menu, native IPC, dialogs, auto-update)
 - Preload (contextBridge): src/scripts/electron-preload/preload.ts
 - Backend Logic (Node.js): src/backend/ (IPC handlers, ACP bridge, terminal manager, WebUI server, iLink bridge, skills catalog)
 - Agent Session Logic (shared): src/agents/ (session-state, storage, OpenAI-compatible agent, MCP tools, ACP tools, permission memory, system prompts, subagent tool, image analysis tool, agent client proxy, utils)
