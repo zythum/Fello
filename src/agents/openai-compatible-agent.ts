@@ -60,7 +60,7 @@ import {
 } from "./storage";
 import { BASE_SYSTEM_PROMPT } from "./system-prompts";
 import { createSubagentTool } from "./subagent-tool";
-import { createImageAnalysisTool } from "./image-tools";
+import { createImageTools } from "./image-tools";
 import {
   embeddedResourceToFilePart,
   audioContentToFilePart,
@@ -861,7 +861,7 @@ export class OpenaiCompatibleAgent {
         systemPrompt,
         parentSignal: abortController.signal,
       });
-      const imageAnalysisTool = createImageAnalysisTool({
+      const imageTools = createImageTools({
         sessionId: params.sessionId,
         cwd: session.cwd,
         getConnection: () => this.connection,
@@ -871,7 +871,7 @@ export class OpenaiCompatibleAgent {
       const allTools: ToolSet = {
         ...sharedTools,
         ...subagentTool,
-        ...imageAnalysisTool,
+        ...imageTools.tools,
       };
       const result = streamText({
         model: this.provider.chatModel(session.modelId),
@@ -879,6 +879,10 @@ export class OpenaiCompatibleAgent {
         messages: [...session.history, userMessage],
         tools: allTools,
         stopWhen: isStepCount(512),
+        prepareStep: ({ messages }) => {
+          const next = imageTools.injectPendingImages(messages);
+          return next ? { messages: next } : undefined;
+        },
         abortSignal: abortController.signal,
         providerOptions: {
           openaiCompatible: {

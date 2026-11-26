@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { AgentClientProxy } from "./agent-client-proxy";
 import type { AddonSessionUpdate, SubagentStatus } from "../shared/schema";
 import { createACPClientTools, closeACPClientTools } from "./acp-client-tools";
-import { createImageAnalysisTool } from "./image-tools";
+import { createImageTools } from "./image-tools";
 import type { ToolPermissionMemory } from "./permission";
 
 // ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ async function executeSubagent(
     permissionMemory: params.permissionMemory,
   });
 
-  const subImageAnalysis = createImageAnalysisTool({
+  const subImageTools = createImageTools({
     sessionId: subSessionId,
     cwd: params.cwd,
     getConnection: proxyGetConnection,
@@ -165,9 +165,13 @@ async function executeSubagent(
       prompt: taskPrompt,
       tools: {
         ...subAcp.tools,
-        ...subImageAnalysis,
+        ...subImageTools.tools,
       },
       stopWhen: isStepCount(64),
+      prepareStep: ({ messages }) => {
+        const next = subImageTools.injectPendingImages(messages);
+        return next ? { messages: next } : undefined;
+      },
       abortSignal: signal,
     });
 

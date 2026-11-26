@@ -22,7 +22,7 @@ Agent Architecture
 
 Built-in ACP Tools: src/agents/acp-client-tools.ts (ReadFile, WriteFile, EditFile, Shell, Plan)
 - Subagent tool: src/agents/subagent-tool.ts (parallel sub-session execution, merged into toolset by openai-compatible-agent.ts)
-- ImageAnalysis tool: src/agents/image-tools.ts (vision/image analysis, merged into toolset by openai-compatible-agent.ts)
+- Image tools: src/agents/image-tools.ts (ImageAnalysis + ImageRead; vision capability probe, image normalization via sharp, images injected into the next step via prepareStep; merged into toolset by openai-compatible-agent.ts)
 
 Personal Assistant
 - Runtime: src/assistant/ (assistant-agent.ts in-process ACP agent, storage.ts, config.ts, dream.ts, fs/, reminders/, mcp-tools.ts, worker/)

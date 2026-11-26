@@ -13,8 +13,9 @@ Fello 为 API Agent 内置了一套文件系统和执行工具，定义在 `src/
 | `Plan` | 创建/更新执行计划 | `acp-client-tools.ts` |
 | `Subagent` | 并行子 Agent 任务执行 | `subagent-tool.ts` |
 | `ImageAnalysis` | 图片视觉分析与理解 | `image-tools.ts` |
+| `ImageRead` | 读取图片，作为下一步 user 消息的图片内容块注入（仅该步可见，后续步需重新读取） | `image-tools.ts` |
 
-> **注：** `Subagent` 和 `ImageAnalysis` 不在 `acp-client-tools.ts` 中定义，而是在 `subagent-tool.ts` 和 `image-tools.ts` 中分别定义，由 `openai-compatible-agent.ts` 合并到 Agent 工具集中。
+> **注：** `Subagent` 和 `ImageAnalysis` / `ImageRead` 不在 `acp-client-tools.ts` 中定义，而是在 `subagent-tool.ts` 和 `image-tools.ts` 中分别定义，由 `openai-compatible-agent.ts` 合并到 Agent 工具集中。
 
 > **注：** `file_outline` 不是 ACP client tool，而是 Search MCP Server 提供的工具（见下方 [Search MCP — file_outline](#search-mcp--file_outline) 章节）。
 

@@ -494,7 +494,7 @@ server.registerTool(
   },
 );
 
-// ── Image Read (removed — use built-in image_analysis tool instead) ──
+// ── Image Read (removed — use the built-in ImageRead / ImageAnalysis tools) ──
 
 // ── HTTP Client over Unix Socket ────────────────────────────────────
 
