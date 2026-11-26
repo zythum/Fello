@@ -92,12 +92,6 @@ export function SettingsLayout() {
       label: t("settings.memory.title", "Memory"),
     },
     {
-      id: "webui",
-      href: "/settings/webui",
-      icon: <Globe className="size-4" />,
-      label: t("settings.webui.title", "WebUI"),
-    },
-    {
       id: "ilink",
       href: "/settings/ilink",
       icon: <MessageCircle className="size-4" />,
@@ -108,6 +102,12 @@ export function SettingsLayout() {
       href: "/settings/peripherals",
       icon: <Gamepad2 className="size-4" />,
       label: t("settings.peripherals.title", "Peripherals"),
+    },
+    {
+      id: "webui",
+      href: "/settings/webui",
+      icon: <Globe className="size-4" />,
+      label: t("settings.webui.title", "WebUI"),
     },
   ];
 
