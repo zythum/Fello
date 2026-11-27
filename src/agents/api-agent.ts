@@ -841,7 +841,7 @@ export abstract class ApiAgent {
         try {
           const titleResult = await generateText({
             model: this.createModel(session.modelId),
-            prompt: `Generate a very short title (3-10 words) that summarizes the following user query. Respond only with the title, no quotes or additional text. User query: ${userText}`,
+            prompt: `Generate a very short title (3-10 words) that summarizes the following user query. Write the title in the same language as the user query. Respond only with the title, no quotes or additional text. User query: ${userText}`,
             maxOutputTokens: this.titleMaxOutputTokens,
             temperature: 0.3,
             providerOptions: this.buildTitleProviderOptions(),
