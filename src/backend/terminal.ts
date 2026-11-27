@@ -1,5 +1,4 @@
 import { homedir } from "os";
-import { spawn as spawnPty } from "node-pty";
 import { createHash } from "crypto";
 import { chmod, stat } from "fs/promises";
 import { dirname, join } from "path";
@@ -79,7 +78,9 @@ export function createTerminalModule(
   }
 
   async function ensureNodePtySpawnHelperExecutable() {
-    if (process.platform === "win32") return;
+    // node-pty only ships/builds spawn-helper for macOS (see its binding.gyp);
+    // Windows uses conpty/winpty and Linux spawns via forkpty + execvp directly.
+    if (process.platform !== "darwin") return;
     if (isNodePtyHelperPrepared) return;
     const packageJsonPath = nodeRequire.resolve("node-pty/package.json");
     const packageDir = dirname(packageJsonPath);
@@ -109,8 +110,16 @@ export function createTerminalModule(
     let child: ManagedTerminal | null = null;
     let lastError: unknown = null;
 
+    // Load node-pty lazily: its native binding can fail to load (e.g. a glibc
+    // mismatch in the packaged binary), and a top-level import would turn that
+    // into a fatal load-app error that kills the whole app at startup. Here it
+    // degrades to a per-terminal failure instead.
+    const nodePty = await import("node-pty").catch((error: unknown) => {
+      throw new Error(`Failed to create PTY terminal. node-pty is unavailable: ${String(error)}`);
+    });
+
     const createPtyTerminal = (shellPath: string) => {
-      const pty = spawnPty(shellPath, ptyShellArgs, {
+      const pty = nodePty.spawn(shellPath, ptyShellArgs, {
         cwd: resolvedCwd,
         cols: Math.max(20, Math.floor(initialSize?.cols ?? 80)),
         rows: Math.max(6, Math.floor(initialSize?.rows ?? 24)),
