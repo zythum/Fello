@@ -21,9 +21,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { extractErrorMessage } from "@/lib/utils";
 import { generateUUID } from "@/lib/utils";
@@ -37,6 +34,7 @@ import {
   type ChatTextareaMention,
   type ChatTextareaSubmitValue,
 } from "../../chat/chat-textarea";
+import { PickerMenu } from "../../chat/picker-menu";
 
 /** `/` 命令建议面板（chat-input 独有，chat-textarea 只认 `#` / `@`） */
 function renderSlashSuggestion(
@@ -88,18 +86,16 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
     [session.models?.availableModels],
   );
   const currentModelId = session.models?.currentModelId ?? null;
-
-  // Group models by prefix (e.g. "openai/gpt-4o" → group "openai")
-  const groupedModels = useMemo(() => {
-    const groups = new Map<string, typeof availableModels>();
-    for (const m of availableModels) {
-      const slashIdx = m.name.indexOf("/");
-      const key = slashIdx > 0 ? m.name.slice(0, slashIdx) : "";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(m);
-    }
-    return groups;
-  }, [availableModels]);
+  // 分组与二级渲染统一交给 PickerMenu（与会话/助理共用一份实现）。
+  const modelItems = useMemo(
+    () =>
+      availableModels.map((m) => ({
+        id: m.modelId,
+        name: m.name,
+        description: m.description,
+      })),
+    [availableModels],
+  );
 
   const handleModelChange = useCallback(
     async (modelId: string) => {
@@ -159,6 +155,16 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
   const currentModeId = session.modes?.currentModeId ?? null;
   const availableThoughtLevels = session.thoughtLevels?.availableThoughtLevels ?? [];
   const currentThoughtLevelId = session.thoughtLevels?.currentThoughtLevelId ?? null;
+  // 依赖取 session 上的稳定引用：`availableThoughtLevels` 里的 `?? []` 每渲染都是新数组。
+  const thoughtLevelItems = useMemo(
+    () =>
+      (session.thoughtLevels?.availableThoughtLevels ?? []).map((level) => ({
+        id: level.id,
+        name: level.name,
+        description: level.description,
+      })),
+    [session.thoughtLevels?.availableThoughtLevels],
+  );
   const initializeInfo = session.initializeInfo;
   const isLoading = useSessionIsLoading(session.id);
   const askUserRequests = useSessionAskUserRequests(session.id);
@@ -490,143 +496,26 @@ function ChatInputImpl({ session }: { session: SessionInfo }) {
   );
 
   const modelSelector = availableModels.length > 0 && (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 min-w-16 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
-          />
-        }
-      >
-        <Astroid className="size-3.5" />
-        <span className="truncate">
-          {availableModels.find((m) => m.modelId === currentModelId)?.name ??
-            t("chatInput.selectModel", "Select model")}
-        </span>
-        <ChevronDown className="size-3 opacity-60 shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-auto! max-w-72 min-w-(--anchor-width)">
-        {groupedModels.size <= 1
-          ? availableModels.map((m) => (
-              <DropdownMenuItem
-                key={m.modelId}
-                onClick={() => handleModelChange(m.modelId)}
-                className="gap-2"
-              >
-                <Check
-                  className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                />
-                <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                  <span className="truncate">{m.name}</span>
-                  {m.description && (
-                    <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                      {m.description}
-                    </span>
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))
-          : Array.from(groupedModels.entries()).map(([group, models]) =>
-              group ? (
-                <DropdownMenuSub key={group}>
-                  <DropdownMenuSubTrigger className="gap-2">
-                    <Check
-                      className={`size-3 shrink-0 ${models.some((m) => m.modelId === currentModelId) ? "opacity-100" : "opacity-0"}`}
-                    />
-                    {group}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="max-h-80 overflow-y-auto min-w-40">
-                    {models.map((m) => (
-                      <DropdownMenuItem
-                        key={m.modelId}
-                        onClick={() => handleModelChange(m.modelId)}
-                        className="gap-2"
-                      >
-                        <Check
-                          className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                        />
-                        <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                          <span className="truncate">{m.name.slice(group.length + 1)}</span>
-                          {m.description && (
-                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                              {m.description}
-                            </span>
-                          )}
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              ) : (
-                models.map((m) => (
-                  <DropdownMenuItem
-                    key={m.modelId}
-                    onClick={() => handleModelChange(m.modelId)}
-                    className="gap-2"
-                  >
-                    <Check
-                      className={`size-3 shrink-0 ${m.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                    />
-                    <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                      <span className="truncate">{m.name}</span>
-                      {m.description && (
-                        <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                          {m.description}
-                        </span>
-                      )}
-                    </div>
-                  </DropdownMenuItem>
-                ))
-              ),
-            )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <PickerMenu
+      items={modelItems}
+      currentId={currentModelId}
+      onSelect={(modelId) => void handleModelChange(modelId)}
+      icon={Astroid}
+      fallbackLabel={t("chatInput.selectModel", "Select model")}
+      align="end"
+    />
   );
 
   const thoughtLevelSelector = availableThoughtLevels.length > 0 && (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground hover:text-foreground gap-2 max-w-48 shrink overflow-hidden"
-          />
-        }
-      >
-        <Gauge className="size-3.5" />
-        <span className="truncate">
-          {availableThoughtLevels.find((l) => l.id === currentThoughtLevelId)?.name ?? "Thought"}
-        </span>
-        <ChevronDown className="size-3 opacity-60 shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-auto! max-h-none! max-w-60 min-w-(--anchor-width)"
-      >
-        {availableThoughtLevels.map((level) => (
-          <DropdownMenuItem
-            key={level.id}
-            onClick={() => handleThoughtLevelChange(level.id)}
-            className="gap-2"
-          >
-            <Check
-              className={`size-3 shrink-0 ${level.id === currentThoughtLevelId ? "opacity-100" : "opacity-0"}`}
-            />
-            <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-              <span>{level.name}</span>
-              {level.description && (
-                <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                  {level.description}
-                </span>
-              )}
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <PickerMenu
+      items={thoughtLevelItems}
+      currentId={currentThoughtLevelId}
+      onSelect={(levelId) => void handleThoughtLevelChange(levelId)}
+      icon={Gauge}
+      fallbackLabel="Thought"
+      // 思考等级条目少，沿用原来的「不限高 + 窄面板」表现。
+      contentClassName="max-h-none! max-w-60"
+    />
   );
 
   const primaryAction = isStreaming ? (
