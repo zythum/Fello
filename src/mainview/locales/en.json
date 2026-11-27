@@ -147,7 +147,6 @@
     "ready": "Ready",
     "connecting": "Connecting…",
     "unavailable": "Unavailable",
-    "configure": "Configure assistant",
     "id": "ID",
     "workspace": "Path",
     "openWorkspace": "Open Workspace Folder",

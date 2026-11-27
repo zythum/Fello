@@ -374,11 +374,6 @@ export function AssistantChatHeader({
             </PopoverPrimitive.Positioner>
           </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
-        {status?.connectionStatus === "error" && (
-          <Button size="sm" variant="outline" onClick={() => setConfigOpen(true)}>
-            {t("assistant.configure", "Configure assistant")}
-          </Button>
-        )}
         {!panelOpen && (
           <Button
             variant="ghost"
