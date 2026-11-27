@@ -96,7 +96,7 @@
 
 文件工具的限制：
 
-- `fs_read`：单文件最多 4 MB；每次最多 400 行，返回内容按 300 KB 预算保留前面的行，单行超过 1024 字符会截断并标注；二进制拒绝。不带 `offset` / `limit` 的整文件读取另有 100 KB 门槛，`force: true` 同时放开 100 KB 与 400 行上限、返回整个文件（与 ACP `ReadFile` 一致，仍受 4 MB 与 300 KB 约束）。
+- `fs_read`：单文件最多 4 MB；每次最多 400 行，返回内容按 300 KB 预算保留前面的行，单行超过 1024 字符会截断并标注；二进制拒绝。不带 `line` / `limit` 的整文件读取另有 100 KB 门槛，`force: true` 同时放开 100 KB 与 400 行上限、返回整个文件（与 ACP `ReadFile` 一致，仍受 4 MB 与 300 KB 约束）。
 - `fs_write`：单次最多 256 KB，支持 `overwrite` / `append`，自动建父目录。
 - `fs_edit`：按 `oldText` 精确替换（StrReplace），文件上限 4 MB；`oldText` 必须唯一命中，多命中要先加长上下文或传 `replaceAll: true`，未命中直接报错且不改文件。`fs_write` / `fs_edit` 完成时会给界面发 `diff` 内容块，文件超过 300 KB 时只发文本摘要。
 - `fs_list`：最多 200 项；`fs_glob` 最多 500 条；`fs_grep` 每个文件最多 500 条匹配（ripgrep `-m`），超长匹配行默认按 1024 字节截断，`maxColumns: 0` 关闭截断。
@@ -272,7 +272,7 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 | `assistant-worker-update` | 某个 worker 的实时 ACP 通知 |
 | `open-assistant-requested` | 系统通知点击后打开助理页 |
 
-通知持久化顺序：`backend/assistant/index.ts` 富化 → 写 `chat/messages*.jsonl` → 广播 `session-update`。`tool_call_update` 会先合并进行中的状态，完成时去掉 `rawInput` / `rawOutput` 再落盘。前端复用 `reduceSessionNotification` / `ChatArea` / 气泡 / 用量条，历史加载与 `isLoading` / `pendingNotifications` 语义也直接复用 `session-lifecycle`。
+通知持久化顺序：`backend/assistant/index.ts` 富化 → 写 `chat/messages*.jsonl` → 广播 `session-update`。`tool_call_update` 会先合并进行中的状态，完成时去掉 `rawInput` / `rawOutput` 再落盘。`fs_read` / `fs_write` / `fs_edit` 的 `tool_call` 带 `locations`（绝对路径，读取含起始行），与 ACP 的 `ReadFile` / `WriteFile` / `EditFile` 一致，气泡里显示可点击的文件标记。前端复用 `reduceSessionNotification` / `ChatArea` / 气泡 / 用量条，历史加载与 `isLoading` / `pendingNotifications` 语义也直接复用 `session-lifecycle`。
 
 ### 页面
 

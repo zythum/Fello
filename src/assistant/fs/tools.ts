@@ -20,7 +20,7 @@ import { runWithToolUpdates, toolText, type ToolUpdateSender } from "../tool-upd
 const MAX_LIST_ENTRIES = 200;
 /** Hard ceiling on the file: anything bigger is refused before it is read into memory. */
 const MAX_READ_BYTES = 4 * 1024 * 1024;
-/** A read without offset/limit returns the whole file, so it gets the tighter budget. */
+/** A read without line/limit returns the whole file, so it gets the tighter budget. */
 const MAX_READ_FULL_BYTES = 100 * 1024;
 /** Byte budget for the text returned in one call, long lines included. */
 const MAX_READ_OUTPUT_BYTES = 300 * 1024;
@@ -151,10 +151,13 @@ export function createFileSystemTools({
 
     fs_read: tool({
       description:
-        "Read a UTF-8 text file by line. Use offset/limit to continue reading a long file. Binary files and files larger than 4 MB are rejected; a read without offset/limit is capped at 100 KB and 400 lines, unless force is true (whole file, still capped by a 300 KB output budget). Lines longer than 1024 characters are cut.",
-      inputSchema: z.object({
+        "Read a UTF-8 text file by line. Use line/limit to continue reading a long file. Binary files and files larger than 4 MB are rejected; a read without line/limit is capped at 100 KB and 400 lines, unless force is true (whole file, still capped by a 300 KB output budget). Lines longer than 1024 characters are cut.",
+      // strictObject rejects unknown arguments instead of silently dropping them: `offset` (the
+      // old parameter name) or `cwd` (an ACP habit) would otherwise turn a paged read into a
+      // full read from line 1.
+      inputSchema: z.strictObject({
         path: z.string().describe("File to read, absolute or relative to your workspace."),
-        offset: z
+        line: z
           .number()
           .int()
           .min(1)
@@ -174,17 +177,24 @@ export function createFileSystemTools({
             "Bypass the 100 KB / 400-line limits on a full read and return the whole file, up to a 300 KB output budget. Only use when you genuinely need the whole file.",
           ),
       }),
-      execute: async ({ path, offset, limit, force }, { toolCallId }) =>
-        runWithToolUpdates(
+      execute: async ({ path, line, limit, force }, { toolCallId }) => {
+        const target = resolveAssistantPath(path, workspace);
+        // Same title shape as the ACP ReadFile tool: absolute path, then the line range.
+        let title = `Read ${target}`;
+        if (line || limit) {
+          title += `:${line ?? 0}`;
+          if (limit) title += `:${(line ?? 0) + limit}`;
+        }
+        return runWithToolUpdates(
           sendUpdate,
           {
             toolCallId,
-            title: `Read ${path}`,
+            title,
             kind: "read",
-            rawInput: { path, offset, limit, force },
+            rawInput: { path: target, line, limit, force },
+            locations: [{ path: target, line }],
           },
           async () => {
-            const target = resolveAssistantPath(path, workspace);
             const info = await stat(target);
             if (!info.isFile()) throw new Error(`Not a file: ${target}`);
             if (info.size > MAX_READ_BYTES)
@@ -192,21 +202,21 @@ export function createFileSystemTools({
                 `File is ${info.size} bytes, over the ${MAX_READ_BYTES}-byte limit. Use fs_grep to locate the part you need.`,
               );
             // Same rule as the ACP ReadFile tool: a whole-file read has the tighter budget,
-            // while offset/limit reads may use the full output budget. force only lifts this
+            // while line/limit reads may use the full output budget. force only lifts this
             // gate; MAX_READ_BYTES and the 300 KB output budget still apply.
             if (
               !force &&
-              offset === undefined &&
+              line === undefined &&
               limit === undefined &&
               info.size > MAX_READ_FULL_BYTES
             )
               throw new Error(
-                `File is ${(info.size / 1024).toFixed(1)}KB, over the ${MAX_READ_FULL_BYTES / 1024}KB limit for a full read. Pass offset/limit to read specific lines, use fs_grep to locate the part you need, or set force=true if you need the whole file.`,
+                `File is ${(info.size / 1024).toFixed(1)}KB, over the ${MAX_READ_FULL_BYTES / 1024}KB limit for a full read. Pass line/limit to read specific lines, use fs_grep to locate the part you need, or set force=true if you need the whole file.`,
               );
             const content = await readFile(target, "utf8");
             if (content.includes("\u0000")) throw new Error(`Binary file: ${target}`);
             const lines = content.split("\n");
-            const from = Math.max(1, offset ?? 1);
+            const from = Math.max(1, line ?? 1);
             if (from > lines.length)
               throw new Error(
                 `Line ${from} is past the end of ${target}, which has ${lines.length} line(s).`,
@@ -226,7 +236,8 @@ export function createFileSystemTools({
           },
           (result) =>
             `${result.path} lines ${result.fromLine}-${result.toLine}${result.truncated ? " (more lines available)" : ""}`,
-        ),
+        );
+      },
     }),
 
     fs_write: tool({
@@ -241,13 +252,19 @@ export function createFileSystemTools({
           .describe("overwrite (default) replaces the file; append adds to the end."),
       }),
       execute: async ({ path, content, mode }, { toolCallId }) => {
+        const target = resolveAssistantPath(path, workspace);
         // The diff goes to the UI only: it is not part of the result the model receives.
         let diff: ToolCallContent | null = null;
         return runWithToolUpdates(
           sendUpdate,
-          { toolCallId, title: `Write ${path}`, kind: "edit", rawInput: { path, mode } },
+          {
+            toolCallId,
+            title: `Write ${target}`,
+            kind: "edit",
+            rawInput: { path: target, mode },
+            locations: [{ path: target }],
+          },
           async () => {
-            const target = resolveAssistantPath(path, workspace);
             assertWritablePath(target);
             const bytes = Buffer.byteLength(content, "utf8");
             if (bytes > MAX_WRITE_BYTES)
@@ -296,18 +313,19 @@ export function createFileSystemTools({
         replaceAll: z.boolean().optional().describe("Replace every occurrence. Default false."),
       }),
       execute: async ({ path, oldText, newText, replaceAll }, { toolCallId }) => {
+        const target = resolveAssistantPath(path, workspace);
         // The diff goes to the UI only: it is not part of the result the model receives.
         let diff: ToolCallContent | null = null;
         return runWithToolUpdates(
           sendUpdate,
           {
             toolCallId,
-            title: `Edit ${path}`,
+            title: `Edit ${target}`,
             kind: "edit",
-            rawInput: { path, oldText, newText, replaceAll: replaceAll ?? false },
+            rawInput: { path: target, oldText, newText, replaceAll: replaceAll ?? false },
+            locations: [{ path: target }],
           },
           async () => {
-            const target = resolveAssistantPath(path, workspace);
             assertWritablePath(target);
             const info = await stat(target);
             if (!info.isFile()) throw new Error(`Not a file: ${target}`);

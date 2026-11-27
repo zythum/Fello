@@ -1,4 +1,8 @@
-import type { SessionNotification, ToolCallContent } from "@agentclientprotocol/sdk";
+import type {
+  SessionNotification,
+  ToolCallContent,
+  ToolCallLocation,
+} from "@agentclientprotocol/sdk";
 
 /** Sends a tool_call or tool_call_update to the assistant's UI. */
 export type ToolUpdateSender = (update: SessionNotification["update"]) => Promise<void>;
@@ -8,6 +12,8 @@ type ToolCallStart = {
   title: string;
   kind: "read" | "edit" | "other";
   rawInput: unknown;
+  /** Files the call touches, so the UI shows the same openable chips as ACP tools. */
+  locations?: ToolCallLocation[];
 };
 
 /**
@@ -42,6 +48,7 @@ export async function runWithToolUpdates<T>(
     kind: start.kind,
     status: "in_progress",
     rawInput: start.rawInput,
+    ...(start.locations ? { locations: start.locations } : {}),
   });
   try {
     const result = await run();
