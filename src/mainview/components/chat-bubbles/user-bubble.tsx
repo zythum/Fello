@@ -54,7 +54,6 @@ function escapeMarkdown(text: string): string {
     .replace(/</g, "\\<")
     .replace(/>/g, "\\>")
     .replace(/_/g, "\\_")
-    .replace(/-/g, "\\-")
     .replace(/`/g, "\\`");
 }
 
@@ -136,9 +135,10 @@ export const UserBubble = memo(function UserBubble({
     if (!el) return;
 
     const checkOverflow = () => {
-      // 13px text with snug leading (1.375) is ~18px per line.
-      // 2 lines = 36px. We use 44px as the threshold to safely detect > 2 lines.
-      setIsOverflowing(el.scrollHeight > 50);
+      // 13px text with leading-normal (1.5) is ~19.5px per line, plus the paragraph's
+      // 8px top and bottom margins: 2 lines ≈ 55px, 3 lines ≈ 74px.
+      // 60px separates the two, so the expand button only appears from the third line.
+      setIsOverflowing(el.scrollHeight > 60);
     };
 
     const observer = new ResizeObserver(checkOverflow);

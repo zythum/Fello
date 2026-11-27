@@ -34,15 +34,15 @@ const typographyClasses: Record<string, string> = {
   user_message: cn(
     baseClasses,
     "prose prose-sm dark:prose-invert",
-    "prose-p:leading-snug prose-p:text-card-foreground/75 prose-p:m-0 prose-p:text-[13px]",
+    "prose-p:leading-normal prose-p:text-card-foreground/75 prose-p:my-2 prose-p:text-[13px]",
     "prose-headings:text-card-foreground prose-headings:font-medium prose-headings:mt-2.5 prose-headings:mb-1",
     "prose-h1:text-[15px] prose-h2:text-[14px] prose-h3:text-[13px] prose-h4:text-[12px] prose-h5:text-[12px] prose-h6:text-[11px]",
     "prose-strong:text-card-foreground prose-strong:font-medium",
     "prose-a:text-blue-500 dark:prose-a:text-blue-400 prose-a:underline-offset-4 prose-a:text-[13px]",
     "prose-code:text-card-foreground prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-normal prose-code:text-[12px]!",
     "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0",
-    "prose-ol:pl-0 prose-ol:my-1 prose-ul:ml-0 prose-ul:my-1",
-    "prose-li:my-0 prose-li:pl-0 prose-li:text-[13px]",
+    "prose-ol:pl-0.5 prose-ol:my-1 prose-ul:pl-0.5 prose-ul:my-1",
+    "prose-li:pl-0 prose-li:text-[13px]",
     "prose-table:my-2 prose-th:border-border prose-td:border-border",
   ),
   agent_message: cn(
