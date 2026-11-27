@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ContentBlocks } from "../content-blocks/content-blocks";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import { parseLeadingTag } from "../../../shared/message-tag";
+import { parseLeadingTag, stripHiddenBlockTags } from "../../../shared/message-tag";
 import type { UserMessage } from "../../lib/chat-message";
 import type { BaseBubbleProps } from "./base-bubble";
 
@@ -67,12 +67,23 @@ export const UserBubble = memo(function UserBubble({
 
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Hidden block tags ([META] ... [/META]) are dropped first: they may appear anywhere
+  // in the text and more than once, and the leading tag is parsed on what remains.
+  const visibleTexts = useMemo(
+    () =>
+      message.contents.map((block) =>
+        block.type === "text" ? stripHiddenBlockTags(block.text) : null,
+      ),
+    [message.contents],
+  );
+
   // A leading tag of a known type (for example [Reminder id="..."]) becomes a badge and is removed from the text.
   const leadingTag = useMemo(() => {
-    const first = message.contents.find((block) => block.type === "text");
-    const tag = first?.type === "text" ? parseLeadingTag(first.text) : null;
+    const firstTextIndex = message.contents.findIndex((block) => block.type === "text");
+    const text = firstTextIndex < 0 ? null : visibleTexts[firstTextIndex];
+    const tag = text === null ? null : parseLeadingTag(text);
     return tag && Object.hasOwn(TAG_BADGES, tag.type) ? tag : null;
-  }, [message.contents]);
+  }, [message.contents, visibleTexts]);
 
   // 将 text block 包裹在代码块中，避免 markdown / HTML 渲染，以源码形式显示
   const safeContents = useMemo<ContentBlock[]>(() => {
@@ -80,12 +91,13 @@ export const UserBubble = memo(function UserBubble({
     const firstTextIndex = message.contents.findIndex((block) => block.type === "text");
     return message.contents.map((block, index) => {
       if (block.type === "text") {
-        const text = leadingTag && index === firstTextIndex ? leadingTag.body : block.text;
+        let text = visibleTexts[index] ?? block.text;
+        if (leadingTag && index === firstTextIndex) text = leadingTag.body;
         return { ...block, text: escapeMarkdown(text) };
       }
       return block;
     });
-  }, [message.contents, leadingTag]);
+  }, [message.contents, leadingTag, visibleTexts]);
 
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);

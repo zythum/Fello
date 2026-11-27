@@ -25,6 +25,7 @@ import { useFocusTarget } from "../../lib/keyboard";
 import { loadPreviousSessionHistory } from "../../lib/session-lifecycle";
 
 import { HISTORY_PAGE_SIZE } from "../../../shared/constants";
+import { stripHiddenBlockTags } from "../../../shared/message-tag";
 
 import type { SessionInfo } from "../../../shared/schema";
 
@@ -380,7 +381,9 @@ function ChatAreaViewImpl({
         .map((g, index) => ({
           displayId: g.userMessage!.displayId,
           index: index + 1,
-          content: g.userMessage!.contents.find((content) => content.type === "text")?.text ?? "",
+          content: stripHiddenBlockTags(
+            g.userMessage!.contents.find((content) => content.type === "text")?.text ?? "",
+          ),
         })),
     [messageGroups],
   );

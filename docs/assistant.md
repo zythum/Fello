@@ -258,6 +258,12 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 
 ## 展示协议与前端
 
+### 消息标签
+
+- leading tag（`[Reminder id="…"]`、`[Worker …]`）在 user 气泡里换成 badge，正文从 tag 之后开始显示；未登记的类型保持原文。
+- block tag（`[META] … [/META]`）是携带 app 元数据、不展示的脚手架文本（例如 worker prompt 末尾的报告契约）：可出现在消息任意位置，可出现多次，user 气泡与时间线预览会把它们整块删除。
+- leading tag 与 block tag 都在 `src/shared/message-tag.ts` 里解析（`parseLeadingTag` / `stripHiddenBlockTags`）；复制按钮两种标记都保留原文。
+
 ### 事件
 
 轮次流与会话共用同一套协议：助理的 ACP 通知走 `session-update`，轮次信封走 `prompt-start` / `prompt-end`，`sessionId` 即 `assistantId`。助理专属事件只保留实体状态（连接 / 模型 / 流式 / Dream）以及提醒、worker。
