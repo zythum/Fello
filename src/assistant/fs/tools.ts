@@ -17,7 +17,17 @@ import { assertDeletablePath, assertWritablePath, resolveAssistantPath } from ".
 import { runWithToolUpdates, type ToolUpdateSender } from "../tool-updates";
 
 const MAX_LIST_ENTRIES = 200;
+/** Hard ceiling on the file: anything bigger is refused before it is read into memory. */
 const MAX_READ_BYTES = 4 * 1024 * 1024;
+/** A read without offset/limit returns the whole file, so it gets the tighter budget. */
+const MAX_READ_FULL_BYTES = 100 * 1024;
+/** Byte budget for the text returned in one call, long lines included. */
+const MAX_READ_OUTPUT_BYTES = 300 * 1024;
+/**
+ * Per-line cut: the same 1024 as ripgrep's `-M` default, but counted in characters rather than
+ * bytes, so one minified line cannot flood the context.
+ */
+const MAX_READ_LINE_CHARS = 1024;
 const MAX_WRITE_BYTES = 256 * 1024;
 const MAX_READ_LINES = 400;
 
@@ -59,6 +69,31 @@ export type FileSystemToolDeps = {
 
 function toPosix(path: string): string {
   return path.replace(/\\/g, "/");
+}
+
+/** Cuts one over-long line and leaves a marker, so the model knows the line is partial. */
+function capLine(line: string): string {
+  if (line.length <= MAX_READ_LINE_CHARS) return line;
+  // Never split a surrogate pair: a lone surrogate would reach the model as garbage.
+  let cut = line.slice(0, MAX_READ_LINE_CHARS);
+  if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
+  return `${cut}…[${line.length - cut.length} more chars]`;
+}
+
+/**
+ * Keeps whole lines from the head until the byte budget is spent. A single line is already
+ * capped by capLine, so the first line always fits and the result is never empty by accident.
+ */
+function keepLinesWithinByteLimit(lines: string[], byteLimit: number): string[] {
+  const kept: string[] = [];
+  let bytes = 0;
+  for (const line of lines) {
+    const size = Buffer.byteLength(line, "utf8") + (kept.length ? 1 : 0);
+    if (kept.length > 0 && bytes + size > byteLimit) break;
+    kept.push(line);
+    bytes += size;
+  }
+  return kept;
 }
 
 /** Creates the assistant's filesystem tools. All paths are absolute after resolution. */
@@ -110,7 +145,7 @@ export function createFileSystemTools({
 
     fs_read: tool({
       description:
-        "Read a UTF-8 text file by line. Use offset/limit to continue reading a long file. Binary files and files larger than 4 MB are rejected.",
+        "Read a UTF-8 text file by line. Use offset/limit to continue reading a long file. Binary files and files larger than 4 MB are rejected; a read without offset/limit is capped at 100 KB and 400 lines, unless force is true (whole file, still capped by a 300 KB output budget). Lines longer than 1024 characters are cut.",
       inputSchema: z.object({
         path: z.string().describe("File to read, absolute or relative to your workspace."),
         offset: z
@@ -126,11 +161,22 @@ export function createFileSystemTools({
           .max(MAX_READ_LINES)
           .optional()
           .describe(`Maximum lines to return. Default ${MAX_READ_LINES}.`),
+        force: z
+          .boolean()
+          .optional()
+          .describe(
+            "Bypass the 100 KB / 400-line limits on a full read and return the whole file, up to a 300 KB output budget. Only use when you genuinely need the whole file.",
+          ),
       }),
-      execute: async ({ path, offset, limit }, { toolCallId }) =>
+      execute: async ({ path, offset, limit, force }, { toolCallId }) =>
         runWithToolUpdates(
           sendUpdate,
-          { toolCallId, title: `Read ${path}`, kind: "read", rawInput: { path, offset, limit } },
+          {
+            toolCallId,
+            title: `Read ${path}`,
+            kind: "read",
+            rawInput: { path, offset, limit, force },
+          },
           async () => {
             const target = resolveAssistantPath(path, workspace);
             const info = await stat(target);
@@ -139,19 +185,37 @@ export function createFileSystemTools({
               throw new Error(
                 `File is ${info.size} bytes, over the ${MAX_READ_BYTES}-byte limit. Use fs_grep to locate the part you need.`,
               );
+            // Same rule as the ACP ReadFile tool: a whole-file read has the tighter budget,
+            // while offset/limit reads may use the full output budget. force only lifts this
+            // gate; MAX_READ_BYTES and the 300 KB output budget still apply.
+            if (
+              !force &&
+              offset === undefined &&
+              limit === undefined &&
+              info.size > MAX_READ_FULL_BYTES
+            )
+              throw new Error(
+                `File is ${(info.size / 1024).toFixed(1)}KB, over the ${MAX_READ_FULL_BYTES / 1024}KB limit for a full read. Pass offset/limit to read specific lines, use fs_grep to locate the part you need, or set force=true if you need the whole file.`,
+              );
             const content = await readFile(target, "utf8");
-            if (content.slice(0, 4096).includes("\u0000"))
-              throw new Error(`Binary file: ${target}`);
+            if (content.includes("\u0000")) throw new Error(`Binary file: ${target}`);
             const lines = content.split("\n");
             const from = Math.max(1, offset ?? 1);
-            const count = limit ?? MAX_READ_LINES;
-            const slice = lines.slice(from - 1, from - 1 + count);
+            if (from > lines.length)
+              throw new Error(
+                `Line ${from} is past the end of ${target}, which has ${lines.length} line(s).`,
+              );
+            // force means "I need the whole file", so it also drops the default line count;
+            // the 300 KB output budget is what actually bounds the result.
+            const count = limit ?? (force ? lines.length : MAX_READ_LINES);
+            const slice = lines.slice(from - 1, from - 1 + count).map(capLine);
+            const kept = keepLinesWithinByteLimit(slice, MAX_READ_OUTPUT_BYTES);
             return {
               path: toPosix(target),
-              content: slice.join("\n"),
+              content: kept.join("\n"),
               fromLine: from,
-              toLine: from + slice.length - 1,
-              truncated: from - 1 + slice.length < lines.length,
+              toLine: from + kept.length - 1,
+              truncated: from - 1 + kept.length < lines.length,
             };
           },
           (result) =>
@@ -315,7 +379,7 @@ export function createFileSystemTools({
 
     fs_grep: tool({
       description:
-        "Search file contents for a text fragment or regular expression. Returns matching file, line number and line. Use short, specific patterns.",
+        "Search file contents for a text fragment or regular expression. Returns matching file, line number and line. Long matching lines are cut to 1024 bytes by default. Use short, specific patterns.",
       inputSchema: z.object({
         pattern: z.string().min(1).describe("Text or regular expression to search for."),
         path: z
@@ -331,10 +395,17 @@ export function createFileSystemTools({
           .min(1)
           .max(500)
           .optional()
-          .describe("Maximum matching lines. Default 100."),
+          .describe("Maximum matching lines per file. Default 100."),
+        maxColumns: z
+          .number()
+          .int()
+          .min(0)
+          .max(4096)
+          .optional()
+          .describe("Cut each matching line to this many bytes; 0 disables the cut. Default 1024."),
       }),
       execute: async (
-        { pattern, path, glob: fileGlob, ignoreCase, regex, maxResults },
+        { pattern, path, glob: fileGlob, ignoreCase, regex, maxResults, maxColumns },
         { toolCallId },
       ) =>
         runWithToolUpdates(
@@ -355,6 +426,8 @@ export function createFileSystemTools({
               ...(ignoreCase ? { ignoreCase } : {}),
               ...(regex ? { regex } : {}),
               maxResults: maxResults ?? 100,
+              // Unset keeps ripgrep's own 1024-byte default, so the cap holds either way.
+              ...(maxColumns !== undefined ? { maxColumns } : {}),
             });
             return {
               path: toPosix(target),
