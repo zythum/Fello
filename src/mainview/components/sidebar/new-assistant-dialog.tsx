@@ -55,6 +55,11 @@ export const NewAssistantDialog = forwardRef<NewAssistantDialogHandle, NewAssist
 
     const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
+    /**
+     * 打开弹窗时冻结的默认名称序号：创建成功后列表会先多出一项（广播早于 IPC 返回），
+     * 若实时取 assistants.length，保存瞬间 placeholder 会跳到下一个数字再关闭弹窗。
+     */
+    const [namePlaceholderIndex, setNamePlaceholderIndex] = useState(1);
     const [agentId, setAgentId] = useState("");
     const [mcpIds, setMcpIds] = useState<Set<string>>(new Set());
     const [creating, setCreating] = useState(false);
@@ -68,6 +73,7 @@ export const NewAssistantDialog = forwardRef<NewAssistantDialogHandle, NewAssist
             return;
           }
           setName("");
+          setNamePlaceholderIndex(assistants.length + 1);
           setAgentId(assistantSourceAgents[0]?.id ?? "");
           setMcpIds(
             new Set(
@@ -77,7 +83,7 @@ export const NewAssistantDialog = forwardRef<NewAssistantDialogHandle, NewAssist
           setOpen(true);
         },
       }),
-      [assistantSourceAgents, configuredMcpServers, onNeedAgent],
+      [assistantSourceAgents, assistants.length, configuredMcpServers, onNeedAgent],
     );
 
     const handleCreate = async () => {
@@ -122,7 +128,7 @@ export const NewAssistantDialog = forwardRef<NewAssistantDialogHandle, NewAssist
                 value={name}
                 placeholder={t("sidebar.newAssistantDialog.namePlaceholder", {
                   defaultValue: "Personal Assistant {{n}}",
-                  n: assistants.length + 1,
+                  n: namePlaceholderIndex,
                 })}
                 onChange={(event) => setName(event.target.value)}
                 onKeyDown={(event) => {
