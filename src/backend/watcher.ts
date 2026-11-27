@@ -1,4 +1,4 @@
-import { mkdirSync, statSync } from "fs";
+import { statSync } from "fs";
 import watcher from "@parcel/watcher";
 import { join, relative } from "path";
 import type { BackendContext } from "./types";
@@ -35,15 +35,18 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
     return storage.getSettings().fileWatcher?.enabled ?? true;
   }
 
-  async function syncWatchers() {
+  async function runSync() {
     const enabled = isFileWatcherEnabled();
     const projects = storage.listProjects();
     const currentProjects = new Map(projects.map((p) => [p.id, p]));
     // Assistant workspaces are virtual projects: watch each one so its file panel
     // receives the same fs-changed events as project sessions.
+    //
+    // 这里刻意不 mkdir：工作区目录由助理运行时（ensureAssistantDirectories / start）创建。
+    // 同步是按磁盘列表重建视图的，若在这里建目录，一次「删除前发起的在途同步」就会把刚删掉的
+    // 工作区目录重新建出来，留下没有 config.json 的孤儿目录。
     for (const assistant of listAssistantConfigs()) {
       const cwd = assistantWorkspacePath(assistant.id);
-      mkdirSync(cwd, { recursive: true });
       const projectId = assistantProjectId(assistant.id);
       currentProjects.set(projectId, {
         id: projectId,
@@ -54,17 +57,13 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
     }
 
     if (!enabled) {
-      for (const [projectId, subscription] of subscriptions.entries()) {
-        await subscription.unsubscribe();
-        subscriptions.delete(projectId);
-      }
+      await unsubscribeAll();
       return;
     }
 
-    for (const [projectId, subscription] of subscriptions.entries()) {
+    for (const projectId of [...subscriptions.keys()]) {
       if (!currentProjects.has(projectId)) {
-        await subscription.unsubscribe();
-        subscriptions.delete(projectId);
+        await unsubscribe(projectId);
       }
     }
 
@@ -73,6 +72,51 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
         await createWatcherSubscription(projectId, project.cwd);
       }
     }
+  }
+
+  /**
+   * 停掉一个订阅：单个失败只记日志，不拖垮整轮同步；失败时保留条目，下一轮同步再试。
+   */
+  async function unsubscribe(projectId: string): Promise<void> {
+    const subscription = subscriptions.get(projectId);
+    if (!subscription) return;
+    try {
+      await subscription.unsubscribe();
+    } catch (error) {
+      console.error(`[Watcher] Failed to unsubscribe ${projectId}:`, error);
+      return;
+    }
+    subscriptions.delete(projectId);
+  }
+
+  async function unsubscribeAll(): Promise<void> {
+    for (const projectId of [...subscriptions.keys()]) {
+      await unsubscribe(projectId);
+    }
+  }
+
+  // 同一时间只跑一轮同步：`updateSettings`、建/删项目、建/删助理都会触发，并发同步会重复
+  // subscribe（map 里只留后一个，前一个原生订阅永久泄漏，fs-changed 事件翻倍）——期间再来的
+  // 调用只记一次「跑完再来一轮」，保证最终一致。
+  let syncing: Promise<void> | null = null;
+  let resyncRequested = false;
+
+  async function syncWatchers(): Promise<void> {
+    if (syncing) {
+      resyncRequested = true;
+      return syncing;
+    }
+    syncing = (async () => {
+      try {
+        do {
+          resyncRequested = false;
+          await runSync();
+        } while (resyncRequested);
+      } finally {
+        syncing = null;
+      }
+    })();
+    return syncing;
   }
 
   async function createWatcherSubscription(projectId: string, cwd: string) {
@@ -139,10 +183,7 @@ export function createWatcherModule(ctx: BackendContext): WatcherModule {
   }
 
   async function stopAll() {
-    for (const [projectId, subscription] of subscriptions.entries()) {
-      await subscription.unsubscribe();
-      subscriptions.delete(projectId);
-    }
+    await unsubscribeAll();
   }
 
   // Fire initial sync
