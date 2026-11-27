@@ -169,6 +169,8 @@
     "dismiss": "关闭",
     "selectModel": "选择模型",
     "selectThinking": "选择思考等级",
+    "modelUpdateFailed": "切换模型失败。",
+    "thoughtLevelUpdateFailed": "切换思考等级失败。",
     "calendar": {
       "title": "日历",
       "today": "今天",

@@ -170,6 +170,8 @@
     "dismiss": "Dismiss",
     "selectModel": "Select model",
     "selectThinking": "Select thinking level",
+    "modelUpdateFailed": "Failed to switch model.",
+    "thoughtLevelUpdateFailed": "Failed to switch thinking level.",
     "calendar": {
       "title": "Calendar",
       "today": "Today",

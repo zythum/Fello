@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, Astroid, Check, ChevronDown, Gauge, Square } from "lucide-react";
+import { ArrowUp, Astroid, Gauge, Square } from "lucide-react";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { AssistantStatus } from "../../../../shared/schema";
 import { assistantProjectId } from "../../../../shared/assistant";
@@ -11,17 +11,9 @@ import { nodesToMentionText, resolveMentions } from "../../../lib/mention-utils"
 import { extractErrorMessage, generateUUID } from "@/lib/utils";
 import type { ChatMessage } from "../../../lib/chat-message";
 import { ChatTextarea, type ChatTextareaSubmitValue } from "../../chat/chat-textarea";
+import { PickerMenu } from "../../chat/picker-menu";
 import type { VoiceInputButtonRef } from "../../common/voice-input-button";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useMessage } from "../../providers/message";
 import * as tiks from "@rexa-developer/tiks";
 
@@ -53,21 +45,29 @@ export function AssistantChatInput({
   const isDreaming = status?.dreaming ?? false;
   const availableModels = status?.models?.availableModels ?? EMPTY_MODELS;
   const currentModelId = status?.models?.currentModelId ?? null;
-  const currentModel = availableModels.find((model) => model.modelId === currentModelId);
   const availableThoughtLevels = status?.thoughtLevels?.availableThoughtLevels ?? [];
   const currentThoughtLevelId = status?.thoughtLevels?.currentThoughtLevelId ?? null;
 
-  const groupedModels = useMemo(() => {
-    const groups = new Map<string, typeof availableModels>();
-    for (const model of availableModels) {
-      const slashIndex = model.name.indexOf("/");
-      const group = slashIndex > 0 ? model.name.slice(0, slashIndex) : "";
-      const items = groups.get(group) ?? [];
-      items.push(model);
-      groups.set(group, items);
-    }
-    return groups;
-  }, [availableModels]);
+  // 分组与二级渲染统一交给 PickerMenu（与会话侧共用一份实现）。
+  // 依赖直接取 status 上的稳定引用，避免 `?? []` 产生的临时数组让 memo 每次都失效。
+  const modelItems = useMemo(
+    () =>
+      (status?.models?.availableModels ?? []).map((model) => ({
+        id: model.modelId,
+        name: model.name,
+        description: model.description,
+      })),
+    [status?.models?.availableModels],
+  );
+  const thoughtLevelItems = useMemo(
+    () =>
+      (status?.thoughtLevels?.availableThoughtLevels ?? []).map((level) => ({
+        id: level.id,
+        name: level.name,
+        description: level.description,
+      })),
+    [status?.thoughtLevels?.availableThoughtLevels],
+  );
 
   // 与 session 的 chat-input 一致：草稿挂在 store 上，挂载时恢复、失焦 / 卸载时写回。
   const draftInput = useSessionDraftInput(assistantId);
@@ -183,51 +183,53 @@ export function AssistantChatInput({
   );
 
   const changeModel = useCallback(
-    async (modelId: string | null) => {
-      if (!modelId || modelId === currentModelId) return;
+    async (modelId: string) => {
+      if (modelId === currentModelId) return;
+      // 与会话一致：本地先切勾选（乐观），失败回滚。模型切换失败不等于助理掉线，
+      // 所以只用 toast 提示，不再把整个 status 置成 error。
+      const previousModels = status?.models ?? null;
+      onStatusChange((current) =>
+        current?.models
+          ? { ...current, models: { ...current.models, currentModelId: modelId } }
+          : current,
+      );
       try {
         await request.setModel({ sessionId: assistantId, modelId });
       } catch (error) {
-        onStatusChange((current) => ({
-          ...(current ?? {
-            models: null,
-            thoughtLevels: null,
-            sourceAgentId: null,
-            enabled: true,
-            workspace: "",
-          }),
-          connectionStatus: "error",
-          error: extractErrorMessage(error) || "Failed to update Assistant model.",
-          isStreaming: false,
-          dreaming: false,
-        }));
+        onStatusChange((current) => (current ? { ...current, models: previousModels } : current));
+        toast.error(
+          extractErrorMessage(error) || t("assistant.modelUpdateFailed", "Failed to switch model."),
+        );
       }
     },
-    [assistantId, currentModelId, onStatusChange],
+    [assistantId, currentModelId, onStatusChange, status?.models, t, toast],
   );
 
   const changeThoughtLevel = useCallback(
-    async (thoughtLevelId: string | null) => {
-      if (!thoughtLevelId || thoughtLevelId === currentThoughtLevelId) return;
+    async (thoughtLevelId: string) => {
+      if (thoughtLevelId === currentThoughtLevelId) return;
+      const previousLevels = status?.thoughtLevels ?? null;
+      onStatusChange((current) =>
+        current?.thoughtLevels
+          ? {
+              ...current,
+              thoughtLevels: { ...current.thoughtLevels, currentThoughtLevelId: thoughtLevelId },
+            }
+          : current,
+      );
       try {
         await request.setThoughtLevel({ sessionId: assistantId, thoughtLevelId });
       } catch (error) {
-        onStatusChange((current) => ({
-          ...(current ?? {
-            models: null,
-            thoughtLevels: null,
-            sourceAgentId: null,
-            enabled: true,
-            workspace: "",
-          }),
-          connectionStatus: "error",
-          error: extractErrorMessage(error) || "Failed to update Assistant thinking level.",
-          isStreaming: false,
-          dreaming: false,
-        }));
+        onStatusChange((current) =>
+          current ? { ...current, thoughtLevels: previousLevels } : current,
+        );
+        toast.error(
+          extractErrorMessage(error) ||
+            t("assistant.thoughtLevelUpdateFailed", "Failed to switch thinking level."),
+        );
       }
     },
-    [assistantId, currentThoughtLevelId, onStatusChange],
+    [assistantId, currentThoughtLevelId, onStatusChange, status?.thoughtLevels, t, toast],
   );
 
   return (
@@ -251,116 +253,25 @@ export function AssistantChatInput({
           rightSlot={
             <>
               {availableModels.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 min-w-16 max-w-48 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
-                      />
-                    }
-                  >
-                    <Astroid className="size-3.5 shrink-0" />
-                    <span className="truncate">
-                      {currentModel?.name ?? t("assistant.selectModel", "Model")}
-                    </span>
-                    <ChevronDown className="size-3 shrink-0 opacity-60" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-auto! max-w-72 min-w-(--anchor-width)"
-                  >
-                    {groupedModels.size <= 1
-                      ? availableModels.map((model) => (
-                          <DropdownMenuItem
-                            key={model.modelId}
-                            onClick={() => void changeModel(model.modelId)}
-                            className="gap-2"
-                          >
-                            <Check
-                              className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                            />
-                            <div className="flex min-w-0 flex-col gap-0.5 pr-3">
-                              <span className="truncate">{model.name}</span>
-                              {model.description && (
-                                <span className="text-[10px] text-muted-foreground/60 line-clamp-2">
-                                  {model.description}
-                                </span>
-                              )}
-                            </div>
-                          </DropdownMenuItem>
-                        ))
-                      : Array.from(groupedModels.entries()).map(([group, models]) =>
-                          group ? (
-                            <DropdownMenuSub key={group}>
-                              <DropdownMenuSubTrigger>{group}</DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="max-w-72">
-                                {models.map((model) => (
-                                  <DropdownMenuItem
-                                    key={model.modelId}
-                                    onClick={() => void changeModel(model.modelId)}
-                                    className="gap-2"
-                                  >
-                                    <Check
-                                      className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                                    />
-                                    <span className="truncate">{model.name}</span>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          ) : (
-                            models.map((model) => (
-                              <DropdownMenuItem
-                                key={model.modelId}
-                                onClick={() => void changeModel(model.modelId)}
-                                className="gap-2"
-                              >
-                                <Check
-                                  className={`size-3 shrink-0 ${model.modelId === currentModelId ? "opacity-100" : "opacity-0"}`}
-                                />
-                                <span className="truncate">{model.name}</span>
-                              </DropdownMenuItem>
-                            ))
-                          ),
-                        )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <PickerMenu
+                  items={modelItems}
+                  currentId={currentModelId}
+                  onSelect={(modelId) => void changeModel(modelId)}
+                  icon={Astroid}
+                  fallbackLabel={t("assistant.selectModel", "Model")}
+                  align="end"
+                />
               )}
               {availableThoughtLevels.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 min-w-16 max-w-32 shrink gap-2 overflow-hidden text-xs text-muted-foreground hover:text-foreground"
-                      />
-                    }
-                  >
-                    <Gauge className="size-3.5 shrink-0" />
-                    <span className="truncate">
-                      {availableThoughtLevels.find((level) => level.id === currentThoughtLevelId)
-                        ?.name ?? t("assistant.selectThinking", "Thinking")}
-                    </span>
-                    <ChevronDown className="size-3 shrink-0 opacity-60" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-auto! min-w-(--anchor-width)">
-                    {availableThoughtLevels.map((level) => (
-                      <DropdownMenuItem
-                        key={level.id}
-                        onClick={() => void changeThoughtLevel(level.id)}
-                        className="gap-2"
-                      >
-                        <Check
-                          className={`size-3 shrink-0 ${level.id === currentThoughtLevelId ? "opacity-100" : "opacity-0"}`}
-                        />
-                        <span>{level.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <PickerMenu
+                  items={thoughtLevelItems}
+                  currentId={currentThoughtLevelId}
+                  onSelect={(levelId) => void changeThoughtLevel(levelId)}
+                  icon={Gauge}
+                  fallbackLabel={t("assistant.selectThinking", "Thinking")}
+                  align="end"
+                  buttonClassName="max-w-32"
+                />
               )}
             </>
           }
