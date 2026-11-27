@@ -13,8 +13,9 @@ import {
 import { dirname } from "path";
 import { tool } from "ai";
 import { z } from "zod";
+import type { ToolCallContent } from "@agentclientprotocol/sdk";
 import { assertDeletablePath, assertWritablePath, resolveAssistantPath } from "./path";
-import { runWithToolUpdates, type ToolUpdateSender } from "../tool-updates";
+import { runWithToolUpdates, toolText, type ToolUpdateSender } from "../tool-updates";
 
 const MAX_LIST_ENTRIES = 200;
 /** Hard ceiling on the file: anything bigger is refused before it is read into memory. */
@@ -30,6 +31,11 @@ const MAX_READ_OUTPUT_BYTES = 300 * 1024;
 const MAX_READ_LINE_CHARS = 1024;
 const MAX_WRITE_BYTES = 256 * 1024;
 const MAX_READ_LINES = 400;
+/**
+ * A diff is rendered in the chat bubble and persisted with the message, so it gets its own
+ * budget: past this size the edit still happens, it just reports text instead of a diff.
+ */
+const MAX_DIFF_BYTES = 300 * 1024;
 
 export type GrepFn = (options: {
   projectDir: string;
@@ -234,8 +240,10 @@ export function createFileSystemTools({
           .optional()
           .describe("overwrite (default) replaces the file; append adds to the end."),
       }),
-      execute: async ({ path, content, mode }, { toolCallId }) =>
-        runWithToolUpdates(
+      execute: async ({ path, content, mode }, { toolCallId }) => {
+        // The diff goes to the UI only: it is not part of the result the model receives.
+        let diff: ToolCallContent | null = null;
+        return runWithToolUpdates(
           sendUpdate,
           { toolCallId, title: `Write ${path}`, kind: "edit", rawInput: { path, mode } },
           async () => {
@@ -246,13 +254,99 @@ export function createFileSystemTools({
               throw new Error(
                 `Content is ${bytes} bytes, over the ${MAX_WRITE_BYTES}-byte limit. Split it across calls.`,
               );
+            const append = mode === "append";
+            const existing = await lstat(target).catch(() => null);
+            const previousSize = existing?.isFile() === true ? existing.size : null;
+            const showDiff =
+              previousSize !== null &&
+              previousSize <= MAX_DIFF_BYTES &&
+              (!append || previousSize + bytes <= MAX_DIFF_BYTES);
+            if (showDiff) {
+              const previous = await readFile(target, "utf8");
+              diff = {
+                type: "diff",
+                path: toPosix(target),
+                oldText: previous,
+                newText: append ? previous + content : content,
+              };
+            }
             await mkdir(dirname(target), { recursive: true });
-            if (mode === "append") await appendFile(target, content, "utf8");
+            if (append) await appendFile(target, content, "utf8");
             else await writeFile(target, content, "utf8");
             return { path: toPosix(target), bytes, mode: mode ?? "overwrite" };
           },
-          (result) => `Wrote ${result.bytes} bytes to ${result.path}`,
-        ),
+          (result) => {
+            const summary = `Wrote ${result.bytes} bytes to ${result.path}`;
+            return diff ? [diff, toolText(summary)] : summary;
+          },
+        );
+      },
+    }),
+
+    fs_edit: tool({
+      description:
+        "Edit an existing UTF-8 text file by replacing exact text (StrReplace style). Prefer it over fs_write when changing part of a file: it leaves the rest untouched and fails instead of writing when the match is missing or ambiguous.",
+      inputSchema: z.object({
+        path: z.string().describe("File to edit, absolute or relative to your workspace."),
+        oldText: z
+          .string()
+          .min(1)
+          .describe("Exact text to replace. Include enough context to make it match once."),
+        newText: z.string().describe("Replacement text. Use an empty string to delete the match."),
+        replaceAll: z.boolean().optional().describe("Replace every occurrence. Default false."),
+      }),
+      execute: async ({ path, oldText, newText, replaceAll }, { toolCallId }) => {
+        // The diff goes to the UI only: it is not part of the result the model receives.
+        let diff: ToolCallContent | null = null;
+        return runWithToolUpdates(
+          sendUpdate,
+          {
+            toolCallId,
+            title: `Edit ${path}`,
+            kind: "edit",
+            rawInput: { path, oldText, newText, replaceAll: replaceAll ?? false },
+          },
+          async () => {
+            const target = resolveAssistantPath(path, workspace);
+            assertWritablePath(target);
+            const info = await stat(target);
+            if (!info.isFile()) throw new Error(`Not a file: ${target}`);
+            if (info.size > MAX_READ_BYTES)
+              throw new Error(
+                `File is ${info.size} bytes, over the ${MAX_READ_BYTES}-byte limit. fs_edit needs the whole file in memory; ask the user how to proceed.`,
+              );
+            const current = await readFile(target, "utf8");
+            if (current.includes("\u0000")) throw new Error(`Binary file: ${target}`);
+            let matches = 0;
+            for (
+              let index = current.indexOf(oldText);
+              index >= 0;
+              index = current.indexOf(oldText, index + oldText.length)
+            )
+              matches += 1;
+            if (matches === 0)
+              throw new Error(
+                `oldText was not found in ${toPosix(target)}. Read the file with fs_read and copy the exact text, whitespace included.`,
+              );
+            if (matches > 1 && replaceAll !== true)
+              throw new Error(
+                `oldText matches ${matches} places in ${toPosix(target)}. Add surrounding context to make it unique, or set replaceAll=true.`,
+              );
+            // split/join rather than replace(): a string replacement would interpret dollar
+            // patterns (dollar-ampersand, dollar-quote, dollar-backtick) inside newText.
+            // matches is >= 1 here, and > 1 only when replaceAll is true.
+            const updated = current.split(oldText).join(newText);
+            if (info.size <= MAX_DIFF_BYTES)
+              diff = { type: "diff", path: toPosix(target), oldText: current, newText: updated };
+            await writeFile(target, updated, "utf8");
+            return { path: toPosix(target), matches, replacedAll: replaceAll === true };
+          },
+          (result) => {
+            const summary = `Replaced ${result.matches} occurrence${result.matches === 1 ? "" : "s"} in ${result.path}`;
+            return diff ? [diff, toolText(summary)] : summary;
+          },
+        );
+      },
     }),
 
     fs_move: tool({

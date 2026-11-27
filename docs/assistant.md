@@ -88,7 +88,7 @@
 | `current_time` | 当前时间，可指定 IANA 时区 |
 | `diary_query` | 由一个只读子代理检索日记（`list_diaries` / `grep_diaries` / `read_diary`）并回答 |
 | `reminder_create` / `reminder_list` / `reminder_occurrences` / `reminder_update` / `reminder_delete` | 用户提醒 |
-| `fs_list` / `fs_read` / `fs_write` / `fs_move` / `fs_delete` / `fs_glob` / `fs_grep` | 文件读写、移动、删除与搜索 |
+| `fs_list` / `fs_read` / `fs_write` / `fs_edit` / `fs_move` / `fs_delete` / `fs_glob` / `fs_grep` | 文件读写、编辑、移动、删除与搜索 |
 | `ask_user` | 阻塞式提问，直接复用会话的 Ask User 通道（`sessionId = assistantId`） |
 | `mcp_assistant_share__share_to_user` | 内置分享 MCP，只允许分享 workspace 内已存在的文件（`type="project"`），不支持 link / base64 |
 | `mcp_<server>__<tool>` | 用户在助理配置中勾选的 MCP Server |
@@ -98,6 +98,7 @@
 
 - `fs_read`：单文件最多 4 MB；每次最多 400 行，返回内容按 300 KB 预算保留前面的行，单行超过 1024 字符会截断并标注；二进制拒绝。不带 `offset` / `limit` 的整文件读取另有 100 KB 门槛，`force: true` 同时放开 100 KB 与 400 行上限、返回整个文件（与 ACP `ReadFile` 一致，仍受 4 MB 与 300 KB 约束）。
 - `fs_write`：单次最多 256 KB，支持 `overwrite` / `append`，自动建父目录。
+- `fs_edit`：按 `oldText` 精确替换（StrReplace），文件上限 4 MB；`oldText` 必须唯一命中，多命中要先加长上下文或传 `replaceAll: true`，未命中直接报错且不改文件。`fs_write` / `fs_edit` 完成时会给界面发 `diff` 内容块，文件超过 300 KB 时只发文本摘要。
 - `fs_list`：最多 200 项；`fs_glob` 最多 500 条；`fs_grep` 每个文件最多 500 条匹配（ripgrep `-m`），超长匹配行默认按 1024 字节截断，`maxColumns: 0` 关闭截断。
 - `fs_move`：目标已存在且未传 `force: true` 时拒绝；跨卷回退为复制后删除。
 - `fs_delete`：只允许 workspace 内路径，拒绝 workspace 根。桌面端进系统废纸篓（`shell.trashItem`），无头服务器回退永久删除。
