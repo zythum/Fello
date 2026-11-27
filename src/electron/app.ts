@@ -29,10 +29,10 @@ import { Readable } from "stream";
 import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
 import {
-  appendCrashLog,
   markStartupFinished,
   reportFatal,
   setCrashDialogText,
+  writeCrashLog,
 } from "./crash-log";
 import type { AskUserRequest, AskUserResponse, FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
@@ -1149,7 +1149,7 @@ function createMainWindow() {
     // 渲染进程崩溃（含 OOM）会让窗口变成白屏，用户感知同样是「没启动起来」。
     // 此时主进程还活着，所以只留痕、不弹窗；正常退出是 clean-exit，跳过免得刷日志。
     if (details.reason === "clean-exit") return;
-    appendCrashLog("render-process-gone", `${details.reason} (exitCode ${details.exitCode})`);
+    writeCrashLog("render-process-gone", `${details.reason} (exitCode ${details.exitCode})`);
   });
 
   win.webContents.on("did-finish-load", () => {

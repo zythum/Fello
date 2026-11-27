@@ -7,6 +7,9 @@
  * 并在启动阶段用原生错误框把原因和日志路径告诉用户。
  *
  * 约定：
+ * - `crash.log` 只保留**最后一次错误**：每次写入都覆盖，不做跨运行/跨错误的累积；
+ * - 启动时不清空文件：上一次留下的错误记录会一直保留到下一次真的出错为止
+ *   （启动期崩溃 → 用户重开一次仍失败 → 记录被本次的新错误覆盖；重开成功则旧记录仍在）；
  * - 写日志本身永不抛错，绝不掩盖原始异常；
  * - `uncaughtException` 一律视为致命：记日志 → 弹窗 → 退出；
  * - 启动完成后的 `unhandledRejection` 只记日志，不弹窗也不退出（会话进行中不能被打断）；
@@ -16,15 +19,12 @@
  * `electron`（外加零副作用的路径常量）——一旦引入 i18n / storage 之类，薄入口就被这些模块的
  * 加载期风险重新污染，等于白拆。
  */
-import { appendFileSync, mkdirSync, statSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { app, dialog } from "electron";
 import { FELLO_DIR } from "../backend/storage/constant";
 
 export const CRASH_LOG_PATH = join(FELLO_DIR, "crash.log");
-
-/** 超过这个大小就清空重写：崩溃循环不该把磁盘写满，历史记录也不是本文件的主要目的。 */
-const MAX_LOG_BYTES = 512 * 1024;
 
 /**
  * 弹窗文案。
@@ -83,10 +83,10 @@ function environmentLine(): string {
 }
 
 /**
- * 追加一条崩溃记录，返回写入的正文（写盘失败也返回，弹窗仍要能展示）。
- * 本函数永不抛错。
+ * 写入一条崩溃记录（**覆盖**上一次的内容，文件里永远只有最后一次错误），
+ * 返回写入的正文（写盘失败也返回，弹窗仍要能展示）。本函数永不抛错。
  */
-export function appendCrashLog(scope: string, error: unknown): string {
+export function writeCrashLog(scope: string, error: unknown): string {
   const entry = [
     `=== ${new Date().toISOString()} ===`,
     environmentLine(),
@@ -98,12 +98,7 @@ export function appendCrashLog(scope: string, error: unknown): string {
 
   try {
     mkdirSync(FELLO_DIR, { recursive: true });
-    try {
-      if (statSync(CRASH_LOG_PATH).size > MAX_LOG_BYTES) writeFileSync(CRASH_LOG_PATH, "");
-    } catch {
-      // 文件还不存在：直接追加即可
-    }
-    appendFileSync(CRASH_LOG_PATH, entry, "utf8");
+    writeFileSync(CRASH_LOG_PATH, entry, "utf8");
   } catch (logError) {
     console.error("[crash] Failed to write crash log:", logError);
   }
@@ -119,7 +114,7 @@ export function appendCrashLog(scope: string, error: unknown): string {
  * 调用后进程会退出，不要依赖本函数之后的代码继续执行。
  */
 export function reportFatal(scope: string, error: unknown): void {
-  const entry = appendCrashLog(scope, error);
+  const entry = writeCrashLog(scope, error);
 
   if (!fatalReported) {
     fatalReported = true;
@@ -145,6 +140,6 @@ export function installCrashHandlers(): void {
       reportFatal("unhandledRejection", reason);
       return;
     }
-    appendCrashLog("unhandledRejection", reason);
+    writeCrashLog("unhandledRejection", reason);
   });
 }

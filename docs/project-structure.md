@@ -458,7 +458,7 @@ fello/
 ```
 ~/.fello/
 ├── settings.json                    # 全局设置
-├── crash.log                        # 主进程崩溃留痕（启动失败 / 未捕获异常 / 渲染进程异常退出）
+├── crash.log                        # 最后一次错误留痕（写入即覆盖；启动失败 / 未捕获异常 / 渲染进程异常退出）
 ├── sockets/                         # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                            # 临时文件目录
 ├── assistants/                      # 个人助理数据
