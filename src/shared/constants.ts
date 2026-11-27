@@ -73,6 +73,15 @@ export function getMediaKind(mimeType?: string, filename?: string): MediaKind | 
  */
 export const HISTORY_PAGE_SIZE = 20;
 
+/**
+ * 拉取 OpenAI 兼容 `/models` 的超时与缓存有效期。
+ *
+ * 请求必须有上限：上游挂起时不能让它卡住助理启动或会话配置（两者都要先拿到模型列表）。
+ * 缓存只写成功拿到模型的结果 —— 把失败缓存下来会让界面在 TTL 内一直「没有可用模型」。
+ */
+export const MODEL_LIST_TIMEOUT_MS = 15_000;
+export const MODEL_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+
 /** 所有可用的 feature 列表，也作为默认值 */
 export const ALL_FEATURES: Feature[] = [
   "skills",

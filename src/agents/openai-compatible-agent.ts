@@ -47,6 +47,7 @@ import type {
   SessionTokenBreakdown,
 } from "../shared/schema";
 import { applyModelIdTemplate } from "../shared/model-id";
+import { MODEL_LIST_CACHE_TTL_MS, MODEL_LIST_TIMEOUT_MS } from "../shared/constants";
 import { closeACPClientTools } from "./acp-client-tools";
 import { closeMCPSessionTools } from "./mcp-tools";
 import { createSessionState, type SessionState } from "./session-state";
@@ -248,7 +249,6 @@ export class OpenaiCompatibleAgent {
   private modelsCache: SessionModelState | null = null;
   private modelsFetchedAt = 0;
   private modelsPending: Promise<SessionModelState> | null = null;
-  private readonly modelsCacheTtlMs = 5 * 60 * 1000;
 
   constructor(options: ApiAgentInfo) {
     if (options.provider !== "openai-compatible") {
@@ -327,6 +327,8 @@ export class OpenaiCompatibleAgent {
         "Content-Type": "application/json",
         ...this.headers,
       },
+      // 上游挂起时不能让模型列表卡住会话配置（新建/加载会话都会走这里）。
+      signal: AbortSignal.timeout(MODEL_LIST_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`List models failed: ${response.status} ${response.statusText}`);
@@ -360,7 +362,7 @@ export class OpenaiCompatibleAgent {
     const isCacheValid =
       !forceRefresh &&
       this.modelsCache &&
-      Date.now() - this.modelsFetchedAt < this.modelsCacheTtlMs;
+      Date.now() - this.modelsFetchedAt < MODEL_LIST_CACHE_TTL_MS;
     if (isCacheValid && this.modelsCache) {
       return this.modelsCache;
     }
@@ -368,12 +370,15 @@ export class OpenaiCompatibleAgent {
       return this.modelsPending;
     }
     this.modelsPending = this.fetchModels()
-      .catch(() => this.toSessionModelState([]))
       .then((state) => {
-        this.modelsCache = state;
-        this.modelsFetchedAt = Date.now();
+        // 只缓存真正拿到模型的结果：把失败缓存下来会让界面在 TTL 内一直「没有可用模型」。
+        if (state.availableModels.length > 0) {
+          this.modelsCache = state;
+          this.modelsFetchedAt = Date.now();
+        }
         return state;
       })
+      .catch(() => this.toSessionModelState([]))
       .finally(() => {
         this.modelsPending = null;
       });

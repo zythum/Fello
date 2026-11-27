@@ -42,6 +42,7 @@ import type {
   SessionModelState,
 } from "../shared/schema";
 import { applyModelIdTemplate } from "../shared/model-id";
+import { MODEL_LIST_CACHE_TTL_MS, MODEL_LIST_TIMEOUT_MS } from "../shared/constants";
 import { ASSISTANT_AGENT_ID } from "./constants";
 import { AssistantStorage, type PersistedAssistantSession } from "./storage";
 import { runDream } from "./dream";
@@ -311,6 +312,7 @@ export class AssistantAgent {
   private connection: AgentClientProxy | null = null;
   private session: AssistantSession | null = null;
   private modelsCache: SessionModelState | null = null;
+  private modelsFetchedAt = 0;
   private modelsPending: Promise<SessionModelState> | null = null;
   private readonly sendToolUpdate: ToolUpdateSender = (update) =>
     this.connection?.sessionUpdate({ sessionId: this.options.sessionId, update }) ??
@@ -462,6 +464,8 @@ export class AssistantAgent {
         "Content-Type": "application/json",
         ...this.options.agentInfo.headers,
       },
+      // 上游挂起时不能让助理启动（建助理会 await 启动）一直挂着。
+      signal: AbortSignal.timeout(MODEL_LIST_TIMEOUT_MS),
     });
     if (!response.ok)
       throw new Error(`List models failed: ${response.status} ${response.statusText}`);
@@ -486,13 +490,25 @@ export class AssistantAgent {
       return toModelState(
         this.options.agentInfo.models.map((modelId) => ({ modelId, name: modelId })),
       );
-    if (this.modelsCache) return this.modelsCache;
+    const isCacheValid =
+      this.modelsCache !== null && Date.now() - this.modelsFetchedAt < MODEL_LIST_CACHE_TTL_MS;
+    if (isCacheValid && this.modelsCache) return this.modelsCache;
     if (!this.modelsPending) {
       this.modelsPending = this.fetchModels()
-        .catch(() => toModelState([]))
         .then((models) => {
-          this.modelsCache = models;
+          // 只缓存真正拿到模型的结果：失败/超时也缓存会让助理在 TTL 内一直「没有可用模型」。
+          if (models.availableModels.length > 0) {
+            this.modelsCache = models;
+            this.modelsFetchedAt = Date.now();
+          }
           return models;
+        })
+        .catch((error) => {
+          console.warn(
+            `[assistant] Failed to list models for "${this.options.agentInfo.id}":`,
+            error,
+          );
+          return toModelState([]);
         })
         .finally(() => {
           this.modelsPending = null;
