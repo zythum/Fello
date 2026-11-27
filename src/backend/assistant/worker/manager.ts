@@ -49,12 +49,13 @@ const PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
 /**
  * Appended to every worker prompt. The worker is somebody else's agent, so the reporting
  * contract has to travel with the prompt rather than live in a system prompt we don't own.
+ * The block is wrapped in [META] so chat bubbles hide it from the user.
  */
 const WORKER_REPORT_FOOTER = [
   "",
   "",
-  "---",
-  "**[Fello worker]** When this turn is done, end your reply with a short report in this shape:",
+  "[META]",
+  "When this turn is done, end your reply with a short report in this shape:",
   "",
   "```text",
   "Status: done|blocked",
@@ -62,6 +63,7 @@ const WORKER_REPORT_FOOTER = [
   "Files: <paths you created or changed>",
   "Blockers: <what stopped you, or none>",
   "```",
+  "[/META]",
 ].join("\n");
 
 const SUMMARY_ASSISTANT_CHARS = 600;

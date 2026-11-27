@@ -185,7 +185,7 @@ Worker 是助理驱动的普通 ACP 会话，不是 Fello 的 session 记录，�
 | `worker_terminate` | 删除记录与转写；**不删除 workspace** |
 | `worker_permission` | 回答 worker 的权限请求（`allow_once` / `allow_always` / `deny`） |
 
-- 每轮 prompt 末尾都会追加统一的 `[Fello worker]` 报告格式（Status / Done / Files / Blockers），因为 worker 是别人的 Agent，无法修改其系统提示词。
+- 每轮 prompt 末尾都会追加 `[META]…[/META]` 报告契约（Status / Done / Files / Blockers）：worker 是别人的 Agent，无法修改其系统提示词，所以契约只能随 prompt 传递；该块属于脚手架文本，展示时被整块隐藏（复制仍保留）。
 - 一轮结束或失败后，通过 wake 注入 `[Worker ... event="finished|failed"]`，带末尾 1500 字符输出；权限请求注入 `[Worker ... event="permission"]`。
 - 权限请求 10 分钟未回答自动拒绝（`cancelled`）；`permissionMode: "allow-all"` 时直接选择 allow。
 - 应用正常退出会把运行中的 worker 取消并标记 `idle`；崩溃后下次启动由 `init()` 标记为 `interrupted`，助理可通过 `worker_status` / `worker_list` 看到状态并自行决定是否继续。
