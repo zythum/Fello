@@ -708,7 +708,21 @@ export abstract class ApiAgent {
       maxOutputTokens: 5000,
     });
 
-    const summary = summaryResult.text;
+    const summary = summaryResult.text.trim();
+    // 推理型模型可能把输出预算花在 reasoning 上而返回空文本；此时不能用空摘要
+    // 覆盖历史，否则整段上下文会直接丢失。
+    if (!summary) {
+      if (this.connection) {
+        await this.connection.sessionUpdate({
+          sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "Compaction produced no summary; history unchanged." },
+          },
+        });
+      }
+      return { stopReason: "end_turn" };
+    }
     session.history = [buildCompactSummaryMessage(summary)];
     await savePersistedSessionHistory({
       agentId: this.agentId,
