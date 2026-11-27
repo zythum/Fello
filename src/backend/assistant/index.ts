@@ -1005,7 +1005,10 @@ export function createAssistantManager(
       configs.set(config.id, config);
       emitConfigs();
       if (!config.disabled && isGloballyEnabled()) {
-        await ensureRuntime(config)
+        // 不阻塞创建 IPC：配置已落盘、列表已广播，连接进度由 assistant-status-changed 驱动
+        // （connecting → connected / error）。否则上游 /models 等服务挂起时，用户点「创建」
+        // 会看到弹窗一直转圈，而侧边栏里助理其实早就建好了。
+        void ensureRuntime(config)
           .start()
           .catch((error) => {
             console.error(`[assistant:${config.id}] Failed to start:`, error);
@@ -1066,7 +1069,15 @@ export function createAssistantManager(
       if (!configs.has(assistantId)) throw new Error(`Assistant ${assistantId} does not exist.`);
       const runtime = runtimes.get(assistantId);
       if (runtime) {
+        const startedAt = Date.now();
         await runtime.shutdown().catch(() => {});
+        // 停运行时会等 MCP 客户端关闭、worker 子进程退出等外部资源，正常情况下是毫秒级。
+        // 这里只记耗时、不设上限（截断会让运行中的助理在数据目录被删后继续写盘），
+        // 下次再有人反馈「删除后一直 loading」时，日志能直接指出是不是卡在这一步。
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > 3000) {
+          console.warn(`[assistant:${assistantId}] Shutdown took ${elapsed}ms`);
+        }
         runtimes.delete(assistantId);
       }
       configs.delete(assistantId);
