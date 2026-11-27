@@ -210,6 +210,7 @@ export function SettingsAgentApiDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="openai-compatible">openai-compatible</SelectItem>
+                          <SelectItem value="open-responses">open-responses</SelectItem>
                         </SelectContent>
                       </Select>
                       {fieldState.invalid && (

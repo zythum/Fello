@@ -342,8 +342,13 @@ export interface StdioAgentInfo extends BaseAgentInfo {
 export interface ApiAgentInfo extends BaseAgentInfo {
   /** 通过远程 HTTP API 连接代理 */
   type: "api";
-  /** API 兼容层提供商标识（可扩展） */
-  provider: "openai-compatible" | (string & {});
+  /**
+   * API 协议标识（可扩展）：
+   * - `openai-compatible`：OpenAI Chat Completions（`@ai-sdk/openai-compatible`）
+   * - `open-responses`：OpenAI Responses API（`@ai-sdk/open-responses`，端点 `{baseUrl}/responses`），
+   *   适用于 xAI Grok 等推荐 Responses 端点的厂商
+   */
+  provider: "openai-compatible" | "open-responses" | (string & {});
   /** API 服务基础地址 */
   baseUrl: string;
   /** API 鉴权密钥 */

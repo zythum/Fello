@@ -1,15 +1,24 @@
 import { agent, ndJsonStream, methods, type AgentConnection } from "@agentclientprotocol/sdk";
+import type { ApiAgent } from "../../agents/api-agent";
 import { OpenaiCompatibleAgent } from "../../agents/openai-compatible-agent";
+import { OpenResponsesAgent } from "../../agents/open-responses-agent";
 import type { ApiAgentInfo } from "../../shared/schema";
 import type { AgentProcess } from "./base-agent";
 
-export function spawnOpenaiCompatibleApiAgent(options: ApiAgentInfo): AgentProcess {
+/** 按 provider 选择具体协议实现；未知 provider 由实现类的构造函数报错。 */
+function createApiAgent(options: ApiAgentInfo): ApiAgent {
+  return options.provider === "open-responses"
+    ? new OpenResponsesAgent(options)
+    : new OpenaiCompatibleAgent(options);
+}
+
+export function spawnApiAgent(options: ApiAgentInfo): AgentProcess {
   const inputStream = new TransformStream<Uint8Array, Uint8Array>();
   const outputStream = new TransformStream<Uint8Array, Uint8Array>();
   const stream = ndJsonStream(outputStream.writable, inputStream.readable);
-  const impl = new OpenaiCompatibleAgent(options);
+  const impl = createApiAgent(options);
 
-  const app = agent({ name: "openai-compatible-api-agent" })
+  const app = agent({ name: "api-agent" })
     .onRequest(methods.agent.initialize, (ctx) => impl.initialize(ctx.params))
     .onRequest(methods.agent.authenticate, () => impl.authenticate())
     .onRequest(methods.agent.session.new, (ctx) => impl.newSession(ctx.params))

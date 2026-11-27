@@ -16,7 +16,8 @@
 | 技术 | 版本 | 说明 |
 | --- | --- | --- |
 | @agentclientprotocol/sdk | ^2.0.2 | ACP 客户端 SDK，负责 Agent 通信协议（默认入口为 stable v1，unstable 特性从 `/unstable` 导入） |
-| @ai-sdk/openai-compatible | ^3.0.80 | OpenAI 兼容 API 客户端（Vercel AI SDK） |
+| @ai-sdk/openai-compatible | ^3.0.80 | OpenAI 兼容 API 客户端（Vercel AI SDK，Chat Completions 协议） |
+| @ai-sdk/open-responses | ^2.0.91 | OpenAI Responses API 客户端（Vercel AI SDK，`open-responses` 协议） |
 | ai | ^7.0.155 | Vercel AI SDK，streamText/generateText 驱动 API Agent |
 | @modelcontextprotocol/sdk | ^1.32.2 | MCP SDK，负责与 Model Context Protocol 服务通信 |
 | @ai-sdk/mcp | ^2.0.86 | AI SDK MCP 集成，将 MCP 工具转换为 AI SDK tools |

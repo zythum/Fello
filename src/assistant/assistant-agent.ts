@@ -475,7 +475,7 @@ export class AssistantAgent {
       entries.flatMap((entry) => {
         const rawId = typeof entry.id === "string" ? entry.id.trim() : "";
         if (!rawId) return [];
-        // 与会话侧的 OpenaiCompatibleAgent 保持一致：`modelIdTemplate` 拼出来的才是真正发给
+        // 与会话侧的 ApiAgent 保持一致：`modelIdTemplate` 拼出来的才是真正发给
         // 上游的模型 id。漏掉它有两个后果：助理请求用错 id；`name` 里没有 provider 前缀，
         // 模型菜单也就做不出「provider → 模型」的二级分组。
         const template = this.options.agentInfo.modelIdTemplate;

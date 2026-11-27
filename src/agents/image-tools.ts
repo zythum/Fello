@@ -9,9 +9,9 @@ import {
   type TextPart,
   type ToolSet,
 } from "ai";
-import type { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";
 import type { AgentClientProxy } from "./agent-client-proxy";
+import type { ApiLanguageModel } from "./api-language-model";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,7 +25,7 @@ export type ImageToolsParams = {
   /** Get the current ACP connection */
   getConnection: () => AgentClientProxy | null;
   /** Get the AI model instance (same model as the current session) */
-  getModel: () => ReturnType<ReturnType<typeof createOpenAICompatible>["chatModel"]>;
+  getModel: () => ApiLanguageModel;
   /** AbortSignal from the parent session */
   parentSignal?: AbortSignal;
 };

@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { streamText, isStepCount, type ToolSet } from "ai";
-import type { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentClientProxy } from "./agent-client-proxy";
+import type { ApiLanguageModel } from "./api-language-model";
 import type { AddonSessionUpdate, SubagentStatus } from "../shared/schema";
 import { createACPClientTools, closeACPClientTools } from "./acp-client-tools";
 import { createImageTools } from "./image-tools";
@@ -21,7 +21,7 @@ export type SubagentToolParams = {
   /** Get the current ACP connection */
   getConnection: () => AgentClientProxy | null;
   /** Get the AI model instance */
-  getModel: () => ReturnType<ReturnType<typeof createOpenAICompatible>["chatModel"]>;
+  getModel: () => ApiLanguageModel;
   /** System prompt for subagents */
   systemPrompt: string;
   /** Shared permission memory so subagents respect "always allow" choices */

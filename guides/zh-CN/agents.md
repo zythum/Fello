@@ -53,13 +53,13 @@ curl -fsSL https://cli.kiro.dev/install | bash
 | 字段 | 示例值 | 说明 |
 |------|-------|------|
 | **ID** | `deepseek` | Agent 唯一标识，仅支持字母、数字、下划线和连字符 |
-| **Provider** | `openai-compatible` | API 兼容协议类型（目前支持 OpenAI 兼容） |
-| **Base URL** | `https://api.deepseek.com/v1` | API 服务地址，需兼容 `/chat/completions` 接口 |
+| **Provider** | `openai-compatible` | API 协议类型：`openai-compatible`（Chat Completions）或 `open-responses`（Responses，如 xAI Grok） |
+| **Base URL** | `https://api.deepseek.com/v1` | API 服务地址：`openai-compatible` 需兼容 `/chat/completions`；`open-responses` 需兼容 `/responses`，只填前缀（如 `https://api.x.ai/v1`），不要带 `/responses`，Fello 会自动拼接 |
 | **API Key** | `sk-xxx...` | API 鉴权密钥 |
 | **Headers (JSON)** | `{"X-Custom": "value"}` | （可选）额外的请求头，JSON 对象格式，如自定义鉴权头 |
 | **Context Window** | `1000000` | （可选）上下文窗口大小（tokens），用于用量展示，默认 128000。大部分可以选 1m。（选错只影响数据统计） |
 
-> 💡 **兼容性：** 任何兼容 OpenAI `/v1/chat/completions` 接口的服务都可以接入，包括 Azure OpenAI、本地 Ollama、vLLM 等。
+> 💡 **兼容性：** 任何兼容 OpenAI `/v1/chat/completions` 接口的服务都可以接入，包括 Azure OpenAI、本地 Ollama、vLLM 等。选择 `open-responses` 时改走 `/v1/responses` 接口，适合 xAI Grok 这类推荐 Responses 端点的模型。
 
 ### 常用 API 服务配置参考
 
@@ -69,6 +69,7 @@ curl -fsSL https://cli.kiro.dev/install | bash
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` / `deepseek-reasoner` |
 | Anthropic | `https://api.anthropic.com/v1` | `claude-sonnet-4-20250514` |
 | OpenRouter | `https://openrouter.ai/api/v1` | 按需选择多家模型 |
+| xAI Grok | `https://api.x.ai/v1` | `grok-4` 等（Provider 选 `open-responses`） |
 | 本地 Ollama | `http://localhost:11434/v1` | `qwen2.5` / `llama3` |
 
 ---

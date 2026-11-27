@@ -53,13 +53,13 @@ For more installation options, see → [Kiro CLI Official Page](https://kiro.dev
 | Field | Example Value | Description |
 |------|-------|------|
 | **ID** | `deepseek` | Unique identifier for the Agent; only letters, numbers, underscores, and hyphens are allowed |
-| **Provider** | `openai-compatible` | API compatibility protocol type (OpenAI-compatible is currently supported) |
-| **Base URL** | `https://api.deepseek.com/v1` | The API service URL, must be compatible with the `/chat/completions` endpoint |
+| **Provider** | `openai-compatible` | API protocol type: `openai-compatible` (Chat Completions) or `open-responses` (Responses, e.g. xAI Grok) |
+| **Base URL** | `https://api.deepseek.com/v1` | The API service URL: `/chat/completions` for `openai-compatible`; `/responses` for `open-responses` (prefix only, e.g. `https://api.x.ai/v1` — do not include `/responses`, Fello appends it) |
 | **API Key** | `sk-xxx...` | The API key used for authentication |
 | **Headers (JSON)** | `{"X-Custom": "value"}` | (Optional) Extra request headers in JSON object format, e.g. custom auth headers |
 | **Context Window** | `1000000` | (Optional) Context window size (tokens), used for usage display; defaults to 128000. For most cases you can pick 1m. (A wrong value only affects usage statistics.) |
 
-> 💡 **Compatibility:** Any service that implements the OpenAI `/v1/chat/completions` endpoint can be connected, including Azure OpenAI, local Ollama, vLLM, and more.
+> 💡 **Compatibility:** Any service that implements the OpenAI `/v1/chat/completions` endpoint can be connected, including Azure OpenAI, local Ollama, vLLM, and more. With `open-responses`, requests go to `/v1/responses` instead — the right choice for models such as xAI Grok that recommend the Responses endpoint.
 
 ### Common API Service Configuration Reference
 
@@ -69,6 +69,7 @@ For more installation options, see → [Kiro CLI Official Page](https://kiro.dev
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` / `deepseek-reasoner` |
 | Anthropic | `https://api.anthropic.com/v1` | `claude-sonnet-4-20250514` |
 | OpenRouter | `https://openrouter.ai/api/v1` | Choose from multiple models on demand |
+| xAI Grok | `https://api.x.ai/v1` | e.g. `grok-4` (select Provider `open-responses`) |
 | Local Ollama | `http://localhost:11434/v1` | `qwen2.5` / `llama3` |
 
 ---

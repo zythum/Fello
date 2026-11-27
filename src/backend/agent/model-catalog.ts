@@ -54,7 +54,7 @@ async function loadAgentModels(agentId: string): Promise<ModelInfo[]> {
   if (!agent) return [];
 
   if (agent.type === "api") {
-    // 手填列表是运行时唯一认的模型集合（OpenaiCompatibleAgent 优先用它校验 setModel），
+    // 手填列表是运行时唯一认的模型集合（ApiAgent 优先用它校验 setModel），
     // 因此排在最前；/models 只用来补充接口上其它可用的 id。
     const configured = toModelInfosFromIds(agent.models);
     try {

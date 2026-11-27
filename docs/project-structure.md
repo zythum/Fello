@@ -10,7 +10,10 @@ fello/
 │   │   ├── env.ts                    # 服务器环境变量配置
 │   │   └── global.d.ts               # 服务器全局类型声明
 │   ├── agents/                       # Agent 会话逻辑（框架无关，主进程使用）
-│   │   ├── openai-compatible-agent.ts    # OpenAI 兼容 API Agent 实现（ACP Agent 接口）
+│   │   ├── api-agent.ts                  # API Agent 共享实现（ACP Agent 接口：会话/历史/工具/Token）
+│   │   ├── openai-compatible-agent.ts    # Chat Completions 协议实现（子类）
+│   │   ├── open-responses-agent.ts       # Open Responses 协议实现（子类）
+│   │   ├── api-language-model.ts         # API Agent 模型实例类型别名（收窄 LanguageModel）
 │   │   ├── session-state.ts              # 会话状态创建（ACP tools + MCP tools + 权限记忆）
 │   │   ├── storage.ts                    # API Agent 会话持久化（session.json + history.jsonl）
 │   │   ├── acp-client-tools.ts           # ACP 客户端工具集工厂
@@ -70,7 +73,7 @@ fello/
 │   │   │   ├── agent-terminal-manager.ts # Agent 专属终端进程管理
 │   │   │   ├── base-agent.ts             # AgentProcess 统一接口
 │   │   │   ├── stdio-agent.ts            # Stdio Agent 进程 spawn（child_process）
-│   │   │   ├── openai-compatible-api-agent.ts # API Agent 进程内启动
+│   │   │   ├── api-agent.ts              # API Agent 进程内启动（按 provider 选协议实现）
 │   │   │   ├── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
 │   │   │   └── model-catalog.ts          # Agent 模型候选（/models 实拉 + 最近会话快照）
 │   │   ├── storage/                  # 持久化管理模块
@@ -399,7 +402,7 @@ fello/
 ### `src/agents`
 
 - 框架无关的 Agent 会话逻辑，被主进程（backend）直接引用
-- 实现 ACP Agent 接口（`OpenaiCompatibleAgent`）
+- 实现 ACP Agent 接口（`ApiAgent`）
 - 管理会话状态（ModelMessage 历史、工具集、权限记忆）
 - 提供 API Agent 的持久化层（session.json + history.jsonl）
 

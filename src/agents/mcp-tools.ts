@@ -78,7 +78,7 @@ async function createClient(server: McpServer, cwd: string): Promise<MCPClient> 
           url: server.url,
           headers: toHeaderRecord(server.headers),
         },
-        clientName: "fello-openai-compatible-agent",
+        clientName: "fello-api-agent",
         version: "0.1.0",
       });
     }
@@ -97,7 +97,7 @@ async function createClient(server: McpServer, cwd: string): Promise<MCPClient> 
       },
       cwd,
     }),
-    clientName: "fello-openai-compatible-agent",
+    clientName: "fello-api-agent",
     version: "0.1.0",
   });
 }

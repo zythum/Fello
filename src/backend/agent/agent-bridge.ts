@@ -39,7 +39,7 @@ import type {
 } from "../../shared/schema";
 import { type AgentProcess } from "./base-agent";
 import { spawnStdioAgent } from "./stdio-agent";
-import { spawnOpenaiCompatibleApiAgent } from "./openai-compatible-api-agent";
+import { spawnApiAgent } from "./api-agent";
 import { spawnAssistantAgent } from "./assistant-agent";
 import { AgentTerminalManager } from "./agent-terminal-manager";
 
@@ -395,11 +395,9 @@ export class ACPBridge {
                 ...this.options.agentInfo.env,
               },
             })
-          : this.options.agentInfo.provider === "openai-compatible"
-            ? spawnOpenaiCompatibleApiAgent(this.options.agentInfo)
-            : (() => {
-                throw new Error(`Unsupported api provider: ${this.options.agentInfo.provider}`);
-              })();
+          // 具体协议（openai-compatible / open-responses）由 spawnApiAgent 按 provider 分派，
+          // 不认识的 provider 会在 agent 构造函数里报错。
+          : spawnApiAgent(this.options.agentInfo);
     this.process = proc;
 
     const rawStream = ndJsonStream(proc.input, proc.output);

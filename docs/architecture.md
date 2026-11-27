@@ -101,7 +101,7 @@
 - **`src/backend/toolbox.ts`**：通用工具箱模块（编码/哈希/时间/UUID/随机数/图片处理/QR 码生成/音频文件转写/文字转语音），Socket 路由注册（`toolbox/*`）
 - **`src/backend/speech/`**：语音模块（识别 + 合成）。`asr-manager.ts` 管理实时语音输入会话；`asr-config.ts` 把 Provider 配置映射为 `unified-realtime-asr` 的 `ASRConfig`（实时输入与文件转写共用）；`tts-manager.ts` 无状态转发合成句子（每句 `sendText` + `flush`）、`tts-config.ts` 映射为 `TTSConfig`；`util.ts` 是两个方向共用的凭证读取与报错工具；`ffmpeg.ts` 定位系统 ffmpeg（解码音频文件、编码 mp3）；`transcribe.ts` 实现音频文件转文字（供 toolbox 的 `audio_transcribe` 工具调用）；`synthesize.ts` 实现文字转语音落盘（供 toolbox 的 `text_to_speech` 工具调用）
 - **`src/backend/agent/stdio-agent.ts`**：Stdio Agent 进程 spawn（child_process），进程组管理
-- **`src/backend/agent/openai-compatible-api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
+- **`src/backend/agent/api-agent.ts`**：API Agent 进程内启动，通过 ndJsonStream 桥接
 - **`src/backend/agent/base-agent.ts`**：AgentProcess 统一接口（input/output streams + close）
 - **`src/backend/ilink/ilink-bridge.ts`**：微信 iLink 连接管理、QR 登录、长轮询、消息收发
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
@@ -128,7 +128,9 @@
 
 此目录是框架无关的 Agent 会话逻辑，同时被 backend（主进程）使用：
 
-- **`openai-compatible-agent.ts`**：实现 ACP Agent 接口，使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM。支持流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、首轮自动生成标题，以及运行中通过 `SetSessionTitle` 改标题。每轮生成结束后通过 `result.usage` / `result.totalUsage` 采集每轮 Token 用量，并通过 ACP `usage_update` 事件发送上下文窗口占用通知
+- **`api-agent.ts`**：实现 ACP Agent 接口的共享基类（`ApiAgent`），使用 Vercel AI SDK（`streamText`/`generateText`）驱动 LLM：会话/历史/工具/Token 统计、流式文本、推理（reasoning）、文件内容、工具调用、会话持久化、首轮自动生成标题，以及运行中通过 `SetSessionTitle` 改标题。每轮生成结束后通过 `result.usage` 采集每轮 Token 用量，并通过 ACP `usage_update` 事件发送上下文窗口占用通知
+- **`openai-compatible-agent.ts`** / **`open-responses-agent.ts`**：两种协议的子类，只实现模型工厂与 providerOptions——`openai-compatible` 走 Chat Completions（`@ai-sdk/openai-compatible`），`open-responses` 走 Responses（`@ai-sdk/open-responses`，端点 `{baseUrl}/responses`，适用于 xAI Grok 等厂商）
+- **`api-language-model.ts`**：API Agent 模型实例类型别名（`Exclude<LanguageModel, string>`）
 - **`session-state.ts`**：创建会话状态（SessionState），组装 ACP client tools + MCP session tools + 权限记忆。新增 `contextUsedTokens` 字段追踪当前上下文窗口已用 Token 数
 - **`storage.ts`**：API Agent 会话持久化（session.json + history.jsonl），存储于 `~/.fello/api-agents/`。session.json 新增 `contextUsedTokens` 字段，支持跨会话持久化上下文用量
 - **`acp-client-tools.ts`**：创建 ACP 客户端工具集（文件读写、终端、搜索等）
@@ -210,7 +212,7 @@ MCP 子进程的构建入口在 `electron.vite.config.ts` 中配置，输出到 
 
 **Stdio Agent**：通过 `child_process.spawn` 启动，使用 ACP SDK 的 NDJSON stdio 通信
 
-**API Agent**：进程内运行 `OpenaiCompatibleAgent` 实例，通过 ACP SDK 的 `ndJsonStream` 和 `AgentSideConnection` 桥接——对外表现为标准 ACP Agent
+**API Agent**：进程内运行 `ApiAgent` 子类实例（`OpenaiCompatibleAgent` / `OpenResponsesAgent`），通过 ACP SDK 的 `ndJsonStream` 和 `AgentSideConnection` 桥接——对外表现为标准 ACP Agent
 
 ## 核心设计决策
 
@@ -223,9 +225,9 @@ type AgentInfo = StdioAgentInfo | ApiAgentInfo
 ```
 
 - **StdioAgentInfo**：`type: "stdio"`, `command`, `args`, `env`
-- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible"`, `baseUrl`, `apiKey`, `headers`，以及可选的 `contextWindowTokens`（默认 128000）、`modelIdTemplate`、`models`
+- **ApiAgentInfo**：`type: "api"`, `provider: "openai-compatible" | "open-responses"`, `baseUrl`, `apiKey`, `headers`，以及可选的 `contextWindowTokens`（默认 128000）、`modelIdTemplate`、`models`
 
-`ACPBridge` 根据 `AgentInfo.type` 路由到对应的 spawner（`spawnStdioAgent` 或 `spawnOpenaiCompatibleApiAgent`），两者都实现统一的 `AgentProcess` 接口。
+`ACPBridge` 根据 `AgentInfo.type` 路由到对应的 spawner（`spawnStdioAgent` 或 `spawnApiAgent`），两者都实现统一的 `AgentProcess` 接口。
 
 ### 2) Session 级 Bridge 生命周期
 
@@ -443,7 +445,7 @@ Agent 调用 share_to_user MCP tool
 
 - 客户端本地保存项目元数据、会话元数据（`session.json`）
 - Stdio Agent 会话的聊天历史通过主进程进行落盘拦截：`messages.jsonl` 为兼容旧数据的 segment 0，后续完整 user group 写入 `messages-000001.jsonl` 等 NDJSON segment；前端按 segment 懒加载
-- API Agent 会话的聊天历史在 `OpenaiCompatibleAgent` 内部直接写入 `history.jsonl`
+- API Agent 会话的聊天历史在 `ApiAgent` 内部直接写入 `history.jsonl`
 - API Agent 会话状态（modelId、allowedToolKinds、contextUsedTokens）持久化到 `session.json`
 - 删除项目时删除对应 `~/.fello/projects/<project-id>/` 目录（包含其所有会话和日志）
 - iLink 凭证和游标持久化到 `~/.fello/ilink/`

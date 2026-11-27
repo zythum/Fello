@@ -46,14 +46,14 @@
 - **协议遵循**：所有功能开发必须遵循 ACP（Agent Client Protocol）协议规范（基于 `@agentclientprotocol/sdk`）。如果发现功能需求与 ACP 协议冲突，必须提出质疑并进行讨论，禁止强行绕过或违背协议。
 - **ID 映射规范**：与底层 ACP 服务（Agent 进程）交互时，必须使用 `session.resumeId` 而非 `session.id`。由于 ACP 接口声明中常将参数命名为 `sessionId`，极易与 Fello 自身的 `session.id` 混淆。牢记规则：**ACP 侧的 `sessionId` === Fello 侧的 `session.resumeId`**。
 - ACP 更新事件统一进入 `reduceSessionNotification(sessionId, currentState, notification)`，主进程在接收到这些事件时，对于 Stdio Agent 会先通过 `appendSessionMessage` 持久化到 `messages.jsonl` 文件
-- API Agent 的历史消息由 `OpenaiCompatibleAgent` 直接管理并持久化到 `history.jsonl`
+- API Agent 的历史消息由 `ApiAgent` 直接管理并持久化到 `history.jsonl`
 - 历史回放和实时流式事件共用同一 Reducer 处理逻辑，避免行为分叉
 - 切换/恢复会话前先 `resetSessionState`，避免历史与旧状态混叠
 - tool call 状态更新必须同时同步到 `activeToolCalls` 与 `messages`
 
 ## Agent 开发约定
 
-- Agent 实现须满足 ACP `Agent` 接口（`src/agents/openai-compatible-agent.ts`）
+- Agent 实现须满足 ACP `Agent` 接口（共享基类 `src/agents/api-agent.ts`，协议子类 `openai-compatible-agent.ts` / `open-responses-agent.ts`）
 - Agent 进程 spawner 须实现 `AgentProcess` 接口（`src/backend/agent/base-agent.ts`）
 - API Agent 会话状态（modelId、allowedToolKinds）须通过 `src/agents/storage.ts` 持久化
 - 权限记忆通过 `src/agents/permission.ts` 管理，支持"始终允许"并持久化

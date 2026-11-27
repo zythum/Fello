@@ -76,7 +76,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | &nbsp;&nbsp;↳ `disabled` | `boolean` | 是否停用该代理 |
 | &nbsp;&nbsp;↳ `order` | `number` | Agent 在设置列表中的顺序 |
 | ↳ ApiAgentMeta | `object` | `type: "api"` |
-| &nbsp;&nbsp;↳ `provider` | `string` | 兼容层提供商标识（如 `"openai-compatible"`） |
+| &nbsp;&nbsp;↳ `provider` | `string` | API 协议标识：`"openai-compatible"`（Chat Completions）或 `"open-responses"`（Responses） |
 | &nbsp;&nbsp;↳ `baseUrl` | `string` | API 服务基础地址 |
 | &nbsp;&nbsp;↳ `apiKey` | `string` | API 鉴权密钥 |
 | &nbsp;&nbsp;↳ `headers` | `Record<string, string>` | 额外请求头 |
@@ -177,7 +177,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 > 当需要与底层的 ACP 服务（Agent 进程）通信时（例如 `loadSession` 或 `prompt`），必须传入 `session.resume_id`，绝不能传入 `session.id`。
 
 ### 5. API Agent 会话状态 (`api-agents/<agent_id>/sessions/<session_id>/session.json`)
-存储 API Agent 会话的运行时状态，由 `OpenaiCompatibleAgent` 管理。
+存储 API Agent 会话的运行时状态，由 `ApiAgent` 管理。
 
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
@@ -242,7 +242,7 @@ Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` �
 | **持久化机制** | 主进程拦截 `session-update` 事件，追加到当前最大编号的 segment。 |
 | **读取与恢复** | 初次打开读取最新 segment；若它不足 20 个 user group 且有前驱，会合并一个前驱以避免首屏过短。前端按 `previousSegmentId` 继续请求更早 segment，并将已加载通知交给同一 Reducer 重放。 |
 
-**API Agent (`history.jsonl`)**：由 `OpenaiCompatibleAgent` 直接管理，存储 AI SDK 的 `ModelMessage` 数组。
+**API Agent (`history.jsonl`)**：由 `ApiAgent` 直接管理，存储 AI SDK 的 `ModelMessage` 数组。
 
 | 特性 | 说明 |
 | :--- | :--- |
