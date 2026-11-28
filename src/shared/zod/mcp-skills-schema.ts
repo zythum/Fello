@@ -1,5 +1,28 @@
 import { z } from "zod";
 
+// ── MCP Server ───────────────────────────────────────────────────────
+
+export const SKILLS_SERVER_DESCRIPTION = "MCP server that exposes Agent Skills via tools.";
+
+// ── list_skills ──────────────────────────────────────────────────────
+
+/**
+ * list_skills 工具的模型可见说明。初始 catalog 由主进程在启动参数中给出，
+ * 故以函数形式生成，避免说明文案与注入逻辑分散在两处。
+ */
+export function buildListSkillsToolDescription(catalog: SkillCatalog = []): string {
+  const initialCatalog =
+    catalog.length <= 0
+      ? ""
+      : `\nInitial Catalog:\n\`\`\`json${JSON.stringify(catalog, null, "  ")}\n\`\`\``;
+
+  return (
+    "Get available **Agent Skills** Catalog with their id, name and description. " +
+    "If the user message contains a skill mention in the form `@skill:xxxxx`, call this tool to find the matching skill before proceeding, then use the returned skill id with `activate_skill`." +
+    initialCatalog
+  );
+}
+
 /**
  * Schema for the skill catalog response returned by list_skills.
  */
@@ -12,6 +35,11 @@ export const skillCatalogSchema = z.array(
 );
 
 export type SkillCatalog = z.infer<typeof skillCatalogSchema>;
+
+// ── activate_skill ───────────────────────────────────────────────────
+
+export const ACTIVATE_SKILL_TOOL_DESCRIPTION =
+  "Activate a **Agent Skill** by id, loading its full instructions and listing supporting files.";
 
 /**
  * Request schema for fetching a single skill's detail (activate_skill).

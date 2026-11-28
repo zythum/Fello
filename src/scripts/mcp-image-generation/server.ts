@@ -1,6 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { imageGenerationRequestSchema } from "../../shared/zod/mcp-image-generation-schema";
+import {
+  IMAGE_GENERATION_SERVER_DESCRIPTION,
+  IMAGE_GENERATION_TOOL_DESCRIPTION,
+  imageGenerationRequestSchema,
+} from "../../shared/zod/mcp-image-generation-schema";
 import * as http from "http";
 
 // ── Parse CLI args ──────────────────────────────────────────────────
@@ -28,16 +32,13 @@ if (!projectDir) {
 const server = new McpServer({
   name: "Image Generation",
   version: "1.0.0",
-  description: "Generate images from text prompts using configured image generation providers.",
+  description: IMAGE_GENERATION_SERVER_DESCRIPTION,
 });
 
 server.registerTool(
   "image_generation",
   {
-    description: `Generate images based on a text prompt. The generated images will be displayed to the user directly.
-Use this tool when the user asks you to create, generate, or draw an image.
-The images will be saved and shown to the user automatically.
-You MUST specify a size. Common sizes: '1024x1024' (square), '1536x1024' (landscape), '1024x1536' (portrait), '1792x1024' (wide), '1024x1792' (tall).`,
+    description: IMAGE_GENERATION_TOOL_DESCRIPTION,
     inputSchema: imageGenerationRequestSchema,
   },
   async (input) => {

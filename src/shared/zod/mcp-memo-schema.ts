@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+// ── MCP Server ───────────────────────────────────────────────────────
+
+export const MEMO_WRITABLE_SERVER_DESCRIPTION =
+  "Provides transactional tools for organizing project memory entries.";
+
+export const MEMO_READ_ONLY_SERVER_DESCRIPTION =
+  "Provides tools to retrieve and mark project memory entries as used.";
+
 // ── Memory Entry Schema ──────────────────────────────────────────────
 
 export const memoryEntrySchema = z.object({
@@ -53,6 +61,9 @@ const mutableWeightSchema = z
 
 // ── memo_get_current ─────────────────────────────────────────────────
 
+export const MEMO_GET_CURRENT_TOOL_DESCRIPTION =
+  "Read the current project memory entries and their backend-generated, read-only IDs. Call this exactly once before any other memo tool.";
+
 export const memoGetCurrentRequestSchema = z.object({});
 
 export type MemoGetCurrentRequest = z.infer<typeof memoGetCurrentRequestSchema>;
@@ -64,6 +75,9 @@ export const memoGetCurrentRespondSchema = z.object({
 export type MemoGetCurrentRespond = z.infer<typeof memoGetCurrentRespondSchema>;
 
 // ── memo_add ─────────────────────────────────────────────────────────
+
+export const MEMO_ADD_TOOL_DESCRIPTION = `Add one new immutable memory entry to the current transaction draft. The backend generates its ID and date.
+Use weight 3 only for an explicit durable instruction or prohibition governing how the agent must act. If the same text already exists, the tool reports content_exists and leaves the draft unchanged.`;
 
 export const memoAddRequestSchema = z.object({
   text: z.string().min(1).max(512).describe("New immutable memory fact"),
@@ -87,6 +101,9 @@ export type MemoAddRespond = z.infer<typeof memoAddRespondSchema>;
 
 // ── memo_delete ──────────────────────────────────────────────────────
 
+export const MEMO_DELETE_TOOL_DESCRIPTION =
+  "Delete one entry from the current transaction draft by its read-only ID. Use delete plus add when immutable text or tags must be replaced.";
+
 export const memoDeleteRequestSchema = z.object({
   id: memoryEntryIdSchema,
 });
@@ -102,6 +119,9 @@ export const memoDeleteRespondSchema = z.object({
 export type MemoDeleteRespond = z.infer<typeof memoDeleteRespondSchema>;
 
 // ── memo_set_weight ──────────────────────────────────────────────────
+
+export const MEMO_SET_WEIGHT_TOOL_DESCRIPTION = `Set one entry's weight in the current transaction draft. This always refreshes its date.
+Use weight 3 only for an explicit durable instruction or prohibition governing how the agent must act; repetition, correction, urgency, or technical necessity alone never justify weight 3.`;
 
 export const memoSetWeightRequestSchema = z.object({
   id: memoryEntryIdSchema,
@@ -119,6 +139,9 @@ export const memoSetWeightRespondSchema = z.object({
 export type MemoSetWeightRespond = z.infer<typeof memoSetWeightRespondSchema>;
 
 // ── memo_touch ───────────────────────────────────────────────────────
+
+export const MEMO_TOUCH_TOOL_DESCRIPTION =
+  "Mark only the entries represented in the final retrieval response as used by refreshing their date. Pass their read-only IDs, not array indices.";
 
 export const memoTouchRequestSchema = z.object({
   ids: z

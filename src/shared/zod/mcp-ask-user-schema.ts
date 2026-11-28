@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// ── MCP Server ───────────────────────────────────────────────────────
+
+export const ASK_USER_SERVER_DESCRIPTION =
+  "Provides ask_user tool that lets the agent proactively ask the user for input when unsure about intent, facing choices, or needing confirmation.";
+
+// ── ask_user ─────────────────────────────────────────────────────────
+
 /**
  * ask_user 工具的模型可见说明。
  * MCP 子进程（会话 / worker）与进程内个人助理共用同一份文案，避免两侧描述漂移。

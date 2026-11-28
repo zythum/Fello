@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  ASK_USER_SERVER_DESCRIPTION,
   ASK_USER_TOOL_DESCRIPTION,
   askUserAskRequestSchema,
   askUserAskRespondSchema,
@@ -32,8 +33,7 @@ if (!projectDir) {
 const server = new McpServer({
   name: "Ask User",
   version: "1.0.0",
-  description:
-    "Provides ask_user tool that lets the agent proactively ask the user for input when unsure about intent, facing choices, or needing confirmation.",
+  description: ASK_USER_SERVER_DESCRIPTION,
 });
 
 server.registerTool(

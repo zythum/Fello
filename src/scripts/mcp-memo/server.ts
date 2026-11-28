@@ -1,6 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  MEMO_WRITABLE_SERVER_DESCRIPTION,
+  MEMO_READ_ONLY_SERVER_DESCRIPTION,
+  MEMO_GET_CURRENT_TOOL_DESCRIPTION,
+  MEMO_ADD_TOOL_DESCRIPTION,
+  MEMO_DELETE_TOOL_DESCRIPTION,
+  MEMO_SET_WEIGHT_TOOL_DESCRIPTION,
+  MEMO_TOUCH_TOOL_DESCRIPTION,
   memoAddRequestSchema,
   memoAddRespondSchema,
   memoDeleteRequestSchema,
@@ -38,16 +45,13 @@ if (!socketPath) {
 const server = new McpServer({
   name: "Memo",
   version: "1.0.0",
-  description: writable
-    ? "Provides transactional tools for organizing project memory entries."
-    : "Provides tools to retrieve and mark project memory entries as used.",
+  description: writable ? MEMO_WRITABLE_SERVER_DESCRIPTION : MEMO_READ_ONLY_SERVER_DESCRIPTION,
 });
 
 server.registerTool(
   "memo_get_current",
   {
-    description:
-      "Read the current project memory entries and their backend-generated, read-only IDs. Call this exactly once before any other memo tool.",
+    description: MEMO_GET_CURRENT_TOOL_DESCRIPTION,
     inputSchema: memoGetCurrentRequestSchema,
   },
   async () => {
@@ -76,8 +80,7 @@ if (writable) {
   server.registerTool(
     "memo_add",
     {
-      description: `Add one new immutable memory entry to the current transaction draft. The backend generates its ID and date.
-Use weight 3 only for an explicit durable instruction or prohibition governing how the agent must act. If the same text already exists, the tool reports content_exists and leaves the draft unchanged.`,
+      description: MEMO_ADD_TOOL_DESCRIPTION,
       inputSchema: memoAddRequestSchema,
     },
     async (input) => {
@@ -107,8 +110,7 @@ Use weight 3 only for an explicit durable instruction or prohibition governing h
   server.registerTool(
     "memo_delete",
     {
-      description:
-        "Delete one entry from the current transaction draft by its read-only ID. Use delete plus add when immutable text or tags must be replaced.",
+      description: MEMO_DELETE_TOOL_DESCRIPTION,
       inputSchema: memoDeleteRequestSchema,
     },
     async (input) => {
@@ -138,8 +140,7 @@ Use weight 3 only for an explicit durable instruction or prohibition governing h
   server.registerTool(
     "memo_set_weight",
     {
-      description: `Set one entry's weight in the current transaction draft. This always refreshes its date.
-Use weight 3 only for an explicit durable instruction or prohibition governing how the agent must act; repetition, correction, urgency, or technical necessity alone never justify weight 3.`,
+      description: MEMO_SET_WEIGHT_TOOL_DESCRIPTION,
       inputSchema: memoSetWeightRequestSchema,
     },
     async (input) => {
@@ -174,8 +175,7 @@ Use weight 3 only for an explicit durable instruction or prohibition governing h
   server.registerTool(
     "memo_touch",
     {
-      description:
-        "Mark only the entries represented in the final retrieval response as used by refreshing their date. Pass their read-only IDs, not array indices.",
+      description: MEMO_TOUCH_TOOL_DESCRIPTION,
       inputSchema: memoTouchRequestSchema,
     },
     async (input) => {

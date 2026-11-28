@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  MEMORY_SERVER_DESCRIPTION,
+  buildMemoryQueryToolDescription,
+  MEMORY_STORE_TOOL_DESCRIPTION,
   memoryQueryRequestSchema,
   memoryQueryRespondSchema,
   memoryStoreRequestSchema,
@@ -44,34 +47,18 @@ if (!socketPath) {
   process.exit(1);
 }
 
-const criticalMemoryDescription =
-  criticalMemories.length === 0
-    ? ""
-    : `
-
-Automatically loaded critical project memories — always follow these:
-${criticalMemories.map((memory) => `- ${memory.replaceAll("\n", "\n  ")}`).join("\n")}
-
-These are only the highest-priority project constraints, not the complete project memory. Do not treat the absence of a detail here as evidence that no relevant memory exists. This list does not replace task-specific retrieval.`;
-
 // ── MCP Server Setup ────────────────────────────────────────────────
 
 const server = new McpServer({
   name: "Memory",
   version: "1.0.0",
-  description: "Provides memory_query and memory_store tools for persistent project-level memory.",
+  description: MEMORY_SERVER_DESCRIPTION,
 });
 
 server.registerTool(
   "memory_query",
   {
-    description: `Query the project's persistent memory.${criticalMemoryDescription}
-
-For every specific task, question, recommendation, or domain discussion that may depend on memory, provide a focused query. Include all relevant dimensions in that query, such as applicable conventions, preferences, decisions, corrections, architecture, or commands.
-
-Never omit query merely to discover whether relevant memories exist. Omit it only when a broad project-memory briefing is genuinely needed, such as when the user asks what is remembered.
-
-A focused query returns relevant details. An omitted query generates a current summary from the stored entries. In either mode, memories included in the response are marked as used.`,
+    description: buildMemoryQueryToolDescription(criticalMemories),
     inputSchema: memoryQueryRequestSchema,
   },
   async (input) => {
@@ -99,23 +86,7 @@ A focused query returns relevant details. An omitted query generates a current s
 server.registerTool(
   "memory_store",
   {
-    description: `Store facts into persistent project memory for future sessions.
-
-Proactively store facts worth remembering for future sessions. Common triggers:
-- User states a preference, makes a choice, or corrects your behavior (even subtly)
-- You discover a project convention, tech stack detail, or architectural decision
-- User emphasizes something with "always", "never", "remember", "一定", "不要"
-- User explicitly asks you to remember something
-
-Also store when:
-- User explains why they do something a certain way
-- User mentions a tool, framework, or library choice
-- You make a decision during the conversation that affects future work
-- User tells you to skip or avoid something
-
-When in doubt about whether to store — store it. Forgetting costs more than duplicating.
-
-Each fact should be a concise, self-contained statement. Include a reason when the context helps determine importance (e.g. if the user strongly emphasized it or corrected the agent).`,
+    description: MEMORY_STORE_TOOL_DESCRIPTION,
     inputSchema: memoryStoreRequestSchema,
   },
   async (input) => {

@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// ── MCP Server ───────────────────────────────────────────────────────
+
+export const IMAGE_GENERATION_SERVER_DESCRIPTION =
+  "Generate images from text prompts using configured image generation providers.";
+
+// ── Image Generation Provider ────────────────────────────────────────
+
 /**
  * Image Generation Provider 配置 schema
  */
@@ -20,6 +27,13 @@ export const imageGenerationProviderSchema = z.object({
 });
 
 export type ImageGenerationProvider = z.infer<typeof imageGenerationProviderSchema>;
+
+// ── image_generation ─────────────────────────────────────────────────
+
+export const IMAGE_GENERATION_TOOL_DESCRIPTION = `Generate images based on a text prompt. The generated images will be displayed to the user directly.
+Use this tool when the user asks you to create, generate, or draw an image.
+The images will be saved and shown to the user automatically.
+You MUST specify a size. Common sizes: '1024x1024' (square), '1536x1024' (landscape), '1024x1536' (portrait), '1792x1024' (wide), '1024x1792' (tall).`;
 
 /**
  * image_generation tool 输入 schema

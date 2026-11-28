@@ -1,10 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  SHARE_TO_USER_SERVER_DESCRIPTION,
   SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION,
   SHARE_TO_USER_TOOL_DESCRIPTION,
+  shareToUserProjectOnlyRequestSchema,
   shareToUserRequestSchema,
   shareToUserRespondSchema,
+  type ShareToUserRequest,
 } from "../../shared/zod/mcp-share-to-user-schema";
 import * as http from "http";
 
@@ -29,59 +32,74 @@ if (!projectDir) {
   process.exit(1);
 }
 
+// ── Tool Handler ────────────────────────────────────────────────────
+
+type ShareToUserMcpResult = {
+  content: { type: "text"; text: string }[];
+  isError?: boolean;
+};
+
+async function handleShareToUser(input: ShareToUserRequest): Promise<ShareToUserMcpResult> {
+  try {
+    const result = shareToUserRespondSchema.parse(
+      await postToSocket("/share-to-user/share", input),
+    );
+
+    const respond: Record<string, unknown> = { name: result.name };
+    if (result.sharePath) respond.sharePath = result.sharePath;
+    if (result.projectPath) respond.projectPath = result.projectPath;
+    if (result.mimeType) respond.mimeType = result.mimeType;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ ok: true, fello: { "share-to-user": respond } }, null, 2),
+        },
+      ],
+    };
+  } catch (err: any) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ ok: false, error: err.message || String(err) }, null, 2),
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
 // ── MCP Server Setup ────────────────────────────────────────────────
 
 const server = new McpServer({
   name: "Share to User",
   version: "1.0.0",
-  description:
-    "Share files (images, documents, etc.) directly to the user's chat area. Supports image preview and file cards.",
+  description: SHARE_TO_USER_SERVER_DESCRIPTION,
 });
 
-server.registerTool(
-  "share_to_user",
-  {
-    description: projectOnly
-      ? SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION
-      : SHARE_TO_USER_TOOL_DESCRIPTION,
-    inputSchema: projectOnly
-      ? shareToUserRequestSchema.refine((data) => data.type === "project", {
-          message: "Only type='project' is supported in this workspace.",
-        })
-      : shareToUserRequestSchema,
-  },
-  async (input) => {
-    try {
-      const result = shareToUserRespondSchema.parse(
-        await postToSocket("/share-to-user/share", input),
-      );
-
-      const respond: Record<string, unknown> = { name: result.name };
-      if (result.sharePath) respond.sharePath = result.sharePath;
-      if (result.projectPath) respond.projectPath = result.projectPath;
-      if (result.mimeType) respond.mimeType = result.mimeType;
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ ok: true, fello: { "share-to-user": respond } }, null, 2),
-          },
-        ],
-      };
-    } catch (err: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ ok: false, error: err.message || String(err) }, null, 2),
-          },
-        ],
-        isError: true,
-      };
-    }
-  },
-);
+// 两种输入 schema 形状不同（projectOnly 收窄到 type='project'），分开注册以免联合类型
+// 让 SDK 的 registerTool 推不出入参类型。
+if (projectOnly) {
+  server.registerTool(
+    "share_to_user",
+    {
+      description: SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION,
+      inputSchema: shareToUserProjectOnlyRequestSchema,
+    },
+    handleShareToUser,
+  );
+} else {
+  server.registerTool(
+    "share_to_user",
+    {
+      description: SHARE_TO_USER_TOOL_DESCRIPTION,
+      inputSchema: shareToUserRequestSchema,
+    },
+    handleShareToUser,
+  );
+}
 
 // ── HTTP Client over Unix Socket ────────────────────────────────────
 

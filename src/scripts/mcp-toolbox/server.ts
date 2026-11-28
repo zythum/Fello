@@ -1,6 +1,26 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  TOOLBOX_SERVER_DESCRIPTION,
+  BASE64_ENCODE_TOOL_DESCRIPTION,
+  BASE64_DECODE_TOOL_DESCRIPTION,
+  URL_ENCODE_TOOL_DESCRIPTION,
+  URL_DECODE_TOOL_DESCRIPTION,
+  HASH_TOOL_DESCRIPTION,
+  TIME_TOOL_DESCRIPTION,
+  UUID_TOOL_DESCRIPTION,
+  SHORT_ID_TOOL_DESCRIPTION,
+  RANDOM_TOOL_DESCRIPTION,
+  RAND_INT_TOOL_DESCRIPTION,
+  CHOICE_TOOL_DESCRIPTION,
+  SHUFFLE_TOOL_DESCRIPTION,
+  IMAGE_METADATA_TOOL_DESCRIPTION,
+  IMAGE_THUMBNAIL_TOOL_DESCRIPTION,
+  IMAGE_RESIZE_TOOL_DESCRIPTION,
+  IMAGE_CONVERT_TOOL_DESCRIPTION,
+  IMAGE_QRCODE_TOOL_DESCRIPTION,
+  AUDIO_TRANSCRIBE_TOOL_DESCRIPTION,
+  TEXT_TO_SPEECH_TOOL_DESCRIPTION,
   base64EncodeRequestSchema,
   base64DecodeRequestSchema,
   urlEncodeRequestSchema,
@@ -67,8 +87,7 @@ if (!projectDir) {
 const server = new McpServer({
   name: "Toolbox",
   version: "1.0.0",
-  description:
-    "Built-in utility tools: base64, URL encode/decode, hash, time, UUID, random, image processing, QR code, audio file transcription, text to speech, etc.",
+  description: TOOLBOX_SERVER_DESCRIPTION,
 });
 
 // ── Base64 Encode ───────────────────────────────────────────────────
@@ -76,7 +95,7 @@ const server = new McpServer({
 server.registerTool(
   "base64_encode",
   {
-    description: "Encode a text string into Base64 format. Supports UTF-8 text.",
+    description: BASE64_ENCODE_TOOL_DESCRIPTION,
     inputSchema: base64EncodeRequestSchema,
   },
   async (input) => {
@@ -96,7 +115,7 @@ server.registerTool(
 server.registerTool(
   "base64_decode",
   {
-    description: "Decode a Base64-encoded string back into UTF-8 text.",
+    description: BASE64_DECODE_TOOL_DESCRIPTION,
     inputSchema: base64DecodeRequestSchema,
   },
   async (input) => {
@@ -116,7 +135,7 @@ server.registerTool(
 server.registerTool(
   "url_encode",
   {
-    description: "URL-encode a text string (percent-encoding).",
+    description: URL_ENCODE_TOOL_DESCRIPTION,
     inputSchema: urlEncodeRequestSchema,
   },
   async (input) => {
@@ -136,7 +155,7 @@ server.registerTool(
 server.registerTool(
   "url_decode",
   {
-    description: "Decode a URL-encoded (percent-encoded) string back into text.",
+    description: URL_DECODE_TOOL_DESCRIPTION,
     inputSchema: urlDecodeRequestSchema,
   },
   async (input) => {
@@ -156,7 +175,7 @@ server.registerTool(
 server.registerTool(
   "hash",
   {
-    description: "Compute a hash (MD5, SHA1, or SHA256) of a text string. Returns hex digest.",
+    description: HASH_TOOL_DESCRIPTION,
     inputSchema: hashRequestSchema,
   },
   async (input) => {
@@ -179,8 +198,7 @@ server.registerTool(
 server.registerTool(
   "time",
   {
-    description:
-      "Get the current time. Returns either an ISO 8601 string or a Unix timestamp in seconds.",
+    description: TIME_TOOL_DESCRIPTION,
     inputSchema: timeRequestSchema,
   },
   async (input) => {
@@ -200,7 +218,7 @@ server.registerTool(
 server.registerTool(
   "uuid",
   {
-    description: "Generate a random UUID v4.",
+    description: UUID_TOOL_DESCRIPTION,
     inputSchema: uuidRequestSchema,
   },
   async () => {
@@ -218,7 +236,7 @@ server.registerTool(
 server.registerTool(
   "short_id",
   {
-    description: "Generate a short random alphanumeric ID.",
+    description: SHORT_ID_TOOL_DESCRIPTION,
     inputSchema: shortIdRequestSchema,
   },
   async (input) => {
@@ -238,7 +256,7 @@ server.registerTool(
 server.registerTool(
   "random",
   {
-    description: "Generate a random string with specified length and character set.",
+    description: RANDOM_TOOL_DESCRIPTION,
     inputSchema: randomRequestSchema,
   },
   async (input) => {
@@ -261,7 +279,7 @@ server.registerTool(
 server.registerTool(
   "rand_int",
   {
-    description: "Generate a random integer between min and max (inclusive).",
+    description: RAND_INT_TOOL_DESCRIPTION,
     inputSchema: randIntRequestSchema,
   },
   async (input) => {
@@ -281,7 +299,7 @@ server.registerTool(
 server.registerTool(
   "choice",
   {
-    description: "Pick a random item from an array.",
+    description: CHOICE_TOOL_DESCRIPTION,
     inputSchema: choiceRequestSchema,
   },
   async (input) => {
@@ -301,7 +319,7 @@ server.registerTool(
 server.registerTool(
   "shuffle",
   {
-    description: "Shuffle an array randomly (Fisher-Yates).",
+    description: SHUFFLE_TOOL_DESCRIPTION,
     inputSchema: shuffleRequestSchema,
   },
   async (input) => {
@@ -321,8 +339,7 @@ server.registerTool(
 server.registerTool(
   "image_metadata",
   {
-    description:
-      "Read image metadata (width, height, format, color space, channels, etc.) from a file.",
+    description: IMAGE_METADATA_TOOL_DESCRIPTION,
     inputSchema: imageMetadataRequestSchema,
   },
   async (input) => {
@@ -342,8 +359,7 @@ server.registerTool(
 server.registerTool(
   "image_thumbnail",
   {
-    description:
-      "Generate a thumbnail from an image. Returns the output file path and new image metadata.",
+    description: IMAGE_THUMBNAIL_TOOL_DESCRIPTION,
     inputSchema: imageThumbnailRequestSchema,
   },
   async (input) => {
@@ -367,8 +383,7 @@ server.registerTool(
 server.registerTool(
   "image_resize",
   {
-    description:
-      "Resize an image to specified dimensions. Returns the output file path and new image metadata.",
+    description: IMAGE_RESIZE_TOOL_DESCRIPTION,
     inputSchema: imageResizeRequestSchema,
   },
   async (input) => {
@@ -394,8 +409,7 @@ server.registerTool(
 server.registerTool(
   "image_convert",
   {
-    description:
-      "Convert an image to a different format (jpeg, png, webp, avif, tiff). Returns the output file path and new image metadata.",
+    description: IMAGE_CONVERT_TOOL_DESCRIPTION,
     inputSchema: imageConvertRequestSchema,
   },
   async (input) => {
@@ -420,7 +434,7 @@ server.registerTool(
 server.registerTool(
   "image_qrcode",
   {
-    description: "Generate a PNG QR code image from text.",
+    description: IMAGE_QRCODE_TOOL_DESCRIPTION,
     inputSchema: qrCodeRequestSchema,
   },
   async (input) => {
@@ -447,8 +461,7 @@ server.registerTool(
 server.registerTool(
   "audio_transcribe",
   {
-    description:
-      "Transcribe an audio file to text. Decodes with the system ffmpeg and recognizes with the speech-to-text provider configured in the app settings; if either is unavailable, the result explains what is missing and how to fix it — resolve it, then call this tool again with the same arguments. If ffmpeg lives outside PATH, pass its absolute path via ffmpegPath.",
+    description: AUDIO_TRANSCRIBE_TOOL_DESCRIPTION,
     inputSchema: audioTranscribeRequestSchema,
   },
   async (input) => {
@@ -474,8 +487,7 @@ server.registerTool(
 server.registerTool(
   "text_to_speech",
   {
-    description:
-      "Synthesize text into an audio file, using the text-to-speech provider configured in the app settings, and return the output file path. Defaults to WAV (needs no extra tools); format 'mp3' additionally requires the system ffmpeg. If the provider or ffmpeg is unavailable, the result explains what is missing and how to fix it — resolve it, then call this tool again. Pair with share_to_user to let the user listen to the audio.",
+    description: TEXT_TO_SPEECH_TOOL_DESCRIPTION,
     inputSchema: textToSpeechRequestSchema,
   },
   async (input) => {

@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  SKILLS_SERVER_DESCRIPTION,
+  buildListSkillsToolDescription,
+  ACTIVATE_SKILL_TOOL_DESCRIPTION,
   skillCatalogSchema,
   skillDetailRequestSchema,
   skillDetailSchema,
@@ -46,25 +49,14 @@ if (catalogFile) {
 const server = new McpServer({
   name: "Agent Skills",
   version: "1.0.0",
-  description: "MCP server that exposes Agent Skills via tools.",
+  description: SKILLS_SERVER_DESCRIPTION,
 });
 
 server.registerTool(
   "list_skills",
   {
     title: "List Skills",
-    description:
-      "Get available **Agent Skills** Catalog with their id, name and description. " +
-      "If the user message contains a skill mention in the form `@skill:xxxxx`, call this tool to find the matching skill before proceeding, then use the returned skill id with `activate_skill`." +
-      (() => {
-        if (initialCatalog.length <= 0) {
-          return "";
-        }
-        let result = "\nInitial Catalog:\n```json";
-        result += JSON.stringify(initialCatalog, null, "  ");
-        result += "\n```";
-        return result;
-      })(),
+    description: buildListSkillsToolDescription(initialCatalog),
   },
   async () => {
     try {
@@ -95,8 +87,7 @@ server.registerTool(
   "activate_skill",
   {
     title: "Activate Skills",
-    description:
-      "Activate a **Agent Skill** by id, loading its full instructions and listing supporting files.",
+    description: ACTIVATE_SKILL_TOOL_DESCRIPTION,
     inputSchema: skillDetailRequestSchema,
   },
   async ({ id }) => {
