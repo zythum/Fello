@@ -6,7 +6,7 @@ import type { ContentBlock, ToolCall, ToolCallUpdate, ToolKind } from "@agentcli
 import type { McpServer } from "@agentclientprotocol/sdk/unstable";
 import type { AgentClientProxy } from "./agent-client-proxy";
 import { ensureToolPermission, type ToolPermissionMemory } from "./permission";
-import { buildProxyEnv } from "../backend/proxy";
+import { readProxyEnv } from "../shared/proxy-env";
 
 export type MCPSessionTools = {
   clients: MCPClient[];
@@ -85,14 +85,14 @@ async function createClient(server: McpServer, cwd: string): Promise<MCPClient> 
     throw new Error(`McpServer Type: ${server.type} not supported.`);
   }
   // StdioClientTransport 只继承白名单 env（HOME/PATH/SHELL/TERM/USER 等），
-  // HTTP_PROXY 等不会自动继承，必须显式合并 buildProxyEnv() 的输出。
+  // HTTP_PROXY 等不会自动继承，必须从进程环境复制一份显式传下去。
   // 顺序：代理 env 在前，用户自定义 env 覆盖（per-server 定制优先）。
   return createMCPClient({
     transport: new StdioClientTransport({
       command: server.command,
       args: server.args,
       env: {
-        ...buildProxyEnv(),
+        ...readProxyEnv(process.env),
         ...toEnvRecord(server.env),
       },
       cwd,

@@ -3,7 +3,7 @@ import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { ToolKind } from "@agentclientprotocol/sdk";
 import type { McpServer } from "@agentclientprotocol/sdk/unstable";
-import { buildProxyEnv } from "../backend/proxy";
+import { readProxyEnv } from "../shared/proxy-env";
 import type { ToolUpdateSender } from "./tool-updates";
 
 export type AssistantMcpTools = {
@@ -81,13 +81,13 @@ async function createClient(server: McpServer, cwd: string): Promise<MCPClient> 
     }
     throw new Error(`McpServer Type: ${server.type} not supported.`);
   }
-  // Keep proxy-related env explicit for stdio servers, matching the ACP MCP client.
+  // StdioClientTransport 只继承白名单 env，代理变量必须显式传下去；用户自定义 env 优先。
   return createMCPClient({
     transport: new StdioClientTransport({
       command: server.command,
       args: server.args,
       env: {
-        ...buildProxyEnv(),
+        ...readProxyEnv(process.env),
         ...toEnvRecord(server.env),
       },
       cwd,

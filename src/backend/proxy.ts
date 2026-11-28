@@ -5,6 +5,7 @@ import { Agent as UndiciAgent, EnvHttpProxyAgent, setGlobalDispatcher } from "un
 import { ProxyAgent as NodeProxyAgent } from "proxy-agent";
 
 import type { SettingProxyInfo } from "../shared/schema";
+import { PROXY_ENV_KEYS } from "../shared/proxy-env";
 
 /**
  * 网络代理实现（Fello 四层覆盖）：
@@ -14,7 +15,7 @@ import type { SettingProxyInfo } from "../shared/schema";
  * 2. http/https globalAgent —— 覆盖 electron-updater 等走 node:http(s) 的模块。
  * 3. 子进程 env（HTTP_PROXY / HTTPS_PROXY / NO_PROXY，大小写都设）——
  *    普通子进程继承 process.env 自动生效；MCP stdio 子进程需在
- *    src/agents/mcp-tools.ts 显式合并 buildProxyEnv() 的输出
+ *    src/agents/mcp-tools.ts 与 src/assistant/mcp-tools.ts 用 readProxyEnv(process.env) 复制一份
  *    （@modelcontextprotocol/sdk 的 StdioClientTransport 只继承白名单 env）。
  * 4. Chromium session 代理 —— 由 Electron 侧单独调用 session.setProxy 完成。
  */
@@ -33,15 +34,6 @@ export interface ProxyConfig {
   /** 代理认证密码（可选） */
   password?: string;
 }
-
-const PROXY_ENV_KEYS = [
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "NO_PROXY",
-  "http_proxy",
-  "https_proxy",
-  "no_proxy",
-] as const;
 
 let currentConfig: ProxyConfig = { enabled: false };
 
@@ -104,7 +96,7 @@ function withAuth(url: string, username?: string, password?: string): string {
  * 子进程与 /proc/<pid>/environ 均可读取，这是 env 代理方案的固有权衡；
  * Chromium 层不采用该方式（走 app 'login' 事件认证，见 electron/main.ts）。
  */
-export function buildProxyEnv(): Record<string, string> {
+function buildProxyEnv(): Record<string, string> {
   const config = currentConfig;
   if (config.enabled === false) return {};
 
