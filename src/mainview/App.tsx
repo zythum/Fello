@@ -85,6 +85,12 @@ function AppContent() {
     new Map<string, BackendEvents["session-update"]["notification"][]>(),
   );
   const sessionUpdateFlushRafIdRef = useRef<number | null>(null);
+  /**
+   * 后台通道：窗口隐藏 / 被遮挡时 requestAnimationFrame 不会回调，
+   * 只靠 rAF 调度会让 queue 一直堆到窗口回到前台才排空（表现为「后台不动，
+   * 切回来卡一下再一次性喷出来」）。隐藏时改走定时器兜底。
+   */
+  const sessionUpdateFlushTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (resolvedTheme === "light" || resolvedTheme === "dark") {
@@ -235,13 +241,19 @@ function AppContent() {
 
   useEffect(() => {
     const map = pendingSessionNotificationRef.current;
+    /** 隐藏时定时器的间隔：Chromium 会把隐藏页面的定时器压到约 1Hz，正好当后台限流。 */
+    const HIDDEN_FLUSH_INTERVAL_MS = 1000;
+    /** 可见时每帧预算，保持原有的逐帧节流手感。 */
+    const VISIBLE_FLUSH_BUDGET_MS = 8;
+    /** 隐藏时没有可见帧，放宽预算让积压尽快排空，回到前台就不会有长尾。 */
+    const HIDDEN_FLUSH_BUDGET_MS = 32;
     const flushPendingSessioNotificationss = () => {
       sessionUpdateFlushRafIdRef.current = null;
       const store = useAppStore.getState();
       // 个人助理是伪会话，同样走 session-update；存活集合必须包含助理，
       // 否则助理的流式通知会在这一层被静默丢弃。
       const liveIds = liveSessionIds(store);
-      const budgetMs = 8;
+      const budgetMs = document.hidden ? HIDDEN_FLUSH_BUDGET_MS : VISIBLE_FLUSH_BUDGET_MS;
       const start = performance.now();
 
       for (const [sid, notifications] of pendingSessionNotificationRef.current.entries()) {
@@ -304,10 +316,41 @@ function AppContent() {
       }
     };
 
+    const cancelScheduledFlush = () => {
+      if (sessionUpdateFlushRafIdRef.current != null) {
+        cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
+        sessionUpdateFlushRafIdRef.current = null;
+      }
+      if (sessionUpdateFlushTimerRef.current != null) {
+        clearTimeout(sessionUpdateFlushTimerRef.current);
+        sessionUpdateFlushTimerRef.current = null;
+      }
+    };
+
+    /**
+     * 可见时按帧刷新；隐藏时 rAF 不回调，改用定时器。
+     * 两条通道互斥，避免隐藏期间不停白排 rAF。
+     */
     const scheduleFlushPendingSessioNnotificationss = () => {
       if (sessionUpdateFlushRafIdRef.current != null) return;
+      if (sessionUpdateFlushTimerRef.current != null) return;
+      if (document.hidden) {
+        sessionUpdateFlushTimerRef.current = window.setTimeout(() => {
+          sessionUpdateFlushTimerRef.current = null;
+          flushPendingSessioNotificationss();
+        }, HIDDEN_FLUSH_INTERVAL_MS);
+        return;
+      }
       sessionUpdateFlushRafIdRef.current = requestAnimationFrame(flushPendingSessioNotificationss);
     };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      // 回到可见：先把后台攒下的通知排空，而不是只处理下一帧的 8ms 预算。
+      cancelScheduledFlush();
+      flushPendingSessioNotificationss();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const handleSessionUpdate = (detail: BackendEvents["session-update"]) => {
       const sid = detail.sessionId;
@@ -628,10 +671,8 @@ function AppContent() {
       subscribe.off("ilink-status-changed", handleIlinkStatusChanged);
       subscribe.off("ilink-active-session-changed", handleIlinkActiveSessionChanged);
 
-      if (sessionUpdateFlushRafIdRef.current != null) {
-        cancelAnimationFrame(sessionUpdateFlushRafIdRef.current);
-        sessionUpdateFlushRafIdRef.current = null;
-      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      cancelScheduledFlush();
       map.clear();
     };
   }, [isMacApp, setIsFullScreen, setUpdaterEvent, toast, t, navigate]);

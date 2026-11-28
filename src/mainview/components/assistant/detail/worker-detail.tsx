@@ -91,6 +91,8 @@ export function WorkerDetail({
   const liveRef = useRef<SessionNotificationFelloExt[]>([]);
   const liveQueueRef = useRef<SessionNotificationFelloExt[]>([]);
   const flushFrameRef = useRef<number | null>(null);
+  /** 后台通道：隐藏时 rAF 不回调，用定时器兜底（隐藏页面的定时器会被压到约 1Hz）。 */
+  const flushTimerRef = useRef<number | null>(null);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -130,26 +132,63 @@ export function WorkerDetail({
     };
   }, [assistantId, worker.id]);
 
-  const flushLive = useCallback(() => {
-    if (flushFrameRef.current != null) return;
-    flushFrameRef.current = requestAnimationFrame(() => {
-      flushFrameRef.current = null;
-      const sessionId = mainSessionRef.current;
-      const batch = liveQueueRef.current;
-      liveQueueRef.current = [];
-      if (!loadedRef.current || !sessionId || batch.length === 0) return;
-      const result = reduceNotifications(sessionId, stateRef.current, batch, knownRef.current);
-      if (result.applied.length === 0) return;
-      stateRef.current = result.state;
-      setSessionState(result.state);
-    });
+  const drainLiveQueue = useCallback(() => {
+    const sessionId = mainSessionRef.current;
+    const batch = liveQueueRef.current;
+    liveQueueRef.current = [];
+    if (!loadedRef.current || !sessionId || batch.length === 0) return;
+    const result = reduceNotifications(sessionId, stateRef.current, batch, knownRef.current);
+    if (result.applied.length === 0) return;
+    stateRef.current = result.state;
+    setSessionState(result.state);
   }, []);
 
+  /**
+   * 可见时按帧刷新；隐藏时 rAF 不回调，改用定时器。
+   * 否则后台期间 liveQueueRef 会一直堆积，窗口回到前台时一次性 reduce 出大量气泡。
+   */
+  const flushLive = useCallback(() => {
+    if (flushFrameRef.current != null) return;
+    if (flushTimerRef.current != null) return;
+    if (document.hidden) {
+      flushTimerRef.current = window.setTimeout(() => {
+        flushTimerRef.current = null;
+        drainLiveQueue();
+      }, 1000);
+      return;
+    }
+    flushFrameRef.current = requestAnimationFrame(() => {
+      flushFrameRef.current = null;
+      drainLiveQueue();
+    });
+  }, [drainLiveQueue]);
+
   useEffect(() => {
-    return () => {
-      if (flushFrameRef.current != null) cancelAnimationFrame(flushFrameRef.current);
+    const onVisibilityChange = () => {
+      if (document.hidden) return;
+      if (flushFrameRef.current != null) {
+        cancelAnimationFrame(flushFrameRef.current);
+        flushFrameRef.current = null;
+      }
+      if (flushTimerRef.current != null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      drainLiveQueue();
     };
-  }, []);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (flushFrameRef.current != null) {
+        cancelAnimationFrame(flushFrameRef.current);
+        flushFrameRef.current = null;
+      }
+      if (flushTimerRef.current != null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+    };
+  }, [drainLiveQueue]);
 
   useEffect(() => {
     const onChanged = (payload: { assistantId: string; workers: AssistantWorkerInfo[] }) => {
