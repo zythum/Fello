@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/**
+ * ask_user 工具的模型可见说明。
+ * MCP 子进程（会话 / worker）与进程内个人助理共用同一份文案，避免两侧描述漂移。
+ */
+export const ASK_USER_TOOL_DESCRIPTION = `Ask the user a question and wait for their response. This is your ONLY channel to communicate directly with the user.
+When in doubt, call this tool rather than guessing or assuming. Guessing wastes multiple tool calls; asking takes one and gets the right answer immediately.`;
+
 export const askUserAskRequestSchema = z.object({
   title: z.string().describe("A concise title or summary of the question."),
   description: z.string().describe("Detailed description of what you're asking the user."),

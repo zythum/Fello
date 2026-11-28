@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  ASK_USER_TOOL_DESCRIPTION,
   askUserAskRequestSchema,
   askUserAskRespondSchema,
 } from "../../shared/zod/mcp-ask-user-schema";
@@ -38,8 +39,7 @@ const server = new McpServer({
 server.registerTool(
   "ask_user",
   {
-    description: `Ask the user a question and wait for their response. This is your ONLY channel to communicate directly with the user.
-When in doubt, call this tool rather than guessing or assuming. Guessing wastes multiple tool calls; asking takes one and gets the right answer immediately.`,
+    description: ASK_USER_TOOL_DESCRIPTION,
     inputSchema: askUserAskRequestSchema,
   },
   async (input) => {
