@@ -36,7 +36,12 @@ import {
   setCrashDialogText,
   writeCrashLog,
 } from "./crash-log";
-import type { AskUserRequest, AskUserResponse, ElectronDiagnostics, FelloIPCSchema } from "../shared/schema";
+import type {
+  AskUserRequest,
+  AskUserResponse,
+  ElectronDiagnostics,
+  FelloIPCSchema,
+} from "../shared/schema";
 import { createRequire } from "module";
 const nodeRequire = createRequire(import.meta.url);
 const launchEditor = nodeRequire("launch-editor");
@@ -1385,10 +1390,13 @@ async function bootstrap() {
   syncPeripherals();
 }
 
-app.whenReady().then(bootstrap).catch((error: unknown) => {
-  // 窗口还没出来就失败：原生错误框 + crash.log，避免「打不开，也没法查」。
-  reportFatal("bootstrap", error);
-});
+app
+  .whenReady()
+  .then(bootstrap)
+  .catch((error: unknown) => {
+    // 窗口还没出来就失败：原生错误框 + crash.log，避免「打不开，也没法查」。
+    reportFatal("bootstrap", error);
+  });
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

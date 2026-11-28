@@ -1037,7 +1037,12 @@ export interface DiagnosticsInfo {
 /** 只有 Electron 主进程能提供的诊断字段；headless server 不提供。 */
 export type ElectronDiagnostics = Pick<
   DiagnosticsInfo,
-  "electronVersion" | "chromeVersion" | "packaged" | "memoryBytes" | "crashLogPath" | "crashLogExists"
+  | "electronVersion"
+  | "chromeVersion"
+  | "packaged"
+  | "memoryBytes"
+  | "crashLogPath"
+  | "crashLogExists"
 >;
 
 /**

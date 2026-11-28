@@ -188,7 +188,9 @@ export async function prepareImageForModel(
       limitInputPixels: MAX_INPUT_PIXELS,
     }).metadata();
   } catch (error) {
-    throw new Error(`could not decode image (unsupported or corrupt format): ${errorMessage(error)}`);
+    throw new Error(
+      `could not decode image (unsupported or corrupt format): ${errorMessage(error)}`,
+    );
   }
 
   if (!metadata.format) {

@@ -38,6 +38,7 @@
     "download:grammars": "node tools/download-tree-sitter-wasm.mjs",
     "postinstall": "node tools/download-tree-sitter-wasm.mjs",
     "format": "oxfmt --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\"",
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json"
   },

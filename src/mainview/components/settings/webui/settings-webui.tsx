@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { copyText } from "@/lib/clipboard";
 import { electron } from "../../../electron";
-import { AlertCircle, BookOpen, Check, Copy, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  AlertCircle,
+  BookOpen,
+  Check,
+  Copy,
+  Loader2,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Item,
@@ -282,7 +290,9 @@ function WebUITunnelSection() {
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                  {isStarting && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+                  {isStarting && (
+                    <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                  )}
                   <Switch
                     checked={isStarting || isRunning}
                     // starting 时保持可操作（关掉即取消启动）；运行中即使检测结果变成未安装也必须能关闭，

@@ -22,9 +22,6 @@ export function normalizeSessionTitle(value: string): string {
  * reading `session.title` directly — otherwise a user rename would only show up in the places
  * that remembered to special-case it.
  */
-export function resolveSessionTitle(session: {
-  title: string;
-  userTitle: string | null;
-}): string {
+export function resolveSessionTitle(session: { title: string; userTitle: string | null }): string {
   return session.userTitle || session.title;
 }

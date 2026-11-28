@@ -1,24 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Check,
-  Copy,
-  FileText,
-  FolderOpen,
-  Loader2,
-  RotateCcw,
-  TriangleAlert,
-} from "lucide-react";
+import { Check, Copy, FileText, FolderOpen, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { copyText } from "@/lib/clipboard";
 import { extractErrorMessage } from "@/lib/utils";
-import type {
-  DataRootState,
-  DataRootProblem,
-  DiagnosticsInfo,
-} from "../../../../shared/schema";
+import type { DataRootState, DataRootProblem, DiagnosticsInfo } from "../../../../shared/schema";
 import { isWebUI, request } from "../../../backend";
 import { electron } from "../../../electron";
 import { useAppStore } from "../../../store";
@@ -74,10 +62,7 @@ function useProblemText() {
         case "unreadable":
           return t("settings.advanced.problem.unreadable", "Cannot read {{path}}.", { path });
         case "same":
-          return t(
-            "settings.advanced.problem.same",
-            "This is already the current data root.",
-          );
+          return t("settings.advanced.problem.same", "This is already the current data root.");
         case "filesystem-root":
           return t(
             "settings.advanced.problem.filesystemRoot",
@@ -405,10 +390,7 @@ export function SettingsAdvanced() {
                   <span className="text-muted-foreground">
                     {t("settings.advanced.current", "In use")}
                   </span>
-                  <RevealablePath
-                    path={info.current}
-                    title={revealLabel}
-                  />
+                  <RevealablePath path={info.current} title={revealLabel} />
 
                   {info.restartRequired && info.configured && (
                     <>
@@ -494,11 +476,7 @@ export function SettingsAdvanced() {
                 onClick={() => void handleCopyDiagnostics()}
                 className="cursor-default text-muted-foreground/60 transition-colors hover:text-foreground"
               >
-                {copied ? (
-                  <Check className="size-3 text-green-500" />
-                ) : (
-                  <Copy className="size-3" />
-                )}
+                {copied ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
               </button>
             </div>
             <div className="grid grid-cols-[6.5rem_1fr] items-baseline gap-x-2 gap-y-1.5 text-xs">
@@ -583,11 +561,7 @@ export function SettingsAdvanced() {
               </span>
               {info ? (
                 info.rcExists ? (
-                  <RevealablePath
-                    path={info.rcPath}
-                    kind="file"
-                    title={revealLabel}
-                  />
+                  <RevealablePath path={info.rcPath} kind="file" title={revealLabel} />
                 ) : (
                   <MissingPath
                     path={info.rcPath}
@@ -603,10 +577,7 @@ export function SettingsAdvanced() {
               </span>
               {info ? (
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <RevealablePath
-                    path={info.current}
-                    title={revealLabel}
-                  />
+                  <RevealablePath path={info.current} title={revealLabel} />
                   {diagnostics?.freeSpaceBytes != null && (
                     <span className="shrink-0 text-muted-foreground">
                       {t("settings.advanced.freeSpaceValue", "{{size}} free", {

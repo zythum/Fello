@@ -396,9 +396,9 @@ export class ACPBridge {
                 ...this.options.agentInfo.env,
               },
             })
-          // 具体协议（openai-compatible / open-responses）由 spawnApiAgent 按 provider 分派，
-          // 不认识的 provider 会在 agent 构造函数里报错。
-          : spawnApiAgent(this.options.agentInfo);
+          : // 具体协议（openai-compatible / open-responses）由 spawnApiAgent 按 provider 分派，
+            // 不认识的 provider 会在 agent 构造函数里报错。
+            spawnApiAgent(this.options.agentInfo);
     this.process = proc;
 
     const rawStream = ndJsonStream(proc.input, proc.output);

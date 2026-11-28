@@ -32,11 +32,7 @@ const RENAME_RETRIES = 3;
 const RENAME_RETRY_DELAY_MS = 50;
 const RETRYABLE_RENAME_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
 
-type FelloRcErrorReason =
-  | "malformed"
-  | "unreadable"
-  | "unsupported-value"
-  | "write-verify";
+type FelloRcErrorReason = "malformed" | "unreadable" | "unsupported-value" | "write-verify";
 
 class FelloRcError extends Error {
   constructor(
@@ -152,10 +148,7 @@ interface RenderFelloRcOptions {
   previousDataRoot?: string | null;
 }
 
-function renderFelloRc(
-  settings: FelloRcSettings,
-  options: RenderFelloRcOptions = {},
-): string {
+function renderFelloRc(settings: FelloRcSettings, options: RenderFelloRcOptions = {}): string {
   const lines = [
     "# Fello configuration (dotenv format, not a shell script).",
     "# Managed by Fello: comments and formatting may be rewritten.",

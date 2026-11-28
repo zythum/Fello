@@ -85,6 +85,7 @@ Electron 生产包应使用项目发布流程中的有效 macOS 证书签名；�
 | `npm run lint` | Lint with oxlint |
 | `npm run typecheck` | TypeScript checking / TypeScript 类型检查 |
 | `npm run format` | Format with oxfmt |
+| `npm run format:check` | Check formatting with oxfmt, no write / 检查格式（不写入） |
 | `npm run pack:npm` | Build npm package → `npm-package/` / 构建 npm 包 |
 | `npm run pack:mac` / `pack:win` / `pack:linux` | Package desktop app / 打包桌面应用 |
 | `npm run prepare:icon:mac` | Generate macOS app icons / 生成 macOS 应用图标 |

@@ -83,8 +83,7 @@ function detectLanguage(): Language {
 }
 
 function buildDetail(info: DataRootInfo, text: GateText): string {
-  const source =
-    info.source === "env" ? text.sourceEnv : `${text.sourceRc} (${FELLO_RC_PATH})`;
+  const source = info.source === "env" ? text.sourceEnv : `${text.sourceRc} (${FELLO_RC_PATH})`;
   return [info.problem ?? "", "", source, "", text.hint].join("\n");
 }
 

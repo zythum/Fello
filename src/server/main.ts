@@ -34,8 +34,7 @@ if (info.problem) {
   process.exit(1);
 }
 
-const rootSource =
-  info.source === "env" ? "env" : info.source === "rc" ? "config file" : "default";
+const rootSource = info.source === "env" ? "env" : info.source === "rc" ? "config file" : "default";
 const rcState = existsSync(FELLO_RC_PATH)
   ? "found"
   : info.source === "default"

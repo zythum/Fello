@@ -184,13 +184,7 @@ export function resolveDataRoot(options: DataRootOptions = {}): string {
 // ── 切换数据根（校验 + 写入 `~/.fellorc`） ──────────────────────────
 
 /** 系统噪声文件：目录里只有这些时仍然算「空」。 */
-const IGNORED_ENTRIES = new Set([
-  ".DS_Store",
-  "Icon\r",
-  ".localized",
-  "Thumbs.db",
-  "desktop.ini",
-]);
+const IGNORED_ENTRIES = new Set([".DS_Store", "Icon\r", ".localized", "Thumbs.db", "desktop.ini"]);
 
 /** 出现任意一项，就认为它已经是一个 Fello 数据根（允许接管已有数据）。 */
 const FELLO_ROOT_MARKERS = [

@@ -293,8 +293,7 @@ export function createWebUIModule(): WebUIModule {
         // 掉——这是「发版后能及时更新」的关键，size+mtime 在 asar 里并不可靠。
         const actualPath = encodedPath ?? filePath;
         const servedStat = encodedStat ?? fileStat;
-        const contentHashed =
-          isAssetPath && CONTENT_HASHED_NAME_RE.test(basename(filePath));
+        const contentHashed = isAssetPath && CONTENT_HASHED_NAME_RE.test(basename(filePath));
 
         let etag: string;
         if (contentHashed || servedStat.size > CONTENT_ETAG_MAX_BYTES) {

@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
-import type {
-  AssistantDiary,
-  AssistantStatus,
-  AssistantWorkerInfo,
-} from "../../../shared/schema";
+import type { AssistantDiary, AssistantStatus, AssistantWorkerInfo } from "../../../shared/schema";
 import { assistantProjectId } from "../../../shared/assistant";
 import { request, subscribe } from "../../backend";
 import { useAppStore } from "../../store";

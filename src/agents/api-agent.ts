@@ -440,9 +440,7 @@ export abstract class ApiAgent {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(
-        `[ApiAgent] Failed to persist session state for ${session.id}: ${message}`,
-      );
+      console.warn(`[ApiAgent] Failed to persist session state for ${session.id}: ${message}`);
     }
   }
 
@@ -459,9 +457,7 @@ export abstract class ApiAgent {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(
-        `[ApiAgent] Failed to append session history for ${sessionId}: ${message}`,
-      );
+      console.warn(`[ApiAgent] Failed to append session history for ${sessionId}: ${message}`);
     }
   }
 
@@ -521,9 +517,7 @@ export abstract class ApiAgent {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(
-        `[ApiAgent] Failed to build token breakdown for a prompt: ${message}`,
-      );
+      console.warn(`[ApiAgent] Failed to build token breakdown for a prompt: ${message}`);
       return {
         stepCount: params.steps.length,
         inputComposition: {

@@ -619,8 +619,7 @@ export function createTunnelModule(
         }
         fn();
       };
-      runtime.abortPending = () =>
-        finish(() => reject(new Error("Tunnel start was cancelled.")));
+      runtime.abortPending = () => finish(() => reject(new Error("Tunnel start was cancelled.")));
 
       const config = PROVIDER_CONFIG[provider];
 
@@ -735,9 +734,7 @@ export function createTunnelModule(
     }
   }
 
-  async function getProviderInfos(options?: {
-    refresh?: boolean;
-  }): Promise<TunnelProviderInfo[]> {
+  async function getProviderInfos(options?: { refresh?: boolean }): Promise<TunnelProviderInfo[]> {
     const paths = await detectProviderPaths(options?.refresh ?? false);
     return PROVIDERS.map((provider) => ({
       ...runtimes[provider].status,

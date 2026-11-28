@@ -334,7 +334,10 @@ export function initBackend(
     },
     async readSkillFile({ skillId, projectId }: { skillId: string; projectId?: string }) {
       return readFile(
-        await backendHandlers.getSkillFileSystemFilePath({ skillId, projectId }, { transport: "internal" }),
+        await backendHandlers.getSkillFileSystemFilePath(
+          { skillId, projectId },
+          { transport: "internal" },
+        ),
         "utf-8",
       );
     },
