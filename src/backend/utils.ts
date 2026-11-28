@@ -1,4 +1,28 @@
+import { realpathSync } from "fs";
 import { relative, resolve, isAbsolute } from "path";
+
+/** `realpath` 失败（目标不存在等）时退回原值。 */
+export function realpathOrSelf(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * 跨平台路径相等比较。
+ *
+ * - Windows：大小写不敏感，且 `realpath` 能消掉 8.3 短名 / junction 差异；
+ * - POSIX：按原样比较，但在两边都存在时先 `realpath`，避免符号链接造成的假不等。
+ *
+ * 目标可能尚不存在，此时退化为 `resolve` 后的字符串比较。
+ */
+export function samePath(a: string, b: string): boolean {
+  const ra = realpathOrSelf(resolve(a));
+  const rb = realpathOrSelf(resolve(b));
+  return process.platform === "win32" ? ra.toLowerCase() === rb.toLowerCase() : ra === rb;
+}
 
 /**
  * Converts a path to a POSIX style path (using forward slashes).

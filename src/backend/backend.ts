@@ -1,8 +1,16 @@
+import { existsSync, statfsSync } from "fs";
 import { readdir, rm, readFile } from "fs/promises";
 import { join } from "path";
-import type { FelloIPCSchema, Schedule } from "../shared/schema";
+import type { ElectronDiagnostics, FelloIPCSchema, Schedule } from "../shared/schema";
 import type { BackendContext, SendEventFn, EventListener, BackendHandlers } from "./types";
-import { storageOps, TEMP_DIR } from "./storage";
+import { FELLO_DIR, storageOps, TEMP_DIR } from "./storage";
+import {
+  DEFAULT_DATA_ROOT,
+  FELLO_RC_PATH,
+  getDataRootInfo,
+  setDataRoot as applyDataRoot,
+} from "./config/config";
+import { samePath } from "./utils";
 import { setLanguage } from "./i18n";
 import {
   deleteAgentPersistedStorage,
@@ -43,7 +51,11 @@ export function initBackend(
     payload: FelloIPCSchema["events"][K],
   ) => boolean,
   /** Host capabilities that only the desktop app can provide. */
-  native?: { trashItem?: (path: string) => Promise<void> },
+  native?: {
+    trashItem?: (path: string) => Promise<void>;
+    /** Runtime info that only Electron can report; omitted by the headless server. */
+    diagnostics?: () => ElectronDiagnostics;
+  },
 ) {
   // ── Event bus ──
   const listeners: EventListener[] = [];
@@ -245,6 +257,65 @@ export function initBackend(
       }
       if (settings.i18n?.language) setLanguage(settings.i18n.language);
       await watcher.syncWatchers();
+    },
+
+    // Data root: read is open to every transport; the write handler below
+    // rejects anything that did not come from the desktop renderer over IPC.
+    async getDataRoot() {
+      const info = getDataRootInfo();
+      return {
+        current: FELLO_DIR,
+        configured: info.configured,
+        source: info.source,
+        defaultPath: DEFAULT_DATA_ROOT,
+        rcPath: FELLO_RC_PATH,
+        rcExists: existsSync(FELLO_RC_PATH),
+        // A problem means the configured value cannot be used at all; the UI
+        // shows it separately, so only report a pending change when it is usable.
+        restartRequired: info.problem === null && !samePath(info.dir, FELLO_DIR),
+        problem: info.problem,
+      };
+    },
+
+    async setDataRoot(params, ctx) {
+      // 数据根只允许桌面端修改：WebUI / WS 请求在这里被拒绝。
+      if (ctx?.transport !== "ipc") {
+        throw new Error("Changing the data root is only allowed in the desktop app.");
+      }
+      // 先守卫再读参数：params 来自 IPC，不能假设一定是 { target }。
+      if (!params || (params.target !== null && typeof params.target !== "string")) {
+        throw new Error("Invalid data root target.");
+      }
+      return applyDataRoot(params.target, FELLO_DIR);
+    },
+
+    // Runtime diagnostics (read-only, for the Advanced settings page)
+    async getDiagnostics() {
+      const electron = native?.diagnostics?.() ?? null;
+
+      let freeSpaceBytes: number | null = null;
+      try {
+        const fsStats = statfsSync(FELLO_DIR);
+        freeSpaceBytes = fsStats.bavail * fsStats.bsize;
+      } catch {
+        freeSpaceBytes = null;
+      }
+
+      return {
+        nodeVersion: process.versions.node,
+        platform: process.platform,
+        arch: process.arch,
+        electronVersion: electron?.electronVersion ?? null,
+        chromeVersion: electron?.chromeVersion ?? null,
+        packaged: electron?.packaged ?? null,
+        uptimeSeconds: Math.floor(process.uptime()),
+        memoryBytes: electron?.memoryBytes ?? process.memoryUsage().rss,
+        memoryScope: electron ? ("app" as const) : ("process" as const),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        freeSpaceBytes,
+        crashLogPath: electron?.crashLogPath ?? null,
+        crashLogExists: electron?.crashLogExists ?? false,
+      };
     },
 
     // Skills

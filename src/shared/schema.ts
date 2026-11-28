@@ -943,6 +943,104 @@ export interface Task {
 }
 
 /**
+ * 数据根的解析来源。
+ * - `env`：环境变量 `FELLO_DATA_ROOT`
+ * - `rc`：`~/.fellorc`
+ * - `default`：内置默认 `~/.fello`
+ */
+export type DataRootSource = "env" | "rc" | "default";
+
+/**
+ * 数据根的当前状态。
+ *
+ * `current` 是本进程实际使用的目录；`configured` 是环境变量 / 配置文件里的值。
+ * 两者不同表示「重启后生效」。
+ */
+export interface DataRootState {
+  /** 本进程正在使用的数据根。 */
+  current: string;
+  /** 环境变量 / 配置文件中配置的数据根；`null` 表示使用默认。 */
+  configured: string | null;
+  /** `configured` 的来源。 */
+  source: DataRootSource;
+  /** 内置默认数据根（`~/.fello`）。 */
+  defaultPath: string;
+  /** `~/.fellorc` 的绝对路径（文件可能不存在）。 */
+  rcPath: string;
+  /** `~/.fellorc` 当前是否存在。 */
+  rcExists: boolean;
+  /** 配置在本进程启动后发生了变化，需要重启才能生效。 */
+  restartRequired: boolean;
+  /** 配置的数据根当前不可用（不存在 / 不是目录 / 配置文件损坏）。 */
+  problem: string | null;
+}
+
+/** 拒绝写入数据根的原因。渲染层据此本地化提示文案。 */
+export type DataRootProblemCode =
+  | "empty"
+  | "relative"
+  | "missing"
+  | "not-directory"
+  | "unreadable"
+  | "same"
+  | "filesystem-root"
+  | "home-directory"
+  | "inside-current"
+  | "contains-current"
+  | "not-writable"
+  | "not-empty"
+  | "env-locked";
+
+export interface DataRootProblem {
+  code: DataRootProblemCode;
+  /** 相关路径（`missing` / `not-directory` 等）。 */
+  path?: string;
+}
+
+/** `setDataRoot` 的结果。校验失败不算异常，用 `ok: false` 返回。 */
+export interface DataRootSetResult {
+  ok: boolean;
+  changed: boolean;
+  path: string;
+  problem?: DataRootProblem;
+}
+
+/**
+ * 排障用的运行时诊断信息（只读，不参与业务逻辑）。
+ *
+ * `memoryBytes` 在 Electron 下是全部应用进程（Browser / Renderer / GPU …）工作集之和，
+ * 在 headless server 下是当前进程的 RSS；`memoryScope` 标明是哪一种。
+ */
+export interface DiagnosticsInfo {
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  /** Electron 版本；WebUI / headless server 下为 null。 */
+  electronVersion: string | null;
+  /** Chromium 版本；WebUI / headless server 下为 null。 */
+  chromeVersion: string | null;
+  /** 是否打包后的应用；WebUI / headless server 下为 null。 */
+  packaged: boolean | null;
+  /** 主进程启动至今的秒数。 */
+  uptimeSeconds: number;
+  /** 内存占用（字节），含义见 `memoryScope`。 */
+  memoryBytes: number;
+  memoryScope: "app" | "process";
+  timezone: string;
+  /** 数据根所在卷的可用空间（字节）；取不到时为 null。 */
+  freeSpaceBytes: number | null;
+  /** 崩溃日志路径；headless server 下为 null。 */
+  crashLogPath: string | null;
+  crashLogExists: boolean;
+}
+
+/** 只有 Electron 主进程能提供的诊断字段；headless server 不提供。 */
+export type ElectronDiagnostics = Pick<
+  DiagnosticsInfo,
+  "electronVersion" | "chromeVersion" | "packaged" | "memoryBytes" | "crashLogPath" | "crashLogExists"
+>;
+
+/**
  * 进程间通信（IPC）的请求定义
  * 包含从前端（Renderer/Web）发送到后端（Main）的所有方法及其参数和返回值类型
  */
@@ -951,6 +1049,19 @@ export type FelloIPCRequests = {
   getSettings: { params: void; response: SettingsInfo };
   /** 更新全局设置 */
   updateSettings: { params: Partial<SettingsInfo>; response: void };
+
+  /**
+   * 读取数据根状态（只读）。
+   * 写入走同一个通道，但只接受桌面端（`transport === "ipc"`）的调用。
+   */
+  getDataRoot: { params: void; response: DataRootState };
+  /**
+   * 修改数据根（写入 `~/.fellorc`）。
+   * 只允许桌面渲染层调用；通过 WebUI / WS 到达的请求会被后端拒绝。
+   */
+  setDataRoot: { params: { target: string | null }; response: DataRootSetResult };
+  /** 读取运行时诊断信息（版本 / 运行时长 / 内存 / 时区 / 可用空间 / 崩溃日志）。 */
+  getDiagnostics: { params: void; response: DiagnosticsInfo };
 
   /** 启动 Web UI 服务 */
   startWebUIServer: { params: { port?: number; token?: string }; response: WebUIStatus };

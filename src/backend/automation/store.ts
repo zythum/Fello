@@ -1,10 +1,10 @@
 import { join, dirname } from "path";
-import { homedir } from "os";
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 import type { Schedule, Task } from "../../shared/schema";
 import { isSafeAutomationId } from "../../shared/task-project";
+import { FELLO_DIR } from "../storage/constant";
 
-export const AUTOMATIONS_DIR = join(homedir(), ".fello", "automations");
+export const AUTOMATIONS_DIR = join(FELLO_DIR, "automations");
 mkdirSync(AUTOMATIONS_DIR, { recursive: true });
 
 /**

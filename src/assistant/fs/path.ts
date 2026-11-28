@@ -1,6 +1,8 @@
 import { homedir } from "os";
 import { isAbsolute, join, resolve, sep } from "path";
 
+import { FELLO_DIR } from "../../backend/storage/constant";
+
 /**
  * Paths that belong to the assistant runtime itself. The filesystem tools may read them,
  * but never write, move or use them as a worker workspace: corrupting session state or
@@ -8,11 +10,11 @@ import { isAbsolute, join, resolve, sep } from "path";
  */
 const PROTECTED_WRITE_PREFIXES = [
   // All per-assistant runtime data (config.json, session/, chat/, memory/, workers/, reminders/).
-  join(homedir(), ".fello", "assistants"),
+  join(FELLO_DIR, "assistants"),
   // Legacy single-assistant directories, kept protected until the old data is removed.
-  join(homedir(), ".fello", "assistant", "agent"),
-  join(homedir(), ".fello", "assistant", "session"),
-  join(homedir(), ".fello", "assistant", "diary"),
+  join(FELLO_DIR, "assistant", "agent"),
+  join(FELLO_DIR, "assistant", "session"),
+  join(FELLO_DIR, "assistant", "diary"),
 ];
 
 /** Expands `~` and resolves relative input against the assistant workspace. */

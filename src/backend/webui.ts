@@ -372,7 +372,7 @@ export function createWebUIModule(): WebUIModule {
               if (typeof handler !== "function") {
                 throw new Error(`Handler for ${channel} not found`);
               }
-              const response = await handler(params);
+              const response = await handler(params, { transport: "webui" });
               ws.send(JSON.stringify({ type: "response", id, response }));
             } catch (err) {
               ws.send(JSON.stringify({ type: "response", id, error: extractErrorMessage(err) }));

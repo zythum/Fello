@@ -23,18 +23,20 @@ import {
 } from "electron";
 import electronUpdater from "electron-updater";
 import { setupTitlebarAndAttachToWindow } from "custom-electron-titlebar/main";
+import { existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { Readable } from "stream";
 import { initBackend } from "../backend/backend";
 import { createPeripheralHost } from "./peripherals";
 import {
+  CRASH_LOG_PATH,
   markStartupFinished,
   reportFatal,
   setCrashDialogText,
   writeCrashLog,
 } from "./crash-log";
-import type { AskUserRequest, AskUserResponse, FelloIPCSchema } from "../shared/schema";
+import type { AskUserRequest, AskUserResponse, ElectronDiagnostics, FelloIPCSchema } from "../shared/schema";
 import { createRequire } from "module";
 const nodeRequire = createRequire(import.meta.url);
 const launchEditor = nodeRequire("launch-editor");
@@ -334,6 +336,32 @@ function safeSend<K extends keyof FelloIPCSchema["events"]>(
 // 启动早期即可一次探测完整生效，无需后续异步补齐。
 const proxySettings = storageOps.getSettings().proxy;
 
+/**
+ * 只有 Electron 能提供的诊断字段：renderer/GPU 内存、打包态、崩溃日志路径。
+ *
+ * `getAppMetrics()` 在 app ready 之后才可用，而调用方是设置页（此时早已 ready）。
+ * 万一取不到，退化成主进程 RSS，而不是让整个诊断接口失败。
+ */
+function collectElectronDiagnostics(): ElectronDiagnostics {
+  let memoryBytes: number;
+  try {
+    memoryBytes = app
+      .getAppMetrics()
+      .reduce((sum, metric) => sum + (metric.memory?.workingSetSize ?? 0) * 1024, 0);
+  } catch {
+    memoryBytes = process.memoryUsage().rss;
+  }
+
+  return {
+    electronVersion: process.versions.electron ?? "unknown",
+    chromeVersion: process.versions.chrome ?? "unknown",
+    packaged: app.isPackaged,
+    memoryBytes,
+    crashLogPath: CRASH_LOG_PATH,
+    crashLogExists: existsSync(CRASH_LOG_PATH),
+  };
+}
+
 // 启动期的同步失败一律走致命兜底：此刻还没有任何窗口，静默退出等于「打不开，也没法查」。
 // （initBackend 会同步做不少初始化：存储、watcher、助理配置读取……）
 let backend: ReturnType<typeof initBackend>;
@@ -345,6 +373,7 @@ try {
   );
   backend = initBackend(safeSend, {
     trashItem: (path) => shell.trashItem(path),
+    diagnostics: collectElectronDiagnostics,
   });
 } catch (error) {
   reportFatal("initBackend", error);
@@ -395,7 +424,7 @@ for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema
           wc.on("did-start-navigation", onNavigation);
           wc.once("render-process-gone", doCleanup);
         }
-        const result = await (backendHandlers as any)[channel](params);
+        const result = await (backendHandlers as any)[channel](params, { transport: "ipc" });
         if (channel === "updateSettings") {
           syncPeripherals();
           closeDisabledAskUserNotifications();

@@ -4,18 +4,34 @@ import * as os from "os";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import type { SkillInfo } from "../shared/schema";
-import { TEMP_DIR } from "./storage";
+import { FELLO_DIR, TEMP_DIR } from "./storage";
 import { toPosixPath } from "./utils";
 import type { BackendContext } from "./types";
 
 export const SKILL_FILENAME = "SKILL.md";
 const SKILLS_SH_API_BASE = "https://skills.sh/api";
 
-const scopes: { scopeName: SkillInfo["scope"]; scopePath: string }[] = [
-  { scopeName: "fello", scopePath: ".fello/skills" },
-  { scopeName: "agents", scopePath: ".agents/skills" },
-  { scopeName: "claude", scopePath: ".claude/skills" },
-];
+const SCOPES: SkillInfo["scope"][] = ["fello", "agents", "claude"];
+
+/**
+ * Directory that holds one scope's skills.
+ *
+ * The `fello` scope follows the resolved data root for user-level skills
+ * (`<data root>/skills`) instead of hardcoding `~/.fello`; the other scopes
+ * always live under the home directory.
+ */
+function scopeSkillsDir(
+  level: SkillInfo["level"],
+  scope: SkillInfo["scope"],
+  projectRoot: string,
+): string {
+  if (scope === "fello") {
+    return level === "user"
+      ? path.join(FELLO_DIR, "skills")
+      : path.join(projectRoot, ".fello", "skills");
+  }
+  return path.join(projectRoot, scope === "agents" ? ".agents/skills" : ".claude/skills");
+}
 
 // ── Module interface ─────────────────────────────────────────────────
 
@@ -89,9 +105,7 @@ export function getSkillSystemPathFromId(
   const { level, scope, relativePath } = parsed;
   if (level === "user") projectRoot = os.homedir();
   if (!projectRoot || !path.isAbsolute(projectRoot)) return null;
-  const scopePath = scopes.find((item) => item.scopeName === scope)?.scopePath;
-  if (!scopePath) return null;
-  return path.join(projectRoot, scopePath, relativePath);
+  return path.join(scopeSkillsDir(level, scope, projectRoot), relativePath);
 }
 
 function parseSkillFrontmatter(text: string): {
@@ -165,8 +179,8 @@ function getSkillsCatalog(options: { projectRoot?: string; all?: boolean } = {})
 
   for (const { level, rootPath } of roots) {
     if (!fs.existsSync(rootPath) || !fs.statSync(rootPath).isDirectory()) continue;
-    for (const { scopeName: scope, scopePath } of scopes) {
-      const skillsDir = path.join(rootPath, scopePath);
+    for (const scope of SCOPES) {
+      const skillsDir = scopeSkillsDir(level, scope, rootPath);
       if (!fs.existsSync(skillsDir)) continue;
       const skillsDirStat = fs.statSync(skillsDir);
       if (!skillsDirStat.isDirectory()) continue;
@@ -231,7 +245,7 @@ async function installSkill(source: string, slug: string) {
   if (!data.files || !Array.isArray(data.files))
     throw new Error("Invalid download response format");
 
-  const targetDir = path.join(os.homedir(), ".fello", "skills", slug);
+  const targetDir = path.join(FELLO_DIR, "skills", slug);
   await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
   await fs.promises.mkdir(targetDir, { recursive: true });
 
