@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
-import { FELLO_DIR } from "../backend/storage";
+import { FELLO_DIR } from "../backend/storage/constant";
 import type { ModelMessage } from "ai";
 import type { PermissionKind } from "./permission";
 
