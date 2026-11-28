@@ -4,11 +4,11 @@
  * 这里只放三类东西：
  * 1. 崩溃兜底（必须先于任何可能失败的加载）；
  * 2. 必须在 app ready 之前同步生效的注册：自定义 scheme、命令行开关；
- * 3. 动态 import 业务主体 `./app`。
+ * 3. 数据根门禁（配置不可用时给用户选择）→ 动态 import 业务主体 `./app`。
  *
  * 为什么不用静态 import：`app.ts` 的依赖树（backend、存储、watcher、native 模块）里任何一处
  * 在**加载期**抛错，静态 import 都会让主进程直接死在入口 —— 从桌面图标启动时既没有窗口，也没有
- * 任何输出。改成动态导入后，这类失败变成可捕获的 rejection，能写进 `~/.fello/crash.log`
+ * 任何输出。改成动态导入后，这类失败变成可捕获的 rejection，能写进 `~/.fello-crash.log`
  * 并弹出原生错误框。
  *
  * 兼容性：只使用 `import()` + `.then/.catch`，不使用 top-level await。这样同一份源码在
@@ -41,6 +41,22 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-void import("./app").catch((error: unknown) => {
-  reportFatal("load-app", error);
-});
+// 数据根门禁：必须早于业务主体加载，因为 `storage/constant.ts` 在模块加载期
+// 就会解析数据根。配置不可用时由门禁弹出原生对话框，让用户修好重试 / 本次用
+// 默认目录 / 重命名配置文件，而不是让主进程死在入口。
+void app
+  .whenReady()
+  .then(async () => {
+    const { ensureUsableDataRoot } = await import("./data-root-gate");
+    return ensureUsableDataRoot();
+  })
+  .then((usable) => {
+    if (!usable) {
+      app.exit(0);
+      return;
+    }
+    return import("./app");
+  })
+  .catch((error: unknown) => {
+    reportFatal("startup", error);
+  });

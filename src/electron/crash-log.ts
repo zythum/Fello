@@ -3,7 +3,7 @@
  *
  * 背景：`initBackend()` 在 `app.ts` 的模块顶层执行（`app.whenReady()` 之前），任何启动期异常
  * 都会让主进程在创建窗口之前退出。从桌面图标（.desktop / 快捷方式）启动时 stderr 无处可去，
- * 用户看到的只有「没启动起来」，我们也拿不到堆栈。这里把崩溃写进 `~/.fello/crash.log`，
+ * 用户看到的只有「没启动起来」，我们也拿不到堆栈。这里把崩溃写进 `~/.fello-crash.log`，
  * 并在启动阶段用原生错误框把原因和日志路径告诉用户。
  *
  * 约定：
@@ -16,15 +16,18 @@
  * - 同一进程只弹一次窗，避免兜底链路自身重复报错刷屏。
  *
  * 依赖约束：本模块会被**薄入口** `main.ts` 静态 import，所以只允许依赖 node 内置模块与
- * `electron`（外加零副作用的路径常量）——一旦引入 i18n / storage 之类，薄入口就被这些模块的
- * 加载期风险重新污染，等于白拆。
+ * `electron`——一旦引入 i18n / storage 之类，薄入口就被这些模块的加载期风险重新污染，等于白拆。
  */
-import { mkdirSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
+import { homedir } from "os";
 import { join } from "path";
 import { app, dialog } from "electron";
-import { FELLO_DIR } from "../backend/storage/constant";
 
-export const CRASH_LOG_PATH = join(FELLO_DIR, "crash.log");
+/**
+ * 固定写进用户主目录，与数据根**解耦**：配置本身坏掉时（移动盘没插、
+ * .fellorc 写错、~/.fello 不存在）恰恰是最需要日志的时候。
+ */
+export const CRASH_LOG_PATH = join(homedir(), ".fello-crash.log");
 
 /**
  * 弹窗文案。
@@ -97,7 +100,6 @@ export function writeCrashLog(scope: string, error: unknown): string {
   ].join("\n");
 
   try {
-    mkdirSync(FELLO_DIR, { recursive: true });
     writeFileSync(CRASH_LOG_PATH, entry, "utf8");
   } catch (logError) {
     console.error("[crash] Failed to write crash log:", logError);
