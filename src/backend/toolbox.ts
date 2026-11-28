@@ -2,6 +2,7 @@ import { join, resolve, dirname, basename, extname } from "path";
 import { writeFile } from "fs/promises";
 import { createHash, randomUUID, randomInt } from "crypto";
 import * as qr from "qr-image";
+import type sharpFactory from "sharp";
 import type { Metadata } from "sharp";
 import {
   base64EncodeRequestSchema,
@@ -72,9 +73,9 @@ const CHARSETS = {
 // 动态加载 sharp，避免在应用启动时加载原生模块失败导致整个主进程崩溃
 // （Linux 上 libvips 原生二进制加载失败时，仅相关工具调用报错而非启动失败）。
 
-let sharpPromise: Promise<typeof import("sharp").default> | null = null;
+let sharpPromise: Promise<typeof sharpFactory> | null = null;
 
-function getSharp(): Promise<typeof import("sharp").default> {
+function getSharp(): Promise<typeof sharpFactory> {
   if (!sharpPromise) {
     sharpPromise = import("sharp")
       .then((m) => m.default)

@@ -2,6 +2,7 @@ import { appendFileSync } from "fs";
 import type { ReminderService } from "../../assistant/reminders/service";
 import type { AskUserFn } from "../../assistant/ask-user-tool";
 import type { FileSystemTools } from "../../assistant/fs/tools";
+import type { AssistantStorage } from "../../assistant/storage";
 import type { WorkerService } from "../../assistant/worker/types";
 import type { ShareToUserModule } from "../share-to-user";
 import type { McpServer } from "@agentclientprotocol/sdk/unstable";
@@ -139,7 +140,7 @@ export type AssistantAgentInfo = {
   type: "assistant";
   /** Pseudo session id of this assistant (also the assistant id). */
   sessionId: string;
-  storage: import("../../assistant/storage").AssistantStorage;
+  storage: AssistantStorage;
   sourceAgent: ApiAgentInfo;
   getMcpServers: () => McpServer[];
   getDream: () => { maxContextTokens: number; preferredTime: string };

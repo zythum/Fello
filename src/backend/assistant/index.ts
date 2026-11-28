@@ -23,7 +23,7 @@ import { listDiarySummaries, readDiary } from "../../assistant/diary-query";
 import { serverTimeZone } from "../../assistant/reminders/service";
 import { wasFired } from "../../shared/reminder";
 import { ASSISTANT_AGENT_ID } from "../../assistant/constants";
-import { AssistantStorage } from "../../assistant/storage";
+import { AssistantStorage, type AssistantMessageSegment } from "../../assistant/storage";
 import {
   assistantPaths,
   createAssistantConfig,
@@ -463,7 +463,7 @@ function createAssistantRuntime(
   }
 
   const pendingToolCalls = new Map<string, ToolCallUpdate>();
-  let activeMessageSegment: import("../../assistant/storage").AssistantMessageSegment | null = null;
+  let activeMessageSegment: AssistantMessageSegment | null = null;
   let notificationTail = Promise.resolve();
 
   function queuePersistAndPublish(
@@ -477,7 +477,7 @@ function createAssistantRuntime(
 
   async function persistAndPublish(
     notification: SessionNotification,
-    segment: import("../../assistant/storage").AssistantMessageSegment | null,
+    segment: AssistantMessageSegment | null,
   ): Promise<void> {
     const enriched = enrichNotification(notification);
     const type = enriched.update.sessionUpdate;

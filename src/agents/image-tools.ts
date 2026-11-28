@@ -1,5 +1,6 @@
 import { resolve } from "path";
 import { readFile, stat } from "fs/promises";
+import type sharpFactory from "sharp";
 import type { Metadata } from "sharp";
 import {
   tool,
@@ -85,7 +86,7 @@ const JPEG_QUALITIES = [88, 80, 72, 64] as const;
 const SHRINK_FACTOR = 0.82;
 const MAX_SHRINK_STEPS = 8;
 
-type SharpModule = typeof import("sharp").default;
+type SharpModule = typeof sharpFactory;
 let sharpPromise: Promise<SharpModule> | null = null;
 
 /** Lazy-load sharp so the native module is only loaded when an image is read. */
