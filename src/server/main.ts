@@ -1,81 +1,47 @@
+/**
+ * Headless server 入口（薄壳），与 Electron 的 `main.ts` / `app.ts` 结构保持一致。
+ *
+ * 这里只做三件事：
+ * 1. import `./env` 设置 `process.*Path`（必须在入口 chunk 里执行，路径才相对
+ *    `out/server` 而不是 `out/server/assets`）；
+ * 2. import `./cli` 解析参数：`-h` / `-v` 必须在数据根校验之前生效；
+ * 3. 校验数据根，然后动态 import 业务主体 `./app`。
+ *
+ * 为什么不能静态 import `./app`：它的依赖树里 `storage/constant.ts` 在模块加载期
+ * 就解析数据根。静态 import 会先于本文件的任何代码执行，配置坏掉时只能得到一屏
+ * 堆栈，而不是一条能看懂的说明。
+ */
 import "./env";
-import { initBackend } from "../backend/backend";
-import { applyProxy, detectSystemProxy, settingProxyInfoToProxyConfig } from "../backend/proxy";
-import { storageOps } from "../backend/storage";
-import { version } from "../../package.json";
+import "./cli";
 
-// ── Parse CLI arguments ─────────────────────────────────────────────
-let port: number | undefined;
-let token: string | undefined;
+import { existsSync } from "fs";
 
-const args = process.argv.slice(2);
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--port" || args[i] === "-p") {
-    port = parseInt(args[++i], 10);
-  } else if (args[i] === "--token" || args[i] === "-t") {
-    token = args[++i];
-  } else if (args[i] === "--version" || args[i] === "-v") {
-    console.log(version);
-    process.exit(0);
-  } else if (args[i] === "--help" || args[i] === "-h") {
-    console.log(`
-Fello Server — standalone headless server without Electron
+import { DEFAULT_DATA_ROOT, FELLO_RC_PATH, getDataRootInfo } from "../backend/config/config";
 
-Usage: node out/server/main.js [options]
+const info = getDataRootInfo();
+const sourceLabel =
+  info.source === "env" ? "FELLO_DATA_ROOT" : info.source === "rc" ? "~/.fellorc" : "default";
 
-Options:
-  -p, --port <number>     HTTP server port (default: random available port)
-  -t, --token <string>    Authentication token (default: auto-generated)
-  -v, --version           Show version number
-  -h, --help              Show this help
-`);
-    process.exit(0);
-  }
+if (info.problem) {
+  console.error("");
+  console.error("[fello] Cannot start: the configured data root is not usable.");
+  console.error(`[fello] ${info.problem}`);
+  console.error(`[fello] Source: ${sourceLabel}`);
+  console.error(
+    `[fello] Fix the path, start with FELLO_DATA_ROOT="${DEFAULT_DATA_ROOT}", or remove ~/.fellorc.`,
+  );
+  console.error("");
+  process.exit(1);
 }
 
-// ── Apply proxy as early as possible ──────────────────────────────
-// 必须在任何网络请求 / 子进程 spawn 之前执行（undici dispatcher +
-// http/https globalAgent + process.env，子进程自动继承）。
-// system 模式：detectSystemProxy 为同步实现，启动早期一次探测完整生效。
-const proxySettings = storageOps.getSettings().proxy;
-if (proxySettings.mode === "system") {
-  const detected = detectSystemProxy();
-  applyProxy(detected);
-  console.log(`[proxy] system proxy: ${detected.httpProxy || detected.httpsProxy || "none"}`);
-} else {
-  applyProxy(settingProxyInfoToProxyConfig(proxySettings));
-}
+const rootSource =
+  info.source === "env" ? "env" : info.source === "rc" ? "config file" : "default";
+const rcState = existsSync(FELLO_RC_PATH)
+  ? "found"
+  : info.source === "default"
+    ? "not found, use default"
+    : "not found";
+console.log(`[fello] config file: ${FELLO_RC_PATH} (${rcState})`);
+console.log(`[fello] data root:   ${info.dir} (${rootSource})`);
 
-// ── Initialize backend ─────────────────────────────────────────────
-const { backendHandlers, closeBackend } = initBackend(() => false);
-
-// ── Start WEBUI HTTP/WS server ─────────────────────────────────────
-backendHandlers
-  .startWebUIServer({ port, token })
-  .then(({ url }) => {
-    const title = `Fello Server v${version}`;
-    const pad = 4;
-    const inner = title.length + pad * 2;
-    console.log("");
-    console.log(`  ╔${"═".repeat(inner)}╗`);
-    console.log(`  ║${" ".repeat(pad)}${title}${" ".repeat(pad)}║`);
-    console.log(`  ╚${"═".repeat(inner)}╝`);
-    console.log(`  🖥️  WEBUI: ${url}`);
-    console.log("");
-  })
-  .catch((err) => {
-    console.error("[Fello] Failed to start server:", err);
-    process.exit(1);
-  });
-
-// ── Graceful shutdown ──────────────────────────────────────────────
-async function shutdown() {
-  console.log("\n[Fello] Shutting down...");
-  await backendHandlers.stopWebUIServer();
-  await closeBackend().catch(() => {});
-  process.exit(0);
-}
-
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
-process.on("SIGHUP", shutdown);
+await import("./app");
