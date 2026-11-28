@@ -4,7 +4,7 @@ import type { AskUserFn } from "../../assistant/ask-user-tool";
 import type { FileSystemTools } from "../../assistant/fs/tools";
 import type { AssistantStorage } from "../../assistant/storage";
 import type { WorkerService } from "../../assistant/worker/types";
-import type { ShareToUserModule } from "../share-to-user";
+import type { ShareToUserFn } from "../../assistant/share-to-user-tool";
 import type { McpServer } from "@agentclientprotocol/sdk/unstable";
 import { writeFile, readFile } from "fs/promises";
 import {
@@ -148,7 +148,7 @@ export type AssistantAgentInfo = {
   reminders: ReminderService;
   worker: WorkerService;
   askUser: AskUserFn;
-  shareToUser: ShareToUserModule;
+  shareToUser: ShareToUserFn;
   filesystem: FileSystemTools;
   onDreamStatus?: (status: { dreaming: boolean; error?: string }) => void;
 };

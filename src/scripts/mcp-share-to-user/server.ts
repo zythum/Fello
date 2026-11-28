@@ -1,6 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION,
+  SHARE_TO_USER_TOOL_DESCRIPTION,
   shareToUserRequestSchema,
   shareToUserRespondSchema,
 } from "../../shared/zod/mcp-share-to-user-schema";
@@ -40,9 +42,8 @@ server.registerTool(
   "share_to_user",
   {
     description: projectOnly
-      ? `Share a file that already exists in your workspace with the user. Write the file first, then pass type="project" and its workspace-relative path. Link/base64 sharing is not available.`
-      : `Share a file to the user's chat area for them to see. Supports images (with preview), PDFs, documents, and any file type (shown as a file card).
-Provide the file as a file:// URI, https:// URL, base64-encoded data, or a project-relative path (zero-copy).`,
+      ? SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION
+      : SHARE_TO_USER_TOOL_DESCRIPTION,
     inputSchema: projectOnly
       ? shareToUserRequestSchema.refine((data) => data.type === "project", {
           message: "Only type='project' is supported in this workspace.",

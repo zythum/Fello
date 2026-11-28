@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   isStepCount,
@@ -53,8 +52,7 @@ import {
   createAssistantMcpTools,
   type AssistantMcpTools,
 } from "./mcp-tools";
-import type { ShareToUserModule } from "../backend/share-to-user";
-import { generateSocketPath, startSocketServer, type SocketServer } from "../backend/socket-server";
+import { createShareToUserTool, type ShareToUserFn } from "./share-to-user-tool";
 import { createDiaryQueryTool } from "./diary-query";
 import { createReminderTools } from "./reminders/tools";
 import type { ReminderService } from "./reminders/service";
@@ -100,7 +98,8 @@ export type AssistantAgentOptions = {
   workspace: string;
   storage: AssistantStorage;
   getMcpServers: () => McpServer[];
-  shareToUser: ShareToUserModule;
+  /** Bound by the host: workspace-relative project shares only. */
+  shareToUser: ShareToUserFn;
   getDream: () => { maxContextTokens: number; preferredTime: string };
   /** 用户在 sidebar 里填写的名称；空字符串表示使用默认身份。每轮实时读取，改名无需重启。 */
   getName: () => string;
@@ -284,8 +283,8 @@ Tools
 - reminder_create / reminder_list / reminder_occurrences / reminder_update / reminder_delete: the user's reminders. Create, change or delete one only when the user asks.
 - fs_list / fs_read / fs_write / fs_edit / fs_move / fs_delete / fs_glob / fs_grep: list, read, write, edit, move, delete and search files. Prefer fs_edit to change part of an existing file: fs_write replaces the whole file. fs_delete only accepts paths inside your workspace; in the desktop app it moves the target to the system trash, where the user can restore it, while on a headless server the deletion is permanent. Never delete something the user may still want. fs_move keeps an existing destination unless force is true. Confirm with ask_user before writing or moving things outside your workspace unless the user already asked for that exact change. Never modify the assistant runtime data (session/, chat/, memory/, workers/, reminders/).
 - ask_user: ask the user when a decision or missing information blocks you. Offer short, concrete options.
-- mcp_assistant_share__share_to_user: share a file that already exists in your workspace with the user. Write it with fs_write first, then pass type="project" and its workspace-relative path. Link/base64 sharing is unavailable.
-- Tools named mcp_<server>__<tool> come from MCP servers (user-selected or built-in). Use them when relevant, especially for web search and fetching pages.
+- share_to_user: share a file that already exists in your workspace with the user. Write it with fs_write first, then pass type="project" and its workspace-relative path. Link/base64 sharing is unavailable.
+- Tools named mcp_<server>__<tool> come from the MCP servers selected in Settings. Use them when relevant, especially for web search and fetching pages.
 ${workerToolsSection}Rules
 - ${eventRule}${workerRunningRule}
 - The id in [Reminder id="..."] can be passed directly to reminder_update or reminder_delete.
@@ -321,7 +320,6 @@ export class AssistantAgent {
   private dreamTimer: ReturnType<typeof setTimeout> | null = null;
   private mcp: AssistantMcpTools | null = null;
   private mcpPending: Promise<AssistantMcpTools | null> | null = null;
-  private shareSocketServer: SocketServer | null = null;
 
   constructor(private readonly options: AssistantAgentOptions) {
     if (options.agentInfo.provider !== "openai-compatible") {
@@ -347,50 +345,23 @@ export class AssistantAgent {
     return this.options.worker.listTypes().length > 0;
   }
 
-  /** Lazily connects the MCP servers selected in Settings; failures fall back to no MCP tools. */
+  /** Lazily connects the user-selected MCP servers; failures fall back to no MCP tools. */
   private async ensureMcpTools(): Promise<ToolSet> {
     if (this.mcp) return this.mcp.tools;
     if (this.mcpPending) return (await this.mcpPending)?.tools ?? {};
 
-    const pending = (async () => {
-      const shareServer = await this.ensureShareMcpServer();
-      const [shareTools, userTools] = await Promise.all([
-        createAssistantMcpTools({
-          servers: [shareServer],
-          cwd: this.options.workspace,
-          sendUpdate: this.sendToolUpdate,
-        }).catch((error) => {
-          console.error("[assistant] Failed to connect built-in share MCP:", error);
-          return null;
-        }),
-        createAssistantMcpTools({
-          servers: this.options.getMcpServers(),
-          cwd: this.options.workspace,
-          sendUpdate: this.sendToolUpdate,
-        }).catch((error) => {
-          console.error("[assistant] Failed to connect user MCP servers:", error);
-          return null;
-        }),
-      ]);
-      if (!shareTools) {
-        this.shareSocketServer?.stop();
-        this.shareSocketServer = null;
-      }
-      const clients = [...(shareTools?.clients ?? []), ...(userTools?.clients ?? [])];
-      if (clients.length === 0) return null;
-      return {
-        clients,
-        tools: { ...(shareTools?.tools ?? {}), ...(userTools?.tools ?? {}) },
-      };
-    })()
+    const pending = createAssistantMcpTools({
+      servers: this.options.getMcpServers(),
+      cwd: this.options.workspace,
+      sendUpdate: this.sendToolUpdate,
+    })
       .then((mcp) => {
+        if (mcp.clients.length === 0) return null;
         this.mcp = mcp;
         return mcp;
       })
       .catch((error) => {
-        console.error("[assistant] Failed to connect MCP servers:", error);
-        this.shareSocketServer?.stop();
-        this.shareSocketServer = null;
+        console.error("[assistant] Failed to connect user MCP servers:", error);
         return null;
       });
     this.mcpPending = pending;
@@ -401,32 +372,6 @@ export class AssistantAgent {
     }
   }
 
-  /** Built-in share MCP: only workspace-relative project shares, never a share directory. */
-  private async ensureShareMcpServer(): Promise<McpServer> {
-    if (!this.shareSocketServer) {
-      const socketPath = generateSocketPath(`assistant-share-${randomUUID()}`);
-      const server = await startSocketServer(socketPath);
-      try {
-        this.options.shareToUser.registerShareToUserRoute(server, this.options.sessionId, {
-          cwd: this.options.workspace,
-          projectOnly: true,
-        });
-      } catch (error) {
-        server.stop();
-        throw error;
-      }
-      this.shareSocketServer = server;
-    }
-    return {
-      ...this.options.shareToUser.buildShareToUserMcpServer({
-        projectDir: this.options.workspace,
-        socketPath: this.shareSocketServer.socketPath,
-        projectOnly: true,
-      }),
-      name: "assistant-share",
-    };
-  }
-
   private async closeMcp(): Promise<void> {
     const pending = this.mcpPending;
     if (pending) await pending.catch(() => {});
@@ -434,8 +379,6 @@ export class AssistantAgent {
     this.mcp = null;
     this.mcpPending = null;
     if (mcp) await closeAssistantMcpTools(mcp);
-    this.shareSocketServer?.stop();
-    this.shareSocketServer = null;
   }
 
   async initialize(_params: InitializeRequest): Promise<InitializeResponse> {
@@ -845,6 +788,10 @@ export class AssistantAgent {
           }),
           ask_user: createAskUserTool({
             askUser: this.options.askUser,
+            sendUpdate: this.sendToolUpdate,
+          }),
+          share_to_user: createShareToUserTool({
+            shareToUser: this.options.shareToUser,
             sendUpdate: this.sendToolUpdate,
           }),
           ...workerTools,

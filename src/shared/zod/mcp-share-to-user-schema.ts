@@ -46,6 +46,16 @@ export const shareToUserRequestSchema = z
 
 export type ShareToUserRequest = z.infer<typeof shareToUserRequestSchema>;
 
+/**
+ * share_to_user 工具的模型可见说明。
+ * 会话 / worker 走 MCP（可分享任意文件），个人助理走进程内工具（只允许 project），两处共用文案。
+ */
+export const SHARE_TO_USER_TOOL_DESCRIPTION = `Share a file to the user's chat area for them to see. Supports images (with preview), PDFs, documents, and any file type (shown as a file card).
+Provide the file as a file:// URI, https:// URL, base64-encoded data, or a project-relative path (zero-copy).`;
+
+/** projectOnly 场景（个人助理等受限调用方）的说明。 */
+export const SHARE_TO_USER_PROJECT_ONLY_DESCRIPTION = `Share a file that already exists in your workspace with the user. Write the file first, then pass type="project" and its workspace-relative path. Link/base64 sharing is not available.`;
+
 export const shareToUserRespondSchema = z.object({
   sharePath: z
     .string()

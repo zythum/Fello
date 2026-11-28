@@ -26,7 +26,7 @@
 | `src/assistant/worker/` | 暴露给助理的 `worker_*` 工具与类型 |
 | `src/assistant/diary-query.ts` | 日记检索子代理与 `diary_query` 工具 |
 | `src/assistant/mcp-tools.ts` | 按助理配置懒连接 MCP Server |
-| `src/assistant/ask-user-tool.ts` / `current-time-tool.ts` / `tool-updates.ts` | 其余内置工具与工具调用事件 |
+| `src/assistant/ask-user-tool.ts` / `share-to-user-tool.ts` / `current-time-tool.ts` / `tool-updates.ts` | 其余内置工具与工具调用事件 |
 | `src/backend/assistant/index.ts` | `AssistantManager` / 每助理 runtime：启动、状态广播、通知持久化、唤醒队列、iLink |
 | `src/backend/assistant/worker/` | WorkerManager 与 worker 记录 / 转写存储 |
 | `src/mainview/components/assistant/` | 助理页面：聊天列、详情、右侧面板 |
@@ -90,7 +90,7 @@
 | `reminder_create` / `reminder_list` / `reminder_occurrences` / `reminder_update` / `reminder_delete` | 用户提醒 |
 | `fs_list` / `fs_read` / `fs_write` / `fs_edit` / `fs_move` / `fs_delete` / `fs_glob` / `fs_grep` | 文件读写、编辑、移动、删除与搜索 |
 | `ask_user` | 阻塞式提问，直接复用会话的 Ask User 通道（`sessionId = assistantId`） |
-| `mcp_assistant_share__share_to_user` | 内置分享 MCP，只允许分享 workspace 内已存在的文件（`type="project"`），不支持 link / base64 |
+| `share_to_user` | 进程内直接执行的分享工具（不经 socket server / MCP 子进程），只允许分享 workspace 内已存在的文件（`type="project"`），不支持 link / base64 |
 | `mcp_<server>__<tool>` | 用户在助理配置中勾选的 MCP Server |
 | `worker_run` / `worker_create` / `worker_send` / `worker_status` / `worker_list` / `worker_read` / `worker_cancel` / `worker_close` / `worker_terminate` / `worker_permission` | 后台 ACP 子代理，仅在存在可用 worker 类型时暴露 |
 

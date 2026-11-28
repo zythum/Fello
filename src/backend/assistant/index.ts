@@ -595,8 +595,16 @@ function createAssistantRuntime(
           getName,
           reminders,
           worker: workerManager,
-          askUser: (options) => deps.askUser.askUser({ sessionId: assistantId, ...options }),
-          shareToUser: deps.mcpDeps.shareToUser,
+          // 同样后写宿主字段：sessionId 不接受请求侧覆盖。
+          askUser: (options) => deps.askUser.askUser({ ...options, sessionId: assistantId }),
+          // 助理 agent 在进程内运行，share 工具直接调用实现：不再起 socket server 和 MCP 子进程。
+          shareToUser: (request) =>
+            deps.mcpDeps.shareToUser.shareToUser({
+              ...request,
+              // 宿主字段后写：即使请求里带了同名字段，也覆盖不了 projectOnly / sessionId。
+              sessionId: assistantId,
+              context: { cwd: paths.workspace, projectOnly: true },
+            }),
           filesystem: deps.filesystem,
           onDreamStatus: ({ dreaming, error }) => {
             updateStatus({ dreaming, dreamError: error });
