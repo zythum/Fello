@@ -113,6 +113,11 @@ export type WorkerManagerOptions = {
   workersDir: string;
   /** Default root for relative workspaces, i.e. the assistant's own workspace. */
   workspaceRoot: string;
+  /**
+   * Assistant runtime directories a worker must not write to. Comes from the host
+   * (`assistantProtectedRoots(FELLO_DIR)`), same value the fs tools use.
+   */
+  protectedWriteRoots: readonly string[];
   /** Queues a message for the assistant's next turn. */
   notify: (text: string) => void;
   /** Called after any worker state or connection change, for the UI panel. */
@@ -251,7 +256,7 @@ export class WorkerManager implements WorkerService {
     }
 
     const cwd = resolveAssistantPath(input.workspace, this.options.workspaceRoot);
-    assertWritablePath(cwd);
+    assertWritablePath(cwd, this.options.protectedWriteRoots);
     await mkdir(cwd, { recursive: true });
 
     const now = Date.now();

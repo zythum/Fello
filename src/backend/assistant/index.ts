@@ -330,6 +330,7 @@ function createAssistantRuntime(
     assistantSessionId: assistantId,
     workersDir: paths.workersDir,
     workspaceRoot: paths.workspace,
+    protectedWriteRoots: deps.filesystem.protectedWriteRoots,
     notify: (text) => {
       enqueueWake({ key: `worker:${randomUUID()}`, render: () => text, at: Date.now() });
     },

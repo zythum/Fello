@@ -63,14 +63,16 @@ export type FileSystemTools = {
    * `fs_delete` falls back to a permanent removal.
    */
   trashItem?: (path: string) => Promise<void>;
+  /**
+   * Directories the assistant must never write to or delete (its own runtime data).
+   * 宿主构造时注入 `assistantProtectedRoots(FELLO_DIR)`，assistant 侧不 import backend。
+   */
+  protectedWriteRoots: readonly string[];
 };
 
-export type FileSystemToolDeps = {
+export type FileSystemToolDeps = FileSystemTools & {
   workspace: string;
   sendUpdate: ToolUpdateSender;
-  grep: GrepFn;
-  glob: GlobFn;
-  trashItem?: (path: string) => Promise<void>;
 };
 
 function toPosix(path: string): string {
@@ -109,7 +111,13 @@ export function createFileSystemTools({
   grep,
   glob,
   trashItem,
+  protectedWriteRoots,
 }: FileSystemToolDeps) {
+  // 受保护目录由宿主注入，这里只绑定一次，工具内部维持原来的调用形状。
+  const assertWritable = (path: string) => assertWritablePath(path, protectedWriteRoots);
+  const assertDeletable = (path: string) =>
+    assertDeletablePath(path, workspace, protectedWriteRoots);
+
   return {
     fs_list: tool({
       description:
@@ -265,7 +273,7 @@ export function createFileSystemTools({
             locations: [{ path: target }],
           },
           async () => {
-            assertWritablePath(target);
+            assertWritable(target);
             const bytes = Buffer.byteLength(content, "utf8");
             if (bytes > MAX_WRITE_BYTES)
               throw new Error(
@@ -326,7 +334,7 @@ export function createFileSystemTools({
             locations: [{ path: target }],
           },
           async () => {
-            assertWritablePath(target);
+            assertWritable(target);
             const info = await stat(target);
             if (!info.isFile()) throw new Error(`Not a file: ${target}`);
             if (info.size > MAX_READ_BYTES)
@@ -382,8 +390,8 @@ export function createFileSystemTools({
           async () => {
             const source = resolveAssistantPath(from, workspace);
             const target = resolveAssistantPath(to, workspace);
-            assertWritablePath(source);
-            assertWritablePath(target);
+            assertWritable(source);
+            assertWritable(target);
             const info = await stat(source);
             if (source === target) return { from: toPosix(source), to: toPosix(target) };
             const existing = await lstat(target).catch(() => null);
@@ -421,7 +429,7 @@ export function createFileSystemTools({
           { toolCallId, title: `Delete ${path}`, kind: "edit", rawInput: { path } },
           async () => {
             const target = resolveAssistantPath(path, workspace);
-            assertDeletablePath(target, workspace);
+            assertDeletable(target);
             const info = await lstat(target).catch((error: NodeJS.ErrnoException) => {
               if (error.code === "ENOENT") return null;
               throw error;

@@ -41,6 +41,7 @@ import { createAsrManager } from "./speech/asr-manager";
 import { createTtsManager } from "./speech/tts-manager";
 import { createAssistantManager } from "./assistant";
 import { assistantPaths } from "../assistant/config";
+import { assistantProtectedRoots } from "../assistant/fs/path";
 import { taskProjectId } from "../shared/task-project";
 
 // ── Init ─────────────────────────────────────────────────────────────
@@ -106,7 +107,13 @@ export function initBackend(
   // Assistants are pseudo sessions; session I/O dispatches to them by id, so they must exist first.
   const assistant = createAssistantManager(ctx, {
     askUser,
-    filesystem: { grep, glob, trashItem: native?.trashItem },
+    filesystem: {
+      grep,
+      glob,
+      trashItem: native?.trashItem,
+      // 受保护目录在这里算一次：数据根只有宿主知道，assistant 侧不再 import backend。
+      protectedWriteRoots: assistantProtectedRoots(FELLO_DIR),
+    },
     mcpDeps: { skills, askUser, shareToUser, search, memory, imageGeneration, toolbox },
     ilink: ilink.state,
   });
