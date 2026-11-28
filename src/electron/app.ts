@@ -403,7 +403,7 @@ for (const channel of Object.keys(backendHandlers) as Array<keyof FelloIPCSchema
           const doCleanup = () => {
             if (isCleaned) return;
             isCleaned = true;
-            void backendHandlers.killTerminalsByClient({ clientId });
+            void backendHandlers.killTerminalsByClient({ clientId }, { transport: "internal" });
             wc.removeListener("destroyed", doCleanup);
             wc.removeListener("did-start-navigation", onNavigation);
             wc.removeListener("render-process-gone", doCleanup);

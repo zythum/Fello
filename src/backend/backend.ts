@@ -278,8 +278,8 @@ export function initBackend(
     },
 
     async setDataRoot(params, ctx) {
-      // 数据根只允许桌面端修改：WebUI / WS 请求在这里被拒绝。
-      if (ctx?.transport !== "ipc") {
+      // 数据根只允许桌面端修改：webui / internal 来源都会被拒绝。
+      if (ctx.transport !== "ipc") {
         throw new Error("Changing the data root is only allowed in the desktop app.");
       }
       // 先守卫再读参数：params 来自 IPC，不能假设一定是 { target }。
@@ -327,7 +327,7 @@ export function initBackend(
     },
     async readSkillFile({ skillId, projectId }: { skillId: string; projectId?: string }) {
       return readFile(
-        await backendHandlers.getSkillFileSystemFilePath({ skillId, projectId }),
+        await backendHandlers.getSkillFileSystemFilePath({ skillId, projectId }, { transport: "internal" }),
         "utf-8",
       );
     },

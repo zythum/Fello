@@ -387,7 +387,7 @@ export function createWebUIModule(): WebUIModule {
         connectedClients.delete(ws);
         const clientId = clientIdsBySocket.get(ws);
         if (clientId) {
-          void backendHandlers?.killTerminalsByClient({ clientId });
+          void backendHandlers?.killTerminalsByClient({ clientId }, { transport: "internal" });
         }
       });
     });

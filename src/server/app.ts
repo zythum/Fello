@@ -29,7 +29,7 @@ const { backendHandlers, closeBackend } = initBackend(() => false);
 
 // ── Start WEBUI HTTP/WS server ─────────────────────────────────────
 backendHandlers
-  .startWebUIServer({ port: cli.port, token: cli.token })
+  .startWebUIServer({ port: cli.port, token: cli.token }, { transport: "internal" })
   .then(({ url }) => {
     const title = `Fello Server v${version}`;
     const pad = 4;
@@ -49,7 +49,7 @@ backendHandlers
 // ── Graceful shutdown ──────────────────────────────────────────────
 async function shutdown() {
   console.log("\n[Fello] Shutting down...");
-  await backendHandlers.stopWebUIServer();
+  await backendHandlers.stopWebUIServer(undefined, { transport: "internal" });
   await closeBackend().catch(() => {});
   process.exit(0);
 }
