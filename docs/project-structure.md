@@ -6,7 +6,9 @@
 fello/
 ├── src/
 │   ├── server/                       # 独立 Node.js 服务器入口
-│   │   ├── main.ts                   # 无 Electron 版本，纯 Node 启动 backend + WEBUI
+│   │   ├── main.ts                   # 薄入口：设置 process.*Path + 解析 CLI + 校验数据根 → 动态 import app.ts
+│   │   ├── cli.ts                    # 命令行参数（-p / -t / -v / -h），-h/-v 在数据根校验前生效
+│   │   ├── app.ts                    # 业务主体：无 Electron 版本，纯 Node 启动 backend + WEBUI
 │   │   ├── env.ts                    # 服务器环境变量配置
 │   │   └── global.d.ts               # 服务器全局类型声明
 │   ├── agents/                       # Agent 会话逻辑（框架无关，主进程使用）
@@ -42,7 +44,7 @@ fello/
 │   │
 │   ├── backend/                      # Node.js 后端逻辑与系统能力
 │   │   ├── backend.ts                # IPC 总入口：工厂模块实例化、组装 backendHandlers
-│   │   ├── types.ts                  # 共享类型（BackendContext, SendEventFn, EventListener）
+│   │   ├── types.ts                  # 共享类型（BackendContext / SendEventFn / EventListener / BackendRequestContext）
 │   │   ├── bridge-connect.ts          # Agent Bridge 连接管理（ensureBridge/rekeyBridge/killBridge/killBridgesByAgent/clearAll/setBroadcast）
 │   │   ├── ask-user.ts               # askUser 通用机制（请求/响应/超时/路由注册）
 │   │   ├── share-to-user.ts          # shareToUser 文件分享（iLink 媒体队列）
@@ -76,13 +78,18 @@ fello/
 │   │   │   ├── api-agent.ts              # API Agent 进程内启动（按 provider 选协议实现）
 │   │   │   ├── resolve-agent-info.ts     # Agent 配置解析（Stdio/API 类型校验）
 │   │   │   └── model-catalog.ts          # Agent 模型候选（/models 实拉 + 最近会话快照）
+│   │   ├── config/                   # 配置层：数据根 + 指针文件（懒解析）
+│   │   │   ├── config.ts             # 统一出口（只导出懒解析模块）
+│   │   │   ├── data-root.ts          # 数据根解析 + 切换校验/写入（env > ~/.fellorc > 默认）
+│   │   │   └── fello-rc.ts           # ~/.fellorc 解析、模板渲染与原子写入
 │   │   ├── storage/                  # 持久化管理模块
 │   │   │   ├── index.ts              # 统一入口：组合设置与项目/会话 CRUD + 消息/终端日志
-│   │   │   ├── constant.ts           # 共享路径常量（FELLO_DIR, SOCKETS_DIR, PROJECTS_DIR, TEMP_DIR）
+│   │   │   ├── constant.ts           # 共享路径常量（由解析后的数据根派生）
+│   │   │   ├── prepare.ts            # 启动时创建基础目录（只自动创建默认根）
 │   │   │   ├── settings.ts           # 全局设置读写（agents/mcpServers/theme/i18n/ilink/snippets）
 │   │   │   └── project-session.ts    # 项目与会话元数据 CRUD + 内存缓存
 │   │   ├── file-routes.ts            # 统一文件 URL 路由（project/share/automation 三种类型）
-│   │   ├── utils.ts                  # 后端工具函数（如 toPosixPath、resolveSafePath）
+│   │   ├── utils.ts                  # 后端工具函数（toPosixPath、resolveSafePath、samePath 等）
 │   │   ├── watcher.ts                # 文件系统监控（@parcel/watcher 封装）
 │   │   ├── webui.ts                  # WebUI WebSocket 与 HTTP 服务端实现
 │   │   ├── skills.ts                 # Skills 目录扫描、skills.sh 市场集成、路由注册
@@ -109,7 +116,10 @@ fello/
 │   │       └── ilink-crypto.ts       # iLink 加密工具
 │   │
 │   ├── electron/                     # Electron 主进程
-│   │   ├── main.ts                   # 应用入口、窗口生命周期、系统菜单、全屏管理
+│   │   ├── main.ts                   # 薄入口：崩溃兜底 + ready 前注册 + 数据根门禁 → 动态 import app.ts
+│   │   ├── app.ts                    # 业务主体：窗口、菜单、IPC、系统对话框、自动更新
+│   │   ├── data-root-gate.ts         # 数据根不可用时的原生恢复对话框
+│   │   ├── crash-log.ts              # 崩溃留痕（~/.fello-crash.log）与启动失败弹窗
 │   │   ├── updater.ts                # 自动更新逻辑
 │   │   ├── env.ts                    # 环境变量配置
 │   │   └── global.d.ts               # Electron 全局类型声明
@@ -293,6 +303,8 @@ fello/
 │       │   │   └── update-card.tsx   # 侧边栏底部升级卡片（可用/下载进度/待重启）
 │       │   ├── settings/             # 设置相关页面组件
 │       │   │   ├── settings-layout.tsx          # 设置页侧边导航布局
+│       │   │   ├── advanced/
+│       │   │   │   └── settings-advanced.tsx        # 高级：数据根 / 配置文件 / 诊断
 │       │   │   ├── general/
 │       │   │   │   └── settings-general.tsx         # 通用设置
 │       │   │   ├── agents/
@@ -441,7 +453,7 @@ fello/
 
 ### `src/electron`
 
-- `main.ts` 是薄入口：装崩溃兜底、完成 `ready` 之前必须同步生效的注册（`fello://` scheme、`no-sandbox`），再动态 import `app.ts`；`app.ts` 承载全部业务逻辑，`crash-log.ts` 负责 `~/.fello/crash.log` 与启动失败弹窗
+- `main.ts` 是薄入口：装崩溃兜底、完成 `ready` 之前必须同步生效的注册（`fello://` scheme、`no-sandbox`），再经数据根门禁（`data-root-gate.ts`）动态 import `app.ts`；`app.ts` 承载全部业务逻辑，`crash-log.ts` 负责 `~/.fello-crash.log` 与启动失败弹窗
 - Electron 应用生命周期与窗口管理
 - 系统菜单、Dock 集成、系统对话框、Finder 定位等原生能力
 - 注册由 `src/backend` 提供的 IPC 处理器
@@ -456,12 +468,11 @@ fello/
 - 聊天状态仍以 sessionId 隔离
 - 会话界面采用三栏 `ResizablePanelGroup` 布局：左侧为聊天区域（可内嵌文件/终端详情视图），右侧为带标签的固定面板（Files / Terminal 标签页切换）。宽度 < 1000px 时自动进入紧凑模式，详情打开时隐藏聊天区域
 
-## 数据目录（运行时）
+## 数据根（运行时）
 
 ```
 ~/.fello/
 ├── settings.json                    # 全局设置
-├── crash.log                        # 最后一次错误留痕（写入即覆盖；启动失败 / 未捕获异常 / 渲染进程异常退出）
 ├── sockets/                         # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                            # 临时文件目录
 ├── assistants/                      # 个人助理数据

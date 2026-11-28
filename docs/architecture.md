@@ -66,10 +66,10 @@
 
 - **`src/electron/main.ts`**：主进程入口（薄壳）——装崩溃兜底、完成 `ready` 之前必须同步生效的注册（自定义 `fello://` scheme、`no-sandbox` 开关），然后动态 import `app.ts`
 - **`src/electron/app.ts`**：主进程业务主体——窗口创建、应用菜单、Electron 原生 IPC 注册、系统对话框、全屏管理、自动更新
-- **`src/electron/crash-log.ts`**：`~/.fello/crash.log` 崩溃留痕 + 启动失败原生弹窗（入口与 `app.ts` 共用）
+- **`src/electron/crash-log.ts`**：`~/.fello-crash.log` 崩溃留痕 + 启动失败原生弹窗（入口与 `app.ts` 共用；固定写用户主目录，不随数据根变化）
 - **`src/scripts/electron-preload/preload.ts`**：通过 `contextBridge` 暴露类型安全的 `window.fello.invoke/on/off`
 - **`src/backend/backend.ts`**：IPC 总入口，创建 BackendContext 与事件总线，按层级实例化各工厂模块，组装统一的 `backendHandlers` 对象并返回 `{ backendHandlers, closeBackend }`
-- **`src/backend/types.ts`**：共享类型定义（`BackendContext`、`SendEventFn`、`EventListener`）
+- **`src/backend/types.ts`**：共享类型定义（`BackendContext`、`SendEventFn`、`EventListener`、`BackendRequestContext`）
 - **`src/backend/session/index.ts`**：会话生命周期管理（new/load/sendPrompt/cancel/delete）、Socket Server 生命周期
 - **`src/backend/session/mcp-config.ts`**：会话 MCP Server 配置构建（按 features 注入内置 MCP：skills/search/memory/image-generation/ask-user/share-to-user + 始终加载 toolbox）
 - **`src/backend/session/notifications.ts`**：通知合并、广播、iLink 转发与 tool_call 状态追踪
@@ -107,7 +107,10 @@
 - **`src/backend/ilink/ilink-client.ts`**：iLink REST API 客户端
 - **`src/backend/ilink/ilink-crypto.ts`**：iLink 加密工具
 - **`src/backend/storage/index.ts`**：持久化统一入口，组合设置与项目/会话 CRUD，提供消息日志（`appendSessionMessage`/`readSessionMessages`）与终端日志（`appendTerminalOutput`/`readTerminalOutput`）
-- **`src/backend/storage/constant.ts`**：共享常量（`FELLO_DIR`、`SOCKETS_DIR`、`PROJECTS_DIR`、`TEMP_DIR`）
+- **`src/backend/config/config.ts`**：配置层统一出口。只导出懒解析模块，导入它不会在模块加载期解析数据根（启动门禁依赖这一点）
+- **`src/backend/config/data-root.ts`**：数据根解析、切换校验与写入（`FELLO_DATA_ROOT` > `~/.fellorc` > `~/.fello`），配置不可用时 fail-closed
+- **`src/backend/config/fello-rc.ts`**：`~/.fellorc` 的解析、模板渲染与原子写入
+- **`src/backend/storage/constant.ts`**：共享常量（`FELLO_DIR`、`SOCKETS_DIR`、`PROJECTS_DIR`、`TEMP_DIR`，由解析后的数据根派生）；唯一在**模块加载期**解析数据根的地方，因此不在 `config` 入口里
 - **`src/backend/storage/settings.ts`**：全局设置读写（`getSettings`/`updateSettings`），含 Agent、MCP Server、主题、语言、iLink、snippets 等完整配置管理
 - **`src/backend/storage/project-session.ts`**：项目与会话元数据 CRUD（`addProject`/`createSession`/`listProjects`/`listSessions`/`getSession`/`updateSession`/`deleteProject`/`deleteSession`），含内存缓存与磁盘持久化
 - **`src/backend/file-routes.ts`**：统一文件 URL 路由解析与执行（`parseFileRoute`/`serveRoute`），支持项目文件、会话共享文件、自动化任务文件三种路由类型，同时服务于 Electron 自定义协议（`fello://web/`）和 WebUI HTTP 请求；请求的 `Range` 头透传给 `serveFile`，媒体分片由两个入口各自流式回传
@@ -181,7 +184,7 @@
   - `session/panel/terminal-panel/terminal-panel.tsx`：垂直终端列表、创建/删除/切换终端
   - `session/detail/detail.tsx`：详情视图容器，根据类型渲染文件预览或终端详情
   - `session/detail/terminal/terminal-detail.tsx`：终端详情展示（xterm.js，含 ResizeObserver 自适应）
-  - `settings/`：设置页面（general、assistant、agents、MCP、WebUI、iLink、snippets、memory、image-generation）
+  - `settings/`：设置页面（general、advanced、assistant、agents、MCP、WebUI、iLink、snippets、memory、image-generation）；`advanced` 用分隔线与其它设置项隔开，排在列表末尾
   - `skills/`：Skills 管理页面（已安装列表 + skills.sh 市场）
 
 ### MCP 子进程

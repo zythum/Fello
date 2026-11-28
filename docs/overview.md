@@ -151,6 +151,7 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 
 ## 数据与安全边界
 
+- 数据根可配置：环境变量 `FELLO_DATA_ROOT` 优先于 `~/.fellorc`，其次是默认 `~/.fello`；桌面端可在「设置 → 高级」中修改，保存后需重启生效，且不会自动搬迁已有数据
 - 本地保存：项目与会话元数据（`~/.fello/projects/` 下）、项目级持久记忆（`~/.fello/projects/<project_id>/memory.json`）、全局配置文件（`~/.fello/settings.json`）、API Agent 会话状态（`~/.fello/api-agents/` 下）、iLink 凭证（`~/.fello/ilink/` 下）、自动化任务数据（`~/.fello/automations/` 下）、个人助理数据与工作区（`~/.fello/assistants/`、`~/.fello/workspaces/__assistant__<id>__/`）
 - 完整对话事件日志（在会话目录下的 `messages.jsonl` 或 `history.jsonl` 文件中）
 - 渲染进程无 Node 直连能力，系统能力均通过受限 IPC 进入主进程
@@ -162,4 +163,4 @@ Fello 是一个基于 ACP（Agent Client Protocol）的桌面 AI 协作客户端
 - React + Vite（渲染层）
 - ACP Server：`kiro-cli acp`（Stdio Agent）
 - OpenAI 兼容 API 服务（API Agent）
-- 数据目录：`~/.fello/`
+- 数据根：默认 `~/.fello/`，可通过环境变量 `FELLO_DATA_ROOT` 或 `~/.fellorc` 更改（见 [数据根](./data-root.md)）

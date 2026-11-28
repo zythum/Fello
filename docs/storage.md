@@ -2,12 +2,49 @@
 
 Fello 的所有用户数据均持久化存储在用户主目录下的 `.fello` 文件夹中（例如 macOS/Linux 下的 `~/.fello`）。数据以纯文本（JSON / NDJSON）格式保存，无需依赖额外的数据库服务。这种设计保证了数据的透明性、便携性以及低维护成本。
 
+## 数据根的位置
+
+数据根在**进程启动时解析一次**，修改后需要重启（桌面端在设置里修改会提示重启）。完整的路径规则、`.fellorc` 格式与切换流程见 [数据根（Data Root）](./data-root.md)。
+
+1. 环境变量 `FELLO_DATA_ROOT`（优先；适合调试与 headless server；必须是绝对路径）
+2. 用户配置文件 `~/.fellorc`（dotenv 格式；留空表示使用默认目录；可写绝对路径，或相对于该文件所在目录的相对路径）
+3. 默认 `~/.fello`
+
+**不做任何展开**：`~`、`$VAR`、`%VAR%` 一律按字面量处理。所以 `FELLO_DATA_ROOT=~/fello` 会被当成相对路径 `<home>/~/fello`，启动时因为目录不存在而报错——想在 home 下放数据，请直接写相对路径：
+
+```ini
+FELLO_DATA_ROOT=.fello-data
+```
+
+被配置的数据根**不会被自动创建**：移动盘未挂载或目录不存在时，桌面端弹出恢复对话框（重试 / 本次用默认目录 / 重命名配置文件 / 退出），headless server 打印错误并以 `1` 退出。
+
+崩溃日志固定写到 `~/.fello-crash.log`，与数据根解耦——配置本身坏掉时仍然需要它。
+
+## 平台差异
+
+| | macOS / Linux | Windows |
+| --- | --- | --- |
+| 默认数据根 | `~/.fello` | `%USERPROFILE%\.fello` |
+| 配置文件 | `~/.fellorc` | `%USERPROFILE%\.fellorc` |
+| 路径写法 | `/Volumes/SSD/fello`、`.fello-data`（相对 `.fellorc`） | `D:\fello`、`.fello-data`（正斜杠也接受） |
+| `.fellorc` 权限 | 0600 生效 | `chmod` 只影响只读位 |
+| 目录 `fsync` | 可用（APFS 上 `fsync` 不等于 `F_FULLFSYNC`） | 不可用，已忽略 |
+| 原子替换 | `rename` 原子 | `rename` 原子；被杀毒 / 独占句柄挡住时重试 3 次 |
+| 路径长度 | 无 260 限制 | 超过 260 字符需要系统开启长路径支持 |
+
+路径比较按平台处理：Windows 大小写不敏感（并先用 `realpath` 归一短名 / junction），POSIX 按字面比较（两边都存在时先 `realpath`）。
+
+`.fellorc` 的值**不要用双引号包裹**：.env 格式会把双引号内的 `\n` / `\r` 当换行处理，`C:\new\...` 这类路径会被破坏。含 `#` 或首尾空格时，Fello 写入时会自动改用单引号。
+
+`.fellorc` 里的引号由 .env 解析器处理；环境变量的值请直接写路径（不要带引号）。`~`、`%USERPROFILE%` 不会被展开：环境变量请写绝对路径；`.fellorc` 里也可以写相对路径。
+
+网络漫游目录 / UNC 共享上，`rename` 的原子性和 `O_EXCL` 互斥都不保证，建议把数据根放在本地磁盘。
+
 ## 目录结构
 
 ```text
 ~/.fello/
 ├── settings.json                  # 全局设置（代理配置、MCP 服务器、主题、语言等）
-├── crash.log                      # 最后一次错误留痕（写入即覆盖；启动失败 / 未捕获异常 / 渲染进程异常退出）
 ├── sockets/                       # Unix-like 系统的 MCP IPC socket 文件
 ├── temp/                          # 临时文件目录
 ├── projects/                      # 项目工作区数据（Stdio Agent 会话）
