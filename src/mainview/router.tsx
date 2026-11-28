@@ -77,6 +77,10 @@ const SettingsPeripherals = lazyNamed(
   () => import("./components/settings/peripherals/settings-peripherals"),
   "SettingsPeripherals",
 );
+const SettingsAdvanced = lazyNamed(
+  () => import("./components/settings/advanced/settings-advanced"),
+  "SettingsAdvanced",
+);
 const SkillsLayout = lazyNamed(() => import("./components/skills/skills-layout"), "SkillsLayout");
 const SkillsInstalled = lazyNamed(
   () => import("./components/skills/installed/skills-installed"),
@@ -160,6 +164,7 @@ export function AppRouter() {
             <Route path="image-generation" element={<SettingsImageGeneration />} />
             <Route path="speech" element={<SettingsSpeech />} />
             <Route path="peripherals" element={<SettingsPeripherals />} />
+            <Route path="advanced" element={<SettingsAdvanced />} />
           </Route>
           <Route path="/skills" element={<SkillsLayout />}>
             <Route path="installed" element={<SkillsInstalled />} />

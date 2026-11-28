@@ -14,8 +14,11 @@ import {
   Command,
   Gamepad2,
   Blocks,
+  ShieldCogCorner,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "../../store";
 
 export function SettingsLayout() {
@@ -111,6 +114,14 @@ export function SettingsLayout() {
     },
   ];
 
+  const tabLinkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "flex items-center gap-2 rounded-md px-3 py-2 text-xs transition-colors cursor-default",
+      isActive
+        ? "bg-accent text-accent-foreground font-medium"
+        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+    );
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background relative">
       <div
@@ -123,26 +134,22 @@ export function SettingsLayout() {
         <h1 className="text-sm font-medium">{t("settings.title", "Settings")}</h1>
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-48 max-[800px]:w-36 shrink-0 border-r border-border bg-muted/10 transition-all">
-          <nav className="flex flex-col gap-1 p-4 max-[800px]:px-2 transition-all">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.id}
-                to={tab.href}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-xs transition-colors cursor-default",
-                    isActive
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                  )
-                }
-              >
-                {tab.icon}
-                {tab.label}
+        <aside className="w-48 max-[800px]:w-36 shrink-0 border-r border-border bg-muted/10 transition-all flex flex-col">
+          <ScrollArea className="flex-1 overflow-hidden">
+            <nav className="flex flex-col gap-1 p-4 max-[800px]:px-2 transition-all">
+              {tabs.map((tab) => (
+                <NavLink key={tab.id} to={tab.href} className={tabLinkClass}>
+                  {tab.icon}
+                  {tab.label}
+                </NavLink>
+              ))}
+              <Separator className="my-0.5" />
+              <NavLink to="/settings/advanced" className={tabLinkClass}>
+                <ShieldCogCorner className="size-4" />
+                {t("settings.advanced.title", "Advanced")}
               </NavLink>
-            ))}
-          </nav>
+            </nav>
+          </ScrollArea>
         </aside>
         <main className="flex-1 flex flex-col bg-background">
           <Outlet />
